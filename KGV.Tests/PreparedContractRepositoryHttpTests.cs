@@ -122,6 +122,17 @@ public sealed class PreparedContractRepositoryHttpTests
         Assert.Equal("zur_signatur", signed!.Status); Assert.Equal(3, signed.SignaturRevision);
     }
 
+    [Fact]
+    public async Task FindActive_ReadsFinalReviewRowsToPreventDuplicateContracts()
+    {
+        var finalReview = await Repository(new RecordingHandler(RawMembershipRow()
+            .Replace("\"status\":\"vorbereitet\",\"mitglied_id\"", "\"status\":\"letzte_pruefung\",\"mitglied_id\"")))
+            .FindActiveAsync("mitgliedsantrag", 101, null);
+
+        Assert.NotNull(finalReview);
+        Assert.Equal(PreparedContractConstants.FinalReview, finalReview!.Status);
+    }
+
     [Theory]
     [InlineData("kgv-prepared-contract/v1", "mitgliedsantrag", "101", "null", "vertrag_signatur", false)]
     [InlineData("unknown", "mitgliedsantrag", "101", "null", "vertrag_signatur", true)]

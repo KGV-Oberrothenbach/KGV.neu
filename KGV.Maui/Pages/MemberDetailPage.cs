@@ -27,6 +27,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
     private readonly MemberContextState _memberContextState;
 
     private MitgliedRecord? _memberRecord;
+    private KommunikationsvorgangDto? _activeMembershipApplicationContract;
     private bool _hasLinkedAppUser;
     private bool _hasSignedMitgliedsantrag;
     private bool _isBusy;
@@ -132,10 +133,12 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         _benutzerverwaltungButton = new Button { Text = "Benutzerverwaltung", IsVisible = false };
         _benutzerverwaltungButton.Clicked += async (_, _) => await Shell.Current.GoToAsync(nameof(UserManagementPage));
 
-        _mitgliedsantragButton = new Button { Text = "Mitgliedsantrag als PDF", IsVisible = false };
+        _mitgliedsantragButton = new Button { Text = "Mitgliedsantrag erstellen", IsVisible = false };
         _mitgliedsantragButton.Clicked += async (_, _) =>
         {
-            if (_memberRecord?.Id is > 0)
+            if (_activeMembershipApplicationContract is not null)
+                await Shell.Current.GoToAsync("//kommunikation");
+            else if (_memberRecord?.Id is > 0)
                 await CreateMitgliedsantragAsync(_memberRecord.Id);
         };
 
@@ -282,6 +285,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
 
             _memberRecord = member;
             _hasSignedMitgliedsantrag = await _supabaseService.HasSignedMitgliedsantragAsync(member.Id);
+            _activeMembershipApplicationContract = await _preparedContractRepository.FindActiveAsync(PreparedContractConstants.MembershipApplication, member.Id, null);
             await UpdateMitgliedschaftStatusAsync(member);
             var memberDto = MapMember(member);
             var permissionSettings = await _supabaseService.GetUserPermissionSettingsAsync(member.Id);
@@ -330,6 +334,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
     private void SetEmptyState()
     {
         _memberRecord = null;
+        _activeMembershipApplicationContract = null;
         _hasLinkedAppUser = false;
         _hasSignedMitgliedsantrag = false;
         _mitgliedschaftStatusLabel.Text = string.Empty;
@@ -362,6 +367,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
     private void ConfigureCreateMode()
     {
         _memberRecord = null;
+        _activeMembershipApplicationContract = null;
         _hasLinkedAppUser = false;
         _hasSignedMitgliedsantrag = false;
         _mitgliedschaftStatusLabel.Text = string.Empty;
@@ -499,13 +505,21 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
             && member?.Id is > 0
             && member.IstHauptmitglied
             && canCreateMitglied
-            && !_hasSignedMitgliedsantrag;
+            && !_hasSignedMitgliedsantrag
+            && _activeMembershipApplicationContract is null;
 
-        _mitgliedsantragButton.IsVisible = canCreateMemberApplication;
-        _mitgliedsantragButton.IsEnabled = canCreateMemberApplication;
-        _mitgliedsantragDiagnoseLabel.Text = _hasSignedMitgliedsantrag
-            ? "Signierter Mitgliedsantrag liegt vor."
-            : string.Empty;
+        var activeStatus = _activeMembershipApplicationContract?.Status;
+        _mitgliedsantragButton.IsVisible = canCreateMemberApplication || activeStatus is not null;
+        _mitgliedsantragButton.IsEnabled = _mitgliedsantragButton.IsVisible;
+        _mitgliedsantragButton.Text = activeStatus is null ? "Mitgliedsantrag erstellen" : "In Kommunikation öffnen";
+        _mitgliedsantragDiagnoseLabel.Text = activeStatus switch
+        {
+            PreparedContractConstants.Prepared => "Mitgliedsantrag: Zur Signatur vorbereitet",
+            PreparedContractConstants.ReadyForSignature => "Mitgliedsantrag: Signatur läuft",
+            PreparedContractConstants.FinalReview => "Mitgliedsantrag: Letzte Prüfung",
+            _ when _hasSignedMitgliedsantrag => "Signierter Mitgliedsantrag liegt vor.",
+            _ => string.Empty
+        };
     }
 
     private static string FormatMemberDisplayName(MitgliedRecord? member, string fallback)
@@ -808,8 +822,10 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
                 var serialized = PreparedContractDraftParser.Serialize(PreparedMembershipApplicationMapper.ToPreparedDraft(request, resolution?.IstMinderjaehrig ?? request.IstMinderjaehrig));
                 if (contract is null)
                 {
-                    await _preparedContractRepository.CreateAsync(PreparedContractConstants.MembershipApplication, mitgliedId, null, serialized);
-                    await DisplayAlertAsync("Mitgliedsantrag", "Der Mitgliedsantrag wurde zur Signatur vorbereitet und unter Kommunikation > Zur Signatur > Meine gespeichert.", "OK");
+                    _activeMembershipApplicationContract = await _preparedContractRepository.CreateAsync(PreparedContractConstants.MembershipApplication, mitgliedId, null, serialized);
+                    UpdateFormActions(_memberRecord is null ? null : MapMember(_memberRecord));
+                    if (await DisplayAlertAsync("Mitgliedsantrag", "Der Mitgliedsantrag wurde vorbereitet und unter Kommunikation > Zur Signatur > Meine gespeichert. Möchten Sie jetzt zur Kommunikationszentrale wechseln?", "Kommunikation öffnen", "Hier bleiben"))
+                        await Shell.Current.GoToAsync("//kommunikation");
                 }
                 else if (PreparedContractDraftParser.AreEquivalent(contract.EntwurfDaten, serialized))
                     await DisplayAlertAsync("Mitgliedsantrag", "Änderungen sind bereits gespeichert.", "OK");

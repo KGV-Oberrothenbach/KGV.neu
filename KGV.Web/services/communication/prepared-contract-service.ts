@@ -2,7 +2,7 @@ import type { ClubContext } from "../../models/auth/club";
 import type { BrowserSession } from "../../lib/supabase-auth";
 import { parsePreparedContractDraft, type PreparedContractDraft } from "../../models/communication/prepared-contract-draft";
 import type { CommunicationItem } from "../../models/communication/communication-item";
-import { completePreparedContract, createPreparedContract, getCommunicationContractDraft, startPreparedContractSignature, updatePreparedContractDraft } from "../../repositories/communication/communication-repository";
+import { completePreparedContract, createPreparedContract, findActivePreparedContract, getCommunicationContractDraft, startPreparedContractSignature, updatePreparedContractDraft } from "../../repositories/communication/communication-repository";
 
 export type PreparedContractResumeContext = {
   id: number;
@@ -57,6 +57,12 @@ export async function savePreparedContractIfChanged(club: ClubContext, session: 
 }
 export async function parkPreparedContract(club: ClubContext, session: BrowserSession, userId: string, draft: PreparedContractDraft) {
   const isLease = draft.document_type === "pachtvertrag";
+  const existing = await findActivePreparedContract(club, session, draft.document_type, draft.memberId, isLease ? draft.draft.parcelId : null);
+  if (existing) {
+    if (existing.status !== "vorbereitet") throw new Error("Für dieses Mitglied besteht bereits ein aktiver Vertragsvorgang. Bitte setzen Sie ihn in Kommunikation fort.");
+    const context = toResumeContext(existing, draft.document_type, userId, "vorbereitet");
+    return savePreparedContractIfChanged(club, session, userId, context, draft);
+  }
   const rows = await createPreparedContract(club, session, { vorgangstyp: "vertrag_signatur", dokumenttyp: draft.document_type, status: "vorbereitet", mitglied_id: draft.memberId, parzelle_id: isLease ? draft.draft.parcelId : null, entwurf_daten: draft, zugewiesen_an: userId });
   return rows[0];
 }

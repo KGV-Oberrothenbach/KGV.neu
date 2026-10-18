@@ -16,18 +16,18 @@ test("signature start is server-filtered and validates the frozen revision", asy
   assert.match(service, /loadPreparedContractForSignature/);
 });
 
-test("MA and PV start pads only after parking and server-side signature start", async () => {
+test("membership application creation parks a prepared contract without starting signatures", async () => {
   const [membership, lease, center] = await Promise.all([
     readFile(new URL("features/contracts/MembershipApplicationFlow.tsx", root), "utf8"),
     readFile(new URL("features/contracts/LeaseContractFlow.tsx", root), "utf8"),
     readFile(new URL("features/communication/CommunicationCenter.tsx", root), "utf8"),
   ]);
-  for (const flow of [membership, lease]) {
-    assert.match(flow, /parkPreparedContract[\s\S]*loadPreparedContractForEditing[\s\S]*startPreparedContractSigning[\s\S]*setStep\("signatures"\)/);
-    assert.match(flow, /completePreparedContractSigning/);
-    assert.match(flow, /Vorgang erneut abschließen/);
-    assert.doesNotMatch(flow, /localStorage|sessionStorage/);
-  }
+  const creationPreview = membership.match(/\{step === "preview"\}[\s\S]*?<ContractPreview[\s\S]*?\/>/)?.[0] ?? "";
+  assert.match(membership, /parkPreparedContract/);
+  assert.match(membership, /Die Signatur kann nur aus der Kommunikationszentrale gestartet werden/);
+  assert.doesNotMatch(creationPreview, /onContinue/);
+  assert.match(lease, /startPreparedContractSigning/);
+  assert.doesNotMatch(membership, /localStorage|sessionStorage/);
   assert.match(center, /Signatur fortsetzen/);
   assert.match(center, /resumeMode="signatures"|resumeMode=\{opened\.resumeMode\}/);
 });

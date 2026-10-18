@@ -140,6 +140,12 @@ function WorkspaceContent({ session, email, club, context, onLogout, onChangeClu
   const season = selectedSeason?.jahr ?? workspaceContext.saisonJahr ?? new Date().getFullYear();
 
   useEffect(() => {
+    const openCommunication = () => setActiveId("kommunikation");
+    window.addEventListener("kgv:open-communication", openCommunication);
+    return () => window.removeEventListener("kgv:open-communication", openCommunication);
+  }, []);
+
+  useEffect(() => {
     let active = true;
     getSeasons(club, session)
       .then((items) => {

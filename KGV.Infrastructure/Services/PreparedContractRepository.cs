@@ -47,7 +47,7 @@ public sealed class PreparedContractRepository : IPreparedContractRepository
     public async Task<KommunikationsvorgangDto?> FindActiveAsync(string documentType, int memberId, int? parcelId, CancellationToken cancellationToken = default)
     {
         var parcelFilter = parcelId is null ? "parzelle_id=is.null" : $"parzelle_id=eq.{parcelId}";
-        var rows = await SendAsync(HttpMethod.Get, $"kommunikationsvorgang?vorgangstyp=eq.{PreparedContractConstants.ContractSignatureProcess}&dokumenttyp=eq.{documentType}&mitglied_id=eq.{memberId}&{parcelFilter}&status=in.(vorbereitet,zur_signatur)&select=*", null, cancellationToken);
+        var rows = await SendAsync(HttpMethod.Get, $"kommunikationsvorgang?vorgangstyp=eq.{PreparedContractConstants.ContractSignatureProcess}&dokumenttyp=eq.{documentType}&mitglied_id=eq.{memberId}&{parcelFilter}&status=in.(vorbereitet,zur_signatur,letzte_pruefung)&select=*", null, cancellationToken);
         if (rows.Count == 0) return null;
         if (rows.Count != 1) throw new PreparedContractConflictException("Es wurden mehrere aktive Vertragsvorgänge gefunden.");
         var item = rows[0];

@@ -13,7 +13,7 @@ import { LegalRepresentativeFields } from "./LegalRepresentativeFields";
 import { completePreparedContractSigning, loadPreparedContractForEditing, loadPreparedContractForSignature, parkPreparedContract, savePreparedContractIfChanged, startPreparedContractSigning, type PreparedContractResumeContext } from "../../services/communication/prepared-contract-service";
 import { preparedContractSchemaVersion, type PreparedMembershipApplicationDraft } from "../../models/communication/prepared-contract-draft";
 
-export function MembershipApplicationFlow({ session, memberId, onSaved, preparedContractId, resumeMode = "edit" }: { session: BrowserSession; memberId: number; onSaved: () => Promise<void>; preparedContractId?: number; resumeMode?: "edit" | "signatures" }) {
+export function MembershipApplicationFlow({ session, memberId, onSaved, onPrepared, preparedContractId, resumeMode = "edit" }: { session: BrowserSession; memberId: number; onSaved: () => Promise<void>; onPrepared?: () => Promise<void> | void; preparedContractId?: number; resumeMode?: "edit" | "signatures" }) {
   const club = useSelectedClub();
   const [data, setData] = useState<MembershipApplicationData | null>(null);
   const [startDate, setStartDate] = useState("");
@@ -77,7 +77,7 @@ export function MembershipApplicationFlow({ session, memberId, onSaved, prepared
       validate(); setBusy(true); setMessage("");
       let context = resumeContext;
       if (context?.status === "vorbereitet") context = await savePrepared() ?? context;
-      if (!context) { const parked = await parkPreparedContract(club, session, session.user.id, preparedDraft()); context = await loadPreparedContractForEditing(club, session, parked.id, session.user.id, "mitgliedsantrag"); }
+      if (!context) throw new Error("Die Signatur kann nur aus der Kommunikationszentrale gestartet werden.");
       const started = context.status === "zur_signatur" ? context : await startPreparedContractSigning(club, session, context, session.user.id);
       setResumeContext(started); setSignatures({}); setSignatureIndex(0); setStep("signatures");
     } catch (error) { setMessage(error instanceof Error ? error.message : "Die Signatur konnte nicht gestartet werden."); }
@@ -95,7 +95,7 @@ export function MembershipApplicationFlow({ session, memberId, onSaved, prepared
     catch (error) { setMessage(error instanceof Error ? error.message : "Vorschau konnte nicht erstellt werden."); }
     finally { setBusy(false); }
   };
-  const park = async () => { try { validate(); setBusy(true); if (resumeContext) { await savePrepared(); } else { await parkPreparedContract(club, session, session.user.id, preparedDraft()); setMessage("Der Mitgliedsantrag wurde zur Signatur vorbereitet und unter Kommunikation > Zur Signatur > Meine gespeichert."); } } catch (error) { setMessage(error instanceof Error ? error.message : "Der Vorgang konnte nicht vorbereitet werden."); } finally { setBusy(false); } };
+  const park = async () => { try { validate(); setBusy(true); if (resumeContext) { await savePrepared(); setMessage("Die Änderungen am vorbereiteten Mitgliedsantrag wurden gespeichert."); } else { await parkPreparedContract(club, session, session.user.id, preparedDraft()); setMessage("Der Mitgliedsantrag wurde vorbereitet und unter Kommunikation > Zur Signatur > Meine gespeichert."); await onPrepared?.(); } } catch (error) { setMessage(error instanceof Error ? error.message : "Der Vorgang konnte nicht vorbereitet werden."); } finally { setBusy(false); } };
 
   const finalize = async () => {
     try {
@@ -142,7 +142,7 @@ export function MembershipApplicationFlow({ session, memberId, onSaved, prepared
       </fieldset>
       <div className="editor-actions"><button disabled={busy || data.status !== "none" || !contribution} onClick={preview}>Vorschau</button></div>
     </>}
-    {step === "preview" && <ContractPreview onBack={() => setStep("edit")} onPark={() => void park()} parkLabel={resumeContext ? "Änderungen speichern" : undefined} onContinue={() => { if (!canStartMembershipApplicationSignatures(step)) return; void beginSignatures(); }} />}
+    {step === "preview" && <ContractPreview onBack={() => setStep("edit")} onPark={() => void park()} parkLabel={resumeContext ? "Änderungen speichern" : "Zur Signatur vorbereiten"} {...(preparedContractId ? { onContinue: () => { if (!canStartMembershipApplicationSignatures(step)) return; void beginSignatures(); } } : {})} />}
     {step === "signatures" && <section className="signature-grid">
       {currentSignatureStep ? <>
         <p className="detail-hint wide">Signatur {signatureIndex + 1} von {signatureSteps.length}: {currentSignatureStep.label}</p>
