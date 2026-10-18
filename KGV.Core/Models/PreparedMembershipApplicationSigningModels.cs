@@ -1,19 +1,8 @@
 namespace KGV.Core.Models;
 
-public enum PreparedSignatureRole
-{
-    MemberApplication,
-    MemberPrivacy,
-    RepresentativeApplication,
-    RepresentativePrivacy,
-    SecondaryApplication,
-    SecondaryPrivacy,
-    Board
-}
-
 public interface IPreparedSignatureCapture
 {
-    Task<DigitalSignatureCapture?> CaptureAsync(PreparedSignatureRole role, CancellationToken cancellationToken = default);
+    Task<DigitalSignatureCapture?> CaptureAsync(SignatureStep step, CancellationToken cancellationToken = default);
 }
 
 public enum PreparedMembershipApplicationSigningState

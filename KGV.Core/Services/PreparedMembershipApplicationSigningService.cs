@@ -10,7 +10,7 @@ public sealed class PreparedMembershipApplicationSigningService
     private readonly PreparedContractSigningStartService _startService;
     private KommunikationsvorgangDto? _contract;
     private PreparedMembershipApplicationDraft? _draft;
-    private Dictionary<PreparedSignatureRole, string>? _signatures;
+    private Dictionary<string, string>? _signatures;
     private ContractFinalizeResult? _finalizeResult;
     private bool _finalDocumentCreated;
     private bool _finalDocumentReadyForReview;
@@ -94,19 +94,19 @@ public sealed class PreparedMembershipApplicationSigningService
         return draft;
     }
 
-    private static async Task<(Dictionary<PreparedSignatureRole, string>? Signatures, bool DiscardedCapturedSignatures)> CaptureAllAsync(
+    private static async Task<(Dictionary<string, string>? Signatures, bool DiscardedCapturedSignatures)> CaptureAllAsync(
         IPreparedSignatureCapture capture,
         PreparedMembershipApplicationDraft draft,
         CancellationToken cancellationToken)
     {
-        var roles = RolesFor(draft);
-        var result = new Dictionary<PreparedSignatureRole, string>();
-        foreach (var role in roles)
+        var plan = PreparedMembershipApplicationSignaturePlanBuilder.Build(draft);
+        var result = new Dictionary<string, string>();
+        foreach (var step in plan)
         {
-            var signature = await capture.CaptureAsync(role, cancellationToken);
+            var signature = await capture.CaptureAsync(step, cancellationToken);
             if (signature is null)
                 return (null, result.Count > 0);
-            result[role] = DigitalSignatureEncoder.EncodePngDataUrl(signature);
+            result[step.Key] = DigitalSignatureEncoder.EncodePngDataUrl(signature);
         }
         return (result, false);
     }
@@ -164,26 +164,15 @@ public sealed class PreparedMembershipApplicationSigningService
         {
             Application = application,
             AdmissionFee = draft.MemberFee,
-            ApplicationMemberSignature = Signature(PreparedSignatureRole.MemberApplication),
-            PrivacyMemberSignature = Signature(PreparedSignatureRole.MemberPrivacy),
-            ApplicationRepresentativeSignature = isMinor ? Signature(PreparedSignatureRole.RepresentativeApplication) : null,
-            PrivacyRepresentativeSignature = isMinor ? Signature(PreparedSignatureRole.RepresentativePrivacy) : null,
-            ApplicationSecondarySignature = !isMinor && draft.IncludeSecondaryMember ? Signature(PreparedSignatureRole.SecondaryApplication) : null,
-            PrivacySecondarySignature = !isMinor && draft.IncludeSecondaryMember ? Signature(PreparedSignatureRole.SecondaryPrivacy) : null,
-            BoardSignature = Signature(PreparedSignatureRole.Board)
+            ApplicationMemberSignature = Signature(MembershipApplicationSignatureKeys.MemberApplication),
+            PrivacyMemberSignature = Signature(MembershipApplicationSignatureKeys.MemberPrivacy),
+            ApplicationRepresentativeSignature = isMinor ? Signature(MembershipApplicationSignatureKeys.RepresentativeApplication) : null,
+            PrivacyRepresentativeSignature = isMinor ? Signature(MembershipApplicationSignatureKeys.RepresentativePrivacy) : null,
+            ApplicationSecondarySignature = !isMinor && draft.IncludeSecondaryMember ? Signature(MembershipApplicationSignatureKeys.SecondaryApplication) : null,
+            PrivacySecondarySignature = !isMinor && draft.IncludeSecondaryMember ? Signature(MembershipApplicationSignatureKeys.SecondaryPrivacy) : null,
+            BoardSignature = Signature(MembershipApplicationSignatureKeys.BoardApproval)
         };
     }
 
-    private string Signature(PreparedSignatureRole role) => _signatures![role];
-
-    private static IReadOnlyList<PreparedSignatureRole> RolesFor(PreparedMembershipApplicationDraft draft)
-    {
-        var roles = new List<PreparedSignatureRole> { PreparedSignatureRole.MemberApplication, PreparedSignatureRole.MemberPrivacy };
-        if (draft.Representative is not null)
-            roles.AddRange([PreparedSignatureRole.RepresentativeApplication, PreparedSignatureRole.RepresentativePrivacy]);
-        else if (draft.IncludeSecondaryMember)
-            roles.AddRange([PreparedSignatureRole.SecondaryApplication, PreparedSignatureRole.SecondaryPrivacy]);
-        roles.Add(PreparedSignatureRole.Board);
-        return roles;
-    }
+    private string Signature(string key) => _signatures![key];
 }

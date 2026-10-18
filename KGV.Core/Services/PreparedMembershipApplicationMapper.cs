@@ -8,6 +8,8 @@ public static class PreparedMembershipApplicationMapper
     public static PreparedMembershipApplicationDraft ToPreparedDraft(MitgliedsantragDokumentRequest request, bool isMinor)
     {
         ArgumentNullException.ThrowIfNull(request);
+        if (isMinor && request.NebenmitgliedEinbeziehen)
+            throw new PreparedContractValidationException("Ein minderjähriges Mitglied kann kein Nebenmitglied im Mitgliedsantrag haben.");
         LegalRepresentativeDraft? representative = null;
         if (isMinor)
         {
@@ -30,6 +32,8 @@ public static class PreparedMembershipApplicationMapper
     public static MitgliedsantragDokumentRequest ToDocumentRequest(PreparedMembershipApplicationDraft draft, bool isMinor)
     {
         ArgumentNullException.ThrowIfNull(draft);
+        if (isMinor && draft.IncludeSecondaryMember)
+            throw new PreparedContractValidationException("Ein minderjähriges Mitglied kann kein Nebenmitglied im Mitgliedsantrag haben.");
         if (!DateTime.TryParseExact(draft.StartDate, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date)) throw new PreparedContractValidationException("Das Startdatum des Mitgliedsantrags ist ungültig.");
         var request = new MitgliedsantragDokumentRequest { MitgliedId = draft.MemberId, BeginnDatum = date.Date, Mitgliedsbeitrag = draft.MemberFee, NebenmitgliedEinbeziehen = draft.IncludeSecondaryMember, IstMinderjaehrig = isMinor };
         if (!isMinor || draft.Representative is null) return request;

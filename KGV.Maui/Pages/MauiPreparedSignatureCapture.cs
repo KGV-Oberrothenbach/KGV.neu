@@ -26,9 +26,10 @@ public sealed class MauiPreparedSignatureCapture : IPreparedSignatureCapture
         _context = context ?? new PreparedMembershipSignatureUiContext();
     }
 
-    public async Task<DigitalSignatureCapture?> CaptureAsync(PreparedSignatureRole role, CancellationToken cancellationToken = default)
+    public async Task<DigitalSignatureCapture?> CaptureAsync(SignatureStep step, CancellationToken cancellationToken = default)
     {
-        var signer = SignerFor(role);
+        ArgumentNullException.ThrowIfNull(step);
+        var signer = SignerFor(step.PersonType);
         var handoffShown = false;
         while (true)
         {
@@ -42,8 +43,8 @@ public sealed class MauiPreparedSignatureCapture : IPreparedSignatureCapture
             var capture = await SignatureFlowHelper.CaptureSignatureAsync(
                 _hostPage.Navigation,
                 _sourceDocument,
-                TitleFor(role),
-                isLastSignature: role == PreparedSignatureRole.Board,
+                TitleFor(step),
+                isLastSignature: step.PersonType == SignaturePersonTypes.Board,
                 forceLandscape: false);
 
             if (capture is not null)
@@ -66,16 +67,12 @@ public sealed class MauiPreparedSignatureCapture : IPreparedSignatureCapture
         }
     }
 
-    private string TitleFor(PreparedSignatureRole role) => role switch
+    private string TitleFor(SignatureStep step) => step.PersonType switch
     {
-        PreparedSignatureRole.MemberApplication => WithName(_context.MemberDisplayName, "Mitglied – Mitgliedsantrag"),
-        PreparedSignatureRole.MemberPrivacy => WithName(_context.MemberDisplayName, "Mitglied – Datenschutz"),
-        PreparedSignatureRole.SecondaryApplication => WithName(_context.SecondaryDisplayName, "Nebenmitglied – Mitgliedsantrag"),
-        PreparedSignatureRole.SecondaryPrivacy => WithName(_context.SecondaryDisplayName, "Nebenmitglied – Datenschutz"),
-        PreparedSignatureRole.RepresentativeApplication => WithName(_context.RepresentativeDisplayName, "Gesetzlicher Vertreter – Mitgliedsantrag"),
-        PreparedSignatureRole.RepresentativePrivacy => WithName(_context.RepresentativeDisplayName, "Gesetzlicher Vertreter – Datenschutz"),
-        PreparedSignatureRole.Board => "Vorstand",
-        _ => throw new ArgumentOutOfRangeException(nameof(role))
+        SignaturePersonTypes.Member => WithName(_context.MemberDisplayName, step.DisplayName),
+        SignaturePersonTypes.SecondaryMember => WithName(_context.SecondaryDisplayName, step.DisplayName),
+        SignaturePersonTypes.LegalRepresentative => WithName(_context.RepresentativeDisplayName, step.DisplayName),
+        _ => step.DisplayName
     };
 
     private string HandoffText(SignerGroup signer) => signer switch
@@ -88,13 +85,13 @@ public sealed class MauiPreparedSignatureCapture : IPreparedSignatureCapture
 
     private static string WithName(string? name, string title) => string.IsNullOrWhiteSpace(name) ? title : $"{name.Trim()} – {title}";
     private static string AppendName(string text, string? name) => string.IsNullOrWhiteSpace(name) ? text : $"{text}\n{name.Trim()}";
-    private static SignerGroup SignerFor(PreparedSignatureRole role) => role switch
+    private static SignerGroup SignerFor(string personType) => personType switch
     {
-        PreparedSignatureRole.MemberApplication or PreparedSignatureRole.MemberPrivacy => SignerGroup.Member,
-        PreparedSignatureRole.SecondaryApplication or PreparedSignatureRole.SecondaryPrivacy => SignerGroup.Secondary,
-        PreparedSignatureRole.RepresentativeApplication or PreparedSignatureRole.RepresentativePrivacy => SignerGroup.Representative,
-        PreparedSignatureRole.Board => SignerGroup.Board,
-        _ => throw new ArgumentOutOfRangeException(nameof(role))
+        SignaturePersonTypes.Member => SignerGroup.Member,
+        SignaturePersonTypes.SecondaryMember => SignerGroup.Secondary,
+        SignaturePersonTypes.LegalRepresentative => SignerGroup.Representative,
+        SignaturePersonTypes.Board => SignerGroup.Board,
+        _ => throw new ArgumentOutOfRangeException(nameof(personType))
     };
 
     private enum SignerGroup { Member, Secondary, Representative, Board }

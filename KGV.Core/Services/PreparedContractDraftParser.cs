@@ -19,7 +19,10 @@ public static class PreparedContractDraftParser
         if (type == PreparedContractConstants.MembershipApplication)
         {
             if (!HasString(value, "startDate") || !HasNumber(value, "memberFee") || !HasBoolean(value, "includeSecondaryMember")) throw Invalid("Der gespeicherte Mitgliedsantrag ist unvollständig.");
-            return JsonSerializer.Deserialize<PreparedMembershipApplicationDraft>(value.GetRawText(), Options)!;
+            var membership = JsonSerializer.Deserialize<PreparedMembershipApplicationDraft>(value.GetRawText(), Options)!;
+            if (membership.Representative is not null && membership.IncludeSecondaryMember)
+                throw Invalid("Ein minderjähriges Mitglied kann kein Nebenmitglied im Mitgliedsantrag haben.");
+            return membership;
         }
         if (!value.TryGetProperty("draft", out var lease) || lease.ValueKind != JsonValueKind.Object || !HasStringOrNull(lease, "previousContractDate") ||
             !HasString(lease, "startDate") || !HasNumber(lease, "parcelId") || !HasBoolean(lease, "hasPreviousContract") || !HasBoolean(lease, "includeSecondaryMember") ||

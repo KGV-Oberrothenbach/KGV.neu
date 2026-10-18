@@ -10,10 +10,10 @@ public sealed class PreparedMembershipApplicationSigningServiceTests
     [Fact] public async Task Prepared_adult_without_secondary_captures_3_signatures() => Assert.Equal(3, (await Run()).Capture.Calls.Count);
     [Fact] public async Task Prepared_adult_with_secondary_captures_5_signatures() => Assert.Equal(5, (await Run(secondary: true)).Capture.Calls.Count);
     [Fact] public async Task Prepared_minor_captures_5_signatures() => Assert.Equal(5, (await Run(minor: true)).Capture.Calls.Count);
-    [Fact] public async Task Uses_exact_capture_order_for_adult() => Assert.Equal(new[] { PreparedSignatureRole.MemberApplication, PreparedSignatureRole.MemberPrivacy, PreparedSignatureRole.Board }, (await Run()).Capture.Calls);
-    [Fact] public async Task Uses_exact_capture_order_for_secondary() => Assert.Equal(new[] { PreparedSignatureRole.MemberApplication, PreparedSignatureRole.MemberPrivacy, PreparedSignatureRole.SecondaryApplication, PreparedSignatureRole.SecondaryPrivacy, PreparedSignatureRole.Board }, (await Run(secondary: true)).Capture.Calls);
-    [Fact] public async Task Uses_exact_capture_order_for_minor() => Assert.Equal(new[] { PreparedSignatureRole.MemberApplication, PreparedSignatureRole.MemberPrivacy, PreparedSignatureRole.RepresentativeApplication, PreparedSignatureRole.RepresentativePrivacy, PreparedSignatureRole.Board }, (await Run(minor: true)).Capture.Calls);
-    [Fact] public async Task Application_and_privacy_are_separate_capture_calls() { var run = await Run(); Assert.Contains(PreparedSignatureRole.MemberApplication, run.Capture.Calls); Assert.Contains(PreparedSignatureRole.MemberPrivacy, run.Capture.Calls); }
+    [Fact] public async Task Uses_exact_capture_order_for_adult() => Assert.Equal(new[] { MembershipApplicationSignatureKeys.MemberApplication, MembershipApplicationSignatureKeys.MemberPrivacy, MembershipApplicationSignatureKeys.BoardApproval }, (await Run()).Capture.Calls);
+    [Fact] public async Task Uses_exact_capture_order_for_secondary() => Assert.Equal(new[] { MembershipApplicationSignatureKeys.MemberApplication, MembershipApplicationSignatureKeys.MemberPrivacy, MembershipApplicationSignatureKeys.SecondaryApplication, MembershipApplicationSignatureKeys.SecondaryPrivacy, MembershipApplicationSignatureKeys.BoardApproval }, (await Run(secondary: true)).Capture.Calls);
+    [Fact] public async Task Uses_exact_capture_order_for_minor() => Assert.Equal(new[] { MembershipApplicationSignatureKeys.MemberApplication, MembershipApplicationSignatureKeys.MemberPrivacy, MembershipApplicationSignatureKeys.RepresentativeApplication, MembershipApplicationSignatureKeys.RepresentativePrivacy, MembershipApplicationSignatureKeys.BoardApproval }, (await Run(minor: true)).Capture.Calls);
+    [Fact] public async Task Application_and_privacy_are_separate_capture_calls() { var run = await Run(); Assert.Contains(MembershipApplicationSignatureKeys.MemberApplication, run.Capture.Calls); Assert.Contains(MembershipApplicationSignatureKeys.MemberPrivacy, run.Capture.Calls); }
     [Fact] public async Task Uses_stored_member_fee() { var run = await Run(); Assert.Equal(42.5m, run.Client.Request!.AdmissionFee); }
     [Fact] public async Task Prepared_contract_calls_start_once() { var run = await Run(); Assert.Equal(1, run.Repository.StartCalls); }
     [Fact] public async Task ReadyForSignature_contract_does_not_start_again() { var run = await Run(ready: true); Assert.Equal(0, run.Repository.StartCalls); }
@@ -50,8 +50,8 @@ public sealed class PreparedMembershipApplicationSigningServiceTests
 
     private sealed class Capture : IPreparedSignatureCapture
     {
-        public List<PreparedSignatureRole> Calls { get; } = []; public int? CancelAt { get; set; }
-        public Task<DigitalSignatureCapture?> CaptureAsync(PreparedSignatureRole role, CancellationToken cancellationToken = default) { if (CancelAt == Calls.Count) return Task.FromResult<DigitalSignatureCapture?>(null); Calls.Add(role); return Task.FromResult<DigitalSignatureCapture?>(new DigitalSignatureCapture { CanvasWidth = 20, CanvasHeight = 10, Strokes = [new() { Points = [new() { X = 1, Y = 1 }, new() { X = 10, Y = 5 }] }] }); }
+        public List<string> Calls { get; } = []; public int? CancelAt { get; set; }
+        public Task<DigitalSignatureCapture?> CaptureAsync(SignatureStep step, CancellationToken cancellationToken = default) { if (CancelAt == Calls.Count) return Task.FromResult<DigitalSignatureCapture?>(null); Calls.Add(step.Key); return Task.FromResult<DigitalSignatureCapture?>(new DigitalSignatureCapture { CanvasWidth = 20, CanvasHeight = 10, Strokes = [new() { Points = [new() { X = 1, Y = 1 }, new() { X = 10, Y = 5 }] }] }); }
     }
     private sealed class Client : IContractGenerationClient
     {

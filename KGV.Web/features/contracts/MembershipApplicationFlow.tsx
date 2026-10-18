@@ -115,7 +115,7 @@ export function MembershipApplicationFlow({ session, memberId, onSaved, onPrepar
   const finalize = async () => {
     try {
       validate();
-      const signatureSteps = buildMembershipApplicationSignatureSteps({ isMinor: minor, includeSecondaryMember });
+      const signatureSteps = buildMembershipApplicationSignatureSteps({ isMinor: minor, includeSecondaryMember, memberId, representativeMemberId: draft.mode === "existing" ? draft.memberId ?? undefined : undefined });
       if (!canFinalizeMembershipApplication(step, signatureSteps, signatures)) throw new Error("Alle erforderlichen Signaturen müssen nach der Vorschau einzeln erfasst werden.");
       setBusy(true); setMessage("");
       const result = await generateContract(club, session, request("finalize"));
@@ -130,7 +130,7 @@ export function MembershipApplicationFlow({ session, memberId, onSaved, onPrepar
   if (data.member.hauptmitglied_id !== null) return <section className="contract-composer"><p className="detail-hint">Für Nebenmitglieder kann kein eigener Mitgliedsantrag erstellt werden. Die Mitunterzeichnung beim Mitgliedsantrag des Hauptmitglieds bleibt möglich.</p></section>;
   const annualMemberFee = Number(fee.replace(",", "."));
   const contribution = Number.isFinite(annualMemberFee) ? calculateMembershipApplicationContribution(annualMemberFee, startDate, data.season.jahr) : null;
-  const signatureSteps = buildMembershipApplicationSignatureSteps({ isMinor: minor, includeSecondaryMember });
+  const signatureSteps = buildMembershipApplicationSignatureSteps({ isMinor: minor, includeSecondaryMember, memberId, representativeMemberId: draft.mode === "existing" ? draft.memberId ?? undefined : undefined });
   const currentSignatureStep = signatureSteps[signatureIndex] ?? null;
   const signaturesComplete = hasCompletedMembershipApplicationSignatures(signatureSteps, signatures);
   const advanceSignature = () => { if (!currentSignatureStep || !signatures[currentSignatureStep.key]) return; setSignatureIndex((current) => Math.min(current + 1, signatureSteps.length)); };

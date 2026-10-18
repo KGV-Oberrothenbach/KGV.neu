@@ -15,10 +15,12 @@ test("membership application signatures follow the MAUI order and require every 
   const withSecondary = buildMembershipApplicationSignatureSteps({ isMinor: false, includeSecondaryMember: true });
   const minor = buildMembershipApplicationSignatureSteps({ isMinor: true, includeSecondaryMember: false });
 
-  assert.deepEqual(alone.map((step) => step.key), ["applicationMember", "board", "privacyMember"]);
-  assert.deepEqual(withSecondary.map((step) => step.key), ["applicationMember", "applicationSecondParty", "board", "privacyMember", "privacySecondParty"]);
+  assert.deepEqual(alone.map((step) => step.key), ["applicationMember", "privacyMember", "board"]);
+  assert.deepEqual(withSecondary.map((step) => step.key), ["applicationMember", "privacyMember", "applicationSecondParty", "privacySecondParty", "board"]);
   assert.deepEqual(minor.map((step) => step.key), withSecondary.map((step) => step.key));
-  assert.match(minor[1].label, /gesetzliche\/r Vertreter\/in/);
+  assert.match(minor[2].label, /Gesetzlicher Vertreter/);
+  assert.deepEqual(minor.map((step) => step.order), [1, 2, 3, 4, 5]);
+  assert.throws(() => buildMembershipApplicationSignatureSteps({ isMinor: true, includeSecondaryMember: true }), /minderjähriges Mitglied/);
   assert.equal(hasCompletedMembershipApplicationSignatures(alone, { applicationMember: "a", board: "b" }), false);
   assert.equal(hasCompletedMembershipApplicationSignatures(alone, { applicationMember: "a", board: "b", privacyMember: "c" }), true);
   assert.equal(canStartMembershipApplicationSignatures("edit"), false);
