@@ -1,7 +1,7 @@
 import type { AssignmentFilter, CommunicationArea, CommunicationItem } from "../../models/communication/communication-item";
 
 const areaFilters: Record<CommunicationArea, Record<string, string>> = {
-  signature: { vorgangstyp: "eq.vertrag_signatur", status: "in.(entwurf,vorbereitet,zur_signatur)" },
+  signature: { vorgangstyp: "eq.vertrag_signatur", status: "in.(entwurf,vorbereitet,zur_signatur,letzte_pruefung)" },
   mail: { vorgangstyp: "eq.mail", status: "in.(mail_bereit,wird_versendet,fehler)" },
   print: { vorgangstyp: "eq.druck", status: "in.(druck_bereit,fehler)" },
   done: { status: "in.(erledigt,abgebrochen)" },
@@ -13,7 +13,7 @@ export function communicationQuery(area: CommunicationArea, assignment: Assignme
 }
 
 const documentLabels: Record<string, string> = { mitgliedsantrag: "Mitgliedsantrag", pachtvertrag: "Pachtvertrag", wartungsvertrag: "Wartungsvertrag", anschreiben: "Anschreiben", wartungsvertrag_verlaengerung: "Wartungsvertragsverlängerung", wartungsvertrag_beendigung: "Wartungsvertragsbeendigung" };
-const statusLabels: Record<string, string> = { entwurf: "Entwurf", vorbereitet: "Vorbereitet", zur_signatur: "Zur Signatur", mail_bereit: "Versandbereit", wird_versendet: "Wird versendet", druck_bereit: "Druckbereit", erledigt: "Erledigt", fehler: "Fehler", abgebrochen: "Abgebrochen" };
+const statusLabels: Record<string, string> = { entwurf: "Entwurf", vorbereitet: "Vorbereitet", zur_signatur: "Zur Signatur", letzte_pruefung: "Letzte Prüfung", mail_bereit: "Versandbereit", wird_versendet: "Wird versendet", druck_bereit: "Druckbereit", erledigt: "Erledigt", fehler: "Fehler", abgebrochen: "Abgebrochen" };
 const typeLabels: Record<string, string> = { vertrag_signatur: "Vertrag / Signatur", mail: "Mail", druck: "Druck" };
 
 export const communicationDocumentLabel = (value: string) => documentLabels[value] ?? value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());

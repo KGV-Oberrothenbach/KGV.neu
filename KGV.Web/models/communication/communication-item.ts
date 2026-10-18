@@ -1,4 +1,4 @@
-export type CommunicationStatus = "entwurf" | "vorbereitet" | "zur_signatur" | "mail_bereit" | "wird_versendet" | "druck_bereit" | "erledigt" | "fehler" | "abgebrochen";
+export type CommunicationStatus = "entwurf" | "vorbereitet" | "zur_signatur" | "letzte_pruefung" | "mail_bereit" | "wird_versendet" | "druck_bereit" | "erledigt" | "fehler" | "abgebrochen";
 export type CommunicationType = "vertrag_signatur" | "mail" | "druck";
 
 export type CommunicationItem = {
