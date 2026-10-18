@@ -96,6 +96,7 @@ public partial class App : Application
     public async Task WechselVereinAsync()
     {
         await ReleaseCurrentClientLocksAsync("Vereinswechsel");
+        _services.GetService<BiometricSessionStore>()?.Clear();
         try
         {
             var authService = _services.GetService<IAuthService>();

@@ -38,6 +38,7 @@ public class LoginPage : ContentPage
     private readonly Label _statusLabel;
     private readonly Label _otpDiagnosticLabel;
     private readonly Button _copyOtpDiagnosticButton;
+    private readonly Button _biometricLoginButton;
     private string? _lastOtpDiagnosticCode;
     private bool _biometricPromptStarted;
 
@@ -126,7 +127,9 @@ public class LoginPage : ContentPage
         var forgotPasswordButton = new Button { Text = "Passwort vergessen" };
         var changeClubButton = new Button { Text = "Anderen Verein auswählen" };
         changeClubButton.Clicked += async (_, _) => await ChangeClubAsync();
-        Loaded += async (_, _) => await StartBiometricLoginIfAvailableAsync();
+        _biometricLoginButton = new Button { Text = "Mit Biometrie anmelden", IsVisible = false };
+        _biometricLoginButton.Clicked += async (_, _) => await LoginWithBiometricsAsync();
+        Loaded += async (_, _) => await RefreshBiometricLoginAvailabilityAsync();
 
         void UpdatePasswordHintState()
         {
@@ -355,6 +358,7 @@ public class LoginPage : ContentPage
                 _emailEntry,
                 passwordField,
                 loginButton,
+                _biometricLoginButton,
                 requestOtpButton,
                 forgotPasswordButton,
                 changeClubButton,
@@ -491,35 +495,35 @@ public class LoginPage : ContentPage
     }
 
     private async Task<bool> CanUseBiometricLoginAsync()
-        => _vereinskontext.Aktuell?.VereinId is { } clubId
-           && await _biometricSessionStore.GetAsync(clubId.ToString()) != null
+        => BiometricScope() is { } scope
+           && await _biometricSessionStore.GetAsync(scope) != null
            && await _biometricAuthenticationService.IsAvailableAsync();
 
-    private async Task StartBiometricLoginIfAvailableAsync()
+    private async Task RefreshBiometricLoginAvailabilityAsync()
     {
-        if (_biometricPromptStarted || !await CanUseBiometricLoginAsync())
-            return;
-
-        _biometricPromptStarted = true;
-        await LoginWithBiometricsAsync();
+        _biometricLoginButton.IsVisible = await CanUseBiometricLoginAsync();
     }
 
     private async Task LoginWithBiometricsAsync()
     {
         _statusLabel.Text = string.Empty;
-        var clubId = _vereinskontext.Aktuell?.VereinId.ToString();
-        var tokens = await _biometricSessionStore.GetAsync(clubId);
-        if (tokens == null || !await _biometricAuthenticationService.AuthenticateAsync("Mit Fingerabdruck anmelden")) return;
+        if (_biometricPromptStarted) return;
+        _biometricPromptStarted = true;
+        var scope = BiometricScope();
+        var tokens = await _biometricSessionStore.GetAsync(scope);
+        if (tokens == null || !await _biometricAuthenticationService.AuthenticateAsync("Biometrische Anmeldung")) { _biometricPromptStarted = false; return; }
         if (!await _authService.RestoreSessionAsync(tokens))
         {
             _biometricSessionStore.Clear();
             _userContextState.Clear();
             _statusLabel.Text = "Die gespeicherte Anmeldung ist nicht mehr gültig. Bitte mit Passwort anmelden.";
+            _biometricPromptStarted = false;
             return;
         }
         if (!Guid.TryParse(_authService.CurrentUserId, out var userId))
         {
             await RejectInvalidAccessAsync("BIOMETRIC_ACCESS_DENIED", "Die gespeicherte Anmeldung besitzt keinen gültigen KGV-Zugang mehr. Bitte normal anmelden.", true);
+            _biometricPromptStarted = false;
             return;
         }
         try
@@ -538,6 +542,7 @@ public class LoginPage : ContentPage
         {
             await RejectInvalidAccessAsync("BIOMETRIC_ACCESS_DENIED", "Die gespeicherte Anmeldung besitzt keinen gültigen KGV-Zugang mehr. Bitte normal anmelden.", true);
         }
+        finally { _biometricPromptStarted = false; }
     }
 
     private async Task RejectInvalidAccessAsync(string marker, string message, bool clearBiometrics = false)
@@ -553,11 +558,18 @@ public class LoginPage : ContentPage
     private async Task OfferBiometricsAfterValidatedAccessAsync()
     {
         var biometricTokens = await _authService.GetSessionTokensAsync();
-        if (biometricTokens == null || _vereinskontext.Aktuell?.VereinId is not { } clubId) return;
-        var clubIdText = clubId.ToString();
-        if (await _biometricSessionStore.GetAsync(clubIdText) != null || !await _biometricAuthenticationService.IsAvailableAsync()) return;
-        if (await DisplayAlertAsync("Fingerabdruck-Anmeldung aktivieren?", "Beim nächsten Start kannst du dich auf diesem Gerät mit deinem Fingerabdruck anmelden. Die Anmeldedaten werden geschützt auf dem Gerät gespeichert.", "Aktivieren", "Nicht jetzt"))
-            await _biometricSessionStore.SaveAsync(clubIdText, biometricTokens);
+        var scope = BiometricScope();
+        if (biometricTokens == null || scope is null || await _biometricSessionStore.HasDecisionAsync(scope) || !await _biometricAuthenticationService.IsAvailableAsync()) return;
+        if (await DisplayAlertAsync("Biometrische Anmeldung aktivieren?", "Beim nächsten Start kannst du dich auf diesem Gerät mit Biometrie anmelden. Die Sitzungsdaten werden geschützt im Android-Keystore gespeichert.", "Aktivieren", "Nicht jetzt"))
+            await _biometricSessionStore.SaveAsync(scope, biometricTokens);
+        else
+            await _biometricSessionStore.MarkDeclinedAsync(scope);
+    }
+
+    private string? BiometricScope()
+    {
+        var context = _vereinskontext.Aktuell;
+        return context is null ? null : BiometricSessionScope.Create(context.VereinId, context.SupabaseUrl);
     }
 
     private static string MaskEmail(string email)

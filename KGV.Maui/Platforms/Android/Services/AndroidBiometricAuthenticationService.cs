@@ -11,7 +11,13 @@ public sealed class AndroidBiometricAuthenticationService : IBiometricAuthentica
     public Task<bool> IsAvailableAsync()
     {
         var activity = Platform.CurrentActivity;
-        return Task.FromResult(Build.VERSION.SdkInt >= BuildVersionCodes.P && activity != null);
+        if (activity == null || Build.VERSION.SdkInt < BuildVersionCodes.Q) return Task.FromResult(false);
+        var manager = activity.GetSystemService(global::Android.Content.Context.BiometricService) as BiometricManager;
+        if (manager is null) return Task.FromResult(false);
+        var result = Build.VERSION.SdkInt >= BuildVersionCodes.R
+            ? manager.CanAuthenticate((int)BiometricManagerAuthenticators.BiometricStrong)
+            : manager.CanAuthenticate();
+        return Task.FromResult(result == BiometricManager.BiometricSuccess);
     }
     public Task<bool> AuthenticateAsync(string reason)
     {
