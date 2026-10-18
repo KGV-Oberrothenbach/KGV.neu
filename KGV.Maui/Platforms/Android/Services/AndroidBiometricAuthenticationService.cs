@@ -11,22 +11,21 @@ public sealed class AndroidBiometricAuthenticationService : IBiometricAuthentica
     public Task<bool> IsAvailableAsync()
     {
         var activity = Platform.CurrentActivity;
-        if (activity == null || Build.VERSION.SdkInt < BuildVersionCodes.Q) return Task.FromResult(false);
+        if (activity == null || !OperatingSystem.IsAndroidVersionAtLeast(29)) return Task.FromResult(false);
         var manager = activity.GetSystemService(global::Android.Content.Context.BiometricService) as BiometricManager;
         if (manager is null) return Task.FromResult(false);
-        var result = Build.VERSION.SdkInt >= BuildVersionCodes.R
-            ? manager.CanAuthenticate((int)BiometricManagerAuthenticators.BiometricStrong)
-            : manager.CanAuthenticate();
-        return Task.FromResult(result == BiometricManager.BiometricSuccess);
+        if (OperatingSystem.IsAndroidVersionAtLeast(30))
+            return Task.FromResult(manager.CanAuthenticate((int)BiometricManagerAuthenticators.BiometricStrong) == BiometricCode.Success);
+        return Task.FromResult(manager.CanAuthenticate() == BiometricCode.Success);
     }
     public Task<bool> AuthenticateAsync(string reason)
     {
         var activity = Platform.CurrentActivity;
-        if (activity == null || !OperatingSystem.IsAndroidVersionAtLeast(28)) return Task.FromResult(false);
+        if (activity == null || !OperatingSystem.IsAndroidVersionAtLeast(29)) return Task.FromResult(false);
         return AuthenticateWithPromptAsync(activity, reason);
     }
 
-    [SupportedOSPlatform("android28.0")]
+    [SupportedOSPlatform("android29.0")]
     private static Task<bool> AuthenticateWithPromptAsync(global::Android.App.Activity activity, string reason)
     {
         var executor = activity.MainExecutor;
