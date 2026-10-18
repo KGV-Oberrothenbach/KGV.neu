@@ -51,4 +51,6 @@ test("final document enters final review before it can be completed", async () =
   assert.match(membership, /bereits erstellte finale Dokument wurde zur letzten Prüfung übernommen/);
   assert.match(membership, /recoverPreparedContractFinalDocument/);
   assert.doesNotMatch(membership, /documentState\.status === "signed"/);
+  assert.match(membership, /onCompleted=\{async \(\) => \{ await onSaved\(\); onCancel\?\.\(\); \}\}/);
+  assert.match(center, /<MembershipApplicationFlow[\s\S]*onCancel=\{\(\) => \{ setOpened\(null\); void load\(\); \}\}/);
 });

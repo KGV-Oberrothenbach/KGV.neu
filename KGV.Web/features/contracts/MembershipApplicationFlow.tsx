@@ -14,7 +14,7 @@ import { loadPreparedContractForEditing, loadPreparedContractForFinalReview, loa
 import { preparedContractSchemaVersion, type PreparedMembershipApplicationDraft } from "../../models/communication/prepared-contract-draft";
 import { PreparedFinalReview } from "./PreparedFinalReview";
 
-export function MembershipApplicationFlow({ session, memberId, onSaved, onPrepared, preparedContractId, resumeMode = "edit" }: { session: BrowserSession; memberId: number; onSaved: () => Promise<void>; onPrepared?: () => Promise<void> | void; preparedContractId?: number; resumeMode?: "edit" | "signatures" | "review" }) {
+export function MembershipApplicationFlow({ session, memberId, onSaved, onPrepared, onCancel, preparedContractId, resumeMode = "edit" }: { session: BrowserSession; memberId: number; onSaved: () => Promise<void>; onPrepared?: () => Promise<void> | void; onCancel?: () => void; preparedContractId?: number; resumeMode?: "edit" | "signatures" | "review" }) {
   const club = useSelectedClub();
   const [data, setData] = useState<MembershipApplicationData | null>(null);
   const [startDate, setStartDate] = useState("");
@@ -159,6 +159,6 @@ export function MembershipApplicationFlow({ session, memberId, onSaved, onPrepar
         <div className="editor-actions"><button disabled={busy || !signaturesComplete} onClick={finalize}>{busy ? "Verarbeitet …" : "Signiertes Dokument speichern"}</button></div>
       </>}
     </section>}
-    {step === "review" && resumeContext && <PreparedFinalReview session={session} context={resumeContext} onCompleted={async () => { await onSaved(); }} />}
+    {step === "review" && resumeContext && <PreparedFinalReview session={session} context={resumeContext} onCompleted={async () => { await onSaved(); onCancel?.(); }} />}
   </section>;
 }
