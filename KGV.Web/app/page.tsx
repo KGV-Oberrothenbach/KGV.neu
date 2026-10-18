@@ -74,7 +74,7 @@ export default function Home() {
 }
 function HomeContent() {
   const appVersion = useAppVersion();
-  const { status, session, appUserContext, club, message, selectClub, login, logout, changeClub } = useAuth();
+  const { status, session, appUserContext, club, message, selectClub, login, loginWithPasskey, logout, changeClub } = useAuth();
 
   if (status === "club-selection") return <ClubSelection onSelect={selectClub} />;
   if (status === "signed-in" && session && appUserContext && club) {
@@ -93,7 +93,7 @@ function HomeContent() {
           <p className="notice" role="alert">Die Verbindung zu Supabase ist noch nicht eingerichtet.</p>
         ) : (
           <>
-            <LoginForm onSignIn={login} disabled={status === "checking"} message={message} />
+            <LoginForm onSignIn={login} onPasskeySignIn={loginWithPasskey} disabled={status === "checking"} message={message} />
             <OtpFlow club={club!} disabled={status === "checking"} />
           </>
         )}

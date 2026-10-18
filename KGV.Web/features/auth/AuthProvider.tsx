@@ -14,6 +14,7 @@ import type { ClubContext } from "../../models/auth/club";
 import { releaseAllBrowserEditLocks } from "../../services/concurrency/edit-lock-service";
 import { loadAppUserContext } from "../../services/users/app-user-service";
 import { signIn as signInWithPassword } from "../../services/auth/auth-service";
+import { isPasskeyCancellation, registerPasskey as registerSupabasePasskey, signInWithPasskey as signInWithSupabasePasskey } from "../../services/auth/passkey-service";
 import { resolveClub } from "../../services/auth/club-service";
 import { restoreBrowserSession, startInactivityMonitor, startSessionRefreshMonitor } from "../../services/auth/session-service";
 
@@ -27,6 +28,8 @@ type AuthContextValue = {
   message: string;
   selectClub: (code: string) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
+  loginWithPasskey: () => Promise<void>;
+  registerPasskey: () => Promise<void>;
   logout: (reason?: string) => void;
   changeClub: () => Promise<void>;
 };
@@ -155,7 +158,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [club, establishSession]);
 
-  return <AuthContext.Provider value={{ status, session, appUserContext, club, message, selectClub, login, logout, changeClub }}>{children}</AuthContext.Provider>;
+  const loginWithPasskey = useCallback(async () => {
+    setMessage("");
+    if (!club) throw new Error("Bitte zuerst einen Verein auswählen.");
+    try {
+      await establishSession(await signInWithSupabasePasskey(club), club);
+    } catch (error) {
+      if (isPasskeyCancellation(error)) throw error;
+      clearSession();
+      sessionRef.current = null;
+      setSession(null);
+      setAppUserContext(null);
+      setStatus("access-error");
+      throw error;
+    }
+  }, [club, establishSession]);
+
+  const registerPasskey = useCallback(async () => {
+    if (!club || !sessionRef.current) throw new Error("Für die Passkey-Einrichtung ist eine bestätigte Anmeldung erforderlich.");
+    await registerSupabasePasskey(club, sessionRef.current);
+  }, [club]);
+
+  return <AuthContext.Provider value={{ status, session, appUserContext, club, message, selectClub, login, loginWithPasskey, registerPasskey, logout, changeClub }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

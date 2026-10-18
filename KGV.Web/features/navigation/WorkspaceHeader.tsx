@@ -2,6 +2,7 @@
 
 import { ChangeClubAction } from "../auth/ChangeClubAction";
 import { useAppVersion } from "../../lib/app-version";
+import { PasskeyRegistrationAction } from "../auth/PasskeyRegistrationAction";
 
 export default function WorkspaceHeader({ clubName, email, role, onLogout, onChangeClub, pendingPhotoCount }: { clubName: string; email: string; role: string; onLogout: () => void; onChangeClub: () => Promise<void>; pendingPhotoCount?: number }) {
   const appVersion = useAppVersion();
@@ -12,6 +13,7 @@ export default function WorkspaceHeader({ clubName, email, role, onLogout, onCha
       <div className="account">
         <span>{email}</span>
         <span className="role-pill">{role}</span>
+        <PasskeyRegistrationAction />
         <ChangeClubAction className="text-button" label="Verein wechseln" onConfirm={onChangeClub} pendingPhotoCount={pendingPhotoCount} />
         <button className="text-button" onClick={onLogout}>Abmelden</button>
       </div>
