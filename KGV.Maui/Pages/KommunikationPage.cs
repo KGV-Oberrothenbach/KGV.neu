@@ -143,6 +143,28 @@ public sealed class KommunikationPage : ContentPage
             return;
         }
 
+        if (item.Contract.Status == PreparedContractConstants.ReadyForSignature)
+        {
+            try
+            {
+                var memberDocuments = await _supabaseService.GetMitgliedDokumenteAsync(item.Contract.MitgliedId);
+                var recovered = await new PreparedMembershipApplicationRecoveryService(_repository)
+                    .RecoverAsync(item.Contract, memberDocuments);
+                if (recovered is not null)
+                {
+                    var review = new PreparedFinalDocumentReviewFlow(this, _repository, _supabaseService);
+                    await review.OpenAsync(recovered);
+                    await LoadAsync();
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                await DisplayAlertAsync("Mitgliedsantrag", $"Der vorhandene signierte Mitgliedsantrag konnte nicht geprüft werden. Es wird keine neue Signatur gestartet. {ex.Message}", "OK");
+                return;
+            }
+        }
+
         var preview = new PreparedMembershipApplicationPreviewFlow(this, _repository, _contractClient);
         var result = await preview.OpenAsync(item.Contract.Id);
         if (result.Action is PreparedMembershipApplicationPreviewAction.StartSigning or PreparedMembershipApplicationPreviewAction.ContinueSigning)
