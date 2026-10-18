@@ -10,10 +10,11 @@ import { buildMembershipApplicationSignatureSteps, canFinalizeMembershipApplicat
 import { generateContract } from "../../services/contracts/contract-generation-service";
 import { ContractPreview } from "./ContractPreview";
 import { LegalRepresentativeFields } from "./LegalRepresentativeFields";
-import { completePreparedContractSigning, loadPreparedContractForEditing, loadPreparedContractForSignature, parkPreparedContract, savePreparedContractIfChanged, startPreparedContractSigning, type PreparedContractResumeContext } from "../../services/communication/prepared-contract-service";
+import { loadPreparedContractForEditing, loadPreparedContractForFinalReview, loadPreparedContractForSignature, markPreparedContractReadyForReview, parkPreparedContract, savePreparedContractIfChanged, startPreparedContractSigning, type PreparedContractResumeContext } from "../../services/communication/prepared-contract-service";
 import { preparedContractSchemaVersion, type PreparedMembershipApplicationDraft } from "../../models/communication/prepared-contract-draft";
+import { PreparedFinalReview } from "./PreparedFinalReview";
 
-export function MembershipApplicationFlow({ session, memberId, onSaved, onPrepared, preparedContractId, resumeMode = "edit" }: { session: BrowserSession; memberId: number; onSaved: () => Promise<void>; onPrepared?: () => Promise<void> | void; preparedContractId?: number; resumeMode?: "edit" | "signatures" }) {
+export function MembershipApplicationFlow({ session, memberId, onSaved, onPrepared, preparedContractId, resumeMode = "edit" }: { session: BrowserSession; memberId: number; onSaved: () => Promise<void>; onPrepared?: () => Promise<void> | void; preparedContractId?: number; resumeMode?: "edit" | "signatures" | "review" }) {
   const club = useSelectedClub();
   const [data, setData] = useState<MembershipApplicationData | null>(null);
   const [startDate, setStartDate] = useState("");
@@ -21,14 +22,14 @@ export function MembershipApplicationFlow({ session, memberId, onSaved, onPrepar
   const [draft, setDraft] = useState<LegalRepresentativeDraft>(emptyLegalRepresentativeDraft());
   const [options, setOptions] = useState<LegalRepresentativeOption[]>([]);
   const [minor, setMinor] = useState(false);
-  const [step, setStep] = useState<"edit" | "preview" | "signatures">("edit");
+  const [step, setStep] = useState<"edit" | "preview" | "signatures" | "review">("edit");
   const [includeSecondaryMember, setIncludeSecondaryMember] = useState(false);
   const [signatures, setSignatures] = useState<Partial<Record<MembershipApplicationSignatureKey, string>>>({});
   const [signatureIndex, setSignatureIndex] = useState(0);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [resumeContext, setResumeContext] = useState<PreparedContractResumeContext | null>(null);
-  const [finalDocumentCreated, setFinalDocumentCreated] = useState(false);
+  const [finalDocumentId, setFinalDocumentId] = useState<number | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -52,12 +53,20 @@ export function MembershipApplicationFlow({ session, memberId, onSaved, onPrepar
   useEffect(() => {
     if (!preparedContractId || !data) return;
     let active = true;
-    const loadPrepared = resumeMode === "signatures" ? loadPreparedContractForSignature : loadPreparedContractForEditing;
-    loadPrepared(club, session, preparedContractId, session.user.id, "mitgliedsantrag").then((context) => {
+    const loadPrepared = resumeMode === "signatures" ? loadPreparedContractForSignature : resumeMode === "review" ? loadPreparedContractForFinalReview : loadPreparedContractForEditing;
+    loadPrepared(club, session, preparedContractId, session.user.id, "mitgliedsantrag").then(async (context) => {
       if (!active) return;
       const saved = context.entwurf_daten as PreparedMembershipApplicationDraft;
       if (saved.memberId !== memberId) throw new Error("Der gespeicherte Mitgliedsantrag passt nicht zum Mitglied.");
-      setResumeContext(context); setStartDate(saved.startDate); setFee(String(saved.memberFee)); setDraft(saved.representative ?? emptyLegalRepresentativeDraft()); setIncludeSecondaryMember(saved.includeSecondaryMember); setSignatures({}); setSignatureIndex(0); setStep(resumeMode === "signatures" ? "signatures" : "edit");
+      if (resumeMode === "signatures" && context.status === "zur_signatur") {
+        const documentState = await loadMembershipApplicationDocumentState(club, session, memberId);
+        if (documentState.status === "signed" && documentState.existingDocument) {
+          const review = await markPreparedContractReadyForReview(club, session, context, session.user.id, documentState.existingDocument.id);
+          if (!active) return;
+          setResumeContext(review); setStartDate(saved.startDate); setFee(String(saved.memberFee)); setDraft(saved.representative ?? emptyLegalRepresentativeDraft()); setIncludeSecondaryMember(saved.includeSecondaryMember); setSignatures({}); setSignatureIndex(0); setStep("review"); setMessage("Das bereits erstellte finale Dokument wurde zur letzten Prüfung übernommen."); await onSaved(); return;
+        }
+      }
+      setResumeContext(context); setStartDate(saved.startDate); setFee(String(saved.memberFee)); setDraft(saved.representative ?? emptyLegalRepresentativeDraft()); setIncludeSecondaryMember(saved.includeSecondaryMember); setSignatures({}); setSignatureIndex(0); setStep(resumeMode === "signatures" ? "signatures" : resumeMode === "review" ? "review" : "edit");
     }).catch((error) => active && setMessage(error instanceof Error ? error.message : "Der vorbereitete Mitgliedsantrag konnte nicht geöffnet werden."));
     return () => { active = false; };
   }, [club, session, preparedContractId, memberId, data, resumeMode]);
@@ -83,12 +92,18 @@ export function MembershipApplicationFlow({ session, memberId, onSaved, onPrepar
     } catch (error) { setMessage(error instanceof Error ? error.message : "Die Signatur konnte nicht gestartet werden."); }
     finally { setBusy(false); }
   };
-  const completeWorkflow = async () => {
-    if (!resumeContext || resumeContext.status !== "zur_signatur") return true;
-    try { await completePreparedContractSigning(club, session, resumeContext.id, resumeContext.revision, session.user.id); return true; }
-    catch { setFinalDocumentCreated(true); setMessage("Das Vertragsdokument wurde erfolgreich erstellt, der Kommunikationsvorgang konnte jedoch noch nicht abgeschlossen werden. Das Dokument darf nicht erneut erzeugt werden."); return false; }
+  const markFinalDocumentForReview = async (documentId: number) => {
+    if (!resumeContext) throw new Error("Der Kommunikationsvorgang ist nicht geladen.");
+    try {
+      const review = await markPreparedContractReadyForReview(club, session, resumeContext, session.user.id, documentId);
+      setResumeContext(review); setFinalDocumentId(null); setSignatures({}); setSignatureIndex(0); setStep("review"); await onSaved();
+    } catch (error) {
+      setFinalDocumentId(documentId);
+      setMessage("Das Vertragsdokument wurde erfolgreich erstellt, konnte aber noch nicht zur letzten Prüfung vorgemerkt werden. Das Dokument wird nicht erneut erzeugt.");
+      throw error;
+    }
   };
-  const retryWorkflowCompletion = async () => { try { setBusy(true); if (await completeWorkflow()) { setFinalDocumentCreated(false); await onSaved(); setMessage("Der Kommunikationsvorgang wurde abgeschlossen."); } } finally { setBusy(false); } };
+  const retryFinalReviewPersistence = async () => { if (finalDocumentId === null) return; try { setBusy(true); setMessage(""); await markFinalDocumentForReview(finalDocumentId); } catch { /* Die gespeicherte Dokument-ID bleibt für einen sicheren Wiederholungsversuch erhalten. */ } finally { setBusy(false); } };
 
   const preview = async () => {
     try { validate(); setBusy(true); setMessage(""); await savePrepared(); const result = await generateContract(club, session, request("preview")); if (result.previewUrl) window.open(result.previewUrl, "_blank", "noopener,noreferrer"); setStep("preview"); }
@@ -104,17 +119,9 @@ export function MembershipApplicationFlow({ session, memberId, onSaved, onPrepar
       if (!canFinalizeMembershipApplication(step, signatureSteps, signatures)) throw new Error("Alle erforderlichen Signaturen müssen nach der Vorschau einzeln erfasst werden.");
       setBusy(true); setMessage("");
       const result = await generateContract(club, session, request("finalize"));
-      if (!await completeWorkflow()) return;
-      setSignatures({}); setSignatureIndex(0); setStep("edit");
-      try {
-        const refreshed = await loadMembershipApplicationData(club, session, memberId);
-        setData(refreshed);
-        await onSaved();
-        setMessage(result.message ?? "Der signierte Mitgliedsantrag wurde gespeichert.");
-      } catch {
-        setData((current) => current ? { ...current, status: "signed" } : current);
-        setMessage("Der Mitgliedsantrag wurde gespeichert, die Ansicht konnte aber nicht vollständig aktualisiert werden.");
-      }
+      if (!result.documentId || result.documentId <= 0) throw new Error("Der Finalize-Vorgang hat keine gültige Dokument-ID zurückgegeben.");
+      await markFinalDocumentForReview(result.documentId);
+      setMessage(result.message ?? "Der signierte Mitgliedsantrag ist zur letzten Prüfung bereit.");
     } catch (error) { setMessage(error instanceof Error ? error.message : "Mitgliedsantrag konnte nicht gespeichert werden."); }
     finally { setBusy(false); }
   };
@@ -130,7 +137,7 @@ export function MembershipApplicationFlow({ session, memberId, onSaved, onPrepar
 
   return <section className="contract-composer">
     {message && <p className="notice" role="status">{message}</p>}
-    {finalDocumentCreated && <div className="editor-actions"><button disabled={busy} onClick={() => void retryWorkflowCompletion()}>Vorgang erneut abschließen</button></div>}
+    {finalDocumentId !== null && <div className="editor-actions"><button disabled={busy} onClick={() => void retryFinalReviewPersistence()}>Finales Dokument zur Prüfung vormerken</button></div>}
     {step === "edit" && <>
       <fieldset disabled={busy}>
         <label>Beginn<span className="detail-hint">{new Intl.DateTimeFormat("de-DE").format(new Date(`${startDate}T12:00:00`))}</span></label>
@@ -153,5 +160,6 @@ export function MembershipApplicationFlow({ session, memberId, onSaved, onPrepar
         <div className="editor-actions"><button disabled={busy || !signaturesComplete} onClick={finalize}>{busy ? "Verarbeitet …" : "Signiertes Dokument speichern"}</button></div>
       </>}
     </section>}
+    {step === "review" && resumeContext && <PreparedFinalReview session={session} context={resumeContext} onCompleted={async () => { await onSaved(); }} />}
   </section>;
 }

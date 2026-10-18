@@ -32,13 +32,22 @@ test("membership application creation parks a prepared contract without starting
   assert.match(center, /resumeMode="signatures"|resumeMode=\{opened\.resumeMode\}/);
 });
 
-test("final document is created before the workflow is completed", async () => {
-  const [membership, lease] = await Promise.all([
+test("final document enters final review before it can be completed", async () => {
+  const [membership, lease, repository, center] = await Promise.all([
     readFile(new URL("features/contracts/MembershipApplicationFlow.tsx", root), "utf8"),
     readFile(new URL("features/contracts/LeaseContractFlow.tsx", root), "utf8"),
+    readFile(new URL("repositories/communication/communication-repository.ts", root), "utf8"),
+    readFile(new URL("features/communication/CommunicationCenter.tsx", root), "utf8"),
   ]);
   for (const flow of [membership, lease]) {
-    assert.match(flow, /generateContract\(club, session, request\("finalize"\)\)[\s\S]*completeWorkflow/);
-    assert.match(flow, /finalDocumentCreated/);
+    assert.match(flow, /generateContract\(club, session, request\("finalize"\)\)[\s\S]*markFinalDocumentForReview/);
+    assert.match(flow, /Finales Dokument zur Prüfung vormerken/);
+    assert.match(flow, /PreparedFinalReview/);
   }
+  assert.match(repository, /status: "letzte_pruefung", final_dokument_id: finalDocumentId/);
+  assert.match(repository, /status: "eq\.letzte_pruefung"[\s\S]*final_dokument_id: `eq\.\$\{finalDocumentId\}`/);
+  assert.match(center, /Letzte Prüfung/);
+  assert.doesNotMatch(center, /letzte_pruefung[\s\S]*Signatur fortsetzen/);
+  assert.match(membership, /bereits erstellte finale Dokument wurde zur letzten Prüfung übernommen/);
+  assert.match(membership, /documentState\.status === "signed"[\s\S]*markPreparedContractReadyForReview/);
 });

@@ -25,3 +25,8 @@ export function listMemberDocuments(club: ClubContext, session: BrowserSession, 
 export function listParcelDocuments(club: ClubContext, session: BrowserSession, parcelId: number) {
   return listDocumentsForOwner(club, session, parcelDocumentOwner(parcelId));
 }
+
+export async function getActiveDocumentById(club: ClubContext, session: BrowserSession, id: number) {
+  const rows = await readSupabaseRest<Document>({ club, session }, "dokument", { select: documentSelect, id: `eq.${id}`, archiviert_at: "is.null", limit: "1" });
+  return rows[0] ?? null;
+}
