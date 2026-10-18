@@ -152,7 +152,7 @@ public sealed class PreparedLeaseContractResumeServiceTests
     {
         var repository = RepositoryProxy.Create();
 
-        await Assert.ThrowsAsync<ArgumentException>(() => new PreparedLeaseContractResumeService(repository).ResolveAsync(MemberId, ParcelId, Guid.Empty));
+        await Assert.ThrowsAsync<ArgumentException>(() => new PreparedLeaseContractResumeService(repository.Repository).ResolveAsync(MemberId, ParcelId, Guid.Empty));
 
         Assert.Equal(0, repository.FindActiveCalls);
         Assert.Equal(0, repository.ClaimCalls);
@@ -171,7 +171,7 @@ public sealed class PreparedLeaseContractResumeServiceTests
     }
 
     private static Task<PreparedLeaseContractResumeResult> Resolve(RepositoryProxy repository)
-        => new PreparedLeaseContractResumeService(repository).ResolveAsync(MemberId, ParcelId, CurrentUserId, CancellationToken.None);
+        => new PreparedLeaseContractResumeService(repository.Repository).ResolveAsync(MemberId, ParcelId, CurrentUserId, CancellationToken.None);
 
     private static KommunikationsvorgangDto Contract(string status, Guid? assignedUser, long id = 123) => new()
     {
@@ -186,6 +186,7 @@ public sealed class PreparedLeaseContractResumeServiceTests
 
     private sealed class RepositoryProxy : DispatchProxy
     {
+        public IPreparedContractRepository Repository => (IPreparedContractRepository)(object)this;
         public KommunikationsvorgangDto? ActiveContract { get; set; }
         public KommunikationsvorgangDto? ClaimResult { get; set; }
         public Exception? ClaimException { get; set; }

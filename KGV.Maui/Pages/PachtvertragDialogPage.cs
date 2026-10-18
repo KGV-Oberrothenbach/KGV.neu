@@ -63,12 +63,14 @@ public sealed class PachtvertragDialogPage : ContentPage
         _uebergabeDatePicker = new DatePicker { Date = (initialRequest?.UebergabeDatum ?? initialRequest?.Vertragsbeginn ?? vertragsbeginn).Date };
         _befristetCheckBox = new CheckBox { IsChecked = initialRequest?.BefristetBis != null };
         _befristetDatePicker = new DatePicker { Date = (initialRequest?.BefristetBis ?? _vertragsbeginn).Date };
-        _befristetDateSection = CreateField("Befristet bis", _befristetDatePicker) { IsVisible = _befristetCheckBox.IsChecked };
+        _befristetDateSection = CreateField("Befristet bis", _befristetDatePicker);
+        _befristetDateSection.IsVisible = _befristetCheckBox.IsChecked;
         _befristetCheckBox.CheckedChanged += (_, e) => _befristetDateSection.IsVisible = e.Value;
         _kleingartenordnungEntry = new Entry { Text = initialRequest?.KleingartenordnungFassung ?? "", Placeholder = "Kleingartenordnung / Fassung" };
         _kleingartenordnungAusgehaendigtCheckBox = new CheckBox { IsChecked = initialRequest?.KleingartenordnungAusgehaendigtAm != null };
         _kleingartenordnungAusgehaendigtDatePicker = new DatePicker { Date = (initialRequest?.KleingartenordnungAusgehaendigtAm ?? _vertragsbeginn).Date };
-        _kleingartenordnungAusgehaendigtDateSection = CreateField("Ausgehändigt am", _kleingartenordnungAusgehaendigtDatePicker) { IsVisible = _kleingartenordnungAusgehaendigtCheckBox.IsChecked };
+        _kleingartenordnungAusgehaendigtDateSection = CreateField("Ausgehändigt am", _kleingartenordnungAusgehaendigtDatePicker);
+        _kleingartenordnungAusgehaendigtDateSection.IsVisible = _kleingartenordnungAusgehaendigtCheckBox.IsChecked;
         _kleingartenordnungAusgehaendigtCheckBox.CheckedChanged += (_, e) => _kleingartenordnungAusgehaendigtDateSection.IsVisible = e.Value;
         _weitereVereinbarungenEditor = new Editor { Text = initialRequest?.WeitereVereinbarungen ?? "", AutoSize = EditorAutoSizeOption.TextChanges, Placeholder = "Weitere Vereinbarungen" };
         _anlage1CheckBox = new CheckBox { IsChecked = initialRequest?.Anlage1 ?? false };
@@ -156,10 +158,10 @@ public sealed class PachtvertragDialogPage : ContentPage
         request = new PachtvertragDokumentRequest
         {
             MitgliedId = _member.Id, ParzelleId = _parzelle.Id, Vertragsbeginn = _vertragsbeginn,
-            HasPreviousContract = _hasPreviousContract, AltvertragDatum = _hasPreviousContract == true ? _altvertragDatePicker.Date.Date : null,
-            UebergabeDatum = _uebergabeDatePicker.Date.Date, BefristetBis = _befristetCheckBox.IsChecked ? _befristetDatePicker.Date.Date : null,
+            HasPreviousContract = _hasPreviousContract, AltvertragDatum = _hasPreviousContract == true ? _altvertragDatePicker.Date?.Date : null,
+            UebergabeDatum = _uebergabeDatePicker.Date?.Date, BefristetBis = _befristetCheckBox.IsChecked ? _befristetDatePicker.Date?.Date : null,
             KleingartenordnungFassung = (_kleingartenordnungEntry.Text ?? "").Trim(),
-            KleingartenordnungAusgehaendigtAm = _kleingartenordnungAusgehaendigtCheckBox.IsChecked ? _kleingartenordnungAusgehaendigtDatePicker.Date.Date : null,
+            KleingartenordnungAusgehaendigtAm = _kleingartenordnungAusgehaendigtCheckBox.IsChecked ? _kleingartenordnungAusgehaendigtDatePicker.Date?.Date : null,
             WeitereVereinbarungen = (_weitereVereinbarungenEditor.Text ?? "").Trim(),
             Anlage1 = _anlage1CheckBox.IsChecked, Anlage2 = _anlage2CheckBox.IsChecked, Anlage3 = _anlage3CheckBox.IsChecked, Anlage4 = _anlage4CheckBox.IsChecked,
             VereinsUnterzeichner = (_vereinsunterzeichnerEntry.Text ?? "").Trim(),

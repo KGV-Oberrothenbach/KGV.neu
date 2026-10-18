@@ -153,6 +153,7 @@ public static class MauiProgram
         services.AddTransient<ExportPage>();
         services.AddTransient<ExportViewModel>();
         services.AddTransient<ImpressumPage>();
+        services.AddTransient<KommunikationPage>();
         services.AddSingleton<MemberSearchRefreshState>();
         services.AddTransient<MemberSearchViewModel>();
         services.AddTransient<MemberSearchPage>();

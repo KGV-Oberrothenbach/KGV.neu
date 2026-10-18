@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace KGV.Core.Interfaces
 {
-    public interface ISupabaseService
+    public interface ISupabaseService : IFinalDocumentLoader
     {
         Client Client { get; }
         Task InitializeAsync();

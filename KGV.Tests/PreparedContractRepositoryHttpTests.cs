@@ -54,13 +54,45 @@ public sealed class PreparedContractRepositoryHttpTests
     }
 
     [Fact]
-    public async Task Complete_UsesFrozenRevisionAndZeroRowsIsConflict()
+    public async Task MarkFinalDocumentReadyForReview_StoresDocumentAndUsesFrozenRevision()
     {
         var current = Item(6, PreparedContractConstants.ReadyForSignature, 6, DateTimeOffset.Parse("2026-10-17T12:00:00Z"));
-        var handler = new RecordingHandler(Response(current), Response());
+        var reviewed = current with { Status = PreparedContractConstants.FinalReview, FinalDokumentId = 77 };
+        var handler = new RecordingHandler(Response(reviewed));
         var repository = Repository(handler);
-        await Assert.ThrowsAsync<PreparedContractConflictException>(() => repository.CompleteAsync(ItemId));
-        Assert.Contains("status=eq.zur_signatur&revision=eq.6&signatur_revision=eq.6", handler.Requests[1].Uri);
+        var result = await repository.MarkFinalDocumentReadyForReviewAsync(ItemId, 6, 77);
+        Assert.Equal(PreparedContractConstants.FinalReview, result.Status); Assert.Equal(77, result.FinalDokumentId);
+        Assert.Contains("status=eq.zur_signatur&revision=eq.6&signatur_revision=eq.6", handler.Requests[0].Uri);
+        Assert.Contains("final_dokument_id=is.null", handler.Requests[0].Uri);
+        using var body = JsonDocument.Parse(handler.Requests[0].Body); Assert.Equal("letzte_pruefung", body.RootElement.GetProperty("status").GetString()); Assert.Equal(77, body.RootElement.GetProperty("final_dokument_id").GetInt64());
+    }
+
+    [Fact]
+    public async Task MarkFinalDocumentReadyForReview_RejectsMissingOrWrongServerResponse()
+    {
+        await Assert.ThrowsAsync<PreparedContractConflictException>(() => Repository(new RecordingHandler(Response())).MarkFinalDocumentReadyForReviewAsync(ItemId, 6, 77));
+        var wrong = Item(6, PreparedContractConstants.ReadyForSignature, 6, DateTimeOffset.UtcNow) with { FinalDokumentId = 77 };
+        await Assert.ThrowsAsync<PreparedContractConflictException>(() => Repository(new RecordingHandler(Response(wrong))).MarkFinalDocumentReadyForReviewAsync(ItemId, 6, 77));
+    }
+
+    [Fact]
+    public async Task Complete_RequiresLastReviewAndFinalDocument()
+    {
+        var reviewed = Item(6, PreparedContractConstants.FinalReview, 6, DateTimeOffset.Parse("2026-10-17T12:00:00Z")) with { FinalDokumentId = 77 };
+        var completed = reviewed with { Status = PreparedContractConstants.Completed };
+        var handler = new RecordingHandler(Response(reviewed), Response(completed));
+        var result = await Repository(handler).CompleteAsync(ItemId);
+        Assert.Equal(PreparedContractConstants.Completed, result.Status);
+        Assert.Contains("status=eq.letzte_pruefung&revision=eq.6&signatur_revision=eq.6&final_dokument_id=eq.77", handler.Requests[1].Uri);
+    }
+
+    [Fact]
+    public async Task Complete_RejectsInvalidTransitionOrMissingServerConfirmation()
+    {
+        var signed = Item(6, PreparedContractConstants.ReadyForSignature, 6, DateTimeOffset.UtcNow) with { FinalDokumentId = 77 };
+        await Assert.ThrowsAsync<PreparedContractConflictException>(() => Repository(new RecordingHandler(Response(signed))).CompleteAsync(ItemId));
+        var reviewed = signed with { Status = PreparedContractConstants.FinalReview };
+        await Assert.ThrowsAsync<PreparedContractConflictException>(() => Repository(new RecordingHandler(Response(reviewed), Response())).CompleteAsync(ItemId));
     }
 
     [Fact]

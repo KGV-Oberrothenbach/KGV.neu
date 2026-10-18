@@ -46,7 +46,8 @@ namespace KGV.Infrastructure.Services
             IAuthService authService,
             IPdfTemplateProvider pdfTemplateProvider,
             string supabaseUrl,
-            string publishableKey)
+            string publishableKey,
+            Func<HttpClient>? documentHttpClientFactory = null)
         {
             _clientFactory = clientFactory ?? throw new ArgumentNullException(nameof(clientFactory));
             _logger = logger;
@@ -55,7 +56,7 @@ namespace KGV.Infrastructure.Services
             _pdfTemplateProvider = pdfTemplateProvider ?? throw new ArgumentNullException(nameof(pdfTemplateProvider));
             _supabaseUrl = (supabaseUrl ?? string.Empty).Trim();
             _publishableKey = (publishableKey ?? string.Empty).Trim();
-            _documentUploadHttpClient = new HttpClient
+            _documentUploadHttpClient = documentHttpClientFactory?.Invoke() ?? new HttpClient
             {
                 Timeout = TimeSpan.FromMinutes(3)
             };
@@ -3437,6 +3438,63 @@ namespace KGV.Infrastructure.Services
                     ?? new List<DocumentInfo>();
             },
             new List<DocumentInfo>());
+
+        public async Task<LoadedDocument> LoadDokumentByIdAsync(long documentId)
+        {
+            if (documentId <= 0)
+                throw new ArgumentOutOfRangeException(nameof(documentId), "Die Dokument-ID muss größer als 0 sein.");
+
+            var document = await LoadDokumentInfoByIdAsync(documentId);
+            var content = await DownloadDokumentContentAsync(document);
+            if (content == null || content.Length == 0)
+                throw new InvalidOperationException($"Der Inhalt des Dokuments mit ID {documentId} konnte nicht geladen werden.");
+
+            return new LoadedDocument(document, content);
+        }
+
+        private async Task<DocumentInfo> LoadDokumentInfoByIdAsync(long documentId)
+        {
+            if (string.IsNullOrWhiteSpace(_supabaseUrl) || string.IsNullOrWhiteSpace(_publishableKey))
+                throw new InvalidOperationException("Supabase-URL oder Publishable Key ist nicht konfiguriert.");
+
+            var token = await _authService.GetAccessTokenAsync();
+            if (string.IsNullOrWhiteSpace(token))
+                throw new InvalidOperationException("Die aktuelle Anmeldung ist abgelaufen. Bitte erneut anmelden.");
+
+            var endpoint = new Uri(new Uri(_supabaseUrl.TrimEnd('/') + "/"), $"rest/v1/dokument?id=eq.{documentId}&select=*");
+            using var request = new HttpRequestMessage(HttpMethod.Get, endpoint);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            request.Headers.Add("apikey", _publishableKey);
+
+            using var response = await _documentUploadHttpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+            if (!response.IsSuccessStatusCode)
+                throw new HttpRequestException($"Dokument-Metadaten konnten nicht geladen werden (HTTP {(int)response.StatusCode}).");
+
+            var rawBody = await response.Content.ReadAsStringAsync();
+            List<DokumentRecord>? records;
+            try
+            {
+                records = JsonSerializer.Deserialize<List<DokumentRecord>>(rawBody, new JsonSerializerOptions
+                {
+                    PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower
+                });
+            }
+            catch (JsonException ex)
+            {
+                throw new InvalidOperationException("Ungültige Serverantwort beim Laden der Dokument-Metadaten.", ex);
+            }
+
+            if (records == null)
+                throw new InvalidOperationException("Ungültige Serverantwort beim Laden der Dokument-Metadaten.");
+
+            if (records.Count == 0)
+                throw new KeyNotFoundException($"Dokument mit ID {documentId} wurde nicht gefunden.");
+
+            if (records.Count != 1 || records[0].Id != documentId)
+                throw new InvalidOperationException("Ungültige Serverantwort beim Laden der Dokument-Metadaten.");
+
+            return MapDocumentInfo(records[0]);
+        }
 
         public Task<bool> HasSignedPachtvertragAsync(int parzelleId) => ExecuteAsync(
             "HasSignedPachtvertragAsync",

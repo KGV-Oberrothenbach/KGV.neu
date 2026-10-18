@@ -33,6 +33,17 @@ public sealed class PreparedContractRepository : IPreparedContractRepository
         return item;
     }
 
+    public async Task<IReadOnlyList<KommunikationsvorgangDto>> ListActiveAsync(CancellationToken cancellationToken = default)
+    {
+        var items = await SendAsync(HttpMethod.Get,
+            $"kommunikationsvorgang?vorgangstyp=eq.{PreparedContractConstants.ContractSignatureProcess}&dokumenttyp=in.({PreparedContractConstants.MembershipApplication},{PreparedContractConstants.LeaseContract})&status=in.({PreparedContractConstants.Prepared},{PreparedContractConstants.ReadyForSignature},{PreparedContractConstants.FinalReview})&select=*",
+            null,
+            cancellationToken);
+        foreach (var item in items)
+            ValidateDraft(item.Dokumenttyp, item.MitgliedId, item.ParzelleId, item.EntwurfDaten);
+        return items;
+    }
+
     public async Task<KommunikationsvorgangDto?> FindActiveAsync(string documentType, int memberId, int? parcelId, CancellationToken cancellationToken = default)
     {
         var parcelFilter = parcelId is null ? "parzelle_id=is.null" : $"parzelle_id=eq.{parcelId}";
@@ -81,10 +92,27 @@ public sealed class PreparedContractRepository : IPreparedContractRepository
         return loaded;
     }
 
+    public async Task<KommunikationsvorgangDto> MarkFinalDocumentReadyForReviewAsync(long id, int expectedRevision, long finalDocumentId, CancellationToken cancellationToken = default)
+    {
+        if (id <= 0) throw new ArgumentOutOfRangeException(nameof(id));
+        if (expectedRevision < 1) throw new ArgumentOutOfRangeException(nameof(expectedRevision));
+        if (finalDocumentId <= 0) throw new ArgumentOutOfRangeException(nameof(finalDocumentId));
+        var ready = Single(await PatchAsync($"kommunikationsvorgang?id=eq.{id}&status=eq.{PreparedContractConstants.ReadyForSignature}&revision=eq.{expectedRevision}&signatur_revision=eq.{expectedRevision}&signatur_gestartet_am=not.is.null&final_dokument_id=is.null&zugewiesen_an=eq.{CurrentUserId()}", new { status = PreparedContractConstants.FinalReview, final_dokument_id = finalDocumentId }, cancellationToken), "Das finale Dokument konnte nicht zur Prüfung vorgemerkt werden.");
+        if (ready.Id != id || ready.Status != PreparedContractConstants.FinalReview || ready.Revision != expectedRevision ||
+            ready.SignaturRevision != expectedRevision || ready.SignaturGestartetAm is null || ready.FinalDokumentId != finalDocumentId)
+            throw new PreparedContractConflictException("Der Server hat die letzte Dokumentprüfung nicht korrekt bestätigt.");
+        return ready;
+    }
+
     public async Task<KommunikationsvorgangDto> CompleteAsync(long id, CancellationToken cancellationToken = default)
     {
         var current = await LoadRequiredAsync(id, cancellationToken);
-        return Single(await PatchAsync($"kommunikationsvorgang?id=eq.{id}&status=eq.{PreparedContractConstants.ReadyForSignature}&revision=eq.{current.Revision}&signatur_revision=eq.{current.Revision}&zugewiesen_an=eq.{CurrentUserId()}", new { status = PreparedContractConstants.Completed }, cancellationToken), "Der Vertragsvorgang kann nicht abgeschlossen werden.");
+        if (current.Status != PreparedContractConstants.FinalReview || current.SignaturRevision != current.Revision || current.SignaturGestartetAm is null || current.FinalDokumentId is not > 0)
+            throw new PreparedContractConflictException("Der Vertragsvorgang ist noch nicht zur letzten Prüfung bereit.");
+        var completed = Single(await PatchAsync($"kommunikationsvorgang?id=eq.{id}&status=eq.{PreparedContractConstants.FinalReview}&revision=eq.{current.Revision}&signatur_revision=eq.{current.Revision}&final_dokument_id=eq.{current.FinalDokumentId}&zugewiesen_an=eq.{CurrentUserId()}", new { status = PreparedContractConstants.Completed }, cancellationToken), "Der Vertragsvorgang kann nicht abgeschlossen werden.");
+        if (completed.Id != id || completed.Status != PreparedContractConstants.Completed || completed.Revision != current.Revision || completed.FinalDokumentId != current.FinalDokumentId)
+            throw new PreparedContractConflictException("Der Server hat den Vertragsabschluss nicht korrekt bestätigt.");
+        return completed;
     }
 
     private async Task<KommunikationsvorgangDto> LoadRequiredAsync(long id, CancellationToken ct) => await LoadAsync(id, ct);
