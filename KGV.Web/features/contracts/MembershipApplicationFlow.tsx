@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { SignaturePad } from "../../components/signature/SignaturePad";
 import type { BrowserSession } from "../../lib/supabase-auth";
 import { emptyLegalRepresentativeDraft, loadLegalRepresentativeContext, validateLegalRepresentative, type LegalRepresentativeDraft, type LegalRepresentativeOption } from "../../services/contracts/legal-representative-service";
-import { calculateMembershipApplicationContribution, loadMembershipApplicationData, type MembershipApplicationData } from "../../services/contracts/membership-application-service";
+import { calculateMembershipApplicationContribution, loadMembershipApplicationData, loadMembershipApplicationDocumentState, type MembershipApplicationData } from "../../services/contracts/membership-application-service";
 import { buildMembershipApplicationSignatureSteps, canFinalizeMembershipApplication, canStartMembershipApplicationSignatures, hasCompletedMembershipApplicationSignatures, type MembershipApplicationSignatureKey } from "../../services/contracts/membership-application-flow-service";
 import { generateContract } from "../../services/contracts/contract-generation-service";
 import { ContractPreview } from "./ContractPreview";
