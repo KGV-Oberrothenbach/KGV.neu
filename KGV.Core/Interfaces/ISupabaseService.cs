@@ -93,6 +93,10 @@ namespace KGV.Core.Interfaces
         // Arbeitsstunden
         // =========================
         Task<List<SaisonRecord>> GetSaisonRecordsAsync();
+        Task<List<VereinsdokumentTypRecord>> GetVereinsdokumentTypenAsync();
+        Task<List<VereinsdokumentFassungRecord>> GetVereinsdokumentFassungenAsync(string dokumenttypCode);
+        Task<VereinsdokumentFassungRecord?> GetGueltigeVereinsdokumentFassungAsync(string dokumenttypCode, DateOnly stichtag);
+        Task<VereinsdokumentFassungRecord> CreateVereinsdokumentFassungAsync(VereinsdokumentFassungCreateRequest request);
         Task<SaisonRecord?> SaveSaisonAsync(SaisonRecord saison);
         Task<JahresabschlussRecord?> GetJahresabschlussBySaisonAsync(int saisonId);
         Task<JahresabschlussRecord?> SaveJahresabschlussAsync(JahresabschlussRecord jahresabschluss);

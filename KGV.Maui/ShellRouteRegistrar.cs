@@ -25,6 +25,7 @@ internal static class ShellRouteRegistrar
         Routing.RegisterRoute(nameof(SaisonverwaltungPage), typeof(SaisonverwaltungPage));
         Routing.RegisterRoute(nameof(JahresabschlussPage), typeof(JahresabschlussPage));
         Routing.RegisterRoute(nameof(VereinskonfigurationPage), typeof(VereinskonfigurationPage));
+        Routing.RegisterRoute(nameof(VereinsunterlagenPage), typeof(VereinsunterlagenPage));
         Routing.RegisterRoute(nameof(MyProfilePage), typeof(MyProfilePage));
         Routing.RegisterRoute(nameof(DokumentePage), typeof(DokumentePage));
         Routing.RegisterRoute(nameof(UserManagementPage), typeof(UserManagementPage));

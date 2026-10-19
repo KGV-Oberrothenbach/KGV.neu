@@ -58,6 +58,7 @@ export const navigationConfig = {
         seasons: { id: "saisons", label: "Saisonverwaltung", detail: "Saisons anlegen und verwalten", depth: 1 },
         annualClosing: { id: "jahresabschluss", label: "Jahresabschluss", detail: "Jahresabschluss vorbereiten und bearbeiten", depth: 1 },
         club: { id: "verein", label: "Vereinskonfiguration", detail: "Vereinsdaten und Grundeinstellungen", depth: 1 },
+        clubDocuments: { id: "vereinsunterlagen", label: "Vereinsunterlagen", detail: "Versionierte Satzungen und Ordnungen verwalten", depth: 1 },
       },
     },
     members: {

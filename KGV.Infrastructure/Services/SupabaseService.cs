@@ -2777,6 +2777,33 @@ namespace KGV.Infrastructure.Services
                 return true;
             }, false);
 
+        public Task<List<VereinsdokumentTypRecord>> GetVereinsdokumentTypenAsync() => ExecuteAsync("GetVereinsdokumentTypenAsync", async () =>
+            (await (await EnsureClientAsync()).From<VereinsdokumentTypRecord>().Get())?.Models?.OrderBy(x => x.Code).ToList() ?? new List<VereinsdokumentTypRecord>(), new List<VereinsdokumentTypRecord>());
+
+        public Task<List<VereinsdokumentFassungRecord>> GetVereinsdokumentFassungenAsync(string dokumenttypCode) => ExecuteAsync("GetVereinsdokumentFassungenAsync", async () =>
+        {
+            if (string.IsNullOrWhiteSpace(dokumenttypCode)) throw new InvalidOperationException("Dokumenttyp fehlt.");
+            return (await (await EnsureClientAsync()).From<VereinsdokumentFassungRecord>().Where(x => x.DokumenttypCode == dokumenttypCode.Trim()).Get())?.Models?.OrderByDescending(x => x.GueltigAb).ToList() ?? new List<VereinsdokumentFassungRecord>();
+        }, new List<VereinsdokumentFassungRecord>());
+
+        public async Task<VereinsdokumentFassungRecord?> GetGueltigeVereinsdokumentFassungAsync(string dokumenttypCode, DateOnly stichtag)
+            => VereinsdokumentFassungHelper.GetValidClubDocumentVersion(await GetVereinsdokumentFassungenAsync(dokumenttypCode), dokumenttypCode, stichtag.ToDateTime(TimeOnly.MinValue));
+
+        public async Task<VereinsdokumentFassungRecord> CreateVereinsdokumentFassungAsync(VereinsdokumentFassungCreateRequest request)
+        {
+            if (request == null || request.PdfInhalt.Length < 5 || request.PdfInhalt[0] != (byte)'%' || request.PdfInhalt[1] != (byte)'P' || request.PdfInhalt[2] != (byte)'D' || request.PdfInhalt[3] != (byte)'F') throw new InvalidOperationException("FILE_NOT_PDF");
+            var path = VereinsdokumentFassungHelper.CreateStoragePath(request.DokumenttypCode, request.Fassung, request.Dateiname);
+            var hash = VereinsdokumentFassungHelper.ComputeSha256(request.PdfInhalt);
+            var token = await _authService.GetAccessTokenAsync(); if (string.IsNullOrWhiteSpace(token)) throw new InvalidOperationException("AUTH_REQUIRED");
+            var uploadUri = new Uri(_supabaseUrl.TrimEnd('/') + "/storage/v1/object/vereinsregelwerke/" + path);
+            using var upload = new HttpRequestMessage(HttpMethod.Post, uploadUri) { Content = new ByteArrayContent(request.PdfInhalt) };
+            upload.Content.Headers.ContentType = new MediaTypeHeaderValue("application/pdf"); upload.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token); upload.Headers.Add("apikey", _publishableKey); upload.Headers.Add("x-upsert", "false");
+            using var uploadResponse = await _documentUploadHttpClient.SendAsync(upload); if (!uploadResponse.IsSuccessStatusCode) throw new InvalidOperationException("UPLOAD_FAILED");
+            try { await (await EnsureClientAsync()).Rpc("create_vereinsdokument_fassung", new { p_dokumenttyp_code = request.DokumenttypCode, p_fassung = request.Fassung, p_gueltig_ab = request.GueltigAb.ToString("yyyy-MM-dd"), p_storage_path = path, p_dateiname = request.Dateiname, p_sha256 = hash }); }
+            catch { using var cleanup = new HttpRequestMessage(HttpMethod.Delete, uploadUri); cleanup.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token); cleanup.Headers.Add("apikey", _publishableKey); using var cleanupResponse = await _documentUploadHttpClient.SendAsync(cleanup); if (!cleanupResponse.IsSuccessStatusCode) throw new InvalidOperationException("RPC_FAILED_CLEANUP_FAILED"); throw new InvalidOperationException("RPC_FAILED"); }
+            return (await GetVereinsdokumentFassungenAsync(request.DokumenttypCode)).First(x => x.StoragePath == path);
+        }
+
         public Task<SaisonRecord?> SaveSaisonAsync(SaisonRecord saison) => ExecuteAsync<SaisonRecord?>(
             "SaveSaisonAsync",
             async () =>
