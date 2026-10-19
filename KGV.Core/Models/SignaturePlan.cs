@@ -34,3 +34,10 @@ public static class MembershipApplicationSignatureKeys
     public const string RepresentativePrivacy = "representative.privacy";
     public const string BoardApproval = "board.approval";
 }
+
+public static class LeaseContractSignatureKeys
+{
+    public const string Member = "lease.member";
+    public const string SecondParty = "lease.second_party";
+    public const string Board = "lease.board";
+}

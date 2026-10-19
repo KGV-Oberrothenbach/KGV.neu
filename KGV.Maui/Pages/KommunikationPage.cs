@@ -140,7 +140,8 @@ public sealed class KommunikationPage : ContentPage
         }
         if (item.Contract.Dokumenttyp == PreparedContractConstants.LeaseContract)
         {
-            await DisplayAlertAsync("Pachtvertrag", "Die Signatur für Pachtverträge wird noch nicht unterstützt.", "OK");
+            await RunLeaseSigningAsync(item.Contract);
+            await LoadAsync();
             return;
         }
 
@@ -187,6 +188,33 @@ public sealed class KommunikationPage : ContentPage
 
         if (result.State != PreparedMembershipApplicationSigningState.Cancelled)
             await DisplayAlertAsync("Mitgliedsantrag", result.Error?.Message ?? "Der Signaturvorgang konnte nicht abgeschlossen werden.", "OK");
+    }
+
+    private async Task RunLeaseSigningAsync(KommunikationsvorgangDto contract)
+    {
+        try
+        {
+            if (contract.Status == PreparedContractConstants.Prepared)
+            {
+                if (PreparedContractDraftParser.Parse(contract.EntwurfDaten) is not PreparedLeaseContractDraft draft)
+                    throw new PreparedContractValidationException("Der gespeicherte Vertragsentwurf ist kein Pachtvertrag.");
+                var resolution = await _supabaseService.ResolveGesetzlicherVertreterAsync(contract.MitgliedId, DateTime.ParseExact(draft.Draft.StartDate, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture));
+                var request = PreparedLeaseContractMapper.ToDocumentRequest(draft, resolution.IstMinderjaehrig);
+                var pdf = await _contractClient.PreviewLeaseContractAsync(request);
+                var preview = new PachtvertragPreviewPage(new DokumentUploadRequest { MitgliedId = contract.MitgliedId, Titel = "Pachtvertrag – Vorschau", FileName = "Pachtvertrag_Vorschau.pdf", MimeType = "application/pdf", FileContent = pdf }, persistForSignature: false, preparedActionLabel: "Signatur starten");
+                await Navigation.PushModalAsync(new NavigationPage(preview));
+                if (await preview.WaitForResultAsync() != PachtvertragPreviewDecision.SavePrepared) return;
+            }
+
+            var signing = new PreparedLeaseContractSigningService(_repository, _contractClient, _supabaseService, new PreparedLeaseContractVereinsunterlagenService(_repository, new MitgliedsantragVereinsunterlagenService(_supabaseService)));
+            var started = await signing.StartAsync(contract);
+            var capture = new MauiPreparedSignatureCapture(this, new DocumentInfo { Title = "Pachtvertrag", Dateiname = "Pachtvertrag.pdf" });
+            var reviewed = await signing.FinalizeAsync(started, capture);
+            var review = new PreparedFinalDocumentReviewFlow(this, _repository, _supabaseService);
+            await review.OpenAsync(reviewed);
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex) { await DisplayAlertAsync("Pachtvertrag", ex.Message, "OK"); }
     }
 
     private async Task ClaimAsync(SignatureListItem item)
