@@ -32,6 +32,7 @@ internal static class PachtvertragFlowHelper
             throw new InvalidOperationException("Ein Pachtvertrag kann erst nach dem signierten Mitgliedsantrag erstellt werden.");
         if (!Guid.TryParse(authService.CurrentUserId, out var currentUserId) || currentUserId == Guid.Empty)
             throw new InvalidOperationException("Die aktuelle Benutzer-ID konnte nicht bestimmt werden.");
+        var vereinsunterlagenService = new MitgliedsantragVereinsunterlagenService(supabaseService);
 
         var resume = await resumeService.ResolveAsync(mitgliedId, parzelleId, currentUserId);
         var contract = resume.Contract;
@@ -76,6 +77,14 @@ internal static class PachtvertragFlowHelper
             var request = await PromptPachtvertragRequestAsync(navigation, supabaseService, mitgliedId, parzelleId, vertragsbeginn, initialRequest, contract);
             if (request == null) return PachtvertragFlowResult.Abgebrochen;
 
+            request.VereinsunterlagenSnapshot = await vereinsunterlagenService.CreateCurrentSnapshotAsync(mitgliedId);
+            request.VereinsunterlagenNachweis = VereinsunterlagenNachweisHelper.FormatForPdf(request.VereinsunterlagenSnapshot);
+            var serialized = PreparedContractDraftParser.Serialize(PreparedLeaseContractMapper.ToPreparedDraft(request));
+            if (contract == null)
+                contract = await preparedContractRepository.CreateAsync(PreparedContractConstants.LeaseContract, mitgliedId, parzelleId, serialized);
+            else if (!PreparedContractDraftParser.AreEquivalent(contract.EntwurfDaten, serialized))
+                contract = await preparedContractRepository.UpdateDraftAsync(contract.Id, contract.Revision, serialized);
+
             byte[] pdf;
             try { pdf = await contractGenerationClient.PreviewLeaseContractAsync(request); }
             catch (Exception ex) { throw new InvalidOperationException($"Pachtvertrag-Vorschau konnte nicht erzeugt werden: {ex.Message}", ex); }
@@ -91,12 +100,6 @@ internal static class PachtvertragFlowHelper
             if (decision == PachtvertragPreviewDecision.Cancel) return PachtvertragFlowResult.Abgebrochen;
             if (decision != PachtvertragPreviewDecision.SavePrepared)
                 throw new InvalidOperationException("Der Pachtvertrag kann in diesem Schritt nicht zur Signatur weitergeleitet werden.");
-
-            var serialized = PreparedContractDraftParser.Serialize(PreparedLeaseContractMapper.ToPreparedDraft(request));
-            if (contract == null)
-                await preparedContractRepository.CreateAsync(PreparedContractConstants.LeaseContract, mitgliedId, parzelleId, serialized);
-            else if (!PreparedContractDraftParser.AreEquivalent(contract.EntwurfDaten, serialized))
-                await preparedContractRepository.UpdateDraftAsync(contract.Id, contract.Revision, serialized);
 
             return PachtvertragFlowResult.Vorbereitet;
         }

@@ -10,6 +10,8 @@ import { buildLeaseContractSignatureSteps, hasCompletedLeaseContractSignatures, 
 import { loadPreparedContractForEditing, loadPreparedContractForFinalReview, loadPreparedContractForSignature, markPreparedContractReadyForReview, parkPreparedContract, savePreparedContractIfChanged, startPreparedContractSigning, type PreparedContractResumeContext } from "../../services/communication/prepared-contract-service";
 import { preparedContractSchemaVersion, type PreparedLeaseContractDraft } from "../../models/communication/prepared-contract-draft";
 import { PreparedFinalReview } from "./PreparedFinalReview";
+import { getMemberClubDocumentStatus } from "../../services/club-documents/member-club-document-status-service";
+import { createMemberClubDocumentSnapshot, formatMemberClubDocumentSnapshotForPdf, isCompleteMemberClubDocumentSnapshot, memberClubDocumentSnapshotsEqual, type MemberClubDocumentSnapshotItem } from "../../services/contracts/member-club-document-snapshot-service";
 const name = (m: {
     vorname: string | null;
     name: string | null;
@@ -38,6 +40,7 @@ export function LeaseContractFlow({ session, memberId, parcelId, startDate, onSa
     const [opening, setOpening] = useState(false);
     const [resumeContext, setResumeContext] = useState<PreparedContractResumeContext | null>(null);
     const [finalDocumentId, setFinalDocumentId] = useState<number | null>(null);
+    const [clubDocumentSnapshot, setClubDocumentSnapshot] = useState<MemberClubDocumentSnapshotItem[] | undefined>();
     const clearSignatures = () => { setSignatures({}); setSignatureIndex(0); };
     useEffect(() => { let active = true; loadLeaseContractDocumentState(club, session, parcelId).then(async (state) => { if (!active)
         return; setDocumentState(state); if (state.status !== "none" && !preparedContractId)
@@ -46,23 +49,34 @@ export function LeaseContractFlow({ session, memberId, parcelId, startDate, onSa
     useEffect(() => { if (!preparedContractId || !data)
         return; let active = true; const loadPrepared = resumeMode === "signatures" ? loadPreparedContractForSignature : resumeMode === "review" ? loadPreparedContractForFinalReview : loadPreparedContractForEditing; loadPrepared(club, session, preparedContractId, session.user.id, "pachtvertrag").then(context => { if (!active)
         return; const saved = context.entwurf_daten as PreparedLeaseContractDraft; if (saved.memberId !== memberId || saved.draft.parcelId !== parcelId)
-        throw new Error("Der gespeicherte Pachtvertrag passt nicht zum Mitglied oder zur Parzelle."); setResumeContext(context); setDraft(saved.draft); clearSignatures(); setStep(resumeMode === "signatures" ? "signatures" : resumeMode === "review" ? "review" : "edit"); }).catch(e => active && setMessage(e instanceof Error ? e.message : "Der vorbereitete Pachtvertrag konnte nicht geöffnet werden.")); return () => { active = false; }; }, [club, session, preparedContractId, memberId, parcelId, data, resumeMode]);
+        throw new Error("Der gespeicherte Pachtvertrag passt nicht zum Mitglied oder zur Parzelle."); setResumeContext(context); setDraft(saved.draft); setClubDocumentSnapshot(saved.vereinsunterlagen_nachweis); clearSignatures(); setStep(resumeMode === "signatures" ? "signatures" : resumeMode === "review" ? "review" : "edit"); }).catch(e => active && setMessage(e instanceof Error ? e.message : "Der vorbereitete Pachtvertrag konnte nicht geöffnet werden.")); return () => { active = false; }; }, [club, session, preparedContractId, memberId, parcelId, data, resumeMode]);
     useEffect(() => () => { if (previewUrl)
         URL.revokeObjectURL(previewUrl); }, [previewUrl]);
     const statusMessage = documentState?.status === "signed" ? "Ein signierter Pachtvertrag ist bereits vorhanden." : documentState?.status === "unsigned" ? "Ein unsignierter Pachtvertrag ist bereits vorhanden." : "";
     const blocked = Boolean(statusMessage);
     const changeLeaseDraft = (next: Partial<LeaseContractDraft>) => { clearSignatures(); if (previewUrl)
         URL.revokeObjectURL(previewUrl); setPreviewUrl(null); setStep("edit"); setDraft(current => ({ ...current, ...next })); };
-    const request = (action: "preview" | "finalize") => { if (!data)
-        throw new Error("Pachtvertragsbasis fehlt."); return { action, type: "pachtvertrag" as const, ...prepareLeaseContractRequest(data, draft), signature_member: signatures.member || undefined, signature_secondary: signatures.secondary || undefined, signature_board: signatures.board || undefined }; };
-    const preparedDraft = (): PreparedLeaseContractDraft => ({ schema_version: preparedContractSchemaVersion, document_type: "pachtvertrag", memberId, draft });
-    const savePrepared = async () => { if (!resumeContext)
-        return null; const updated = await savePreparedContractIfChanged(club, session, session.user.id, resumeContext, preparedDraft()); setResumeContext(updated); if (updated !== resumeContext)
+    const request = (action: "preview" | "finalize", snapshot: MemberClubDocumentSnapshotItem[] | undefined = resumeContext ? (resumeContext.entwurf_daten as PreparedLeaseContractDraft).vereinsunterlagen_nachweis : clubDocumentSnapshot) => { if (!data)
+        throw new Error("Pachtvertragsbasis fehlt."); if (!isCompleteMemberClubDocumentSnapshot(snapshot))
+        throw new Error("Der Vereinsunterlagen-Nachweis fehlt. Bitte erstellen Sie zuerst eine neue Vorschau."); return { action, type: "pachtvertrag" as const, ...prepareLeaseContractRequest(data, draft), club_documents_snapshot: formatMemberClubDocumentSnapshotForPdf(snapshot), signature_member: signatures.member || undefined, signature_secondary: signatures.secondary || undefined, signature_board: signatures.board || undefined }; };
+    const preparedDraft = (snapshot: MemberClubDocumentSnapshotItem[] | undefined = clubDocumentSnapshot): PreparedLeaseContractDraft => ({ schema_version: preparedContractSchemaVersion, document_type: "pachtvertrag", memberId, draft, vereinsunterlagen_nachweis: snapshot });
+    const createCurrentClubDocumentSnapshot = async () => {
+        const today = new Date();
+        const date = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+        const snapshot = createMemberClubDocumentSnapshot(await getMemberClubDocumentStatus(club, session, memberId, date));
+        setClubDocumentSnapshot(snapshot);
+        return snapshot;
+    };
+    const savePrepared = async (snapshot: MemberClubDocumentSnapshotItem[] | undefined = clubDocumentSnapshot) => { if (!resumeContext)
+        return null; const updated = await savePreparedContractIfChanged(club, session, session.user.id, resumeContext, preparedDraft(snapshot)); setResumeContext(updated); if (updated !== resumeContext)
         setMessage("Die Änderungen am vorbereiteten Vertrag wurden gespeichert."); return updated; };
     const beginSignatures = async () => { try {
         if (!data)
-            return; setBusy(true); setMessage(""); let context = resumeContext; if (context?.status === "vorbereitet")
-            context = await savePrepared() ?? context; if (!context) { const parked = await parkPreparedContract(club, session, session.user.id, preparedDraft()); context = await loadPreparedContractForEditing(club, session, parked.id, session.user.id, "pachtvertrag"); }
+            return; setBusy(true); setMessage(""); let context = resumeContext; if (!context)
+            throw new Error("Für die Signatur ist zuerst eine neue Vorschau erforderlich."); const saved = (context.entwurf_daten as PreparedLeaseContractDraft).vereinsunterlagen_nachweis; if (!isCompleteMemberClubDocumentSnapshot(saved))
+            throw new Error("Der gespeicherte Vereinsunterlagen-Nachweis fehlt. Bitte erstellen Sie eine neue Vorschau."); const current = await createCurrentClubDocumentSnapshot(); if (!memberClubDocumentSnapshotsEqual(saved, current)) { if (context.status === "vorbereitet")
+                await savePrepared(current); throw new Error("Die Vereinsunterlagen haben sich seit der Vorschau geändert. Der Entwurf wurde aktualisiert; bitte erstellen Sie eine neue Vorschau."); }
+        if (context.status === "vorbereitet") context = await savePrepared(saved) ?? context;
         const started = context.status === "zur_signatur" ? context : await startPreparedContractSigning(club, session, context, session.user.id); setResumeContext(started); clearSignatures(); setStep("signatures"); }
     catch (e) { setMessage(e instanceof Error ? e.message : "Die Signatur konnte nicht gestartet werden."); }
     finally { setBusy(false); } };
@@ -76,8 +90,11 @@ export function LeaseContractFlow({ session, memberId, parcelId, startDate, onSa
     const preview = async () => { try {
         setBusy(true);
         setMessage("");
-        await savePrepared();
-        const result = await generateContract(club, session, request("preview"));
+        const snapshot = await createCurrentClubDocumentSnapshot();
+        let context = resumeContext;
+        if (context) context = await savePrepared(snapshot) ?? context;
+        else { const parked = await parkPreparedContract(club, session, session.user.id, preparedDraft(snapshot)); context = await loadPreparedContractForEditing(club, session, parked.id, session.user.id, "pachtvertrag"); setResumeContext(context); }
+        const result = await generateContract(club, session, request("preview", snapshot));
         if (!result.previewUrl)
             throw new Error("Die PDF-Vorschau fehlt.");
         setPreviewUrl(result.previewUrl);

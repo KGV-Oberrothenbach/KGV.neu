@@ -22,6 +22,7 @@ public sealed class PachtvertragDokumentRequest
     public DateTime? UebergabeDatum { get; set; }
     /// <summary>Snapshot des bei der Vertragserstellung ausgehändigten Vereinsunterlagen-Nachweises. Bis zur zentralen Historie optional.</summary>
     public string? VereinsunterlagenNachweis { get; set; }
+    public IReadOnlyList<VereinsunterlagenNachweisSnapshotItem>? VereinsunterlagenSnapshot { get; set; }
     public DateTime? BefristetBis { get; set; }
     public string? KleingartenordnungFassung { get; set; }
     public DateTime? KleingartenordnungAusgehaendigtAm { get; set; }

@@ -76,7 +76,8 @@ public sealed class ContractGenerationClient : IContractGenerationClient
 
     public async Task<byte[]> PreviewLeaseContractAsync(PachtvertragDokumentRequest request, CancellationToken cancellationToken = default)
     {
-        return await SendPreviewAsync(CreateLeasePayload("preview", PreparedLeaseContractMapper.ToPreparedDraft(request).Draft, request.MitgliedId, request.ParzelleId), cancellationToken);
+        var draft = PreparedLeaseContractMapper.ToPreparedDraft(request);
+        return await SendPreviewAsync(CreateLeasePayload("preview", draft, request.MitgliedId, request.ParzelleId), cancellationToken);
     }
 
     public async Task<ContractFinalizeResult> FinalizeMembershipApplicationAsync(MembershipApplicationFinalizeRequest request, CancellationToken cancellationToken = default)
@@ -103,18 +104,21 @@ public sealed class ContractGenerationClient : IContractGenerationClient
         if (request.Contract.IncludeSecondaryMember == true && string.IsNullOrWhiteSpace(request.SecondarySignature)) throw new ArgumentException("Die Unterschrift des Nebenmitglieds ist erforderlich.", nameof(request));
 
         var contract = request.Contract;
-        var payload = CreateLeasePayload("finalize", PreparedLeaseContractMapper.ToPreparedDraft(contract).Draft, contract.MitgliedId, contract.ParzelleId);
+        var draft = PreparedLeaseContractMapper.ToPreparedDraft(contract);
+        var payload = CreateLeasePayload("finalize", draft, contract.MitgliedId, contract.ParzelleId);
         payload["signature_member"] = request.MemberSignature; payload["signature_board"] = request.BoardSignature;
         if (contract.IncludeSecondaryMember == true) payload["signature_secondary"] = request.SecondarySignature;
         return await SendFinalizeAsync(payload, cancellationToken);
     }
 
-    private static Dictionary<string, object?> CreateLeasePayload(string action, LeaseContractDraft draft, int memberId, int parcelId)
+    private static Dictionary<string, object?> CreateLeasePayload(string action, PreparedLeaseContractDraft prepared, int memberId, int parcelId)
     {
+        var draft = prepared.Draft;
         var payload = new Dictionary<string, object?> { ["action"] = action, ["type"] = "pachtvertrag", ["member_id"] = memberId, ["parcel_id"] = parcelId, ["start_date"] = draft.StartDate, ["has_previous_contract"] = draft.HasPreviousContract, ["include_secondary_member"] = draft.IncludeSecondaryMember, ["handover_date"] = draft.HandoverDate };
         if (draft.HasPreviousContract == true) payload["previous_contract_date"] = draft.PreviousContractDate;
         if (!string.IsNullOrWhiteSpace(draft.AdditionalAgreements)) payload["additional_agreements"] = draft.AdditionalAgreements;
         if (!string.IsNullOrWhiteSpace(draft.ClubSignatory)) payload["club_signatory"] = draft.ClubSignatory;
+        if (prepared.VereinsunterlagenNachweis is not null) payload["club_documents_snapshot"] = VereinsunterlagenNachweisHelper.FormatForPdf(prepared.VereinsunterlagenNachweis);
         return payload;
     }
 

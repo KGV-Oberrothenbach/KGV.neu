@@ -96,6 +96,7 @@ public sealed record PreparedLeaseContractDraft
     [JsonPropertyName("document_type")] public string DocumentType { get; init; } = PreparedContractConstants.LeaseContract;
     [JsonPropertyName("memberId")] public int MemberId { get; init; }
     [JsonPropertyName("draft")] public LeaseContractDraft Draft { get; init; } = new();
+    [JsonPropertyName("vereinsunterlagen_nachweis")] public IReadOnlyList<VereinsunterlagenNachweisSnapshotItem>? VereinsunterlagenNachweis { get; init; }
 }
 
 public sealed class PreparedContractValidationException : Exception

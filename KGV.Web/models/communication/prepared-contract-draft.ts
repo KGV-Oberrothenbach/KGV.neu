@@ -3,7 +3,7 @@ import type { LegalRepresentativeDraft } from "../../services/contracts/legal-re
 import type { MemberClubDocumentSnapshotItem } from "../../services/contracts/member-club-document-snapshot-service";
 export const preparedContractSchemaVersion = "kgv-prepared-contract/v1" as const;
 export type PreparedMembershipApplicationDraft = { schema_version: typeof preparedContractSchemaVersion; document_type: "mitgliedsantrag"; memberId: number; startDate: string; memberFee: number; representative: LegalRepresentativeDraft | null; includeSecondaryMember: boolean; vereinsunterlagen_nachweis?: MemberClubDocumentSnapshotItem[] };
-export type PreparedLeaseContractDraft = { schema_version: typeof preparedContractSchemaVersion; document_type: "pachtvertrag"; memberId: number; draft: LeaseContractDraft };
+export type PreparedLeaseContractDraft = { schema_version: typeof preparedContractSchemaVersion; document_type: "pachtvertrag"; memberId: number; draft: LeaseContractDraft; vereinsunterlagen_nachweis?: MemberClubDocumentSnapshotItem[] };
 export type PreparedContractDraft = PreparedMembershipApplicationDraft | PreparedLeaseContractDraft;
 export function parsePreparedContractDraft(value: unknown): PreparedContractDraft {
   if (!value || typeof value !== "object") throw new Error("Der gespeicherte Vertragsentwurf ist ungültig.");

@@ -15,6 +15,7 @@ public static class PreparedLeaseContractMapper
         return new PreparedLeaseContractDraft
         {
             MemberId = request.MitgliedId,
+            VereinsunterlagenNachweis = request.VereinsunterlagenSnapshot,
             Draft = new LeaseContractDraft
             {
                 StartDate = start, ParcelId = request.ParzelleId, HasPreviousContract = request.HasPreviousContract,
@@ -34,7 +35,7 @@ public static class PreparedLeaseContractMapper
         ArgumentNullException.ThrowIfNull(draft);
         var d = draft.Draft ?? throw new PreparedContractValidationException("Der Pachtvertragsentwurf fehlt.");
         if (draft.MemberId <= 0 || d.ParcelId is not > 0 || d.HasPreviousContract is null) throw new PreparedContractValidationException("Der Pachtvertragsentwurf ist unvollständig.");
-        var request = new PachtvertragDokumentRequest { MitgliedId = draft.MemberId, ParzelleId = d.ParcelId.Value, Vertragsbeginn = Parse(d.StartDate, "Vertragsbeginn"), IstMinderjaehrig = isMinor, HasPreviousContract = d.HasPreviousContract, AltvertragDatum = d.HasPreviousContract == true ? Parse(d.PreviousContractDate, "Altvertragsdatum") : null, UebergabeDatum = Parse(d.HandoverDate, "Übergabedatum"), BefristetBis = OptionalParse(d.FixedUntil), KleingartenordnungFassung = d.GardenRulesVersion, KleingartenordnungAusgehaendigtAm = OptionalParse(d.GardenRulesHandedOverAt), WeitereVereinbarungen = d.AdditionalAgreements, Anlage1 = d.Attachment1, Anlage2 = d.Attachment2, Anlage3 = d.Attachment3, Anlage4 = d.Attachment4, VereinsUnterzeichner = d.ClubSignatory, IncludeSecondaryMember = !isMinor && d.IncludeSecondaryMember };
+        var request = new PachtvertragDokumentRequest { MitgliedId = draft.MemberId, ParzelleId = d.ParcelId.Value, Vertragsbeginn = Parse(d.StartDate, "Vertragsbeginn"), IstMinderjaehrig = isMinor, HasPreviousContract = d.HasPreviousContract, AltvertragDatum = d.HasPreviousContract == true ? Parse(d.PreviousContractDate, "Altvertragsdatum") : null, UebergabeDatum = Parse(d.HandoverDate, "Übergabedatum"), BefristetBis = OptionalParse(d.FixedUntil), KleingartenordnungFassung = d.GardenRulesVersion, KleingartenordnungAusgehaendigtAm = OptionalParse(d.GardenRulesHandedOverAt), WeitereVereinbarungen = d.AdditionalAgreements, Anlage1 = d.Attachment1, Anlage2 = d.Attachment2, Anlage3 = d.Attachment3, Anlage4 = d.Attachment4, VereinsUnterzeichner = d.ClubSignatory, IncludeSecondaryMember = !isMinor && d.IncludeSecondaryMember, VereinsunterlagenSnapshot = draft.VereinsunterlagenNachweis, VereinsunterlagenNachweis = draft.VereinsunterlagenNachweis is null ? null : VereinsunterlagenNachweisHelper.FormatForPdf(draft.VereinsunterlagenNachweis) };
         return request;
     }
 
