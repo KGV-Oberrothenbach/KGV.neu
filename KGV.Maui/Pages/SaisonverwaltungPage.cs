@@ -22,6 +22,7 @@ public sealed class SaisonverwaltungPage : ContentPage
     private readonly CollectionView _saisonsView;
     private readonly Entry _jahrEntry;
     private readonly Entry _pachtProQmEntry;
+    private readonly DatePicker _pachtFaelligAmPicker;
     private readonly Entry _mitgliedsbeitragEntry;
     private readonly Entry _mitgliedsbeitragNebenmitgliedEntry;
     private readonly Entry _aufnahmegebuehrEntry;
@@ -81,6 +82,7 @@ public sealed class SaisonverwaltungPage : ContentPage
 
         _jahrEntry = CreateEntry(readOnly: true);
         _pachtProQmEntry = CreateEntry(keyboard: Keyboard.Numeric);
+        _pachtFaelligAmPicker = new DatePicker { Format = "dd.MM.yyyy" };
         _mitgliedsbeitragEntry = CreateEntry(keyboard: Keyboard.Numeric);
         _mitgliedsbeitragNebenmitgliedEntry = CreateEntry(keyboard: Keyboard.Numeric);
         _aufnahmegebuehrEntry = CreateEntry(keyboard: Keyboard.Numeric);
@@ -133,6 +135,7 @@ public sealed class SaisonverwaltungPage : ContentPage
                         "Saison bearbeiten",
                         CreateField("Jahr / ID", _jahrEntry),
                         CreateField("Pacht pro qm", _pachtProQmEntry),
+                        CreateField("Pacht fällig am", _pachtFaelligAmPicker),
                         CreateField("Mitgliedsbeitrag", _mitgliedsbeitragEntry),
                         CreateField("Nebenmitgliedsbeitrag", _mitgliedsbeitragNebenmitgliedEntry),
                         CreateField("Aufnahmegebühr", _aufnahmegebuehrEntry),
@@ -282,6 +285,7 @@ public sealed class SaisonverwaltungPage : ContentPage
     {
         _jahrEntry.Text = SaisonverwaltungHelper.GetSaisonJahr(saison).ToString(CultureInfo.InvariantCulture);
         _pachtProQmEntry.Text = FormatDecimal(saison.PachtProQm);
+        _pachtFaelligAmPicker.Date = saison.PachtFaelligAm?.Date ?? new DateTime(SaisonverwaltungHelper.GetSaisonJahr(saison), 3, 31);
         _mitgliedsbeitragEntry.Text = FormatDecimal(saison.Mitgliedsbeitrag);
         _mitgliedsbeitragNebenmitgliedEntry.Text = FormatDecimal(saison.MitgliedsbeitragNebenmitglied);
         _aufnahmegebuehrEntry.Text = FormatDecimal(saison.Aufnahmegebuehr);
@@ -295,6 +299,7 @@ public sealed class SaisonverwaltungPage : ContentPage
     {
         var editable = IsEditable;
         _pachtProQmEntry.IsEnabled = editable;
+        _pachtFaelligAmPicker.IsEnabled = editable;
         _mitgliedsbeitragEntry.IsEnabled = editable;
         _mitgliedsbeitragNebenmitgliedEntry.IsEnabled = editable;
         _aufnahmegebuehrEntry.IsEnabled = editable;
@@ -372,6 +377,7 @@ public sealed class SaisonverwaltungPage : ContentPage
             PflichtstundenSoll = pflichtstundenSoll,
             EuroProFehlstunde = euroProFehlstunde,
             PachtProQm = pachtProQm,
+            PachtFaelligAm = _pachtFaelligAmPicker.Date,
             Mitgliedsbeitrag = mitgliedsbeitrag,
             MitgliedsbeitragNebenmitglied = mitgliedsbeitragNebenmitglied,
             Aufnahmegebuehr = aufnahmegebuehr,

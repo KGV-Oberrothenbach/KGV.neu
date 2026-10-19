@@ -135,6 +135,9 @@ namespace KGV.Core.Utilities
             if (saison.PachtProQm.Value <= 0)
                 throw new InvalidOperationException($"Für die Saison {saison.Jahr} ist pacht_pro_qm ungültig.");
 
+            if (!saison.PachtFaelligAm.HasValue)
+                throw new InvalidOperationException($"Für die Saison {saison.Jahr} fehlt pacht_faellig_am.");
+
             if (bankverbindungSnapshot == null)
                 throw new InvalidOperationException("Es ist keine aktive Vereinskonfiguration mit vollständigen Bankdaten hinterlegt.");
 
@@ -196,6 +199,7 @@ namespace KGV.Core.Utilities
                 ParzelleAnlage = parzelle.Anlage,
                 Pachtbeginn = vertragsbeginn,
                 PachtProQm = saison.PachtProQm!.Value,
+                ZahlungszielText = saison.PachtFaelligAm.GetValueOrDefault().ToString("dd.MM.yyyy", CultureInfo.GetCultureInfo("de-DE")),
                 Ausstellungsdatum = DateTime.Today,
                 AltvertragDatum = altvertragDatum,
                 VereinsunterlagenNachweis = vereinsunterlagenNachweis,

@@ -115,6 +115,9 @@ public static class PachtvertragTemplateFactory
     private static string FormatDate(DateTime value)
         => value.ToString("dd.MM.yyyy", DeCulture);
 
+    private static string FormatNullableDate(DateTime? value)
+        => value.HasValue ? FormatDate(value.Value) : string.Empty;
+
     private static string FormatMoney(decimal value)
         => string.Format(DeCulture, "{0:N2} €", value);
 

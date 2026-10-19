@@ -42,6 +42,7 @@ namespace KGV.Core.Utilities
                 PflichtstundenSoll = previous?.PflichtstundenSoll ?? 0m,
                 EuroProFehlstunde = previous?.EuroProFehlstunde ?? 25m,
                 PachtProQm = previous?.PachtProQm,
+                PachtFaelligAm = ResolveNextPachtFaelligAm(previous?.PachtFaelligAm, nextYear),
                 Mitgliedsbeitrag = previous?.Mitgliedsbeitrag,
                 MitgliedsbeitragNebenmitglied = previous?.MitgliedsbeitragNebenmitglied,
                 Aufnahmegebuehr = previous?.Aufnahmegebuehr,
@@ -58,6 +59,8 @@ namespace KGV.Core.Utilities
             var jahr = GetSaisonJahr(saison);
             if (jahr < 1900 || jahr > 3000)
                 throw new InvalidOperationException("Bitte ein gültiges Saisonjahr angeben.");
+            if (!saison.PachtFaelligAm.HasValue)
+                throw new InvalidOperationException("Bitte eine Pachtfälligkeit für die Saison angeben.");
 
             return new SaisonRecord
             {
@@ -66,12 +69,22 @@ namespace KGV.Core.Utilities
                 PflichtstundenSoll = saison.PflichtstundenSoll,
                 EuroProFehlstunde = saison.EuroProFehlstunde,
                 PachtProQm = saison.PachtProQm,
+                PachtFaelligAm = saison.PachtFaelligAm.Value.Date,
                 Mitgliedsbeitrag = saison.Mitgliedsbeitrag,
                 MitgliedsbeitragNebenmitglied = saison.MitgliedsbeitragNebenmitglied,
                 Aufnahmegebuehr = saison.Aufnahmegebuehr,
                 GebuehrBauantrag = saison.GebuehrBauantrag,
                 Bemerkung = string.IsNullOrWhiteSpace(saison.Bemerkung) ? null : saison.Bemerkung.Trim()
             };
+        }
+
+        private static DateTime ResolveNextPachtFaelligAm(DateTime? previousDate, int nextYear)
+        {
+            if (!previousDate.HasValue)
+                return new DateTime(nextYear, 3, 31);
+
+            var day = Math.Min(previousDate.Value.Day, DateTime.DaysInMonth(nextYear, previousDate.Value.Month));
+            return new DateTime(nextYear, previousDate.Value.Month, day);
         }
     }
 }

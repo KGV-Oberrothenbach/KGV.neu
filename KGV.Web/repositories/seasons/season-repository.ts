@@ -4,7 +4,7 @@ import type { ClubContext } from "../../models/auth/club";
 import { type BrowserSession } from "../../lib/supabase-auth";
 import type { Season } from "../../models/seasons/season";
 
-const seasonSelect = "id,jahr,pflichtstunden_soll,euro_pro_fehlstunde,bemerkung,pacht_pro_qm,mitgliedsbeitrag,mitgliedsbeitrag_nebenmitglied,aufnahmegebuehr,gebuehr_bauantrag";
+const seasonSelect = "id,jahr,pflichtstunden_soll,euro_pro_fehlstunde,bemerkung,pacht_pro_qm,pacht_faellig_am,mitgliedsbeitrag,mitgliedsbeitrag_nebenmitglied,aufnahmegebuehr,gebuehr_bauantrag";
 
 export function listSeasons(club: ClubContext, session: BrowserSession) {
   return readSupabaseRest<Season>({ club, session }, "saison", {

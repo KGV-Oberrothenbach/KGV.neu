@@ -2808,6 +2808,7 @@ namespace KGV.Infrastructure.Services
                     .Set(x => x.EuroProFehlstunde, normalized.EuroProFehlstunde)
                     .Set(x => x.Bemerkung, normalized.Bemerkung)
                     .Set(x => x.PachtProQm, normalized.PachtProQm)
+                    .Set(x => x.PachtFaelligAm, normalized.PachtFaelligAm)
                     .Set(x => x.Mitgliedsbeitrag, normalized.Mitgliedsbeitrag)
                     .Set(x => x.MitgliedsbeitragNebenmitglied, normalized.MitgliedsbeitragNebenmitglied)
                     .Set(x => x.Aufnahmegebuehr, normalized.Aufnahmegebuehr)

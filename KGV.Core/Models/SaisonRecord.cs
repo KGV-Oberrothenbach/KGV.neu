@@ -25,6 +25,9 @@ namespace KGV.Core.Models
         [Column("pacht_pro_qm")]
         public decimal? PachtProQm { get; set; }
 
+        [Column("pacht_faellig_am")]
+        public DateTime? PachtFaelligAm { get; set; }
+
         [Column("mitgliedsbeitrag")]
         public decimal? Mitgliedsbeitrag { get; set; }
 

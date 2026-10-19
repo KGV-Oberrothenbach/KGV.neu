@@ -26,13 +26,16 @@ public sealed class DocumentRenderDataBoundaryTests
             ParzelleAnlage = "Anlage Nord",
             Pachtbeginn = new DateTime(2026, 4, 1),
             PachtProQm = .25m,
+            ZahlungszielText = "31.03.2026",
             UnterschriftOrt = "Zwickau"
         });
 
         Assert.Equal("Max Mustermann", data.Paechter1Vollname);
         Assert.Equal("Mitpächter/in", data.ZweiteParteiBezeichnung);
         Assert.Equal("75,00 €", data.Jahrespacht);
-        Assert.Equal("30.11.2026", data.PachtzahlungFaelligBis);
+        Assert.Equal("31.03.2026", data.PachtzahlungFaelligBis);
+        Assert.Equal("31.12.2027", data.ProbephaseBis);
+        Assert.Equal("0,25 €/m²", data.PachtProQm);
     }
 
     [Fact]

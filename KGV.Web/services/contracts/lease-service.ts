@@ -48,6 +48,7 @@ export async function loadLeaseContractData(club: ClubContext, session: BrowserS
   const area = Number(parcel.flaeche_qm); if (!Number.isFinite(area) || area <= 0) throw new Error("Parzellenfläche fehlt oder ist ungültig.");
   const season = seasons.find((item) => item.jahr === yearOf(startDate)); if (!season) throw new Error(`Für die Saison ${yearOf(startDate)} fehlt der Pachtpreis.`);
   const pachtPerSqm = Number(season.pacht_pro_qm); if (!Number.isFinite(pachtPerSqm) || pachtPerSqm <= 0) throw new Error(`Für die Saison ${season.jahr} fehlt ein gültiger Pachtpreis pro Quadratmeter.`);
+  if (!isLocalIsoDate(season.pacht_faellig_am)) throw new Error(`Für die Saison ${season.jahr} fehlt eine gültige Pachtfälligkeit.`);
   if (!configuration) throw new Error("Aktive Vereinskonfiguration fehlt für den Pachtvertrag.");
   const isMinor = isMinorAtStart(member, startDate);
   let legalRepresentative: Member | null = null;
