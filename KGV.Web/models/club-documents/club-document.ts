@@ -1,0 +1,2 @@
+export type ClubDocumentType = { code: "satzung" | "kleingartenordnung" | "beitragsordnung" | "arbeitsordnung"; bezeichnung: string; pflicht: boolean };
+export type ClubDocumentVersion = { id: number; dokumenttyp_code: ClubDocumentType["code"]; fassung: string; gueltig_ab: string; gueltig_bis: string | null; storage_path: string | null; dateiname: string | null; sha256: string | null; erstellt_am: string; erstellt_von: string | null };
