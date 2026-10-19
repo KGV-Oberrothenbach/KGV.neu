@@ -76,21 +76,7 @@ public sealed class ContractGenerationClient : IContractGenerationClient
 
     public async Task<byte[]> PreviewLeaseContractAsync(PachtvertragDokumentRequest request, CancellationToken cancellationToken = default)
     {
-        var draft = PreparedLeaseContractMapper.ToPreparedDraft(request).Draft;
-        var payload = new Dictionary<string, object?>
-        {
-            ["action"] = "preview", ["type"] = "pachtvertrag", ["member_id"] = request.MitgliedId, ["parcel_id"] = request.ParzelleId,
-            ["start_date"] = draft.StartDate, ["has_previous_contract"] = draft.HasPreviousContract,
-            ["include_secondary_member"] = draft.IncludeSecondaryMember, ["handover_date"] = draft.HandoverDate,
-            ["attachment_1"] = draft.Attachment1, ["attachment_2"] = draft.Attachment2, ["attachment_3"] = draft.Attachment3, ["attachment_4"] = draft.Attachment4
-        };
-        if (draft.HasPreviousContract == true) payload["previous_contract_date"] = draft.PreviousContractDate;
-        if (!string.IsNullOrWhiteSpace(draft.FixedUntil)) payload["fixed_until"] = draft.FixedUntil;
-        if (!string.IsNullOrWhiteSpace(draft.GardenRulesVersion)) payload["garden_rules_version"] = draft.GardenRulesVersion;
-        if (!string.IsNullOrWhiteSpace(draft.GardenRulesHandedOverAt)) payload["garden_rules_handed_over_at"] = draft.GardenRulesHandedOverAt;
-        if (!string.IsNullOrWhiteSpace(draft.AdditionalAgreements)) payload["additional_agreements"] = draft.AdditionalAgreements;
-        if (!string.IsNullOrWhiteSpace(draft.ClubSignatory)) payload["club_signatory"] = draft.ClubSignatory;
-        return await SendPreviewAsync(payload, cancellationToken);
+        return await SendPreviewAsync(CreateLeasePayload("preview", PreparedLeaseContractMapper.ToPreparedDraft(request).Draft, request.MitgliedId, request.ParzelleId), cancellationToken);
     }
 
     public async Task<ContractFinalizeResult> FinalizeMembershipApplicationAsync(MembershipApplicationFinalizeRequest request, CancellationToken cancellationToken = default)
@@ -117,23 +103,19 @@ public sealed class ContractGenerationClient : IContractGenerationClient
         if (request.Contract.IncludeSecondaryMember == true && string.IsNullOrWhiteSpace(request.SecondarySignature)) throw new ArgumentException("Die Unterschrift des Nebenmitglieds ist erforderlich.", nameof(request));
 
         var contract = request.Contract;
-        var draft = PreparedLeaseContractMapper.ToPreparedDraft(contract).Draft;
-        var payload = new Dictionary<string, object?>
-        {
-            ["action"] = "finalize", ["type"] = "pachtvertrag", ["member_id"] = contract.MitgliedId, ["parcel_id"] = contract.ParzelleId,
-            ["start_date"] = draft.StartDate, ["has_previous_contract"] = draft.HasPreviousContract,
-            ["include_secondary_member"] = draft.IncludeSecondaryMember, ["handover_date"] = draft.HandoverDate,
-            ["attachment_1"] = draft.Attachment1, ["attachment_2"] = draft.Attachment2, ["attachment_3"] = draft.Attachment3, ["attachment_4"] = draft.Attachment4,
-            ["signature_member"] = request.MemberSignature, ["signature_board"] = request.BoardSignature
-        };
-        if (draft.HasPreviousContract == true) payload["previous_contract_date"] = draft.PreviousContractDate;
-        if (!string.IsNullOrWhiteSpace(draft.FixedUntil)) payload["fixed_until"] = draft.FixedUntil;
-        if (!string.IsNullOrWhiteSpace(draft.GardenRulesVersion)) payload["garden_rules_version"] = draft.GardenRulesVersion;
-        if (!string.IsNullOrWhiteSpace(draft.GardenRulesHandedOverAt)) payload["garden_rules_handed_over_at"] = draft.GardenRulesHandedOverAt;
-        if (!string.IsNullOrWhiteSpace(draft.AdditionalAgreements)) payload["additional_agreements"] = draft.AdditionalAgreements;
-        if (!string.IsNullOrWhiteSpace(draft.ClubSignatory)) payload["club_signatory"] = draft.ClubSignatory;
+        var payload = CreateLeasePayload("finalize", PreparedLeaseContractMapper.ToPreparedDraft(contract).Draft, contract.MitgliedId, contract.ParzelleId);
+        payload["signature_member"] = request.MemberSignature; payload["signature_board"] = request.BoardSignature;
         if (contract.IncludeSecondaryMember == true) payload["signature_secondary"] = request.SecondarySignature;
         return await SendFinalizeAsync(payload, cancellationToken);
+    }
+
+    private static Dictionary<string, object?> CreateLeasePayload(string action, LeaseContractDraft draft, int memberId, int parcelId)
+    {
+        var payload = new Dictionary<string, object?> { ["action"] = action, ["type"] = "pachtvertrag", ["member_id"] = memberId, ["parcel_id"] = parcelId, ["start_date"] = draft.StartDate, ["has_previous_contract"] = draft.HasPreviousContract, ["include_secondary_member"] = draft.IncludeSecondaryMember, ["handover_date"] = draft.HandoverDate };
+        if (draft.HasPreviousContract == true) payload["previous_contract_date"] = draft.PreviousContractDate;
+        if (!string.IsNullOrWhiteSpace(draft.AdditionalAgreements)) payload["additional_agreements"] = draft.AdditionalAgreements;
+        if (!string.IsNullOrWhiteSpace(draft.ClubSignatory)) payload["club_signatory"] = draft.ClubSignatory;
+        return payload;
     }
 
     private async Task<byte[]> SendPreviewAsync(object payload, CancellationToken cancellationToken)
