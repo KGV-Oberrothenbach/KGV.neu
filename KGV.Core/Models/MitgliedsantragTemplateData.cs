@@ -38,6 +38,7 @@ public sealed class MitgliedsantragTemplateData
     public string Aufnahmegebuehr { get; set; } = string.Empty;
     public string BeitragHinweis1 { get; set; } = string.Empty;
     public string BeitragHinweis2 { get; set; } = string.Empty;
+    public string VereinsunterlagenNachweis { get; set; } = string.Empty;
 
     public string BankKontoinhaber { get; set; } = string.Empty;
     public string BankName { get; set; } = string.Empty;

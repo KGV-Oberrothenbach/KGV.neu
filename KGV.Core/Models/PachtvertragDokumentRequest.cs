@@ -20,6 +20,8 @@ public sealed class PachtvertragDokumentRequest
     public DateTime? AltvertragDatum { get; set; }
     public bool? HasPreviousContract { get; set; }
     public DateTime? UebergabeDatum { get; set; }
+    /// <summary>Snapshot des bei der Vertragserstellung ausgehändigten Vereinsunterlagen-Nachweises. Bis zur zentralen Historie optional.</summary>
+    public string? VereinsunterlagenNachweis { get; set; }
     public DateTime? BefristetBis { get; set; }
     public string? KleingartenordnungFassung { get; set; }
     public DateTime? KleingartenordnungAusgehaendigtAm { get; set; }

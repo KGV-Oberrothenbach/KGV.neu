@@ -73,13 +73,13 @@ namespace KGV.Core.Utilities
             MitgliedRecord member, decimal mitgliedsbeitrag, decimal aufnahmegebuehr, DateTime beginnDatum,
             MitgliedsantragVertreterSnapshot? gesetzlicherVertreterSnapshot, MitgliedsantragZweitePrivateParteiArt zweitePrivateParteiArt,
             VereinskonfigurationSnapshot? vereinskonfigurationSnapshot,
-            string? status, IPdfTemplateProvider templateProvider, CancellationToken cancellationToken = default)
+            string? status, IPdfTemplateProvider templateProvider, string? vereinsunterlagenNachweis = null, CancellationToken cancellationToken = default)
         {
             if (templateProvider == null) throw new ArgumentNullException(nameof(templateProvider));
             const string documentType = "mitgliedsantrag";
             const string operation = "preview";
-            const string fieldSpecVersion = "mitgliedsantrag-field-spec/v1";
-            const string rendererVersion = "pdfsharpcore-ma/v1";
+            const string fieldSpecVersion = "mitgliedsantrag-field-spec/v2";
+            const string rendererVersion = "top-left/v1";
             PdfTemplateAsset template;
             try
             {
@@ -101,7 +101,7 @@ namespace KGV.Core.Utilities
 
             try
             {
-                return CreateUploadRequestCore(member, mitgliedsbeitrag, aufnahmegebuehr, beginnDatum, gesetzlicherVertreterSnapshot, zweitePrivateParteiArt, vereinskonfigurationSnapshot, status, template);
+                return CreateUploadRequestCore(member, mitgliedsbeitrag, aufnahmegebuehr, beginnDatum, gesetzlicherVertreterSnapshot, zweitePrivateParteiArt, vereinskonfigurationSnapshot, status, template, vereinsunterlagenNachweis);
             }
             catch (DocumentPipelineException)
             {
@@ -126,7 +126,8 @@ namespace KGV.Core.Utilities
             MitgliedsantragZweitePrivateParteiArt zweitePrivateParteiArt,
             VereinskonfigurationSnapshot? vereinskonfigurationSnapshot,
             string? status,
-            PdfTemplateAsset template)
+            PdfTemplateAsset template,
+            string? vereinsunterlagenNachweis)
         {
             if (member == null)
                 throw new ArgumentNullException(nameof(member));
@@ -151,7 +152,8 @@ namespace KGV.Core.Utilities
                 aufnahmegebuehr,
                 beginnDatum.Date,
                 gesetzlicherVertreterSnapshot,
-                VereinskonfigurationSnapshotFactory.NormalizeForMembershipApplication(vereinskonfigurationSnapshot));
+                VereinskonfigurationSnapshotFactory.NormalizeForMembershipApplication(vereinskonfigurationSnapshot),
+                vereinsunterlagenNachweis);
 
             var filledPdf = FillAndFlattenPdfForm(template.PdfBytes, templateData, template.Fields, zweitePrivateParteiArt);
 
@@ -172,7 +174,8 @@ namespace KGV.Core.Utilities
             decimal aufnahmegebuehr,
             DateTime beginnDatum,
             MitgliedsantragVertreterSnapshot? gesetzlicherVertreterSnapshot,
-            VereinskonfigurationSnapshot bankverbindungSnapshot)
+            VereinskonfigurationSnapshot bankverbindungSnapshot,
+            string? vereinsunterlagenNachweis)
         {
             var istMinderjaehrig = gesetzlicherVertreterSnapshot != null;
             var beitragsmonate = CalculateBeitragsmonate(beginnDatum);
@@ -235,6 +238,7 @@ namespace KGV.Core.Utilities
                 Aufnahmegebuehr = FormatCurrency(aufnahmegebuehr),
                 BeitragHinweis1 = BuildBeitragsHinweis(beitragsjahr, mitgliedsbeitrag, beginnDatum),
                 BeitragHinweis2 = $"Die einmalige Aufnahmegebühr beträgt {FormatCurrency(aufnahmegebuehr)}.",
+                VereinsunterlagenNachweis = Safe(vereinsunterlagenNachweis),
 
                 BankKontoinhaber = Safe(bankverbindungSnapshot.Kontoinhaber),
                 BankName = Safe(bankverbindungSnapshot.Bankname),
@@ -258,7 +262,7 @@ namespace KGV.Core.Utilities
             var renderedPdf = PdfTemplateRenderer.Render(pdfBytes, loadedFields, BuildFieldMap(data), PdfTemplateRenderProfiles.Mitgliedsantrag);
             using var input = new MemoryStream(renderedPdf);
             using var document = PdfReader.Open(input, PdfDocumentOpenMode.Modify);
-            DrawSecondPrivateSignerLabels(document, zweitePrivateParteiArt);
+            // v2 contains role and signer captions as own fields; no PDF overlay is needed.
 
             using var output = new MemoryStream();
             document.Save(output);
@@ -281,36 +285,40 @@ namespace KGV.Core.Utilities
                 ["mitglied_email"] = data.MitgliedEmail,
                 ["mitglied_anschrift_mehrzeilig"] = data.MitgliedAnschriftMehrzeilig,
 
-                ["check_whatsapp"] = data.CheckWhatsapp,
-                ["check_rechnung_mail"] = data.CheckRechnungMail,
-                ["check_info_mail"] = data.CheckInfoMail,
-
-                ["vertreter_name"] = data.VertreterName,
-                ["vertreter_vorname"] = data.VertreterVorname,
-                ["vertreter_geburtsdatum"] = data.VertreterGeburtsdatum,
-                ["vertreter_telefon"] = data.VertreterTelefon,
-                ["vertreter_mobil"] = data.VertreterMobil,
-                ["vertreter_email"] = data.VertreterEmail,
-                ["vertreter_anschrift_mehrzeilig"] = data.VertreterAnschriftMehrzeilig,
+                ["zweite_partei_bezeichnung"] = string.Empty,
+                ["zweite_partei_name"] = data.VertreterName,
+                ["zweite_partei_vorname"] = data.VertreterVorname,
+                ["zweite_partei_geburtsdatum"] = data.VertreterGeburtsdatum,
+                ["zweite_partei_telefon"] = data.VertreterTelefon,
+                ["zweite_partei_mobil"] = data.VertreterMobil,
+                ["zweite_partei_email"] = data.VertreterEmail,
+                ["zweite_partei_anschrift_mehrzeilig"] = data.VertreterAnschriftMehrzeilig,
 
                 ["mitgliedsbeitrag_jaehrlich"] = data.MitgliedsbeitragJaehrlich,
                 ["mitgliedsbeitrag_anteilig"] = data.MitgliedsbeitragAnteilig,
                 ["beitragsmonate"] = data.Beitragsmonate,
                 ["aufnahmegebuehr"] = data.Aufnahmegebuehr,
 
-                ["bank_kontoinhaber"] = data.BankKontoinhaber,
-                ["bank_name"] = data.BankName,
-                ["bank_iban"] = data.BankIban,
-                ["bank_bic"] = data.BankBic,
+                ["vereinsunterlagen_nachweis"] = data.VereinsunterlagenNachweis,
 
                 ["unterschrift_ort"] = data.UnterschriftOrt,
                 ["unterschrift_datum"] = data.UnterschriftDatum,
 
                 ["unterschrift_antragsteller"] = string.Empty,
-                ["unterschrift_vertreter"] = string.Empty,
+                ["unterschrift_zweite_partei"] = string.Empty,
+                ["unterschrift_zweite_partei_bezeichnung"] = string.Empty,
                 ["unterschrift_verein"] = string.Empty,
-                ["datenschutz_unterschrift_antragsteller"] = string.Empty,
-                ["datenschutz_unterschrift_vertreter"] = string.Empty
+                ["vereins_unterzeichner"] = string.Empty,
+                ["mitglied_einwilligung_info_mail"] = data.CheckInfoMail,
+                ["mitglied_einwilligung_rechnung_mail"] = data.CheckRechnungMail,
+                ["mitglied_einwilligung_whatsapp"] = data.CheckWhatsapp,
+                ["mitglied_datenschutz_unterschrift"] = string.Empty,
+                ["mitglied_datenschutz_unterschrift_bezeichnung"] = string.Empty,
+                ["zweite_partei_einwilligung_info_mail"] = string.Empty,
+                ["zweite_partei_einwilligung_rechnung_mail"] = string.Empty,
+                ["zweite_partei_einwilligung_whatsapp"] = string.Empty,
+                ["zweite_partei_datenschutz_unterschrift"] = string.Empty,
+                ["zweite_partei_datenschutz_unterschrift_bezeichnung"] = string.Empty
             };
         }
 
@@ -349,9 +357,9 @@ namespace KGV.Core.Utilities
         private static void ValidateTemplate(PdfTemplateAsset template)
         {
             if (template.PdfBytes == null || template.PdfBytes.Length == 0) throw new InvalidOperationException("Die zentrale Mitgliedsantrag-Vorlage ist leer.");
-            var expected = FieldSpecs.OrderBy(x => x.Name, StringComparer.Ordinal).ToArray();
-            var actual = template.Fields.OrderBy(x => x.Name, StringComparer.Ordinal).ToArray();
-            if (actual.Length != expected.Length || actual.Where((x, i) => !string.Equals(x.Name, expected[i].Name, StringComparison.OrdinalIgnoreCase) || x.Page != 1 || Math.Abs(x.X - expected[i].X) > 0.01 || Math.Abs(x.Y - expected[i].Y) > 0.01 || Math.Abs(x.Width - expected[i].Width) > 0.01 || Math.Abs(x.Height - expected[i].Height) > 0.01).Any())
+            var expected = BuildFieldMap(new MitgliedsantragTemplateData()).Keys.OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToArray();
+            var actual = template.Fields.Select(x => x.Name).OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToArray();
+            if (!actual.SequenceEqual(expected, StringComparer.OrdinalIgnoreCase))
                 throw new InvalidOperationException("Die Feldspezifikation der zentralen Mitgliedsantrag-Vorlage ist nicht mit dem unterstützten Renderer kompatibel.");
         }
 

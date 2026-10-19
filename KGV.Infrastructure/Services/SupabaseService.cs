@@ -3612,7 +3612,7 @@ namespace KGV.Infrastructure.Services
             async () =>
             {
                 var context = await ResolveMitgliedsantragRequestAsync(request);
-                return await MitgliedsantragDokumentFactory.CreateUploadRequestAsync(context.Member, context.Mitgliedsbeitrag, context.Aufnahmegebuehr, context.BeginnDatum, context.GesetzlicherVertreterSnapshot, context.ZweitePrivateParteiArt, context.VereinskonfigurationSnapshot, FormularDokumentStatus.Unsigniert, _pdfTemplateProvider);
+                return await MitgliedsantragDokumentFactory.CreateUploadRequestAsync(context.Member, context.Mitgliedsbeitrag, context.Aufnahmegebuehr, context.BeginnDatum, context.GesetzlicherVertreterSnapshot, context.ZweitePrivateParteiArt, context.VereinskonfigurationSnapshot, FormularDokumentStatus.Unsigniert, _pdfTemplateProvider, request.VereinsunterlagenNachweis);
             },
             null);
 
@@ -3657,8 +3657,8 @@ namespace KGV.Infrastructure.Services
                         return DokumentUploadResult.Fail("Gesetzlicher Vertreter konnte nicht gespeichert werden.", "VALIDATION");
                 }
 
-                var previewUploadRequest = await MitgliedsantragDokumentFactory.CreateUploadRequestAsync(context.Member, context.Mitgliedsbeitrag, context.Aufnahmegebuehr, context.BeginnDatum, context.GesetzlicherVertreterSnapshot, context.ZweitePrivateParteiArt, context.VereinskonfigurationSnapshot, FormularDokumentStatus.Unsigniert, _pdfTemplateProvider);
-                var finalUploadRequest = await MitgliedsantragDokumentFactory.CreateUploadRequestAsync(context.Member, context.Mitgliedsbeitrag, context.Aufnahmegebuehr, context.BeginnDatum, context.GesetzlicherVertreterSnapshot, context.ZweitePrivateParteiArt, context.VereinskonfigurationSnapshot, FormularDokumentStatus.Signiert, _pdfTemplateProvider);
+                var previewUploadRequest = await MitgliedsantragDokumentFactory.CreateUploadRequestAsync(context.Member, context.Mitgliedsbeitrag, context.Aufnahmegebuehr, context.BeginnDatum, context.GesetzlicherVertreterSnapshot, context.ZweitePrivateParteiArt, context.VereinskonfigurationSnapshot, FormularDokumentStatus.Unsigniert, _pdfTemplateProvider, request.VereinsunterlagenNachweis);
+                var finalUploadRequest = await MitgliedsantragDokumentFactory.CreateUploadRequestAsync(context.Member, context.Mitgliedsbeitrag, context.Aufnahmegebuehr, context.BeginnDatum, context.GesetzlicherVertreterSnapshot, context.ZweitePrivateParteiArt, context.VereinskonfigurationSnapshot, FormularDokumentStatus.Signiert, _pdfTemplateProvider, request.VereinsunterlagenNachweis);
                 var signatures = new List<PdfSignatureCaptureAssignment>
                 {
                     new("unterschrift_antragsteller", antragSignatureCapture)

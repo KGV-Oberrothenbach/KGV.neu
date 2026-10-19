@@ -11,40 +11,39 @@ namespace KGV.Core.Utilities
     {
         private static readonly IReadOnlyList<PdfFormFieldSpec> FieldSpecs = new[]
         {
-            new PdfFormFieldSpec("paechter_name", PdfFormFieldKind.Text, 1, 42, 229, 250.64, 17),
-            new PdfFormFieldSpec("mitgliedsnummer", PdfFormFieldKind.Text, 1, 302.64, 229, 250.64, 17),
-            new PdfFormFieldSpec("paechter_anschrift", PdfFormFieldKind.Text, 1, 42, 257, 250.64, 17),
-            new PdfFormFieldSpec("paechter_kontakt", PdfFormFieldKind.Text, 1, 302.64, 257, 250.64, 17),
+            new PdfFormFieldSpec("paechter_name", PdfFormFieldKind.Text, 1, 30, 167, 244, 11),
+            new PdfFormFieldSpec("mitgliedsnummer", PdfFormFieldKind.Text, 1, 280, 167, 285, 11),
+            new PdfFormFieldSpec("paechter_geburtsdatum", PdfFormFieldKind.Text, 1, 30, 187, 244, 11),
+            new PdfFormFieldSpec("paechter_anschrift", PdfFormFieldKind.Text, 1, 280, 187, 285, 11),
+            new PdfFormFieldSpec("paechter_kontakt", PdfFormFieldKind.Text, 1, 30, 207, 535, 11),
 
-            new PdfFormFieldSpec("zweite_partei_bezeichnung", PdfFormFieldKind.Text, 1, 42, 285, 510, 14),
-            new PdfFormFieldSpec("zweite_partei_name", PdfFormFieldKind.Text, 1, 42, 312, 250.64, 17),
-            new PdfFormFieldSpec("zweite_partei_mitgliedsnummer", PdfFormFieldKind.Text, 1, 302.64, 312, 250.64, 17),
-            new PdfFormFieldSpec("zweite_partei_anschrift", PdfFormFieldKind.Text, 1, 42, 340, 250.64, 17),
-            new PdfFormFieldSpec("zweite_partei_kontakt", PdfFormFieldKind.Text, 1, 302.64, 340, 250.64, 17),
+            new PdfFormFieldSpec("zweite_partei_bezeichnung", PdfFormFieldKind.Text, 1, 30, 227, 535, 11),
+            new PdfFormFieldSpec("zweite_partei_name", PdfFormFieldKind.Text, 1, 30, 247, 244, 11),
+            new PdfFormFieldSpec("zweite_partei_mitgliedsnummer", PdfFormFieldKind.Text, 1, 280, 247, 285, 11),
+            new PdfFormFieldSpec("zweite_partei_geburtsdatum", PdfFormFieldKind.Text, 1, 30, 267, 244, 11),
+            new PdfFormFieldSpec("zweite_partei_anschrift", PdfFormFieldKind.Text, 1, 280, 267, 285, 11),
+            new PdfFormFieldSpec("zweite_partei_kontakt", PdfFormFieldKind.Text, 1, 30, 287, 535, 11),
 
-            new PdfFormFieldSpec("parzelle_nr", PdfFormFieldKind.Text, 1, 42, 399, 83, 17),
-            new PdfFormFieldSpec("lage_anlage", PdfFormFieldKind.Text, 1, 136, 399, 230, 17),
-            new PdfFormFieldSpec("flaeche_qm", PdfFormFieldKind.Text, 1, 377, 399, 114, 17),
-            new PdfFormFieldSpec("vertragsbeginn", PdfFormFieldKind.Text, 1, 42, 496, 138, 17),
-            new PdfFormFieldSpec("uebergabe_datum", PdfFormFieldKind.Text, 1, 192, 496, 138, 17),
-            new PdfFormFieldSpec("befristung", PdfFormFieldKind.Text, 1, 342, 496, 149, 17),
-            new PdfFormFieldSpec("pachtzins_jahr", PdfFormFieldKind.Text, 1, 42, 583, 250, 17),
-            new PdfFormFieldSpec("faelligkeit", PdfFormFieldKind.Text, 1, 302, 583, 251, 17),
+            new PdfFormFieldSpec("parzelle_nr", PdfFormFieldKind.Text, 1, 30, 332, 71, 11),
+            new PdfFormFieldSpec("lage_anlage", PdfFormFieldKind.Text, 1, 107, 332, 184, 11),
+            new PdfFormFieldSpec("flaeche_qm", PdfFormFieldKind.Text, 1, 297, 332, 126, 11),
+            new PdfFormFieldSpec("vertragsbeginn", PdfFormFieldKind.Text, 1, 429, 332, 136, 11),
+            new PdfFormFieldSpec("uebergabe_datum", PdfFormFieldKind.Text, 1, 30, 352, 139, 11),
+            new PdfFormFieldSpec("probephase_bis", PdfFormFieldKind.Text, 1, 175, 352, 194, 11),
+            new PdfFormFieldSpec("pachtzins_jahr", PdfFormFieldKind.Text, 1, 375, 352, 90, 11),
+            new PdfFormFieldSpec("pacht_pro_qm", PdfFormFieldKind.Text, 1, 471, 352, 94, 11),
+            new PdfFormFieldSpec("faelligkeit", PdfFormFieldKind.Text, 1, 30, 372, 164, 17),
+            new PdfFormFieldSpec("altvertrag_hinweis", PdfFormFieldKind.MultilineText, 1, 200, 372, 365, 17),
 
-            new PdfFormFieldSpec("kleingartenordnung_fassung", PdfFormFieldKind.Text, 2, 42, 286, 245, 17),
-            new PdfFormFieldSpec("kleingartenordnung_ausgehaendigt_am", PdfFormFieldKind.Text, 2, 316, 286, 170, 17),
+            new PdfFormFieldSpec("vereinsunterlagen_nachweis", PdfFormFieldKind.MultilineText, 1, 27, 439, 541, 25),
 
-            new PdfFormFieldSpec("ort_datum", PdfFormFieldKind.Text, 3, 42, 468, 190, 17),
-            new PdfFormFieldSpec("paechter_druckname", PdfFormFieldKind.Text, 3, 252, 468, 239, 17),
-            new PdfFormFieldSpec("weitere_vereinbarungen", PdfFormFieldKind.MultilineText, 3, 42, 252, 510, 72),
-            new PdfFormFieldSpec("anlage_1", PdfFormFieldKind.Checkbox, 3, 42, 365, 10, 10),
-            new PdfFormFieldSpec("anlage_2", PdfFormFieldKind.Checkbox, 3, 255, 365, 10, 10),
-            new PdfFormFieldSpec("anlage_3", PdfFormFieldKind.Checkbox, 3, 42, 387, 10, 10),
-            new PdfFormFieldSpec("anlage_4", PdfFormFieldKind.Checkbox, 3, 255, 387, 10, 10),
-            new PdfFormFieldSpec("vereins_unterzeichner", PdfFormFieldKind.Text, 3, 252, 590, 300, 17)
-            ,new PdfFormFieldSpec("unterschrift_paechter", PdfFormFieldKind.SignaturePlaceholder, 3, 42, 516, 190, 35)
-            ,new PdfFormFieldSpec("unterschrift_zweite_partei", PdfFormFieldKind.SignaturePlaceholder, 3, 42, 576, 190, 35)
-            ,new PdfFormFieldSpec("unterschrift_vorstand", PdfFormFieldKind.SignaturePlaceholder, 3, 252, 516, 300, 35)
+            new PdfFormFieldSpec("weitere_vereinbarungen", PdfFormFieldKind.MultilineText, 1, 27, 508.2, 541, 34),
+            new PdfFormFieldSpec("ort_datum", PdfFormFieldKind.Text, 1, 30, 588.2, 199, 10),
+            new PdfFormFieldSpec("paechter_druckname", PdfFormFieldKind.Text, 1, 235, 588.2, 330, 10),
+            new PdfFormFieldSpec("unterschrift_paechter", PdfFormFieldKind.SignaturePlaceholder, 1, 27, 600.2, 205, 25),
+            new PdfFormFieldSpec("unterschrift_vorstand", PdfFormFieldKind.SignaturePlaceholder, 1, 242, 600.2, 326, 25),
+            new PdfFormFieldSpec("unterschrift_zweite_partei", PdfFormFieldKind.SignaturePlaceholder, 1, 27, 636.2, 205, 22),
+            new PdfFormFieldSpec("vereins_unterzeichner", PdfFormFieldKind.Text, 1, 242, 644.2, 326, 10)
         };
 
         public static async Task<DokumentUploadRequest> CreateUploadRequestAsync(
@@ -64,7 +63,7 @@ namespace KGV.Core.Utilities
             ArgumentNullException.ThrowIfNull(templateProvider);
             const string documentType = "pachtvertrag";
             const string operation = "preview";
-            const string fieldSpecVersion = "pachtvertrag-field-spec/v2";
+            const string fieldSpecVersion = "pachtvertrag-field-spec/v3";
             const string rendererVersion = "top-left/v1";
             PdfTemplateAsset template;
             try
@@ -153,7 +152,8 @@ namespace KGV.Core.Utilities
                 altvertragDatum,
                 VereinskonfigurationSnapshotFactory.NormalizeForLeaseContract(bankverbindungSnapshot),
                 paechter2Override,
-                gesetzlicherVertreterSnapshot != null);
+                gesetzlicherVertreterSnapshot != null,
+                null);
 
             var data = PachtvertragTemplateFactory.BuildData(templateContext);
             var content = FillAndFlattenPdfForm(template.PdfBytes, data, template.Fields);
@@ -180,7 +180,8 @@ namespace KGV.Core.Utilities
             DateTime? altvertragDatum,
             VereinskonfigurationSnapshot bankverbindungSnapshot,
             MitgliedRecord? paechter2Override,
-            bool zweiteParteiIstGesetzlicherVertreter)
+            bool zweiteParteiIstGesetzlicherVertreter,
+            string? vereinsunterlagenNachweis)
         {
             var paechter2 = paechter2Override ?? nebenmitglied;
 
@@ -197,6 +198,7 @@ namespace KGV.Core.Utilities
                 PachtProQm = saison.PachtProQm!.Value,
                 Ausstellungsdatum = DateTime.Today,
                 AltvertragDatum = altvertragDatum,
+                VereinsunterlagenNachweis = vereinsunterlagenNachweis,
                 UnterschriftOrt = "Zwickau"
             };
         }
@@ -215,12 +217,14 @@ namespace KGV.Core.Utilities
             {
                 ["paechter_name"] = data.Paechter1Vollname,
                 ["mitgliedsnummer"] = data.Paechter1Mitgliedsnummer,
+                ["paechter_geburtsdatum"] = data.Paechter1Geburtsdatum,
                 ["paechter_anschrift"] = data.Paechter1Anschrift,
                 ["paechter_kontakt"] = data.Paechter1Kontakt,
 
                 ["zweite_partei_bezeichnung"] = data.ZweiteParteiBezeichnung,
                 ["zweite_partei_name"] = data.Paechter2Vollname,
                 ["zweite_partei_mitgliedsnummer"] = data.Paechter2Mitgliedsnummer,
+                ["zweite_partei_geburtsdatum"] = data.Paechter2Geburtsdatum,
                 ["zweite_partei_anschrift"] = data.Paechter2Anschrift,
                 ["zweite_partei_kontakt"] = data.Paechter2Kontakt,
 
@@ -229,16 +233,13 @@ namespace KGV.Core.Utilities
                 ["flaeche_qm"] = data.ParzelleFlaecheQm,
                 ["vertragsbeginn"] = data.Pachtbeginn,
                 ["uebergabe_datum"] = data.UebergabeDatum,
-                ["befristung"] = data.Pachtende,
+                ["probephase_bis"] = data.ProbephaseBis,
                 ["pachtzins_jahr"] = data.Jahrespacht,
+                ["pacht_pro_qm"] = data.PachtProQm,
                 ["faelligkeit"] = data.PachtzahlungFaelligBis,
-                ["kleingartenordnung_fassung"] = data.KleingartenordnungFassung,
-                ["kleingartenordnung_ausgehaendigt_am"] = data.KleingartenordnungAusgehaendigtAm,
+                ["altvertrag_hinweis"] = data.AltvertragHinweis,
+                ["vereinsunterlagen_nachweis"] = data.VereinsunterlagenNachweis,
                 ["weitere_vereinbarungen"] = data.WeitereVereinbarungen,
-                ["anlage_1"] = data.Anlage1 ? "X" : string.Empty,
-                ["anlage_2"] = data.Anlage2 ? "X" : string.Empty,
-                ["anlage_3"] = data.Anlage3 ? "X" : string.Empty,
-                ["anlage_4"] = data.Anlage4 ? "X" : string.Empty,
                 ["vereins_unterzeichner"] = data.VereinsUnterzeichner,
 
                 ["ort_datum"] = string.Join(", ", new[] { data.UnterschriftOrt, data.UnterschriftDatum }

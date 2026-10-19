@@ -12,9 +12,6 @@ public static class PachtvertragTemplateFactory
         if (context == null)
             throw new ArgumentNullException(nameof(context));
 
-        if (context.VereinskonfigurationSnapshot == null)
-            throw new InvalidOperationException("Vereinskonfiguration fehlt für den Pachtvertrag.");
-
         if (context.Paechter1 == null)
             throw new InvalidOperationException("Pächter 1 fehlt für den Pachtvertrag.");
 
@@ -32,8 +29,6 @@ public static class PachtvertragTemplateFactory
         var ausstellungsdatum = context.Ausstellungsdatum ?? DateTime.Today;
 
         var jahrespacht = CalculateAnnualRent(context.ParzelleFlaecheQm, context.PachtProQm);
-        var pachtLaufendesJahr = CalculateRunningYearRent(jahrespacht, context.Pachtbeginn);
-
         return new PachtvertragTemplateData
         {
             Ausstellungsdatum = FormatDate(ausstellungsdatum),
@@ -61,30 +56,25 @@ public static class PachtvertragTemplateFactory
             ParzelleAnlage = Clean(context.ParzelleAnlage),
 
             Pachtbeginn = FormatDate(context.Pachtbeginn),
-            Pachtende = context.BefristetBis.HasValue ? FormatDate(context.BefristetBis.Value) : string.Empty,
+            ProbephaseBis = new DateTime(context.Pachtbeginn.Year + 1, 12, 31).ToString("dd.MM.yyyy", DeCulture),
             UebergabeDatum = FormatDate(context.UebergabeDatum ?? context.Pachtbeginn),
 
-            PachtProQm = FormatMoney(context.PachtProQm),
+            PachtProQm = string.Format(DeCulture, "{0:N2} €/m²", context.PachtProQm),
             Jahrespacht = FormatMoney(jahrespacht),
-            PachtzahlungFaelligBis = CleanOrDefault(context.ZahlungszielText, $"30.11.{context.Pachtbeginn.Year}"),
+            PachtzahlungFaelligBis = Clean(context.ZahlungszielText),
 
             AltvertragDatum = context.AltvertragDatum.HasValue
                 ? FormatDate(context.AltvertragDatum.Value)
                 : string.Empty,
-
-            BankblockMehrzeilig = BuildBankBlock(context.VereinskonfigurationSnapshot),
-            PachtLaufendesJahr = FormatMoney(pachtLaufendesJahr),
+            AltvertragHinweis = context.AltvertragDatum.HasValue
+                ? $"Dieser Pachtvertrag ersetzt die bisherige Vertragsurkunde vom {FormatDate(context.AltvertragDatum.Value)}. Das bestehende Pachtverhältnis und dessen ursprünglicher Beginn bleiben hiervon unberührt."
+                : string.Empty,
+            VereinsunterlagenNachweis = Clean(context.VereinsunterlagenNachweis),
 
             UnterschriftOrt = CleanOrDefault(context.UnterschriftOrt, "Zwickau"),
             UnterschriftDatum = FormatDate(DateTime.Today),
-            KleingartenordnungFassung = Clean(context.KleingartenordnungFassung),
-            KleingartenordnungAusgehaendigtAm = FormatNullableDate(context.KleingartenordnungAusgehaendigtAm),
             WeitereVereinbarungen = Clean(context.WeitereVereinbarungen),
-            VereinsUnterzeichner = Clean(context.VereinsUnterzeichner),
-            Anlage1 = context.Anlage1,
-            Anlage2 = context.Anlage2,
-            Anlage3 = context.Anlage3,
-            Anlage4 = context.Anlage4
+            VereinsUnterzeichner = string.Empty
         };
     }
 
@@ -92,32 +82,6 @@ public static class PachtvertragTemplateFactory
     {
         var annual = areaQm * pachtProQm;
         return Math.Round(annual, 2, MidpointRounding.AwayFromZero);
-    }
-
-    private static decimal CalculateRunningYearRent(decimal annualRent, DateTime pachtbeginn)
-    {
-        var restMonate = Math.Clamp(13 - pachtbeginn.Month, 1, 12);
-        var result = annualRent * restMonate / 12m;
-        return Math.Round(result, 2, MidpointRounding.AwayFromZero);
-    }
-
-    private static string BuildBankBlock(VereinskonfigurationSnapshot config)
-    {
-        var lines = new List<string>();
-
-        if (!string.IsNullOrWhiteSpace(config.Kontoinhaber))
-            lines.Add(Clean(config.Kontoinhaber));
-
-        if (!string.IsNullOrWhiteSpace(config.Bankname))
-            lines.Add(Clean(config.Bankname));
-
-        if (!string.IsNullOrWhiteSpace(config.Iban))
-            lines.Add(FormatIban(config.Iban));
-
-        if (!string.IsNullOrWhiteSpace(config.Bic))
-            lines.Add(Clean(config.Bic));
-
-        return string.Join(Environment.NewLine, lines);
     }
 
     private static string FormatMitgliedsnummer(MitgliedRecord member)
@@ -151,25 +115,11 @@ public static class PachtvertragTemplateFactory
     private static string FormatDate(DateTime value)
         => value.ToString("dd.MM.yyyy", DeCulture);
 
-    private static string FormatNullableDate(DateTime? value)
-        => value.HasValue ? FormatDate(value.Value) : string.Empty;
-
     private static string FormatMoney(decimal value)
         => string.Format(DeCulture, "{0:N2} €", value);
 
     private static string FormatArea(decimal value)
         => value.ToString("0.##", DeCulture);
-
-    private static string FormatIban(string? iban)
-    {
-        var normalized = new string((iban ?? string.Empty).Where(c => !char.IsWhiteSpace(c)).ToArray()).ToUpperInvariant();
-        if (string.IsNullOrWhiteSpace(normalized))
-            return string.Empty;
-
-        return string.Join(" ",
-            Enumerable.Range(0, (normalized.Length + 3) / 4)
-                .Select(i => normalized.Substring(i * 4, Math.Min(4, normalized.Length - i * 4))));
-    }
 
     private static string Clean(string? value)
         => (value ?? string.Empty).Trim();
@@ -193,6 +143,7 @@ public sealed class PachtvertragTemplateContext
     public DateTime Pachtbeginn { get; set; }
     public DateTime? BefristetBis { get; set; }
     public DateTime? UebergabeDatum { get; set; }
+    public string? VereinsunterlagenNachweis { get; set; }
     public string? KleingartenordnungFassung { get; set; }
     public DateTime? KleingartenordnungAusgehaendigtAm { get; set; }
     public string? WeitereVereinbarungen { get; set; }

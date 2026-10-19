@@ -27,7 +27,7 @@ public sealed class PachtvertragTemplateData
     public string ParzelleAnlage { get; set; } = string.Empty;
 
     public string Pachtbeginn { get; set; } = string.Empty;
-    public string Pachtende { get; set; } = string.Empty;
+    public string ProbephaseBis { get; set; } = string.Empty;
     public string UebergabeDatum { get; set; } = string.Empty;
 
     public string PachtProQm { get; set; } = string.Empty;
@@ -35,14 +35,14 @@ public sealed class PachtvertragTemplateData
     public string PachtzahlungFaelligBis { get; set; } = string.Empty;
 
     public string AltvertragDatum { get; set; } = string.Empty;
+    public string AltvertragHinweis { get; set; } = string.Empty;
+    public string VereinsunterlagenNachweis { get; set; } = string.Empty;
 
     public string BankblockMehrzeilig { get; set; } = string.Empty;
     public string PachtLaufendesJahr { get; set; } = string.Empty;
 
     public string UnterschriftOrt { get; set; } = "Zwickau";
     public string UnterschriftDatum { get; set; } = string.Empty;
-    public string KleingartenordnungFassung { get; set; } = string.Empty;
-    public string KleingartenordnungAusgehaendigtAm { get; set; } = string.Empty;
     public string WeitereVereinbarungen { get; set; } = string.Empty;
     public string VereinsUnterzeichner { get; set; } = string.Empty;
     public bool Anlage1 { get; set; }

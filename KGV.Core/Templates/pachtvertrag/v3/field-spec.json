@@ -1,0 +1,363 @@
+{
+  "schema_version": "kgv-pdf-field-spec/v1",
+  "coordinate_system": "top-left-points",
+  "settings": {
+    "coordinateOrigin": "topLeft"
+  },
+  "fields": [
+    {
+      "name": "paechter_name",
+      "type": "text",
+      "page": 1,
+      "rect": {
+        "x": 30,
+        "y": 167,
+        "w": 244,
+        "h": 11
+      },
+      "flags": {}
+    },
+    {
+      "name": "mitgliedsnummer",
+      "type": "text",
+      "page": 1,
+      "rect": {
+        "x": 280,
+        "y": 167,
+        "w": 285,
+        "h": 11
+      },
+      "flags": {}
+    },
+    {
+      "name": "paechter_geburtsdatum",
+      "type": "text",
+      "page": 1,
+      "rect": {
+        "x": 30,
+        "y": 187,
+        "w": 244,
+        "h": 11
+      },
+      "flags": {}
+    },
+    {
+      "name": "paechter_anschrift",
+      "type": "text",
+      "page": 1,
+      "rect": {
+        "x": 280,
+        "y": 187,
+        "w": 285,
+        "h": 11
+      },
+      "flags": {}
+    },
+    {
+      "name": "paechter_kontakt",
+      "type": "text",
+      "page": 1,
+      "rect": {
+        "x": 30,
+        "y": 207,
+        "w": 535,
+        "h": 11
+      },
+      "flags": {}
+    },
+    {
+      "name": "zweite_partei_bezeichnung",
+      "type": "text",
+      "page": 1,
+      "rect": {
+        "x": 30,
+        "y": 227,
+        "w": 535,
+        "h": 11
+      },
+      "flags": {}
+    },
+    {
+      "name": "zweite_partei_name",
+      "type": "text",
+      "page": 1,
+      "rect": {
+        "x": 30,
+        "y": 247,
+        "w": 244,
+        "h": 11
+      },
+      "flags": {}
+    },
+    {
+      "name": "zweite_partei_mitgliedsnummer",
+      "type": "text",
+      "page": 1,
+      "rect": {
+        "x": 280,
+        "y": 247,
+        "w": 285,
+        "h": 11
+      },
+      "flags": {}
+    },
+    {
+      "name": "zweite_partei_geburtsdatum",
+      "type": "text",
+      "page": 1,
+      "rect": {
+        "x": 30,
+        "y": 267,
+        "w": 244,
+        "h": 11
+      },
+      "flags": {}
+    },
+    {
+      "name": "zweite_partei_anschrift",
+      "type": "text",
+      "page": 1,
+      "rect": {
+        "x": 280,
+        "y": 267,
+        "w": 285,
+        "h": 11
+      },
+      "flags": {}
+    },
+    {
+      "name": "zweite_partei_kontakt",
+      "type": "text",
+      "page": 1,
+      "rect": {
+        "x": 30,
+        "y": 287,
+        "w": 535,
+        "h": 11
+      },
+      "flags": {}
+    },
+    {
+      "name": "parzelle_nr",
+      "type": "text",
+      "page": 1,
+      "rect": {
+        "x": 30,
+        "y": 332,
+        "w": 71,
+        "h": 11
+      },
+      "flags": {}
+    },
+    {
+      "name": "lage_anlage",
+      "type": "text",
+      "page": 1,
+      "rect": {
+        "x": 107,
+        "y": 332,
+        "w": 184,
+        "h": 11
+      },
+      "flags": {}
+    },
+    {
+      "name": "flaeche_qm",
+      "type": "text",
+      "page": 1,
+      "rect": {
+        "x": 297,
+        "y": 332,
+        "w": 126,
+        "h": 11
+      },
+      "flags": {}
+    },
+    {
+      "name": "vertragsbeginn",
+      "type": "text",
+      "page": 1,
+      "rect": {
+        "x": 429,
+        "y": 332,
+        "w": 136,
+        "h": 11
+      },
+      "flags": {}
+    },
+    {
+      "name": "uebergabe_datum",
+      "type": "text",
+      "page": 1,
+      "rect": {
+        "x": 30,
+        "y": 352,
+        "w": 139,
+        "h": 11
+      },
+      "flags": {}
+    },
+    {
+      "name": "probephase_bis",
+      "type": "text",
+      "page": 1,
+      "rect": {
+        "x": 175,
+        "y": 352,
+        "w": 194,
+        "h": 11
+      },
+      "flags": {}
+    },
+    {
+      "name": "pachtzins_jahr",
+      "type": "text",
+      "page": 1,
+      "rect": {
+        "x": 375,
+        "y": 352,
+        "w": 90,
+        "h": 11
+      },
+      "flags": {}
+    },
+    {
+      "name": "pacht_pro_qm",
+      "type": "text",
+      "page": 1,
+      "rect": {
+        "x": 471,
+        "y": 352,
+        "w": 94,
+        "h": 11
+      },
+      "flags": {}
+    },
+    {
+      "name": "faelligkeit",
+      "type": "text",
+      "page": 1,
+      "rect": {
+        "x": 30,
+        "y": 372,
+        "w": 164,
+        "h": 17
+      },
+      "flags": {}
+    },
+    {
+      "name": "altvertrag_hinweis",
+      "type": "multiline",
+      "page": 1,
+      "rect": {
+        "x": 200,
+        "y": 372,
+        "w": 365,
+        "h": 17
+      },
+      "flags": {
+        "multiline": true
+      }
+    },
+    {
+      "name": "vereinsunterlagen_nachweis",
+      "type": "multiline",
+      "page": 1,
+      "rect": {
+        "x": 27,
+        "y": 439,
+        "w": 541,
+        "h": 25
+      },
+      "flags": {
+        "multiline": true
+      }
+    },
+    {
+      "name": "weitere_vereinbarungen",
+      "type": "multiline",
+      "page": 1,
+      "rect": {
+        "x": 27,
+        "y": 508.2,
+        "w": 541,
+        "h": 34
+      },
+      "flags": {
+        "multiline": true
+      }
+    },
+    {
+      "name": "ort_datum",
+      "type": "text",
+      "page": 1,
+      "rect": {
+        "x": 30,
+        "y": 588.2,
+        "w": 199,
+        "h": 10
+      },
+      "flags": {}
+    },
+    {
+      "name": "paechter_druckname",
+      "type": "text",
+      "page": 1,
+      "rect": {
+        "x": 235,
+        "y": 588.2,
+        "w": 330,
+        "h": 10
+      },
+      "flags": {}
+    },
+    {
+      "name": "unterschrift_paechter",
+      "type": "signature",
+      "page": 1,
+      "rect": {
+        "x": 27,
+        "y": 600.2,
+        "w": 205,
+        "h": 25
+      },
+      "flags": {}
+    },
+    {
+      "name": "unterschrift_vorstand",
+      "type": "signature",
+      "page": 1,
+      "rect": {
+        "x": 242,
+        "y": 600.2,
+        "w": 326,
+        "h": 25
+      },
+      "flags": {}
+    },
+    {
+      "name": "unterschrift_zweite_partei",
+      "type": "signature",
+      "page": 1,
+      "rect": {
+        "x": 27,
+        "y": 636.2,
+        "w": 205,
+        "h": 22
+      },
+      "flags": {}
+    },
+    {
+      "name": "vereins_unterzeichner",
+      "type": "text",
+      "page": 1,
+      "rect": {
+        "x": 242,
+        "y": 644.2,
+        "w": 326,
+        "h": 10
+      },
+      "flags": {}
+    }
+  ]
+}

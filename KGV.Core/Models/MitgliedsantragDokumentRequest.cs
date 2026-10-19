@@ -17,6 +17,8 @@ namespace KGV.Core.Models
         public int? GesetzlicherVertreterMitgliedId { get; set; }
         public MitgliedsantragVertreterSnapshot? GesetzlicherVertreterSnapshot { get; set; }
         public VereinskonfigurationSnapshot? VereinskonfigurationSnapshot { get; set; }
+        /// <summary>Snapshot des bei der Antragstellung ausgehändigten Vereinsunterlagen-Nachweises. Bis zur zentralen Historie optional.</summary>
+        public string? VereinsunterlagenNachweis { get; set; }
 
         [Obsolete("Use VereinskonfigurationSnapshot.")]
         public MitgliedsantragBankverbindungSnapshot? BankverbindungSnapshot
