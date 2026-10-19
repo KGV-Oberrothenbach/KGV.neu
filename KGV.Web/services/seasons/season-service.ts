@@ -26,7 +26,7 @@ export function createNextSeasonProposal(seasons: Season[] | null | undefined, t
     euro_pro_fehlstunde: previous?.euro_pro_fehlstunde ?? 25,
     bemerkung: previous?.bemerkung ?? null,
     pacht_pro_qm: previous?.pacht_pro_qm ?? null,
-    pacht_faellig_am: previous?.pacht_faellig_am ?? `${year}-03-31`,
+    pacht_faellig_am: previous?.pacht_faellig_am ?? `${nextYear}-03-31`,
     mitgliedsbeitrag: previous?.mitgliedsbeitrag ?? null,
     mitgliedsbeitrag_nebenmitglied: previous?.mitgliedsbeitrag_nebenmitglied ?? null,
     aufnahmegebuehr: previous?.aufnahmegebuehr ?? null,
