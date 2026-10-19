@@ -99,6 +99,8 @@ namespace KGV.Core.Interfaces
         Task<VereinsdokumentFassungRecord> CreateVereinsdokumentFassungAsync(VereinsdokumentFassungCreateRequest request);
         Task<MitgliedVereinsdokumentStatus> GetMitgliedVereinsdokumentStatusAsync(long mitgliedId, DateOnly stichtag);
         Task<List<MitgliedVereinsdokumentBereitstellungHistorieRecord>> GetMitgliedVereinsdokumentBereitstellungHistorieAsync(long mitgliedId);
+        Task<MitgliedVereinsunterlagenBereitstellungResult> SendMitgliedVereinsunterlagenDigitalAsync(long mitgliedId, IReadOnlyList<long> vereinsdokumentFassungIds);
+        Task<List<MitgliedVereinsdokumentBereitstellungHistorieRecord>> RecordMitgliedVereinsunterlagenPapierAsync(MitgliedVereinsunterlagenBereitstellungRequest request);
         Task<SaisonRecord?> SaveSaisonAsync(SaisonRecord saison);
         Task<JahresabschlussRecord?> GetJahresabschlussBySaisonAsync(int saisonId);
         Task<JahresabschlussRecord?> SaveJahresabschlussAsync(JahresabschlussRecord jahresabschluss);

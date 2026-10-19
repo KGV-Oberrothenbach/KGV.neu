@@ -27,6 +27,7 @@ namespace KGV.Infrastructure.Services
         private const string DokumentUploadFunctionName = "kgv-upload-document";
         private const string GenerateExportPdfFunctionName = "kgv-generate-export-pdf";
         private const string MitgliedRegelwerkeVersandFunctionName = "kgv-send-membership-documents";
+        private const string MitgliedVereinsunterlagenVersandFunctionName = "kgv-send-club-documents";
         private const string AllowUserMeterReadingSubmissionsSettingKey = "allow_user_meter_reading_submissions";
         private const string MeterReadingPhotoRequiredSettingKey = "meter_reading_photo_required";
         private readonly ISupabaseClientFactory _clientFactory;
@@ -2801,6 +2802,26 @@ namespace KGV.Infrastructure.Services
             if (mitgliedId <= 0) throw new ArgumentOutOfRangeException(nameof(mitgliedId));
             var history = await (await EnsureClientAsync()).Rpc<List<MitgliedVereinsdokumentBereitstellungHistorieRecord>>("get_mitglied_vereinsdokument_bereitstellung_historie", new { p_mitglied_id = mitgliedId });
             return history?.OrderByDescending(item => item.BereitgestelltAm).ThenByDescending(item => item.BereitstellungId).ToList() ?? new List<MitgliedVereinsdokumentBereitstellungHistorieRecord>();
+        }
+
+        public async Task<List<MitgliedVereinsdokumentBereitstellungHistorieRecord>> RecordMitgliedVereinsunterlagenPapierAsync(MitgliedVereinsunterlagenBereitstellungRequest request)
+        {
+            if (request == null || request.MitgliedId <= 0 || request.VereinsdokumentFassungIds.Count == 0) throw new ArgumentException("Mitglied und mindestens eine Dokumentfassung sind erforderlich.", nameof(request));
+            await (await EnsureClientAsync()).Rpc<List<MitgliedVereinsdokumentBereitstellungHistorieRecord>>("create_mitglied_vereinsdokument_bereitstellungen_papier", new { p_mitglied_id = request.MitgliedId, p_vereinsdokument_fassung_ids = request.VereinsdokumentFassungIds, p_bereitgestellt_am = request.BereitgestelltAm.ToUniversalTime().ToString("O") });
+            return await GetMitgliedVereinsdokumentBereitstellungHistorieAsync(request.MitgliedId);
+        }
+
+        public async Task<MitgliedVereinsunterlagenBereitstellungResult> SendMitgliedVereinsunterlagenDigitalAsync(long mitgliedId, IReadOnlyList<long> vereinsdokumentFassungIds)
+        {
+            if (mitgliedId <= 0 || vereinsdokumentFassungIds == null || vereinsdokumentFassungIds.Count == 0) return MitgliedVereinsunterlagenBereitstellungResult.Fail("Mitglied und mindestens eine Dokumentfassung sind erforderlich.", "VALIDATION");
+            var token = await _authService.GetAccessTokenAsync();
+            if (string.IsNullOrWhiteSpace(token)) return MitgliedVereinsunterlagenBereitstellungResult.Fail("Die aktuelle Anmeldung ist abgelaufen.", "AUTH_REQUIRED");
+            var endpoint = new Uri(new Uri(_supabaseUrl.TrimEnd('/') + "/"), $"functions/v1/{MitgliedVereinsunterlagenVersandFunctionName}");
+            using var request = new HttpRequestMessage(HttpMethod.Post, endpoint) { Content = new StringContent(JsonSerializer.Serialize(new { mitglied_id = mitgliedId, vereinsdokument_fassung_ids = vereinsdokumentFassungIds }), Encoding.UTF8, "application/json") };
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token); request.Headers.Add("apikey", _publishableKey);
+            using var response = await _documentUploadHttpClient.SendAsync(request);
+            var result = JsonSerializer.Deserialize<MitgliedVereinsunterlagenBereitstellungResult>(await response.Content.ReadAsStringAsync());
+            return response.IsSuccessStatusCode && result?.Success == true ? result : MitgliedVereinsunterlagenBereitstellungResult.Fail(result?.Message ?? "Der Versand konnte nicht bestätigt werden.", result?.DiagnosticCode ?? "DIGITAL_SEND_FAILED");
         }
 
         public async Task<VereinsdokumentFassungRecord> CreateVereinsdokumentFassungAsync(VereinsdokumentFassungCreateRequest request)
