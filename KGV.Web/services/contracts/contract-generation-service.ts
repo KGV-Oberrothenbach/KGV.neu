@@ -40,6 +40,7 @@ type ContractGenerationOptions = {
   companion_name?: string;
   photos?: string[];
   source_document_id?: number;
+  club_documents_snapshot?: string;
 };
 
 export type ContractGenerationRequest =

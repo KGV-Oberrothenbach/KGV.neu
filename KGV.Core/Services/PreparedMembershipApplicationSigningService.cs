@@ -8,6 +8,7 @@ public sealed class PreparedMembershipApplicationSigningService
     private readonly IPreparedContractRepository _repository;
     private readonly IContractGenerationClient _contractClient;
     private readonly PreparedContractSigningStartService _startService;
+    private readonly MitgliedsantragVereinsunterlagenService _vereinsunterlagenService;
     private KommunikationsvorgangDto? _contract;
     private PreparedMembershipApplicationDraft? _draft;
     private Dictionary<string, string>? _signatures;
@@ -18,10 +19,12 @@ public sealed class PreparedMembershipApplicationSigningService
     public PreparedMembershipApplicationSigningService(
         IPreparedContractRepository repository,
         IContractGenerationClient contractClient,
+        MitgliedsantragVereinsunterlagenService vereinsunterlagenService,
         PreparedContractSigningStartService? startService = null)
     {
         _repository = repository ?? throw new ArgumentNullException(nameof(repository));
         _contractClient = contractClient ?? throw new ArgumentNullException(nameof(contractClient));
+        _vereinsunterlagenService = vereinsunterlagenService ?? throw new ArgumentNullException(nameof(vereinsunterlagenService));
         _startService = startService ?? new PreparedContractSigningStartService(repository);
     }
 
@@ -71,7 +74,10 @@ public sealed class PreparedMembershipApplicationSigningService
             throw new PreparedContractValidationException("Der Vertragsvorgang ist kein Mitgliedsantrag.");
 
         if (contract.Status == PreparedContractConstants.Prepared)
+        {
+            await RevalidateVereinsunterlagenBeforeStartAsync(contract, cancellationToken);
             return await _startService.StartAsync(contract, cancellationToken);
+        }
 
         if (contract.Status != PreparedContractConstants.ReadyForSignature ||
             contract.SignaturRevision is null ||
@@ -83,6 +89,21 @@ public sealed class PreparedMembershipApplicationSigningService
             throw new PreparedContractValidationException("Der eingefrorene Vertragsvorgang enthält ungültige Basisdaten.");
 
         return contract;
+    }
+
+    private async Task RevalidateVereinsunterlagenBeforeStartAsync(KommunikationsvorgangDto contract, CancellationToken cancellationToken)
+    {
+        var draft = ParseDraft(contract);
+        if (!VereinsunterlagenNachweisHelper.IsComplete(draft.VereinsunterlagenNachweis))
+            throw new PreparedContractValidationException("Der vorbereitete Mitgliedsantrag enthält noch keinen Vereinsunterlagen-Snapshot. Bitte erstellen Sie zuerst eine neue Vorschau.");
+
+        var currentSnapshot = await _vereinsunterlagenService.CreateCurrentSnapshotAsync(contract.MitgliedId, cancellationToken);
+        if (VereinsunterlagenNachweisHelper.Equivalent(draft.VereinsunterlagenNachweis, currentSnapshot))
+            return;
+
+        var updatedDraft = draft with { VereinsunterlagenNachweis = currentSnapshot };
+        await _repository.UpdateDraftAsync(contract.Id, contract.Revision, PreparedContractDraftParser.Serialize(updatedDraft), cancellationToken);
+        throw new PreparedContractValidationException("Die Pflichtunterlagen haben sich seit der Vorschau geändert. Der aktualisierte Entwurf wurde gespeichert; bitte erstellen Sie eine neue Vorschau.");
     }
 
     private static PreparedMembershipApplicationDraft ParseDraft(KommunikationsvorgangDto contract)

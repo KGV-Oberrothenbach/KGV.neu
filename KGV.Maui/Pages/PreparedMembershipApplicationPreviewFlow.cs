@@ -25,15 +25,18 @@ public sealed class PreparedMembershipApplicationPreviewFlow
     private readonly Page _hostPage;
     private readonly IPreparedContractRepository _repository;
     private readonly IContractGenerationClient _contractClient;
+    private readonly MitgliedsantragVereinsunterlagenService _vereinsunterlagenService;
 
     public PreparedMembershipApplicationPreviewFlow(
         Page hostPage,
         IPreparedContractRepository repository,
-        IContractGenerationClient contractClient)
+        IContractGenerationClient contractClient,
+        MitgliedsantragVereinsunterlagenService vereinsunterlagenService)
     {
         _hostPage = hostPage ?? throw new ArgumentNullException(nameof(hostPage));
         _repository = repository ?? throw new ArgumentNullException(nameof(repository));
         _contractClient = contractClient ?? throw new ArgumentNullException(nameof(contractClient));
+        _vereinsunterlagenService = vereinsunterlagenService ?? throw new ArgumentNullException(nameof(vereinsunterlagenService));
     }
 
     public async Task<PreparedMembershipApplicationPreviewResult> OpenAsync(long contractId, CancellationToken cancellationToken = default)
@@ -43,6 +46,17 @@ public sealed class PreparedMembershipApplicationPreviewFlow
 
         var contract = await _repository.LoadAsync(contractId, cancellationToken);
         var draft = ValidateAndParse(contract);
+        if (!VereinsunterlagenNachweisHelper.IsComplete(draft.VereinsunterlagenNachweis))
+            throw new PreparedContractValidationException("Der vorbereitete Mitgliedsantrag enthält noch keinen Vereinsunterlagen-Snapshot. Bitte erstellen Sie zuerst eine neue Vorschau.");
+        var currentSnapshot = await _vereinsunterlagenService.CreateCurrentSnapshotAsync(contract.MitgliedId, cancellationToken);
+        if (!VereinsunterlagenNachweisHelper.Equivalent(draft.VereinsunterlagenNachweis, currentSnapshot))
+        {
+            if (contract.Status != PreparedContractConstants.Prepared)
+                throw new PreparedContractValidationException("Die Pflichtunterlagen haben sich seit der Vorschau geändert. Die Signatur darf nicht gestartet werden; bitte erstellen Sie eine neue Vorschau.");
+            var updatedDraft = draft with { VereinsunterlagenNachweis = currentSnapshot };
+            contract = await _repository.UpdateDraftAsync(contract.Id, contract.Revision, PreparedContractDraftParser.Serialize(updatedDraft), cancellationToken);
+            draft = updatedDraft;
+        }
         var isMinor = draft.Representative is not null;
         var application = PreparedMembershipApplicationMapper.ToDocumentRequest(draft, isMinor);
         application.NebenmitgliedEinbeziehen = !isMinor && draft.IncludeSecondaryMember;

@@ -22,6 +22,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
     private readonly PreparedMembershipApplicationResumeService _preparedMembershipApplicationResumeService;
     private readonly IContractGenerationClient _contractGenerationClient;
     private readonly IPreparedContractRepository _preparedContractRepository;
+    private readonly MitgliedsantragVereinsunterlagenService _vereinsunterlagenService;
     private readonly MemberSearchRefreshState _memberSearchRefreshState;
     private readonly UserContextState _userContextState;
     private readonly MemberContextState _memberContextState;
@@ -75,6 +76,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         PreparedMembershipApplicationResumeService preparedMembershipApplicationResumeService,
         IContractGenerationClient contractGenerationClient,
         IPreparedContractRepository preparedContractRepository,
+        MitgliedsantragVereinsunterlagenService vereinsunterlagenService,
         MemberSearchRefreshState memberSearchRefreshState,
         UserContextState userContextState,
         MemberContextState memberContextState)
@@ -84,6 +86,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         _preparedMembershipApplicationResumeService = preparedMembershipApplicationResumeService;
         _contractGenerationClient = contractGenerationClient;
         _preparedContractRepository = preparedContractRepository;
+        _vereinsunterlagenService = vereinsunterlagenService;
         _memberSearchRefreshState = memberSearchRefreshState;
         _userContextState = userContextState;
         _memberContextState = memberContextState;
@@ -820,26 +823,33 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
             var saisons = await _supabaseService.GetSaisonRecordsAsync();
             var saison = saisons.FirstOrDefault(x => SaisonverwaltungHelper.GetSaisonJahr(x) == request.BeginnDatum.Year);
             if (saison?.Aufnahmegebuehr is not >= 0) throw new InvalidOperationException($"Für die Saison {request.BeginnDatum.Year} fehlt eine gültige Aufnahmegebühr.");
+            request.VereinsunterlagenSnapshot = await _vereinsunterlagenService.CreateCurrentSnapshotAsync(mitgliedId);
+            request.VereinsunterlagenNachweis = VereinsunterlagenNachweisHelper.FormatForPdf(request.VereinsunterlagenSnapshot);
+            var serialized = PreparedContractDraftParser.Serialize(PreparedMembershipApplicationMapper.ToPreparedDraft(request, resolution?.IstMinderjaehrig ?? request.IstMinderjaehrig));
+            if (contract is null)
+            {
+                _activeMembershipApplicationContract = await _preparedContractRepository.CreateAsync(PreparedContractConstants.MembershipApplication, mitgliedId, null, serialized);
+                contract = _activeMembershipApplicationContract;
+                UpdateFormActions(_memberRecord is null ? null : MapMember(_memberRecord));
+            }
+            else if (!PreparedContractDraftParser.AreEquivalent(contract.EntwurfDaten, serialized))
+            {
+                contract = await _preparedContractRepository.UpdateDraftAsync(contract.Id, contract.Revision, serialized);
+            }
             var pdf = await _contractGenerationClient.PreviewMembershipApplicationAsync(request, decimal.Round(saison.Aufnahmegebuehr.Value, 2, MidpointRounding.AwayFromZero));
             var decision = await ShowMitgliedsantragPreviewAsync(new DokumentUploadRequest { MitgliedId = mitgliedId, Titel = "Mitgliedsantrag – Vorschau", FileName = "Mitgliedsantrag_Vorschau.pdf", MimeType = "application/pdf", FileContent = pdf }, persistForSignature: false, preparedActionLabel: contract is null ? "Zur Signatur vorbereiten" : "Änderungen speichern");
             if (decision == MitgliedsantragPreviewDecision.BackToEditor) { initial = request; continue; }
             if (decision == MitgliedsantragPreviewDecision.SavePrepared)
             {
-                var serialized = PreparedContractDraftParser.Serialize(PreparedMembershipApplicationMapper.ToPreparedDraft(request, resolution?.IstMinderjaehrig ?? request.IstMinderjaehrig));
-                if (contract is null)
-                {
-                    _activeMembershipApplicationContract = await _preparedContractRepository.CreateAsync(PreparedContractConstants.MembershipApplication, mitgliedId, null, serialized);
-                    UpdateFormActions(_memberRecord is null ? null : MapMember(_memberRecord));
-                    if (await DisplayAlertAsync("Mitgliedsantrag", "Der Mitgliedsantrag wurde vorbereitet und unter Kommunikation > Zur Signatur > Meine gespeichert. Möchten Sie jetzt zur Kommunikationszentrale wechseln?", "Kommunikation öffnen", "Hier bleiben"))
-                        await Shell.Current.GoToAsync("//kommunikation");
-                }
-                else if (PreparedContractDraftParser.AreEquivalent(contract.EntwurfDaten, serialized))
+                if (PreparedContractDraftParser.AreEquivalent(contract!.EntwurfDaten, serialized))
                     await DisplayAlertAsync("Mitgliedsantrag", "Änderungen sind bereits gespeichert.", "OK");
                 else
                 {
                     await _preparedContractRepository.UpdateDraftAsync(contract.Id, contract.Revision, serialized);
                     await DisplayAlertAsync("Mitgliedsantrag", "Änderungen wurden gespeichert.", "OK");
                 }
+                if (_activeMembershipApplicationContract is not null && await DisplayAlertAsync("Mitgliedsantrag", "Der Mitgliedsantrag wurde vorbereitet und unter Kommunikation > Zur Signatur > Meine gespeichert. Möchten Sie jetzt zur Kommunikationszentrale wechseln?", "Kommunikation öffnen", "Hier bleiben"))
+                    await Shell.Current.GoToAsync("//kommunikation");
                 return;
             }
             if (contract is not null && !PreparedContractDraftParser.AreEquivalent(contract.EntwurfDaten, PreparedContractDraftParser.Serialize(PreparedMembershipApplicationMapper.ToPreparedDraft(request, resolution!.IstMinderjaehrig))))

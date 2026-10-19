@@ -26,7 +26,7 @@ public static class PreparedMembershipApplicationMapper
                 representative = new LegalRepresentativeDraft { Mode = "manual", MemberId = null, Vorname = snapshot.Vorname, Nachname = snapshot.Nachname, AdresseAbweichend = request.GesetzlicherVertreterAdresseAbweichend, Adresse = snapshot.Adresse, Plz = snapshot.Plz, Ort = snapshot.Ort };
             }
         }
-        return new PreparedMembershipApplicationDraft { MemberId = request.MitgliedId, StartDate = request.BeginnDatum.Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), MemberFee = request.Mitgliedsbeitrag, Representative = representative, IncludeSecondaryMember = request.NebenmitgliedEinbeziehen };
+        return new PreparedMembershipApplicationDraft { MemberId = request.MitgliedId, StartDate = request.BeginnDatum.Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), MemberFee = request.Mitgliedsbeitrag, Representative = representative, IncludeSecondaryMember = request.NebenmitgliedEinbeziehen, VereinsunterlagenNachweis = request.VereinsunterlagenSnapshot };
     }
 
     public static MitgliedsantragDokumentRequest ToDocumentRequest(PreparedMembershipApplicationDraft draft, bool isMinor)
@@ -35,7 +35,7 @@ public static class PreparedMembershipApplicationMapper
         if (isMinor && draft.IncludeSecondaryMember)
             throw new PreparedContractValidationException("Ein minderjähriges Mitglied kann kein Nebenmitglied im Mitgliedsantrag haben.");
         if (!DateTime.TryParseExact(draft.StartDate, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date)) throw new PreparedContractValidationException("Das Startdatum des Mitgliedsantrags ist ungültig.");
-        var request = new MitgliedsantragDokumentRequest { MitgliedId = draft.MemberId, BeginnDatum = date.Date, Mitgliedsbeitrag = draft.MemberFee, NebenmitgliedEinbeziehen = draft.IncludeSecondaryMember, IstMinderjaehrig = isMinor };
+        var request = new MitgliedsantragDokumentRequest { MitgliedId = draft.MemberId, BeginnDatum = date.Date, Mitgliedsbeitrag = draft.MemberFee, NebenmitgliedEinbeziehen = draft.IncludeSecondaryMember, IstMinderjaehrig = isMinor, VereinsunterlagenSnapshot = draft.VereinsunterlagenNachweis, VereinsunterlagenNachweis = draft.VereinsunterlagenNachweis is null ? null : VereinsunterlagenNachweisHelper.FormatForPdf(draft.VereinsunterlagenNachweis) };
         if (!isMinor || draft.Representative is null) return request;
         if (draft.Representative.Mode == "existing") { if (draft.Representative.MemberId is not > 0) throw new PreparedContractValidationException("Für den vorhandenen gesetzlichen Vertreter fehlt die Mitglieds-ID."); request.GesetzlicherVertreterAusBestehendemMitglied = true; request.GesetzlicherVertreterMitgliedId = draft.Representative.MemberId; return request; }
         if (draft.Representative.Mode != "manual") throw new PreparedContractValidationException("Der Vertretermodus wird nicht unterstützt.");

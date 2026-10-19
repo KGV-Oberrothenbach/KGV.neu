@@ -165,7 +165,7 @@ public sealed class KommunikationPage : ContentPage
             }
         }
 
-        var preview = new PreparedMembershipApplicationPreviewFlow(this, _repository, _contractClient);
+        var preview = new PreparedMembershipApplicationPreviewFlow(this, _repository, _contractClient, new MitgliedsantragVereinsunterlagenService(_supabaseService));
         var result = await preview.OpenAsync(item.Contract.Id);
         if (result.Action is PreparedMembershipApplicationPreviewAction.StartSigning or PreparedMembershipApplicationPreviewAction.ContinueSigning)
             await RunMembershipSigningAsync(result.Contract);
@@ -176,7 +176,7 @@ public sealed class KommunikationPage : ContentPage
     {
         var sourceDocument = new DocumentInfo { Title = "Mitgliedsantrag", Dateiname = "Mitgliedsantrag.pdf" };
         var capture = new MauiPreparedSignatureCapture(this, sourceDocument);
-        var signing = new PreparedMembershipApplicationSigningService(_repository, _contractClient);
+        var signing = new PreparedMembershipApplicationSigningService(_repository, _contractClient, new MitgliedsantragVereinsunterlagenService(_supabaseService));
         var result = await signing.RunAsync(contract, capture);
         if (result.State == PreparedMembershipApplicationSigningState.FinalDocumentReadyForReview && result.Contract is not null)
         {

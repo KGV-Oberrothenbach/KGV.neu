@@ -56,6 +56,19 @@ public sealed record PreparedMembershipApplicationDraft
     [JsonPropertyName("memberFee")] public decimal MemberFee { get; init; }
     [JsonPropertyName("representative")] public LegalRepresentativeDraft? Representative { get; init; }
     [JsonPropertyName("includeSecondaryMember")] public bool IncludeSecondaryMember { get; init; }
+    [JsonPropertyName("vereinsunterlagen_nachweis")] public IReadOnlyList<VereinsunterlagenNachweisSnapshotItem>? VereinsunterlagenNachweis { get; init; }
+}
+
+public sealed record VereinsunterlagenNachweisSnapshotItem
+{
+    [JsonPropertyName("dokumenttyp")] public string Dokumenttyp { get; init; } = "";
+    [JsonPropertyName("vereinsdokument_fassung_id")] public long VereinsdokumentFassungId { get; init; }
+    [JsonPropertyName("fassung")] public string Fassung { get; init; } = "";
+    [JsonPropertyName("gueltig_ab")] public DateTime GueltigAb { get; init; }
+    [JsonPropertyName("gueltig_bis")] public DateTime? GueltigBis { get; init; }
+    [JsonPropertyName("bereitstellung_id")] public long BereitstellungId { get; init; }
+    [JsonPropertyName("bereitstellungsart")] public string Bereitstellungsart { get; init; } = "";
+    [JsonPropertyName("bereitgestellt_am")] public DateTime BereitgestelltAm { get; init; }
 }
 
 public sealed record LeaseContractDraft

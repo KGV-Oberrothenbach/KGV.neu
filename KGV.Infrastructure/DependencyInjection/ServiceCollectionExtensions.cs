@@ -40,6 +40,7 @@ namespace KGV.Infrastructure.DependencyInjection
             services.AddSingleton<PreparedMembershipApplicationResumeService>();
             services.AddSingleton<PreparedLeaseContractResumeService>();
             services.AddSingleton<PreparedContractSigningStartService>();
+            services.AddSingleton<MitgliedsantragVereinsunterlagenService>();
             services.AddSingleton<IContractGenerationClient, ContractGenerationClient>();
 
             services.AddSingleton<PdfTemplateAssetCache>();

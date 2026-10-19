@@ -13,6 +13,8 @@ import { LegalRepresentativeFields } from "./LegalRepresentativeFields";
 import { loadPreparedContractForEditing, loadPreparedContractForFinalReview, loadPreparedContractForSignature, markPreparedContractReadyForReview, parkPreparedContract, recoverPreparedContractFinalDocument, savePreparedContractIfChanged, startPreparedContractSigning, type PreparedContractResumeContext } from "../../services/communication/prepared-contract-service";
 import { preparedContractSchemaVersion, type PreparedMembershipApplicationDraft } from "../../models/communication/prepared-contract-draft";
 import { PreparedFinalReview } from "./PreparedFinalReview";
+import { getMemberClubDocumentStatus } from "../../services/club-documents/member-club-document-status-service";
+import { createMemberClubDocumentSnapshot, formatMemberClubDocumentSnapshotForPdf, isCompleteMemberClubDocumentSnapshot, memberClubDocumentSnapshotsEqual, type MemberClubDocumentSnapshotItem } from "../../services/contracts/member-club-document-snapshot-service";
 
 export function MembershipApplicationFlow({ session, memberId, onSaved, onPrepared, onCancel, preparedContractId, resumeMode = "edit" }: { session: BrowserSession; memberId: number; onSaved: () => Promise<void>; onPrepared?: () => Promise<void> | void; onCancel?: () => void; preparedContractId?: number; resumeMode?: "edit" | "signatures" | "review" }) {
   const club = useSelectedClub();
@@ -30,6 +32,7 @@ export function MembershipApplicationFlow({ session, memberId, onSaved, onPrepar
   const [message, setMessage] = useState("");
   const [resumeContext, setResumeContext] = useState<PreparedContractResumeContext | null>(null);
   const [finalDocumentId, setFinalDocumentId] = useState<number | null>(null);
+  const [clubDocumentSnapshot, setClubDocumentSnapshot] = useState<MemberClubDocumentSnapshotItem[] | undefined>();
 
   useEffect(() => {
     let active = true;
@@ -65,17 +68,18 @@ export function MembershipApplicationFlow({ session, memberId, onSaved, onPrepar
           setResumeContext(review); setStartDate(saved.startDate); setFee(String(saved.memberFee)); setDraft(saved.representative ?? emptyLegalRepresentativeDraft()); setIncludeSecondaryMember(saved.includeSecondaryMember); setSignatures({}); setSignatureIndex(0); setStep("review"); setMessage("Das bereits erstellte finale Dokument wurde zur letzten Prüfung übernommen."); await onSaved(); return;
         }
       }
-      setResumeContext(context); setStartDate(saved.startDate); setFee(String(saved.memberFee)); setDraft(saved.representative ?? emptyLegalRepresentativeDraft()); setIncludeSecondaryMember(saved.includeSecondaryMember); setSignatures({}); setSignatureIndex(0); setStep(resumeMode === "signatures" ? "signatures" : resumeMode === "review" ? "review" : "edit");
+      setResumeContext(context); setClubDocumentSnapshot(saved.vereinsunterlagen_nachweis); setStartDate(saved.startDate); setFee(String(saved.memberFee)); setDraft(saved.representative ?? emptyLegalRepresentativeDraft()); setIncludeSecondaryMember(saved.includeSecondaryMember); setSignatures({}); setSignatureIndex(0); setStep(resumeMode === "signatures" ? "signatures" : resumeMode === "review" ? "review" : "edit");
     }).catch((error) => active && setMessage(error instanceof Error ? error.message : "Der vorbereitete Mitgliedsantrag konnte nicht geöffnet werden."));
     return () => { active = false; };
   }, [club, session, preparedContractId, memberId, data, resumeMode]);
 
-  const request = (action: "preview" | "finalize") => ({ action, type: "mitgliedsantrag" as const, member_id: memberId, start_date: startDate, member_fee: Number(fee.replace(",", ".")), admission_fee: data?.admissionFee, ...(action === "finalize" && resumeContext ? { source_kommunikationsvorgang_id: resumeContext.id, source_revision: resumeContext.revision } : {}), representative: minor ? { mode: draft.mode, member_id: draft.memberId ?? undefined, vorname: draft.vorname, nachname: draft.nachname, adresse_abweichend: draft.adresseAbweichend, adresse: draft.adresse, plz: draft.plz, ort: draft.ort } : undefined, include_secondary_member: !minor && includeSecondaryMember, signature_application_member: signatures.applicationMember || undefined, signature_privacy_member: signatures.privacyMember || undefined, signature_application_representative: minor ? signatures.applicationSecondParty || undefined : undefined, signature_privacy_representative: minor ? signatures.privacySecondParty || undefined : undefined, signature_application_secondary: !minor ? signatures.applicationSecondParty || undefined : undefined, signature_privacy_secondary: !minor ? signatures.privacySecondParty || undefined : undefined, signature_board: signatures.board || undefined });
+  const request = (action: "preview" | "finalize", snapshot = clubDocumentSnapshot) => ({ action, type: "mitgliedsantrag" as const, member_id: memberId, start_date: startDate, member_fee: Number(fee.replace(",", ".")), admission_fee: data?.admissionFee, club_documents_snapshot: snapshot ? formatMemberClubDocumentSnapshotForPdf(snapshot) : undefined, ...(action === "finalize" && resumeContext ? { source_kommunikationsvorgang_id: resumeContext.id, source_revision: resumeContext.revision } : {}), representative: minor ? { mode: draft.mode, member_id: draft.memberId ?? undefined, vorname: draft.vorname, nachname: draft.nachname, adresse_abweichend: draft.adresseAbweichend, adresse: draft.adresse, plz: draft.plz, ort: draft.ort } : undefined, include_secondary_member: !minor && includeSecondaryMember, signature_application_member: signatures.applicationMember || undefined, signature_privacy_member: signatures.privacyMember || undefined, signature_application_representative: minor ? signatures.applicationSecondParty || undefined : undefined, signature_privacy_representative: minor ? signatures.privacySecondParty || undefined : undefined, signature_application_secondary: !minor ? signatures.applicationSecondParty || undefined : undefined, signature_privacy_secondary: !minor ? signatures.privacySecondParty || undefined : undefined, signature_board: signatures.board || undefined });
   const validate = () => { if (minor) validateLegalRepresentative(draft); };
-  const preparedDraft = (): PreparedMembershipApplicationDraft => ({ schema_version: preparedContractSchemaVersion, document_type: "mitgliedsantrag", memberId, startDate, memberFee: Number(fee.replace(",", ".")), representative: minor ? draft : null, includeSecondaryMember: !minor && includeSecondaryMember });
-  const savePrepared = async () => {
+  const preparedDraft = (snapshot = clubDocumentSnapshot): PreparedMembershipApplicationDraft => ({ schema_version: preparedContractSchemaVersion, document_type: "mitgliedsantrag", memberId, startDate, memberFee: Number(fee.replace(",", ".")), representative: minor ? draft : null, includeSecondaryMember: !minor && includeSecondaryMember, vereinsunterlagen_nachweis: snapshot });
+  const refreshClubDocumentSnapshot = async () => { const now = new Date(); const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`; const snapshot = createMemberClubDocumentSnapshot(await getMemberClubDocumentStatus(club, session, memberId, today)); setClubDocumentSnapshot(snapshot); return snapshot; };
+  const savePrepared = async (snapshot = clubDocumentSnapshot) => {
     if (!resumeContext) return null;
-    const updated = await savePreparedContractIfChanged(club, session, session.user.id, resumeContext, preparedDraft());
+    const updated = await savePreparedContractIfChanged(club, session, session.user.id, resumeContext, preparedDraft(snapshot));
     setResumeContext(updated);
     if (updated !== resumeContext) setMessage("Die Änderungen am vorbereiteten Vertrag wurden gespeichert.");
     return updated;
@@ -84,6 +88,9 @@ export function MembershipApplicationFlow({ session, memberId, onSaved, onPrepar
     try {
       validate(); setBusy(true); setMessage("");
       let context = resumeContext;
+      if (!context || !isCompleteMemberClubDocumentSnapshot((context.entwurf_daten as PreparedMembershipApplicationDraft).vereinsunterlagen_nachweis)) throw new Error("Der vorbereitete Mitgliedsantrag enthält noch keinen Vereinsunterlagen-Snapshot. Bitte erstellen Sie zuerst eine neue Vorschau.");
+      const currentSnapshot = await refreshClubDocumentSnapshot();
+      if (!memberClubDocumentSnapshotsEqual((context.entwurf_daten as PreparedMembershipApplicationDraft).vereinsunterlagen_nachweis, currentSnapshot)) { await savePrepared(currentSnapshot); throw new Error("Die Pflichtunterlagen haben sich seit der Vorschau geändert. Der aktualisierte Entwurf wurde gespeichert; bitte erstellen Sie eine neue Vorschau."); }
       if (context?.status === "vorbereitet") context = await savePrepared() ?? context;
       if (!context) throw new Error("Die Signatur kann nur aus der Kommunikationszentrale gestartet werden.");
       const started = context.status === "zur_signatur" ? context : await startPreparedContractSigning(club, session, context, session.user.id);
@@ -105,7 +112,7 @@ export function MembershipApplicationFlow({ session, memberId, onSaved, onPrepar
   const retryFinalReviewPersistence = async () => { if (finalDocumentId === null) return; try { setBusy(true); setMessage(""); await markFinalDocumentForReview(finalDocumentId); } catch { /* Die gespeicherte Dokument-ID bleibt für einen sicheren Wiederholungsversuch erhalten. */ } finally { setBusy(false); } };
 
   const preview = async () => {
-    try { validate(); setBusy(true); setMessage(""); await savePrepared(); const result = await generateContract(club, session, request("preview")); if (result.previewUrl) window.open(result.previewUrl, "_blank", "noopener,noreferrer"); setStep("preview"); }
+    try { validate(); setBusy(true); setMessage(""); const snapshot = await refreshClubDocumentSnapshot(); if (resumeContext) await savePrepared(snapshot); else await parkPreparedContract(club, session, session.user.id, preparedDraft(snapshot)); const result = await generateContract(club, session, request("preview", snapshot)); if (result.previewUrl) window.open(result.previewUrl, "_blank", "noopener,noreferrer"); setStep("preview"); }
     catch (error) { setMessage(error instanceof Error ? error.message : "Vorschau konnte nicht erstellt werden."); }
     finally { setBusy(false); }
   };
