@@ -823,7 +823,9 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
             var saisons = await _supabaseService.GetSaisonRecordsAsync();
             var saison = saisons.FirstOrDefault(x => SaisonverwaltungHelper.GetSaisonJahr(x) == request.BeginnDatum.Year);
             if (saison?.Aufnahmegebuehr is not >= 0) throw new InvalidOperationException($"Für die Saison {request.BeginnDatum.Year} fehlt eine gültige Aufnahmegebühr.");
-            request.VereinsunterlagenSnapshot = await _vereinsunterlagenService.CreateCurrentSnapshotAsync(mitgliedId);
+            var snapshot = await EnsureVereinsunterlagenForMitgliedsantragAsync(mitgliedId);
+            if (snapshot is null) { initial = request; continue; }
+            request.VereinsunterlagenSnapshot = snapshot;
             request.VereinsunterlagenNachweis = VereinsunterlagenNachweisHelper.FormatForPdf(request.VereinsunterlagenSnapshot);
             var serialized = PreparedContractDraftParser.Serialize(PreparedMembershipApplicationMapper.ToPreparedDraft(request, resolution?.IstMinderjaehrig ?? request.IstMinderjaehrig));
             if (contract is null)
@@ -857,6 +859,51 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
             return;
         }
     }
+
+    private async Task<IReadOnlyList<VereinsunterlagenNachweisSnapshotItem>?> EnsureVereinsunterlagenForMitgliedsantragAsync(int mitgliedId)
+    {
+        var status = await _supabaseService.GetMitgliedVereinsdokumentStatusAsync(mitgliedId, DateOnly.FromDateTime(DateTime.Today));
+        try { return VereinsunterlagenNachweisHelper.CreateSnapshot(status); }
+        catch (PreparedContractValidationException)
+        {
+            if (status.HatFehlendeVereinsfassungen)
+            {
+                await DisplayAlertAsync("Mitgliedsantrag", "Für mindestens eine Pflichtunterlage ist keine aktuelle Vereinsfassung hinterlegt. Die Vorschau bleibt gesperrt.", "OK");
+                return null;
+            }
+
+            var missing = status.Dokumente.Where(item => item.Status == "fehlt" && item.VereinsdokumentFassungId.HasValue).ToList();
+            if (missing.Count == 0) { await DisplayAlertAsync("Mitgliedsantrag", "Die Pflichtunterlagen sind nicht vollständig bereitgestellt.", "OK"); return null; }
+            var list = string.Join("\n", missing.Select(item => $"• {item.Bezeichnung} ({item.Fassung})"));
+            var action = await DisplayActionSheetAsync($"Folgende Unterlagen fehlen:\n{list}", "Abbrechen", null, "Digital senden", "Papierübergabe erfassen");
+            if (action == "Digital senden")
+            {
+                if (string.IsNullOrWhiteSpace(_memberRecord?.Email)) { await DisplayAlertAsync("Digital senden", "Für dieses Mitglied ist keine E-Mail-Adresse hinterlegt. Eine Adresse des gesetzlichen Vertreters wird nicht automatisch verwendet.", "OK"); return null; }
+                if (!await DisplayAlertAsync("Digital senden", $"Mitglied: {_memberRecord!.Vorname} {_memberRecord.Name}\nE-Mail: {_memberRecord.Email}\n\n{list}", "Senden", "Abbrechen")) return null;
+                var result = await _supabaseService.SendMitgliedVereinsunterlagenDigitalAsync(mitgliedId, missing.Select(item => item.VereinsdokumentFassungId!.Value).ToList());
+                if (!result.Success) { await DisplayAlertAsync("Digital senden", DeliveryMessage(result), "OK"); return null; }
+            }
+            else if (action == "Papierübergabe erfassen")
+            {
+                var value = await DisplayPromptAsync("Papierübergabe", "Tatsächlicher Übergabezeitpunkt (TT.MM.JJJJ HH:MM)", initialValue: DateTime.Now.ToString("dd.MM.yyyy HH:mm"));
+                if (!DateTime.TryParse(value, System.Globalization.CultureInfo.GetCultureInfo("de-DE"), System.Globalization.DateTimeStyles.AllowWhiteSpaces, out var deliveredAt) || deliveredAt > DateTime.Now) { await DisplayAlertAsync("Papierübergabe", "Bitte einen gültigen, nicht zukünftigen Übergabezeitpunkt eingeben.", "OK"); return null; }
+                if (!await DisplayAlertAsync("Papierübergabe", $"{list}\n\nDie ausgewählten Unterlagen wurden dem Mitglied tatsächlich in Papierform übergeben.", "Erfassen", "Abbrechen")) return null;
+                await _supabaseService.RecordMitgliedVereinsunterlagenPapierAsync(new MitgliedVereinsunterlagenBereitstellungRequest { MitgliedId = mitgliedId, VereinsdokumentFassungIds = missing.Select(item => item.VereinsdokumentFassungId!.Value).ToList(), BereitgestelltAm = deliveredAt });
+            }
+            else return null;
+            var reloadedStatus = await _supabaseService.GetMitgliedVereinsdokumentStatusAsync(mitgliedId, DateOnly.FromDateTime(DateTime.Today));
+            try { return VereinsunterlagenNachweisHelper.CreateSnapshot(reloadedStatus); }
+            catch (PreparedContractValidationException) { await DisplayAlertAsync("Mitgliedsantrag", "Die Pflichtunterlagen sind nach der Bereitstellung weiterhin nicht vollständig. Die Vorschau bleibt gesperrt.", "OK"); return null; }
+        }
+    }
+
+    private static string DeliveryMessage(MitgliedVereinsunterlagenBereitstellungResult result) => result.DiagnosticCode switch
+    {
+        "DOCUMENT_FILE_MISSING" => "Mindestens eine ausgewählte Fassung hat keine hinterlegte PDF-Datei.",
+        "DIGITAL_SEND_FAILED" => "Der Versand wurde vom Maildienst nicht bestätigt.",
+        "DELIVERY_RECORD_FAILED" => "Die E-Mail wurde versandt, aber der Bereitstellungsnachweis konnte nicht gespeichert werden.",
+        _ => result.Message
+    };
 
     private async Task<DigitalSignatureCapture?> CaptureMitgliedsantragSignatureAsync(DokumentUploadRequest previewUploadRequest, string unterschriftTitel, bool isLastSignature = true)
     {

@@ -24,14 +24,14 @@ function deliveryError(cause: unknown) {
   return error instanceof Error ? error.message : "Die Bereitstellung konnte nicht abgeschlossen werden.";
 }
 
-export function MemberClubDocuments({ session, member }: { session: BrowserSession; member: Member }) {
+export function MemberClubDocuments({ session, member, onStatusUpdated }: { session: BrowserSession; member: Member; onStatusUpdated?: (status: MemberClubDocumentStatus) => void }) {
   const club = useSelectedClub();
   const [status, setStatus] = useState<MemberClubDocumentStatus | null>(null);
   const [history, setHistory] = useState<MemberClubDocumentDeliveryHistoryItem[]>([]);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [message, setMessage] = useState(""); const [loading, setLoading] = useState(true); const [saving, setSaving] = useState(false);
   const [dialog, setDialog] = useState<"digital" | "papier" | null>(null); const [paperAt, setPaperAt] = useState(localNow()); const [paperConfirmed, setPaperConfirmed] = useState(false);
-  const load = async () => { setLoading(true); try { const [nextStatus, nextHistory] = await Promise.all([getMemberClubDocumentStatus(club, session, member.id, dateOnly()), getMemberClubDocumentDeliveryHistory(club, session, member.id)]); setStatus(nextStatus); setHistory(nextHistory); setSelectedIds(nextStatus.documents.filter((item) => item.status === "fehlt" && item.vereinsdokument_fassung_id !== null).map((item) => item.vereinsdokument_fassung_id!)); } catch (cause) { setMessage(deliveryError(cause)); } finally { setLoading(false); } };
+  const load = async () => { setLoading(true); try { const [nextStatus, nextHistory] = await Promise.all([getMemberClubDocumentStatus(club, session, member.id, dateOnly()), getMemberClubDocumentDeliveryHistory(club, session, member.id)]); setStatus(nextStatus); setHistory(nextHistory); setSelectedIds(nextStatus.documents.filter((item) => item.status === "fehlt" && item.vereinsdokument_fassung_id !== null).map((item) => item.vereinsdokument_fassung_id!)); onStatusUpdated?.(nextStatus); } catch (cause) { setMessage(deliveryError(cause)); } finally { setLoading(false); } };
   useEffect(() => {
     let active = true;
     void Promise.all([getMemberClubDocumentStatus(club, session, member.id, dateOnly()), getMemberClubDocumentDeliveryHistory(club, session, member.id)])
