@@ -2789,6 +2789,20 @@ namespace KGV.Infrastructure.Services
         public async Task<VereinsdokumentFassungRecord?> GetGueltigeVereinsdokumentFassungAsync(string dokumenttypCode, DateOnly stichtag)
             => VereinsdokumentFassungHelper.GetValidClubDocumentVersion(await GetVereinsdokumentFassungenAsync(dokumenttypCode), dokumenttypCode, stichtag.ToDateTime(TimeOnly.MinValue));
 
+        public async Task<MitgliedVereinsdokumentStatus> GetMitgliedVereinsdokumentStatusAsync(long mitgliedId, DateOnly stichtag)
+        {
+            if (mitgliedId <= 0) throw new ArgumentOutOfRangeException(nameof(mitgliedId));
+            var documents = await (await EnsureClientAsync()).Rpc<List<MitgliedVereinsdokumentStatusRecord>>("get_mitglied_vereinsdokument_status", new { p_mitglied_id = mitgliedId, p_stichtag = stichtag.ToString("yyyy-MM-dd") });
+            return new MitgliedVereinsdokumentStatus { Dokumente = documents ?? new List<MitgliedVereinsdokumentStatusRecord>() };
+        }
+
+        public async Task<List<MitgliedVereinsdokumentBereitstellungHistorieRecord>> GetMitgliedVereinsdokumentBereitstellungHistorieAsync(long mitgliedId)
+        {
+            if (mitgliedId <= 0) throw new ArgumentOutOfRangeException(nameof(mitgliedId));
+            var history = await (await EnsureClientAsync()).Rpc<List<MitgliedVereinsdokumentBereitstellungHistorieRecord>>("get_mitglied_vereinsdokument_bereitstellung_historie", new { p_mitglied_id = mitgliedId });
+            return history?.OrderByDescending(item => item.BereitgestelltAm).ThenByDescending(item => item.BereitstellungId).ToList() ?? new List<MitgliedVereinsdokumentBereitstellungHistorieRecord>();
+        }
+
         public async Task<VereinsdokumentFassungRecord> CreateVereinsdokumentFassungAsync(VereinsdokumentFassungCreateRequest request)
         {
             if (request == null || request.PdfInhalt.Length < 5 || request.PdfInhalt[0] != (byte)'%' || request.PdfInhalt[1] != (byte)'P' || request.PdfInhalt[2] != (byte)'D' || request.PdfInhalt[3] != (byte)'F') throw new InvalidOperationException("FILE_NOT_PDF");
