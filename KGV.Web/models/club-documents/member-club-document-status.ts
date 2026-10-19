@@ -23,3 +23,18 @@ export type MemberClubDocumentStatus = {
   complete: boolean;
   hasMissingClubVersion: boolean;
 };
+
+export type MemberClubDocumentDeliveryHistoryItem = {
+  bereitstellung_id: number;
+  mitglied_id: number;
+  vereinsdokument_fassung_id: number;
+  dokumenttyp_code: ClubDocumentType["code"];
+  bezeichnung: string;
+  fassung: string;
+  bereitstellungsart: "digital" | "papier";
+  bereitgestellt_am: string;
+  bereitgestellt_von: string | null;
+  storniert_am: string | null;
+  storniert_von: string | null;
+  storno_grund: string | null;
+};

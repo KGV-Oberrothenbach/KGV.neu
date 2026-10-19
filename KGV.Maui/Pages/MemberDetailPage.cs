@@ -67,6 +67,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
     private readonly Button _saveButton;
     private readonly Button _cancelButton;
     private readonly View _arbeitsstundenAltersregelTypField;
+    private readonly MemberClubDocumentsSection _clubDocumentsSection;
 
     public MemberDetailPage(
         ISupabaseService supabaseService,
@@ -161,6 +162,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         _saveButton.Clicked += OnSaveClicked;
 
         _arbeitsstundenAltersregelTypField = CreatePickerField("Arbeitsstunden-Altersregel", _arbeitsstundenAltersregelTypPicker);
+        _clubDocumentsSection = new MemberClubDocumentsSection(_supabaseService, _userContextState, this);
 
         Content = new ScrollView
         {
@@ -200,6 +202,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
                         _appUserHintLabel,
                         _nutzerHinzufuegenButton,
                         _benutzerverwaltungButton),
+                    _clubDocumentsSection,
                     _mitgliedsantragButton,
                     _mitgliedsantragDiagnoseLabel,
                     _cancelMembershipButton,
@@ -320,6 +323,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
 
             UpdateArbeitsstundenAltersregelVisibility(memberDto);
             UpdateAdminActions(memberDto);
+            await _clubDocumentsSection.LoadAsync(member);
         }
         catch (Exception)
         {
@@ -362,6 +366,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         UpdateAdminActions(null);
         UpdateFormActions(null);
         UpdateCancelMembershipButton(null);
+        _clubDocumentsSection.IsVisible = false;
     }
 
     private void ConfigureCreateMode()
@@ -403,6 +408,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         UpdateArbeitsstundenAltersregelVisibility(new MemberDTO { IstHauptmitglied = true });
         UpdateFormActions(null);
         UpdateCancelMembershipButton(null);
+        _clubDocumentsSection.IsVisible = false;
     }
 
     private void UpdateAdminActions(MemberDTO? member)
