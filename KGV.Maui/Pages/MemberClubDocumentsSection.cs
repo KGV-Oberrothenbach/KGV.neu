@@ -129,7 +129,8 @@ internal sealed class MemberClubDocumentsSection : Border
     private async Task RecordPaperAsync()
     {
         var selected = SelectedDocuments(); if (_member == null || selected.Count == 0) return;
-        var deliveredAt = _paperDate.Date!.Value.Date.Add(_paperTime.Time);
+        if (_paperDate.Date is not DateTime paperDate || _paperTime.Time is not TimeSpan paperTime) { _message.Text = "Bitte Datum und Uhrzeit der Papierübergabe angeben."; return; }
+        var deliveredAt = paperDate.Date.Add(paperTime);
         if (deliveredAt > DateTime.Now) { _message.Text = "Eine Papierübergabe darf nicht in der Zukunft liegen."; return; }
         if (!_paperConfirmed.IsToggled) { _message.Text = "Bitte bestätigen Sie die tatsächliche Papierübergabe."; return; }
         _busy = true; UpdateActionState(); _message.Text = string.Empty;

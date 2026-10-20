@@ -271,7 +271,7 @@ public sealed class VereinsunterlagenPage : ContentPage
     {
         if (_editingType == null || string.IsNullOrWhiteSpace(_fassungEntry?.Text))
             return (null, "Bitte geben Sie eine Fassung oder Bezeichnung ein.");
-        if (_gueltigAbPicker == null || _gueltigAbPicker.Date == default)
+        if (_gueltigAbPicker?.Date is not DateTime gueltigAb || gueltigAb == default)
             return (null, "Bitte geben Sie ein gültiges Datum an.");
         if (_selectedFile == null)
             return (null, "Bitte wählen Sie eine PDF-Datei aus.");
@@ -285,7 +285,7 @@ public sealed class VereinsunterlagenPage : ContentPage
             {
                 DokumenttypCode = _editingType.Type.Code,
                 Fassung = _fassungEntry.Text.Trim(),
-                GueltigAb = DateOnly.FromDateTime(_gueltigAbPicker.Date),
+                GueltigAb = DateOnly.FromDateTime(gueltigAb),
                 Dateiname = _selectedFile.FileName,
                 PdfInhalt = content.ToArray()
             }, string.Empty);

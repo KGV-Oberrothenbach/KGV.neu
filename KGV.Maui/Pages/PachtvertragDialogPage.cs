@@ -163,9 +163,13 @@ public sealed class PachtvertragDialogPage : ContentPage
         if (_hasPreviousContract == true && _altvertragDatePicker.Date == default) { validationMessage = "Bitte das Datum des Altvertrags angeben."; return false; }
         DateTime? effectiveDate = null;
         var effectiveDateText = (_effectiveDateEntry.Text ?? "").Trim();
-        if (!string.IsNullOrEmpty(effectiveDateText) && !DateTime.TryParseExact(effectiveDateText, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedEffectiveDate)) { validationMessage = "Das Wirksamkeitsdatum muss im Format JJJJ-MM-TT angegeben werden."; return false; }
-        if (_isNewVersion && string.IsNullOrEmpty(effectiveDateText)) { validationMessage = "Für die Neufassung fehlt das Wirksamkeitsdatum."; return false; }
-        if (_isNewVersion && !string.IsNullOrEmpty(effectiveDateText)) effectiveDate = parsedEffectiveDate.Date;
+        if (_isNewVersion)
+        {
+            if (string.IsNullOrEmpty(effectiveDateText)) { validationMessage = "Für die Neufassung fehlt das Wirksamkeitsdatum."; return false; }
+            if (!DateTime.TryParseExact(effectiveDateText, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedEffectiveDate)) { validationMessage = "Das Wirksamkeitsdatum muss im Format JJJJ-MM-TT angegeben werden."; return false; }
+            effectiveDate = parsedEffectiveDate.Date;
+        }
+        else if (!string.IsNullOrEmpty(effectiveDateText) && !DateTime.TryParseExact(effectiveDateText, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out _)) { validationMessage = "Das Wirksamkeitsdatum muss im Format JJJJ-MM-TT angegeben werden."; return false; }
         request = new PachtvertragDokumentRequest
         {
             MitgliedId = _member.Id, ParzelleId = _parzelle.Id, Vertragsbeginn = _vertragsbeginn,
