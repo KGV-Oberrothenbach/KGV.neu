@@ -5,6 +5,7 @@ import type { CommunicationItem } from "../../models/communication/communication
 import { completePreparedContract, createPreparedContract, findActivePreparedContract, findFinalDocumentByProvenance, getCommunicationContractDraft, markPreparedContractFinalDocument, startPreparedContractSignature, updatePreparedContractDraft } from "../../repositories/communication/communication-repository";
 import { getActiveDocumentById } from "../../repositories/documents/document-repository";
 import { resolveDocumentOpenUrl } from "../documents/document-open-service";
+import { completePreparedLeaseContract } from "../../repositories/contracts/lease-contract-completion-repository";
 
 export type PreparedContractResumeContext = {
   id: number;
@@ -93,6 +94,7 @@ export async function recoverPreparedContractFinalDocument(club: ClubContext, se
 
 export async function completePreparedContractFinalReview(club: ClubContext, session: BrowserSession, context: PreparedContractResumeContext, userId: string) {
   if (context.status !== "letzte_pruefung" || context.final_dokument_id === null) throw new Error("Der Vorgang ist nicht zur letzten Prüfung bereit.");
+  if (context.dokumenttyp === "pachtvertrag") return completePreparedLeaseContract(club, session, context.id, context.revision);
   return completePreparedContract(club, session, context.id, context.revision, userId, context.final_dokument_id);
 }
 

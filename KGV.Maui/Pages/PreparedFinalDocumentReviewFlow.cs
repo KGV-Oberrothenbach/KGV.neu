@@ -12,21 +12,23 @@ public sealed class PreparedFinalDocumentReviewFlow
     private readonly Page _hostPage;
     private readonly IPreparedContractRepository _repository;
     private readonly IFinalDocumentLoader _documentLoader;
+    private readonly ILeaseContractCompletionClient _leaseCompletionClient;
 
     public PreparedFinalDocumentReviewFlow(
         Page hostPage,
         IPreparedContractRepository repository,
-        IFinalDocumentLoader documentLoader)
+        IFinalDocumentLoader documentLoader, ILeaseContractCompletionClient leaseCompletionClient)
     {
         _hostPage = hostPage ?? throw new ArgumentNullException(nameof(hostPage));
         _repository = repository ?? throw new ArgumentNullException(nameof(repository));
         _documentLoader = documentLoader ?? throw new ArgumentNullException(nameof(documentLoader));
+        _leaseCompletionClient = leaseCompletionClient ?? throw new ArgumentNullException(nameof(leaseCompletionClient));
     }
 
     public async Task OpenAsync(KommunikationsvorgangDto contract, CancellationToken cancellationToken = default)
     {
         var page = new PreparedFinalDocumentReviewPage(
-            new PreparedFinalDocumentReviewService(_repository, _documentLoader),
+            new PreparedFinalDocumentReviewService(_repository, _documentLoader, _leaseCompletionClient),
             contract,
             cancellationToken);
         await _hostPage.Navigation.PushModalAsync(new NavigationPage(page));

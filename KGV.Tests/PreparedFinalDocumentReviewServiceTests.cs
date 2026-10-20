@@ -59,6 +59,20 @@ public sealed class PreparedFinalDocumentReviewServiceTests
     }
 
     [Fact]
+    public async Task Complete_LeaseUsesCompletionClientAndReloadsTheCompletedContract()
+    {
+        var context = Create(documentType: PreparedContractConstants.LeaseContract);
+        await context.Service.OpenAsync(context.Contract);
+        context.Repository.LoadResult = context.Contract with { Status = PreparedContractConstants.Completed };
+
+        var result = await context.Service.CompleteAsync();
+
+        Assert.Equal(PreparedFinalDocumentReviewState.Completed, result.State);
+        Assert.Equal(0, context.Repository.CompleteCalls);
+        Assert.Equal([(11L, 2)], context.LeaseCompletion.Calls);
+    }
+
+    [Fact]
     public async Task CompleteFailure_KeepsLoadedDocumentAndAllowsRetry()
     {
         var context = Create();
@@ -106,12 +120,12 @@ public sealed class PreparedFinalDocumentReviewServiceTests
         Assert.Equal(0, context.Repository.CompleteCalls);
     }
 
-    private static Context Create(long documentId = 77)
+    private static Context Create(long documentId = 77, string documentType = PreparedContractConstants.MembershipApplication)
     {
         var contract = new KommunikationsvorgangDto
         {
             Id = 11,
-            Dokumenttyp = PreparedContractConstants.MembershipApplication,
+            Dokumenttyp = documentType,
             Status = PreparedContractConstants.FinalReview,
             MitgliedId = 7,
             Revision = 2,
@@ -122,10 +136,11 @@ public sealed class PreparedFinalDocumentReviewServiceTests
         };
         var repository = new Repository();
         var loader = new Loader();
-        return new(contract, repository, loader, new PreparedFinalDocumentReviewService(repository, loader));
+        var leaseCompletion = new LeaseCompletion();
+        return new(contract, repository, loader, leaseCompletion, new PreparedFinalDocumentReviewService(repository, loader, leaseCompletion));
     }
 
-    private sealed record Context(KommunikationsvorgangDto Contract, Repository Repository, Loader Loader, PreparedFinalDocumentReviewService Service);
+    private sealed record Context(KommunikationsvorgangDto Contract, Repository Repository, Loader Loader, LeaseCompletion LeaseCompletion, PreparedFinalDocumentReviewService Service);
 
     private sealed class Loader : IFinalDocumentLoader
     {
@@ -149,6 +164,7 @@ public sealed class PreparedFinalDocumentReviewServiceTests
         public int StartCalls { get; private set; }
         public int CompleteCalls { get; private set; }
         public KommunikationsvorgangDto? CompleteResult { get; set; }
+        public KommunikationsvorgangDto? LoadResult { get; set; }
         public Exception? CompleteException { get; set; }
 
         public Task<KommunikationsvorgangDto> CompleteAsync(long id, CancellationToken cancellationToken = default)
@@ -159,12 +175,22 @@ public sealed class PreparedFinalDocumentReviewServiceTests
             return Task.FromResult(CompleteResult ?? throw new Xunit.Sdk.XunitException("Complete result missing."));
         }
 
-        public Task<KommunikationsvorgangDto> LoadAsync(long id, CancellationToken cancellationToken = default) { LoadCalls++; throw new Xunit.Sdk.XunitException("LoadAsync must not be used for review resume."); }
+        public Task<KommunikationsvorgangDto> LoadAsync(long id, CancellationToken cancellationToken = default) { LoadCalls++; return Task.FromResult(LoadResult ?? throw new Xunit.Sdk.XunitException("LoadAsync must not be used for review resume.")); }
         public Task<KommunikationsvorgangDto> StartSignatureAsync(long id, int expectedRevision, CancellationToken cancellationToken = default) { StartCalls++; throw new Xunit.Sdk.XunitException("StartSignatureAsync must not be used for review resume."); }
         public Task<KommunikationsvorgangDto?> FindActiveAsync(string documentType, int memberId, int? parcelId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<KommunikationsvorgangDto> CreateAsync(string documentType, int memberId, int? parcelId, JsonElement draft, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<KommunikationsvorgangDto> ClaimAsync(long id, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task ReleaseAsync(long id, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<KommunikationsvorgangDto> UpdateDraftAsync(long id, int expectedRevision, JsonElement draft, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+    }
+
+    private sealed class LeaseCompletion : ILeaseContractCompletionClient
+    {
+        public List<(long Id, int Revision)> Calls { get; } = [];
+        public Task<LeaseContractCompletionResult> CompleteAsync(long kommunikationsvorgangId, int expectedRevision, CancellationToken cancellationToken = default)
+        {
+            Calls.Add((kommunikationsvorgangId, expectedRevision));
+            return Task.FromResult(new LeaseContractCompletionResult(1, 1, false));
+        }
     }
 }

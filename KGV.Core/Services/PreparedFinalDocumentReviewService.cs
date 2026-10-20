@@ -10,15 +10,17 @@ public sealed class PreparedFinalDocumentReviewService
 {
     private readonly IPreparedContractRepository _repository;
     private readonly IFinalDocumentLoader _documentLoader;
+    private readonly ILeaseContractCompletionClient _leaseCompletionClient;
     private KommunikationsvorgangDto? _contract;
     private LoadedDocument? _document;
 
     public PreparedFinalDocumentReviewService(
         IPreparedContractRepository repository,
-        IFinalDocumentLoader documentLoader)
+        IFinalDocumentLoader documentLoader, ILeaseContractCompletionClient leaseCompletionClient)
     {
         _repository = repository ?? throw new ArgumentNullException(nameof(repository));
         _documentLoader = documentLoader ?? throw new ArgumentNullException(nameof(documentLoader));
+        _leaseCompletionClient = leaseCompletionClient ?? throw new ArgumentNullException(nameof(leaseCompletionClient));
     }
 
     public bool CanComplete => _contract?.Status == PreparedContractConstants.FinalReview && _document is not null;
@@ -58,7 +60,9 @@ public sealed class PreparedFinalDocumentReviewService
 
         try
         {
-            var completed = await _repository.CompleteAsync(contract.Id, cancellationToken);
+            var completed = contract.Dokumenttyp == PreparedContractConstants.LeaseContract
+                ? await CompleteLeaseAsync(contract, cancellationToken)
+                : await _repository.CompleteAsync(contract.Id, cancellationToken);
             if (completed.Id != contract.Id ||
                 completed.Status != PreparedContractConstants.Completed ||
                 completed.Revision != contract.Revision ||
@@ -74,6 +78,14 @@ public sealed class PreparedFinalDocumentReviewService
         {
             return new(PreparedFinalDocumentReviewState.CompleteFailed, contract, _document, exception);
         }
+    }
+
+    private async Task<KommunikationsvorgangDto> CompleteLeaseAsync(KommunikationsvorgangDto contract, CancellationToken cancellationToken)
+    {
+        await _leaseCompletionClient.CompleteAsync(contract.Id, contract.Revision, cancellationToken);
+        var completed = await _repository.LoadAsync(contract.Id, cancellationToken);
+        if (completed.Status != PreparedContractConstants.Completed) throw new PreparedContractValidationException("Der Server hat den Pachtvertragsabschluss nicht bestätigt.");
+        return completed;
     }
 
     private KommunikationsvorgangDto RequireReviewContract()

@@ -16,6 +16,7 @@ public sealed class KommunikationPage : ContentPage
     private readonly IContractGenerationClient _contractClient;
     private readonly IAuthService _authService;
     private readonly ISupabaseService _supabaseService;
+    private readonly ILeaseContractCompletionClient _leaseCompletionClient;
     private readonly UserContextState _userContext;
     private readonly ObservableCollection<SignatureListItem> _items = [];
     private readonly CollectionView _list;
@@ -30,12 +31,14 @@ public sealed class KommunikationPage : ContentPage
         IContractGenerationClient contractClient,
         IAuthService authService,
         ISupabaseService supabaseService,
+        ILeaseContractCompletionClient leaseCompletionClient,
         UserContextState userContext)
     {
         _repository = repository ?? throw new ArgumentNullException(nameof(repository));
         _contractClient = contractClient ?? throw new ArgumentNullException(nameof(contractClient));
         _authService = authService ?? throw new ArgumentNullException(nameof(authService));
         _supabaseService = supabaseService ?? throw new ArgumentNullException(nameof(supabaseService));
+        _leaseCompletionClient = leaseCompletionClient ?? throw new ArgumentNullException(nameof(leaseCompletionClient));
         _userContext = userContext ?? throw new ArgumentNullException(nameof(userContext));
         Title = "Kommunikation";
 
@@ -133,7 +136,7 @@ public sealed class KommunikationPage : ContentPage
         }
         if (item.Contract.Status == PreparedContractConstants.FinalReview)
         {
-            var review = new PreparedFinalDocumentReviewFlow(this, _repository, _supabaseService);
+            var review = new PreparedFinalDocumentReviewFlow(this, _repository, _supabaseService, _leaseCompletionClient);
             await review.OpenAsync(item.Contract);
             await LoadAsync();
             return;
@@ -153,7 +156,7 @@ public sealed class KommunikationPage : ContentPage
                     .RecoverAsync(item.Contract);
                 if (recovered is not null)
                 {
-                    var review = new PreparedFinalDocumentReviewFlow(this, _repository, _supabaseService);
+                    var review = new PreparedFinalDocumentReviewFlow(this, _repository, _supabaseService, _leaseCompletionClient);
                     await review.OpenAsync(recovered);
                     await LoadAsync();
                     return;
@@ -181,7 +184,7 @@ public sealed class KommunikationPage : ContentPage
         var result = await signing.RunAsync(contract, capture);
         if (result.State == PreparedMembershipApplicationSigningState.FinalDocumentReadyForReview && result.Contract is not null)
         {
-            var review = new PreparedFinalDocumentReviewFlow(this, _repository, _supabaseService);
+            var review = new PreparedFinalDocumentReviewFlow(this, _repository, _supabaseService, _leaseCompletionClient);
             await review.OpenAsync(result.Contract);
             return;
         }
@@ -210,7 +213,7 @@ public sealed class KommunikationPage : ContentPage
             var started = await signing.StartAsync(contract);
             var capture = new MauiPreparedSignatureCapture(this, new DocumentInfo { Title = "Pachtvertrag", Dateiname = "Pachtvertrag.pdf" });
             var reviewed = await signing.FinalizeAsync(started, capture);
-            var review = new PreparedFinalDocumentReviewFlow(this, _repository, _supabaseService);
+            var review = new PreparedFinalDocumentReviewFlow(this, _repository, _supabaseService, _leaseCompletionClient);
             await review.OpenAsync(reviewed);
         }
         catch (OperationCanceledException) { }
