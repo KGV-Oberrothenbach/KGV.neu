@@ -562,13 +562,18 @@ async function sendWelcomeMail(
     },
   });
 
-  const subject = "Willkommen beim KGV-App-Zugang";
-  const html = buildWelcomeMailHtml(vorname, playstoreUrl);
-  const text = buildWelcomeMailText(vorname, playstoreUrl);
+  const originalRecipient = email.trim();
+  const testRecipient = String(Deno.env.get("SMTP_TEST_RECIPIENT") ?? "").trim();
+  const recipient = testRecipient || originalRecipient;
+  const subject = `${testRecipient ? "[DEMO TEST] " : ""}Willkommen beim KGV-App-Zugang`;
+  const testNoticeText = testRecipient ? `\n\n---\nDEMO-Testversand\nUrsprünglich vorgesehener Empfänger:\n${originalRecipient}\n---` : "";
+  const testNoticeHtml = testRecipient ? `<hr><p><strong>DEMO-Testversand</strong><br>Ursprünglich vorgesehener Empfänger: ${originalRecipient}</p>` : "";
+  const html = `${buildWelcomeMailHtml(vorname, playstoreUrl)}${testNoticeHtml}`;
+  const text = `${buildWelcomeMailText(vorname, playstoreUrl)}${testNoticeText}`;
 
   await transport.sendMail({
     from: smtpFrom,
-    to: email,
+    to: recipient,
     subject,
     text,
     html,

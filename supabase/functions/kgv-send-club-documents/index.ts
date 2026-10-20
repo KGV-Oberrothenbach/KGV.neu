@@ -31,8 +31,12 @@ Deno.serve(async (request) => {
     if (versions.some((version) => !String(version.storage_path ?? "").trim() || !String(version.dateiname ?? "").trim())) return json({ success: false, message: "Mindestens eine Dokumentfassung hat keine hinterlegte PDF-Datei.", diagnostic_code: "DOCUMENT_FILE_MISSING" }, 400);
     const attachments = await Promise.all(versions.map(async (version) => { const { data, error } = await admin.storage.from("vereinsregelwerke").download(version.storage_path); if (error || !data) throw new Error("Dokumentdatei konnte nicht geladen werden."); return { filename: version.dateiname, content: new Uint8Array(await data.arrayBuffer()), contentType: "application/pdf" }; }));
     const port = Number(required("SMTP_PORT")); const transport = nodemailer.createTransport({ host: required("SMTP_Host"), port, secure: port === 465, auth: { user: required("SMTP_USER"), pass: required("smtpPassword") } });
-    const recipient = String(member.email).trim();
-    const mailResult = await transport.sendMail({ from: Deno.env.get("SMTP_From") ?? required("SMTP_USER"), to: recipient, subject: "Ihre Vereinsunterlagen", text: `Guten Tag ${member.vorname ?? ""},\n\nanbei erhalten Sie die ausgewählten Vereinsunterlagen.`, attachments });
+    const originalRecipient = String(member.email).trim();
+    const testRecipient = String(Deno.env.get("SMTP_TEST_RECIPIENT") ?? "").trim();
+    const recipient = testRecipient || originalRecipient;
+    const subject = `${testRecipient ? "[DEMO TEST] " : ""}Ihre Vereinsunterlagen`;
+    const text = `Guten Tag ${member.vorname ?? ""},\n\nanbei erhalten Sie die ausgewählten Vereinsunterlagen.${testRecipient ? `\n\n---\nDEMO-Testversand\nUrsprünglich vorgesehener Empfänger:\n${originalRecipient}\n---` : ""}`;
+    const mailResult = await transport.sendMail({ from: Deno.env.get("SMTP_From") ?? required("SMTP_USER"), to: recipient, subject, text, attachments });
     const accepted = mailResult.accepted.some((address) => String(address).trim().toLowerCase() === recipient.toLowerCase());
     const rejected = mailResult.rejected.some((address) => String(address).trim().toLowerCase() === recipient.toLowerCase());
     if (!accepted || rejected) return json({ success: false, message: "Der SMTP-Server hat den Empfänger nicht akzeptiert.", diagnostic_code: "DIGITAL_SEND_FAILED" }, 502);
