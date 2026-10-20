@@ -19,6 +19,12 @@ public sealed class ImpressumPage : ContentPage
     private readonly VerticalStackLayout _weitereVorstandContainer;
     private readonly VerticalStackLayout _bauausschussContainer;
     private readonly Label _statusLabel;
+    private readonly Label _vereinsnameLabel;
+    private readonly Label _registerLabel;
+    private readonly Label _verantwortlichNameLabel;
+    private readonly Label _verantwortlichAdresseLabel;
+    private readonly Label _emailLabel;
+    private readonly UserContextState _userContextState;
     private List<ImpressumKontaktItem> _allWeitereVorstandsmitglieder = new();
     private List<ImpressumKontaktItem> _allBauausschussmitglieder = new();
     private bool _isBusy;
@@ -26,7 +32,7 @@ public sealed class ImpressumPage : ContentPage
     public ImpressumPage(ISupabaseService supabaseService, UserContextState userContextState)
     {
         _supabaseService = supabaseService ?? throw new ArgumentNullException(nameof(supabaseService));
-        _ = userContextState ?? throw new ArgumentNullException(nameof(userContextState));
+        _userContextState = userContextState ?? throw new ArgumentNullException(nameof(userContextState));
         Title = "Impressum";
 
         _statusLabel = new Label
@@ -38,6 +44,11 @@ public sealed class ImpressumPage : ContentPage
 
         _weitereVorstandContainer = new VerticalStackLayout { Spacing = 12 };
         _bauausschussContainer = new VerticalStackLayout { Spacing = 12 };
+        _vereinsnameLabel = new Label { FontAttributes = FontAttributes.Bold, LineBreakMode = LineBreakMode.WordWrap };
+        _registerLabel = new Label { LineBreakMode = LineBreakMode.WordWrap };
+        _verantwortlichNameLabel = new Label { LineBreakMode = LineBreakMode.WordWrap };
+        _verantwortlichAdresseLabel = new Label { LineBreakMode = LineBreakMode.WordWrap };
+        _emailLabel = new Label { LineBreakMode = LineBreakMode.WordWrap };
 
         var datenschutzButton = new Button
         {
@@ -61,10 +72,10 @@ public sealed class ImpressumPage : ContentPage
                     },
                     new Label
                     {
-                        Text = "Fester Vereinskopf mit Verantwortlichkeit sowie – falls vorhanden – weitere Vorstands- und Bauausschusskontakte aus dem bestehenden Datenpfad.",
+                        Text = "Vereinskopf und Verantwortlichkeit aus der aktiven Vereinskonfiguration sowie den zugeordneten Funktionsslots.",
                         LineBreakMode = LineBreakMode.WordWrap
                     },
-                    CreateStaticSection(),
+                    CreateClubSection(),
                     CreateDynamicSection("Weitere Vorstandsmitglieder", _weitereVorstandContainer),
                     CreateDynamicSection("Bauausschuss", _bauausschussContainer),
                     CreateDatenschutzSection(datenschutzButton),
@@ -91,7 +102,8 @@ public sealed class ImpressumPage : ContentPage
             _statusLabel.Text = "Impressum wird geladen.";
             _statusLabel.IsVisible = true;
 
-            var info = await _supabaseService.GetImpressumInfoAsync() ?? new ImpressumInfo();
+            var info = await _supabaseService.GetImpressumInfoAsync(_userContextState.CurrentUserContext?.IsDemoAccount == true) ?? new ImpressumInfo();
+            ApplyClubInfo(info);
             _allWeitereVorstandsmitglieder = info.WeitereVorstandsmitglieder.ToList();
             _allBauausschussmitglieder = info.WeitereBauausschussmitglieder.ToList();
             ApplyVisibleItems();
@@ -103,6 +115,7 @@ public sealed class ImpressumPage : ContentPage
         {
             _allWeitereVorstandsmitglieder = new List<ImpressumKontaktItem>();
             _allBauausschussmitglieder = new List<ImpressumKontaktItem>();
+            ApplyClubInfo(new ImpressumInfo());
             ApplyVisibleItems();
             _statusLabel.Text = "Weitere Impressumskontakte konnten aktuell nicht geladen werden.";
             _statusLabel.IsVisible = true;
@@ -127,10 +140,20 @@ public sealed class ImpressumPage : ContentPage
 
     private IReadOnlyCollection<ImpressumKontaktItem> FilterVisibleItems(IEnumerable<ImpressumKontaktItem> items)
     {
-        return items.Where(OperationalDataFilter.IsOperationalImpressumKontakt).ToList();
+        return items.ToList();
     }
 
-    private static Border CreateStaticSection()
+    private void ApplyClubInfo(ImpressumInfo info)
+    {
+        var configuration = info.Vereinskonfiguration;
+        _vereinsnameLabel.Text = string.IsNullOrWhiteSpace(configuration?.Vereinsname) ? "Aktuell nicht hinterlegt" : configuration.Vereinsname.Trim();
+        _registerLabel.Text = string.IsNullOrWhiteSpace(configuration?.Registerangabe) ? "Aktuell nicht hinterlegt" : configuration.Registerangabe.Trim();
+        _verantwortlichNameLabel.Text = info.Verantwortlich?.DisplayName ?? "Aktuell nicht hinterlegt.";
+        _verantwortlichAdresseLabel.Text = info.Verantwortlich?.Adresse ?? string.Empty;
+        _emailLabel.Text = string.IsNullOrWhiteSpace(configuration?.StandardEmail) ? "Aktuell nicht hinterlegt" : $"E-Mail: {configuration.StandardEmail.Trim()}";
+    }
+
+    private Border CreateClubSection()
     {
         return new Border
         {
@@ -148,17 +171,8 @@ public sealed class ImpressumPage : ContentPage
                         FontSize = 18,
                         FontAttributes = FontAttributes.Bold
                     },
-                    new Label
-                    {
-                        Text = ImpressumInfo.VereinsName,
-                        FontAttributes = FontAttributes.Bold,
-                        LineBreakMode = LineBreakMode.WordWrap
-                    },
-                    new Label
-                    {
-                        Text = ImpressumInfo.VereinsRegister,
-                        LineBreakMode = LineBreakMode.WordWrap
-                    },
+                    _vereinsnameLabel,
+                    _registerLabel,
                     new Label
                     {
                         Text = "Verantwortlich:",
@@ -166,14 +180,9 @@ public sealed class ImpressumPage : ContentPage
                         FontAttributes = FontAttributes.Bold,
                         LineBreakMode = LineBreakMode.WordWrap
                     },
-                    new Label { Text = ImpressumInfo.VerantwortlichName, LineBreakMode = LineBreakMode.WordWrap },
-                    new Label { Text = ImpressumInfo.VerantwortlichStrasse, LineBreakMode = LineBreakMode.WordWrap },
-                    new Label { Text = ImpressumInfo.VerantwortlichOrt, LineBreakMode = LineBreakMode.WordWrap },
-                    new Label
-                    {
-                        Text = $"E-Mail: {ImpressumInfo.VereinsEmail}",
-                        LineBreakMode = LineBreakMode.WordWrap
-                    }
+                    _verantwortlichNameLabel,
+                    _verantwortlichAdresseLabel,
+                    _emailLabel
                 }
             }
         };
@@ -253,6 +262,11 @@ public sealed class ImpressumPage : ContentPage
     private static Border CreateEntryView(ImpressumKontaktItem item)
     {
         var layout = new VerticalStackLayout { Spacing = 4 };
+        layout.Children.Add(new Label
+        {
+            Text = string.IsNullOrWhiteSpace(item.Funktion) ? "Funktion" : item.Funktion,
+            LineBreakMode = LineBreakMode.WordWrap
+        });
         layout.Children.Add(new Label
         {
             Text = item.DisplayName,

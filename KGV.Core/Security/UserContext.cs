@@ -11,8 +11,9 @@ namespace KGV.Core.Security
         public PermissionFlags BasePermissions { get; }
         public PermissionFlags GrantedPermissions { get; }
         public PermissionFlags RevokedPermissions { get; }
+        public bool IsDemoAccount { get; }
 
-        public UserContext(Guid userId, UserRole role, long? mitgliedId, PermissionFlags permissions, PermissionFlags basePermissions, PermissionFlags grantedPermissions, PermissionFlags revokedPermissions)
+        public UserContext(Guid userId, UserRole role, long? mitgliedId, PermissionFlags permissions, PermissionFlags basePermissions, PermissionFlags grantedPermissions, PermissionFlags revokedPermissions, bool isDemoAccount = false)
         {
             UserId = userId;
             Role = role;
@@ -21,6 +22,7 @@ namespace KGV.Core.Security
             BasePermissions = basePermissions;
             GrantedPermissions = grantedPermissions;
             RevokedPermissions = revokedPermissions;
+            IsDemoAccount = isDemoAccount;
         }
 
         public bool Has(PermissionFlags permission) => (Permissions & permission) == permission;

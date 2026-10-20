@@ -705,7 +705,7 @@ namespace KGV.Infrastructure.Services
             },
             new List<MitgliedRecord>());
 
-        public Task<ImpressumInfo> GetImpressumInfoAsync() => ExecuteAsync(
+        public Task<ImpressumInfo> GetImpressumInfoAsync(bool includeDemo = false) => ExecuteAsync(
             "GetImpressumInfoAsync",
             async () =>
             {
@@ -717,19 +717,25 @@ namespace KGV.Infrastructure.Services
                     .ToList()
                     ?? new List<ImpressumFunktionSlotRecord>();
 
+                var info = new ImpressumInfo { Vereinskonfiguration = await GetAktiveVereinskonfigurationAsync() };
                 if (slots.Count == 0)
-                    return new ImpressumInfo();
+                    return info;
 
-                var members = await GetMitgliederAsync();
+                var membersResponse = await client.From<MitgliedRecord>().Get();
+                var members = membersResponse?.Models?
+                    .Where(member => includeDemo || !member.IsDemo)
+                    .ToList()
+                    ?? new List<MitgliedRecord>();
                 var membersById = members
                     .Where(x => x.Id > 0)
                     .ToDictionary(x => (long)x.Id, x => x);
 
-                var info = new ImpressumInfo();
                 foreach (var slot in slots)
                 {
                     var item = CreateImpressumKontaktItem(slot, membersById);
-                    if (IsBauausschussSlot(slot))
+                    if (IsVorstandsvorsitzSlot(slot))
+                        info.Verantwortlich ??= item;
+                    else if (IsBauausschussSlot(slot))
                         info.Bauausschuss.Add(item);
                     else
                         info.Vorstand.Add(item);

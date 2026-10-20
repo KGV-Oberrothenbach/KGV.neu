@@ -95,7 +95,7 @@ namespace KGV.Infrastructure.Services
                     !string.Equals(record.Role, UserRoles.User, StringComparison.OrdinalIgnoreCase))
                     throw new KgvAccessDeniedException();
 
-                return _permissionService.CreateContext(userId, record.Role, record.MitgliedId, record.PermissionGrants, record.PermissionRevocations);
+                return _permissionService.CreateContext(userId, record.Role, record.MitgliedId, record.PermissionGrants, record.PermissionRevocations, record.IsDemoAccount);
             }
             catch (Exception ex)
             {

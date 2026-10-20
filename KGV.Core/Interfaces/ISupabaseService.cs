@@ -15,7 +15,7 @@ namespace KGV.Core.Interfaces
 
         Task<List<string>> GetSeasonsAsync();
         Task<List<MitgliedRecord>> GetMitgliederAsync();
-        Task<ImpressumInfo> GetImpressumInfoAsync();
+        Task<ImpressumInfo> GetImpressumInfoAsync(bool includeDemo = false);
 
         // ✅ Vollständige Stammdaten
         Task<MitgliedRecord?> GetMitgliedByIdAsync(int mitgliedId);
