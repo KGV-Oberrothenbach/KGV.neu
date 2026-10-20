@@ -45,6 +45,7 @@ internal sealed class PreparedFinalDocumentReviewPage : ContentPage
     private readonly Label _statusLabel;
     private readonly Button _reloadButton;
     private readonly Button _completeButton;
+    private readonly Button _discardButton;
     private bool _opened;
     private bool _closed;
 
@@ -61,8 +62,10 @@ internal sealed class PreparedFinalDocumentReviewPage : ContentPage
         _statusLabel = new Label { TextColor = Colors.Gray, LineBreakMode = LineBreakMode.WordWrap };
         _reloadButton = new Button { Text = "Erneut laden" };
         _completeButton = new Button { Text = "Abschließen", IsEnabled = false };
+        _discardButton = new Button { Text = "Verwerfen", TextColor = Colors.DarkRed };
         _reloadButton.Clicked += async (_, _) => await LoadAndShowAsync(reload: true);
         _completeButton.Clicked += async (_, _) => await CompleteAsync();
+        _discardButton.Clicked += async (_, _) => await DiscardAsync();
 
         Content = new VerticalStackLayout
         {
@@ -73,7 +76,7 @@ internal sealed class PreparedFinalDocumentReviewPage : ContentPage
                 new Label { Text = "Letzte Prüfung", FontSize = 24, FontAttributes = FontAttributes.Bold },
                 new Label { Text = "Das bereits erzeugte Finaldokument wird direkt vom Server geladen. Erst danach kann der Vorgang abgeschlossen werden.", TextColor = Colors.Gray, LineBreakMode = LineBreakMode.WordWrap },
                 _statusLabel,
-                new FlexLayout { Direction = FlexDirection.Row, Wrap = FlexWrap.Wrap, Children = { _reloadButton, _completeButton } }
+                new FlexLayout { Direction = FlexDirection.Row, Wrap = FlexWrap.Wrap, Children = { _reloadButton, _discardButton, _completeButton } }
             }
         };
     }
@@ -141,6 +144,25 @@ internal sealed class PreparedFinalDocumentReviewPage : ContentPage
         _statusLabel.Text = $"Vorgang konnte nicht abgeschlossen werden: {result.Error?.Message}";
         _reloadButton.IsEnabled = true;
         _completeButton.IsEnabled = _reviewService.CanComplete;
+    }
+
+    private async Task DiscardAsync()
+    {
+        var confirm = await DisplayAlertAsync("Vorgang verwerfen", "Vorgang wirklich verwerfen? Alle bisherigen Eingaben und Unterschriften dieses Vorgangs gehen verloren. Bereits versendete Vereinsunterlagen bleiben erhalten.", "Verwerfen", "Abbrechen");
+        if (!confirm) return;
+        _reloadButton.IsEnabled = _completeButton.IsEnabled = _discardButton.IsEnabled = false;
+        try
+        {
+            await _repository.DiscardAsync(_contract.Id, _contract.Revision, _cancellationToken);
+            _closed = true; _completion.TrySetResult();
+            await Navigation.PopModalAsync();
+        }
+        catch (Exception exception)
+        {
+            _statusLabel.Text = $"Vorgang konnte nicht verworfen werden: {exception.Message}";
+            _reloadButton.IsEnabled = _discardButton.IsEnabled = true;
+            _completeButton.IsEnabled = _reviewService.CanComplete;
+        }
     }
 
     protected override void OnDisappearing()
