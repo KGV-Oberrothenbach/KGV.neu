@@ -32,7 +32,9 @@ public sealed class PachtvertragDokumentRequest
     public bool Anlage3 { get; set; }
     public bool Anlage4 { get; set; }
     public string? VereinsUnterzeichner { get; set; }
-        // If set, controls whether an existing Nebenmitglied should be included as second tenant (Pächter2).
-        // null = keep existing default behavior on server (no explicit preference)
-        public bool? IncludeSecondaryMember { get; set; }
+    // If set, controls whether an existing Nebenmitglied should be included as second tenant (Pächter2).
+    // null = keep existing default behavior on server (no explicit preference)
+    public bool? IncludeSecondaryMember { get; set; }
+    public int? SecondaryMemberId { get; set; }
+    public DateTime? EffectiveDate { get; set; }
 }

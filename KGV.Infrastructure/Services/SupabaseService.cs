@@ -3577,6 +3577,23 @@ namespace KGV.Infrastructure.Services
             },
             false);
 
+        public async Task<AktivesPachtverhaeltnisStatus> GetAktivesPachtverhaeltnisStatusAsync(int parzelleId)
+        {
+            if (parzelleId <= 0) throw new ArgumentOutOfRangeException(nameof(parzelleId));
+            var client = await EnsureClientAsync();
+            var response = await client.From<PachtverhaeltnisRecord>()
+                .Where(x => x.ParzelleId == parzelleId)
+                .Where(x => x.BeendetAm == null)
+                .Get();
+            var active = response?.Models?.ToList() ?? [];
+            if (active.Count > 1) throw new InvalidOperationException("Für die Parzelle bestehen mehrere aktive Pachtverhältnisse.");
+            if (active.Count == 0) return new AktivesPachtverhaeltnisStatus(null, 0);
+            var versions = await client.From<PachtvertragsfassungRecord>()
+                .Where(x => x.PachtverhaeltnisId == active[0].Id)
+                .Get();
+            return new AktivesPachtverhaeltnisStatus(active[0].Id, versions?.Models?.Count ?? 0);
+        }
+
         public Task<bool> HasSignedMitgliedsantragAsync(int mitgliedId) => ExecuteAsync(
             "HasSignedMitgliedsantragAsync",
             async () =>

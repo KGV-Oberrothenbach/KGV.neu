@@ -115,13 +115,16 @@ internal static class PachtvertragFlowHelper
         if (representative.IstMinderjaehrig && !representative.HatAktivenGesetzlichenVertreter)
             throw new InvalidOperationException("Für dieses minderjährige Mitglied ist im signierten Mitgliedsantrag kein gesetzlicher Vertreter hinterlegt.");
         var nebenmitglied = await supabaseService.GetNebenmitgliedByHauptmitgliedIdAsync(mitgliedId);
+        var relationship = await supabaseService.GetAktivesPachtverhaeltnisStatusAsync(parzelleId);
+        if (relationship.HatAktivesPachtverhaeltnis && relationship.Vertragsfassungen == 0)
+            throw new InvalidOperationException("Das aktive Pachtverhältnis besitzt keine Vertragsfassung.");
         Func<PachtvertragDokumentRequest?, bool>? unsaved = contract == null ? null : request =>
         {
             if (request == null) return true;
             try { return !PreparedContractDraftParser.AreEquivalent(contract.EntwurfDaten, PreparedContractDraftParser.Serialize(PreparedLeaseContractMapper.ToPreparedDraft(request))); }
             catch { return true; }
         };
-        var dialog = new PachtvertragDialogPage(member, parzelle, vertragsbeginn, representative, nebenmitglied, initialRequest, unsaved);
+        var dialog = new PachtvertragDialogPage(member, parzelle, vertragsbeginn, representative, nebenmitglied, relationship.HatAktivesPachtverhaeltnis, initialRequest, unsaved);
         await navigation.PushModalAsync(new NavigationPage(dialog));
         return await dialog.WaitForResultAsync();
     }

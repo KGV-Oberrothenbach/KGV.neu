@@ -58,10 +58,38 @@ public sealed class PreparedLeaseContractMapperTests
         var request = FullRequest();
         request.IstMinderjaehrig = true;
         request.IncludeSecondaryMember = true;
+        request.EffectiveDate = new DateTime(2027, 2, 3);
 
         var draft = PreparedLeaseContractMapper.ToPreparedDraft(request);
 
         Assert.False(draft.Draft.IncludeSecondaryMember);
+        Assert.Null(draft.Draft.SecondaryMemberId);
+        Assert.Null(draft.Draft.EffectiveDate);
+    }
+
+    [Fact]
+    public void Secondary_member_and_effective_date_are_preserved()
+    {
+        var request = FullRequest();
+        request.SecondaryMemberId = 84;
+        request.EffectiveDate = new DateTime(2027, 2, 3);
+
+        var draft = PreparedLeaseContractMapper.ToPreparedDraft(request);
+        var result = PreparedLeaseContractMapper.ToDocumentRequest(draft, false);
+
+        Assert.Equal(84, draft.Draft.SecondaryMemberId);
+        Assert.Equal("2027-02-03", draft.Draft.EffectiveDate);
+        Assert.Equal(84, result.SecondaryMemberId);
+        Assert.Equal(new DateTime(2027, 2, 3), result.EffectiveDate);
+    }
+
+    [Fact]
+    public void Secondary_member_requires_id_when_included()
+    {
+        var request = FullRequest();
+        request.SecondaryMemberId = null;
+
+        Assert.Throws<PreparedContractValidationException>(() => PreparedLeaseContractMapper.ToPreparedDraft(request));
     }
 
     [Fact]
@@ -154,7 +182,8 @@ public sealed class PreparedLeaseContractMapperTests
         Anlage3 = true,
         Anlage4 = true,
         VereinsUnterzeichner = "Vorstand",
-        IncludeSecondaryMember = true
+        IncludeSecondaryMember = true,
+        SecondaryMemberId = 84
     };
 
     private static IEnumerable<string> PropertyNames(JsonElement value)

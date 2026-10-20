@@ -78,6 +78,8 @@ public sealed record LeaseContractDraft
     [JsonPropertyName("hasPreviousContract")] public bool? HasPreviousContract { get; init; }
     [JsonPropertyName("previousContractDate")] public string? PreviousContractDate { get; init; }
     [JsonPropertyName("includeSecondaryMember")] public bool IncludeSecondaryMember { get; init; }
+    [JsonPropertyName("secondaryMemberId")] public int? SecondaryMemberId { get; init; }
+    [JsonPropertyName("effectiveDate")] public string? EffectiveDate { get; init; }
     [JsonPropertyName("handoverDate")] public string HandoverDate { get; init; } = "";
     [JsonPropertyName("fixedUntil")] public string FixedUntil { get; init; } = "";
     [JsonPropertyName("gardenRulesVersion")] public string GardenRulesVersion { get; init; } = "";

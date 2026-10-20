@@ -19,10 +19,12 @@ public sealed class PachtvertragDialogPage : ContentPage
     private readonly bool _istMinderjaehrig;
     private readonly MitgliedRecord? _gesetzlicherVertreter;
     private readonly MitgliedRecord? _nebenmitglied;
+    private readonly bool _isNewVersion;
     private readonly Func<PachtvertragDokumentRequest?, bool>? _hasPreparedUnsavedChanges;
     private readonly DatePicker _altvertragDatePicker;
     private readonly VerticalStackLayout _altvertragDateSection;
     private readonly DatePicker _uebergabeDatePicker;
+    private readonly Entry _effectiveDateEntry;
     private readonly CheckBox _befristetCheckBox;
     private readonly DatePicker _befristetDatePicker;
     private readonly VerticalStackLayout _befristetDateSection;
@@ -41,7 +43,7 @@ public sealed class PachtvertragDialogPage : ContentPage
     private bool _cancelInProgress;
 
     public PachtvertragDialogPage(MitgliedRecord member, ParzelleRecord parzelle, DateTime vertragsbeginn,
-        GesetzlicherVertreterAufloesung? gesetzlicherVertreterAufloesung, MitgliedRecord? nebenmitglied,
+        GesetzlicherVertreterAufloesung? gesetzlicherVertreterAufloesung, MitgliedRecord? nebenmitglied, bool isNewVersion,
         PachtvertragDokumentRequest? initialRequest = null,
         Func<PachtvertragDokumentRequest?, bool>? hasPreparedUnsavedChanges = null)
     {
@@ -49,6 +51,7 @@ public sealed class PachtvertragDialogPage : ContentPage
         _parzelle = parzelle ?? throw new ArgumentNullException(nameof(parzelle));
         _vertragsbeginn = (initialRequest?.Vertragsbeginn ?? vertragsbeginn).Date;
         _nebenmitglied = nebenmitglied;
+        _isNewVersion = isNewVersion;
         _hasPreparedUnsavedChanges = hasPreparedUnsavedChanges;
         _istMinderjaehrig = gesetzlicherVertreterAufloesung?.IstMinderjaehrig ?? false;
         _gesetzlicherVertreter = gesetzlicherVertreterAufloesung?.VertreterMitglied;
@@ -62,6 +65,7 @@ public sealed class PachtvertragDialogPage : ContentPage
         _altvertragDateSection = CreateField("Datum des Altvertrags", _altvertragDatePicker);
         _altvertragDateSection.IsVisible = _hasPreviousContract == true;
         _uebergabeDatePicker = new DatePicker { Date = (initialRequest?.UebergabeDatum ?? initialRequest?.Vertragsbeginn ?? vertragsbeginn).Date };
+        _effectiveDateEntry = new Entry { Text = initialRequest?.EffectiveDate?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) ?? "", Placeholder = "yyyy-MM-dd" };
         _befristetCheckBox = new CheckBox { IsChecked = initialRequest?.BefristetBis != null };
         _befristetDatePicker = new DatePicker { Date = (initialRequest?.BefristetBis ?? _vertragsbeginn).Date };
         _befristetDateSection = CreateField("Befristet bis", _befristetDatePicker);
@@ -90,6 +94,7 @@ public sealed class PachtvertragDialogPage : ContentPage
             CreateField("Übergabedatum", _uebergabeDatePicker),
             CreateField("Befristung", CreateCheckBoxRow(_befristetCheckBox, "Pachtvertrag befristet")), _befristetDateSection
         }};
+        if (_isNewVersion) content.Children.Add(CreateField("Wirksam ab (bei Neufassung)", _effectiveDateEntry));
         AddRepresentativeOrSecondaryMember(content);
         content.Children.Add(CreateField("Kleingartenordnung", _kleingartenordnungEntry));
         content.Children.Add(CreateField("Kleingartenordnung ausgehändigt", CreateCheckBoxRow(_kleingartenordnungAusgehaendigtCheckBox, "Kleingartenordnung ausgehändigt")));
@@ -156,6 +161,11 @@ public sealed class PachtvertragDialogPage : ContentPage
         request = null; validationMessage = null;
         if (_hasPreviousContract is null) { validationMessage = "Bitte angeben, ob ein Altvertrag vorhanden ist."; return false; }
         if (_hasPreviousContract == true && _altvertragDatePicker.Date == default) { validationMessage = "Bitte das Datum des Altvertrags angeben."; return false; }
+        DateTime? effectiveDate = null;
+        var effectiveDateText = (_effectiveDateEntry.Text ?? "").Trim();
+        if (!string.IsNullOrEmpty(effectiveDateText) && !DateTime.TryParseExact(effectiveDateText, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedEffectiveDate)) { validationMessage = "Das Wirksamkeitsdatum muss im Format JJJJ-MM-TT angegeben werden."; return false; }
+        if (_isNewVersion && string.IsNullOrEmpty(effectiveDateText)) { validationMessage = "Für die Neufassung fehlt das Wirksamkeitsdatum."; return false; }
+        if (_isNewVersion && !string.IsNullOrEmpty(effectiveDateText)) effectiveDate = parsedEffectiveDate.Date;
         request = new PachtvertragDokumentRequest
         {
             MitgliedId = _member.Id, ParzelleId = _parzelle.Id, Vertragsbeginn = _vertragsbeginn,
@@ -167,6 +177,8 @@ public sealed class PachtvertragDialogPage : ContentPage
             Anlage1 = _anlage1CheckBox.IsChecked, Anlage2 = _anlage2CheckBox.IsChecked, Anlage3 = _anlage3CheckBox.IsChecked, Anlage4 = _anlage4CheckBox.IsChecked,
             VereinsUnterzeichner = (_vereinsunterzeichnerEntry.Text ?? "").Trim(),
             IncludeSecondaryMember = !_istMinderjaehrig && _nebenmitglied != null && _includeSecondaryMember,
+            SecondaryMemberId = !_istMinderjaehrig && _nebenmitglied != null && _includeSecondaryMember ? _nebenmitglied.Id : null,
+            EffectiveDate = effectiveDate,
             IstMinderjaehrig = _istMinderjaehrig, Status = FormularDokumentStatus.Unsigniert
         };
         return true;
