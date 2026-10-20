@@ -47,9 +47,9 @@ export const navigationConfig = {
     },
     communication: {
       id: "communication",
-      label: "Kommunikation",
+      label: "Vorgänge",
       standalone: true,
-      target: { id: "kommunikation", label: "Kommunikation", detail: "Dokumentvorgänge, Mailausgang und Druckausgabe" },
+      target: { id: "kommunikation", label: "Vorgänge", detail: "Signaturen, Mail- und Druckvorgänge" },
     },
     administration: {
       id: "administration",

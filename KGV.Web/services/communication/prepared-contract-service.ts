@@ -71,7 +71,7 @@ export async function parkPreparedContract(club: ClubContext, session: BrowserSe
   const isLease = draft.document_type === "pachtvertrag";
   const existing = await findActivePreparedContract(club, session, draft.document_type, draft.memberId, isLease ? draft.draft.parcelId : null);
   if (existing) {
-    if (existing.status !== "vorbereitet") throw new Error("Für dieses Mitglied besteht bereits ein aktiver Vertragsvorgang. Bitte setzen Sie ihn in Kommunikation fort.");
+    if (existing.status !== "vorbereitet") throw new Error("Für dieses Mitglied besteht bereits ein aktiver Vertragsvorgang. Bitte setzen Sie ihn unter Vorgänge fort.");
     const context = toResumeContext(existing, draft.document_type, userId, "vorbereitet");
     return savePreparedContractIfChanged(club, session, userId, context, draft);
   }
@@ -91,7 +91,7 @@ export async function markPreparedContractReadyForReview(club: ClubContext, sess
   const updated = await markPreparedContractFinalDocument(club, session, context.id, context.revision, userId, finalDocumentId);
   return toResumeContext(updated, context.dokumenttyp, userId, "letzte_pruefung");
 }
-export async function recoverPreparedContractFinalDocument(club: ClubContext, session: BrowserSession, context: PreparedContractResumeContext, userId: string) { if (context.status !== "zur_signatur") return null; const document = await findFinalDocumentByProvenance(club, session, context.id, context.revision); if (!document) return null; if (document.source_kommunikationsvorgang_id !== context.id || document.source_revision !== context.revision) throw new Error("Das gefundene finale Dokument passt nicht zum Kommunikationsvorgang."); return markPreparedContractReadyForReview(club, session, context, userId, document.id); }
+export async function recoverPreparedContractFinalDocument(club: ClubContext, session: BrowserSession, context: PreparedContractResumeContext, userId: string) { if (context.status !== "zur_signatur") return null; const document = await findFinalDocumentByProvenance(club, session, context.id, context.revision); if (!document) return null; if (document.source_kommunikationsvorgang_id !== context.id || document.source_revision !== context.revision) throw new Error("Das gefundene finale Dokument passt nicht zum Vorgang."); return markPreparedContractReadyForReview(club, session, context, userId, document.id); }
 
 export async function completePreparedContractFinalReview(club: ClubContext, session: BrowserSession, context: PreparedContractResumeContext, userId: string) {
   if (context.status !== "letzte_pruefung" || context.final_dokument_id === null) throw new Error("Der Vorgang ist nicht zur letzten Prüfung bereit.");

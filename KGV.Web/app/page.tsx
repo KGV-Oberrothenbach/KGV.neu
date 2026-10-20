@@ -69,6 +69,8 @@ import { ClubConfiguration } from "../features/configuration/ClubConfiguration";
 import { ExportCenter } from "../features/export/ExportCenter";
 import { CommunicationCenter } from "../features/communication/CommunicationCenter";
 import { ClubDocumentsManagement } from "../features/club-documents/ClubDocumentsManagement";
+import { listCommunicationItems } from "../repositories/communication/communication-repository";
+import { isOpenCommunicationWorkItem } from "../services/communication/communication-service";
 
 export default function Home() {
   return <AuthProvider><HomeContent /></AuthProvider>;
@@ -118,6 +120,8 @@ function WorkspaceContent({ session, email, club, context, onLogout, onChangeClu
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [activeId, setActiveId] = useState("start");
   const [pendingPhotoCount, setPendingPhotoCount] = useState(0);
+  const [openProcessCount, setOpenProcessCount] = useState(0);
+  const [openProcessCounts, setOpenProcessCounts] = useState({ signature: 0, mail: 0, print: 0 });
   const [seasonError, setSeasonError] = useState("");
   const { workspaceContext, selectedMember, creatingMember, setSelectedMember, setCreatingMember, updateWorkspaceContext, selectMember, selectParcel, selectSeason: selectWorkspaceSeason } = useWorkspaceContext();
   const permissions = useMemo(() => getEffectivePermissions(context.role, context.permissionGrants, context.permissionRevocations), [context]);
@@ -139,6 +143,22 @@ function WorkspaceContent({ session, email, club, context, onLogout, onChangeClu
   const selectedParcelId = workspaceContext.parzelleId;
   const selectedSeason = seasons.find((item) => item.id === workspaceContext.saisonId) ?? null;
   const season = selectedSeason?.jahr ?? workspaceContext.saisonJahr ?? new Date().getFullYear();
+  const canAccessCommunication = context.role === "admin" || context.role === "vorstand";
+  const refreshOpenProcessCount = useCallback(async () => {
+    if (!canAccessCommunication) { setOpenProcessCount(0); setOpenProcessCounts({ signature: 0, mail: 0, print: 0 }); return; }
+    try {
+      const activeStatuses = "in.(entwurf,vorbereitet,zur_signatur,letzte_pruefung,mail_bereit,wird_versendet,druck_bereit,fehler)";
+      const items = await listCommunicationItems(club, session, { status: activeStatuses });
+      const counts = { signature: 0, mail: 0, print: 0 };
+      for (const item of items.filter(isOpenCommunicationWorkItem)) {
+        if (item.vorgangstyp === "vertrag_signatur") counts.signature += 1;
+        if (item.vorgangstyp === "mail") counts.mail += 1;
+        if (item.vorgangstyp === "druck") counts.print += 1;
+      }
+      setOpenProcessCounts(counts);
+      setOpenProcessCount(counts.signature + counts.mail + counts.print);
+    } catch { setOpenProcessCount(0); setOpenProcessCounts({ signature: 0, mail: 0, print: 0 }); }
+  }, [canAccessCommunication, club, session]);
 
   useEffect(() => {
     const openCommunication = () => setActiveId("kommunikation");
@@ -168,6 +188,8 @@ function WorkspaceContent({ session, email, club, context, onLogout, onChangeClu
       .catch(() => { if (active) setPendingPhotoCount(0); });
     return () => { active = false; };
   }, [session, club.vereinId]);
+
+  useEffect(() => { void refreshOpenProcessCount(); }, [refreshOpenProcessCount]);
 
   useEffect(() => {
     let active = true;
@@ -217,7 +239,8 @@ function WorkspaceContent({ session, email, club, context, onLogout, onChangeClu
     canManageClubConfiguration: canManageClubConfiguration(capabilityContext),
     canManageClubDocuments: context.role === "admin" || context.role === "vorstand",
     canSearchMembers: has(Permission.searchMembers),
-    canAccessCommunication: context.role === "admin" || context.role === "vorstand",
+    canAccessCommunication,
+    openProcessCount,
   });
   const allNavigationItems = navigationGroups.flatMap((group) => [...(group.target ? [group.target] : []), ...group.items]);
   const allowedNavigationIds = new Set(allNavigationItems.map((item) => item.id));
@@ -250,7 +273,7 @@ function WorkspaceContent({ session, email, club, context, onLogout, onChangeClu
           {effectiveActiveId === "bekanntmachungen" && <AnnouncementManagement session={session} canEdit={has(Permission.manageAnnouncements)} onBack={() => setActiveId("start")} />}
           {effectiveActiveId === "impressum" && <ImprintPage session={session} />}
           {effectiveActiveId === "export" && <ExportCenter session={session} season={season} canExport={canExportData(capabilityContext)} />}
-          {effectiveActiveId === "kommunikation" && (context.role === "admin" || context.role === "vorstand") && <CommunicationCenter session={session} userId={session.user.id} />}
+          {effectiveActiveId === "kommunikation" && canAccessCommunication && <CommunicationCenter session={session} userId={session.user.id} openCounts={openProcessCounts} onChanged={() => void refreshOpenProcessCount()} />}
           {effectiveActiveId === "benutzer" && <UserRightsAdministration session={session} />}
           {effectiveActiveId === "saisons" && <SeasonManagement session={session} onSeasonSaved={(saved) => { setSeasons((current) => [...current.filter((item) => item.id !== saved.id), saved].sort((a, b) => b.jahr - a.jahr)); selectWorkspaceSeason(saved); }} />}
           {effectiveActiveId === "verein" && <ClubConfiguration key={club.vereinId} session={session} canManage={canManageClubConfiguration(capabilityContext)} />}

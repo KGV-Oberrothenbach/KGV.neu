@@ -1,4 +1,4 @@
-export type CommunicationStatus = "entwurf" | "vorbereitet" | "zur_signatur" | "letzte_pruefung" | "mail_bereit" | "wird_versendet" | "druck_bereit" | "erledigt" | "fehler" | "abgebrochen";
+export type CommunicationStatus = "entwurf" | "vorbereitet" | "zur_signatur" | "letzte_pruefung" | "mail_bereit" | "wird_versendet" | "druck_bereit" | "erledigt" | "fehler" | "abgebrochen" | "verworfen";
 export type CommunicationType = "vertrag_signatur" | "mail" | "druck";
 
 export type CommunicationItem = {
@@ -12,5 +12,5 @@ export type CommunicationItem = {
   parzelle: { id: number; garten_nr: string | null } | null;
 };
 
-export type CommunicationArea = "signature" | "mail" | "print" | "done";
+export type CommunicationArea = "signature" | "mail" | "sent" | "print" | "history";
 export type AssignmentFilter = "mine" | "unassigned" | "all";

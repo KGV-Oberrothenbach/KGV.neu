@@ -464,7 +464,7 @@ public sealed class MemberParzellenDetailPage : ContentPage
 
             if (flowResult == PachtvertragFlowResult.Vorbereitet)
             {
-                await DisplayAlertAsync("Pachtvertrag", "Der Pachtvertrag wurde zur Signatur vorbereitet und unter Kommunikation > Zur Signatur > Meine gespeichert.", "OK");
+                await DisplayAlertAsync("Pachtvertrag", "Der Pachtvertrag wurde zur Signatur vorbereitet und unter Vorgänge > Signaturen > Meine gespeichert.", "OK");
                 return;
             }
 

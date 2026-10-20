@@ -94,14 +94,14 @@ export function MembershipApplicationFlow({ session, memberId, onSaved, onPrepar
       const currentSnapshot = await refreshClubDocumentSnapshot();
       if (!memberClubDocumentSnapshotsEqual((context.entwurf_daten as PreparedMembershipApplicationDraft).vereinsunterlagen_nachweis, currentSnapshot)) { await savePrepared(currentSnapshot); throw new Error("Die Pflichtunterlagen haben sich seit der Vorschau geändert. Der aktualisierte Entwurf wurde gespeichert; bitte erstellen Sie eine neue Vorschau."); }
       if (context?.status === "vorbereitet") context = await savePrepared() ?? context;
-      if (!context) throw new Error("Die Signatur kann nur aus der Kommunikationszentrale gestartet werden.");
+      if (!context) throw new Error("Die Signatur kann nur aus der Vorgangszentrale gestartet werden.");
       const started = context.status === "zur_signatur" ? context : await startPreparedContractSigning(club, session, context, session.user.id);
       setResumeContext(started); setSignatures({}); setSignatureIndex(0); setStep("signatures");
     } catch (error) { setMessage(error instanceof Error ? error.message : "Die Signatur konnte nicht gestartet werden."); }
     finally { setBusy(false); }
   };
   const markFinalDocumentForReview = async (documentId: number) => {
-    if (!resumeContext) throw new Error("Der Kommunikationsvorgang ist nicht geladen.");
+    if (!resumeContext) throw new Error("Der Vorgang ist nicht geladen.");
     try {
       const review = await markPreparedContractReadyForReview(club, session, resumeContext, session.user.id, documentId);
       setResumeContext(review); setFinalDocumentId(null); setSignatures({}); setSignatureIndex(0); setStep("review"); await onSaved();
@@ -119,7 +119,7 @@ export function MembershipApplicationFlow({ session, memberId, onSaved, onPrepar
     catch (error) { setMessage(error instanceof Error ? error.message : "Vorschau konnte nicht erstellt werden."); }
     finally { setBusy(false); }
   };
-  const park = async () => { try { validate(); setBusy(true); if (resumeContext) { await savePrepared(); setMessage("Die Änderungen am vorbereiteten Mitgliedsantrag wurden gespeichert."); } else { await parkPreparedContract(club, session, session.user.id, preparedDraft()); setMessage("Der Mitgliedsantrag wurde vorbereitet und unter Kommunikation > Zur Signatur > Meine gespeichert."); await onPrepared?.(); } } catch (error) { setMessage(error instanceof Error ? error.message : "Der Vorgang konnte nicht vorbereitet werden."); } finally { setBusy(false); } };
+  const park = async () => { try { validate(); setBusy(true); if (resumeContext) { await savePrepared(); setMessage("Die Änderungen am vorbereiteten Mitgliedsantrag wurden gespeichert."); } else { await parkPreparedContract(club, session, session.user.id, preparedDraft()); setMessage("Der Mitgliedsantrag wurde vorbereitet und unter Vorgänge > Signaturen > Meine gespeichert."); await onPrepared?.(); } } catch (error) { setMessage(error instanceof Error ? error.message : "Der Vorgang konnte nicht vorbereitet werden."); } finally { setBusy(false); } };
 
   const finalize = async () => {
     try {

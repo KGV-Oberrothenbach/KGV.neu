@@ -19,6 +19,7 @@ export type NavigationCapabilities = {
   canApproveWorkHours: boolean;
   canExport: boolean;
   canAccessCommunication: boolean;
+  openProcessCount: number;
   canManageSeasonConfiguration: boolean;
   canPerformYearEndClosing: boolean;
   canManageClubConfiguration: boolean;
@@ -62,7 +63,7 @@ export function buildNavigation(capabilities: NavigationCapabilities): Workspace
     { ...navigationConfig.groups.maintenance, items: [], target: capabilities.canManageMaintenance ? navigationConfig.groups.maintenance.target : undefined },
     { ...navigationConfig.groups.workhours, items: [], target: capabilities.canApproveWorkHours ? navigationConfig.groups.workhours.target : undefined },
     { ...navigationConfig.groups.export, items: [], target: capabilities.canExport ? navigationConfig.groups.export.target : undefined },
-    { ...navigationConfig.groups.communication, items: [], target: capabilities.canAccessCommunication ? navigationConfig.groups.communication.target : undefined },
+    { ...navigationConfig.groups.communication, items: [], target: capabilities.canAccessCommunication ? { ...navigationConfig.groups.communication.target, badge: capabilities.openProcessCount } : undefined },
     { ...navigationConfig.groups.administration, items: [
       ...(capabilities.canManageSeasonConfiguration ? [navigationConfig.groups.administration.items.seasons] : []),
       ...(capabilities.canPerformYearEndClosing ? [navigationConfig.groups.administration.items.annualClosing] : []),

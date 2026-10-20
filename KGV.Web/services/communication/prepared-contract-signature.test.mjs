@@ -24,7 +24,7 @@ test("membership application creation parks a prepared contract without starting
   ]);
   const creationPreview = membership.match(/\{step === "preview"\}[\s\S]*?<ContractPreview[\s\S]*?\/>/)?.[0] ?? "";
   assert.match(membership, /parkPreparedContract/);
-  assert.match(membership, /Die Signatur kann nur aus der Kommunikationszentrale gestartet werden/);
+  assert.match(membership, /Die Signatur kann nur aus der Vorgangszentrale gestartet werden/);
   assert.doesNotMatch(creationPreview, /onContinue/);
   assert.match(lease, /startPreparedContractSigning/);
   assert.doesNotMatch(membership, /localStorage|sessionStorage/);
@@ -52,5 +52,5 @@ test("final document enters final review before it can be completed", async () =
   assert.match(membership, /recoverPreparedContractFinalDocument/);
   assert.doesNotMatch(membership, /documentState\.status === "signed"/);
   assert.match(membership, /onCompleted=\{async \(\) => \{ await onSaved\(\); onCancel\?\.\(\); \}\}/);
-  assert.match(center, /<MembershipApplicationFlow[\s\S]*onCancel=\{\(\) => \{ setOpened\(null\); void load\(\); \}\}/);
+  assert.match(center, /<MembershipApplicationFlow[\s\S]*onCancel=\{\(\) => \{ setOpened\(null\); void workflowChanged\(\); \}\}/);
 });

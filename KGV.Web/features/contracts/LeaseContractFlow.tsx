@@ -80,7 +80,7 @@ export function LeaseContractFlow({ session, memberId, parcelId, startDate, onSa
     catch (e) { setMessage(e instanceof Error ? e.message : "Die Signatur konnte nicht gestartet werden."); }
     finally { setBusy(false); } };
     const markFinalDocumentForReview = async (documentId: number) => { if (!resumeContext)
-        throw new Error("Der Kommunikationsvorgang ist nicht geladen."); try { const review = await markPreparedContractReadyForReview(club, session, resumeContext, session.user.id, documentId); setResumeContext(review); setFinalDocumentId(null); clearSignatures(); setStep("review"); await onSaved(); }
+        throw new Error("Der Vorgang ist nicht geladen."); try { const review = await markPreparedContractReadyForReview(club, session, resumeContext, session.user.id, documentId); setResumeContext(review); setFinalDocumentId(null); clearSignatures(); setStep("review"); await onSaved(); }
     catch (error) { setFinalDocumentId(documentId); setMessage("Das Vertragsdokument wurde erfolgreich erstellt, konnte aber noch nicht zur letzten Prüfung vorgemerkt werden. Das Dokument wird nicht erneut erzeugt."); throw error; } };
     const retryFinalReviewPersistence = async () => { if (finalDocumentId === null)
         return; try { setBusy(true); setMessage(""); await markFinalDocumentForReview(finalDocumentId); }
@@ -118,7 +118,7 @@ export function LeaseContractFlow({ session, memberId, parcelId, startDate, onSa
         }
         else {
             await parkPreparedContract(club, session, session.user.id, preparedDraft());
-            setMessage("Der Pachtvertrag wurde zur Signatur vorbereitet und unter Kommunikation > Zur Signatur > Meine gespeichert.");
+            setMessage("Der Pachtvertrag wurde zur Signatur vorbereitet und unter Vorgänge > Signaturen > Meine gespeichert.");
         }
     }
     catch (e) {

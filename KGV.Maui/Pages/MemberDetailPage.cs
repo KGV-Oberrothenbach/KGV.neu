@@ -520,7 +520,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         var activeStatus = _activeMembershipApplicationContract?.Status;
         _mitgliedsantragButton.IsVisible = canCreateMemberApplication || activeStatus is not null;
         _mitgliedsantragButton.IsEnabled = _mitgliedsantragButton.IsVisible;
-        _mitgliedsantragButton.Text = activeStatus is null ? "Mitgliedsantrag erstellen" : "In Kommunikation öffnen";
+        _mitgliedsantragButton.Text = activeStatus is null ? "Mitgliedsantrag erstellen" : "In Vorgängen öffnen";
         _mitgliedsantragDiagnoseLabel.Text = activeStatus switch
         {
             PreparedContractConstants.Prepared => "Mitgliedsantrag: Zur Signatur vorbereitet",
@@ -850,7 +850,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
                     await _preparedContractRepository.UpdateDraftAsync(contract.Id, contract.Revision, serialized);
                     await DisplayAlertAsync("Mitgliedsantrag", "Änderungen wurden gespeichert.", "OK");
                 }
-                if (_activeMembershipApplicationContract is not null && await DisplayAlertAsync("Mitgliedsantrag", "Der Mitgliedsantrag wurde vorbereitet und unter Kommunikation > Zur Signatur > Meine gespeichert. Möchten Sie jetzt zur Kommunikationszentrale wechseln?", "Kommunikation öffnen", "Hier bleiben"))
+                if (_activeMembershipApplicationContract is not null && await DisplayAlertAsync("Mitgliedsantrag", "Der Mitgliedsantrag wurde vorbereitet und unter Vorgänge > Signaturen > Meine gespeichert. Möchten Sie jetzt zur Vorgangsübersicht wechseln?", "Vorgänge öffnen", "Hier bleiben"))
                     await Shell.Current.GoToAsync("//kommunikation");
                 return;
             }

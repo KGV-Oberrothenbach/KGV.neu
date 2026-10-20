@@ -40,13 +40,13 @@ public sealed class KommunikationPage : ContentPage
         _supabaseService = supabaseService ?? throw new ArgumentNullException(nameof(supabaseService));
         _leaseCompletionClient = leaseCompletionClient ?? throw new ArgumentNullException(nameof(leaseCompletionClient));
         _userContext = userContext ?? throw new ArgumentNullException(nameof(userContext));
-        Title = "Kommunikation";
+        Title = "Vorgänge";
 
         var mine = FilterButton("Meine", SignatureFilter.Mine);
         var unassigned = FilterButton("Unzugeordnet", SignatureFilter.Unassigned);
         var all = FilterButton("Alle", SignatureFilter.All);
         _statusLabel = new Label { TextColor = Colors.Gray, IsVisible = false, LineBreakMode = LineBreakMode.WordWrap };
-        _emptyLabel = new Label { Text = "Keine Kommunikationsvorgänge vorhanden.", TextColor = Colors.Gray, IsVisible = false };
+        _emptyLabel = new Label { Text = "Keine Vorgänge vorhanden.", TextColor = Colors.Gray, IsVisible = false };
         _list = new CollectionView
         {
             ItemsSource = _items,
@@ -69,7 +69,7 @@ public sealed class KommunikationPage : ContentPage
             Spacing = 12,
             Children =
             {
-                new Label { Text = "Kommunikation", FontSize = 24, FontAttributes = FontAttributes.Bold },
+                new Label { Text = "Vorgänge", FontSize = 24, FontAttributes = FontAttributes.Bold },
                 new Label { Text = "Vorbereitete Vertrags- und Prüfvorgänge", TextColor = Colors.Gray },
                 new FlexLayout { Direction = FlexDirection.Row, Wrap = FlexWrap.Wrap, Children = { mine, unassigned, all } },
                 _statusLabel,
@@ -101,7 +101,7 @@ public sealed class KommunikationPage : ContentPage
         try
         {
             if (_userContext.CurrentUserContext?.Role is not UserRole.Admin and not UserRole.Vorstand)
-                throw new InvalidOperationException("Kommunikation ist nur für Admin und Vorstand verfügbar.");
+                throw new InvalidOperationException("Vorgänge sind nur für Admin und Vorstand verfügbar.");
             var currentUserId = CurrentUserId();
 
             var contracts = await _repository.ListActiveAsync();
@@ -129,7 +129,7 @@ public sealed class KommunikationPage : ContentPage
     {
         if (!item.IsMine)
         {
-            await DisplayAlertAsync("Kommunikation", item.IsUnassigned
+            await DisplayAlertAsync("Vorgänge", item.IsUnassigned
                 ? "Bitte übernehmen Sie den unzugeordneten Vorgang zuerst."
                 : "Dieser Vorgang ist einem anderen Bearbeiter zugewiesen.", "OK");
             return;

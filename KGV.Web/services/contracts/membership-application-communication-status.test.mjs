@@ -22,7 +22,7 @@ test("member master data loads active server contracts and opens communication w
   const source = await readFile(new URL("../../features/contracts/MembershipApplicationAction.tsx", import.meta.url), "utf8");
   assert.match(source, /findActivePreparedContract/);
   assert.match(source, /Mitgliedsantrag erstellen/);
-  assert.match(source, /In Kommunikation öffnen/);
+  assert.match(source, /In Vorgängen öffnen/);
   assert.match(source, /kgv:open-communication/);
   const openCommunication = source.match(/const openCommunication[\s\S]*?;/)?.[0] ?? "";
   assert.doesNotMatch(openCommunication, /startPreparedContractSigning|Signatur/);

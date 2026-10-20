@@ -259,7 +259,7 @@ public sealed class MemberGardenAssignPage : ContentPage
             try
             {
                 var result = await PachtvertragFlowHelper.RunAsync(Navigation, _supabaseService, _authService, _preparedLeaseContractResumeService, _preparedContractRepository, _contractGenerationClient, mitgliedId, parzelleId, vertragsbeginn);
-                if (result == PachtvertragFlowResult.Vorbereitet) await DisplayAlertAsync("Pachtvertrag", "Der Pachtvertrag wurde zur Signatur vorbereitet und unter Kommunikation > Zur Signatur > Meine gespeichert.", "OK");
+                if (result == PachtvertragFlowResult.Vorbereitet) await DisplayAlertAsync("Pachtvertrag", "Der Pachtvertrag wurde zur Signatur vorbereitet und unter Vorgänge > Signaturen > Meine gespeichert.", "OK");
             }
             finally
             {
@@ -270,7 +270,7 @@ public sealed class MemberGardenAssignPage : ContentPage
         else
         {
             var result = await PachtvertragFlowHelper.RunAsync(Navigation, _supabaseService, _authService, _preparedLeaseContractResumeService, _preparedContractRepository, _contractGenerationClient, mitgliedId, parzelleId, vertragsbeginn);
-            if (result == PachtvertragFlowResult.Vorbereitet) await DisplayAlertAsync("Pachtvertrag", "Der Pachtvertrag wurde zur Signatur vorbereitet und unter Kommunikation > Zur Signatur > Meine gespeichert.", "OK");
+            if (result == PachtvertragFlowResult.Vorbereitet) await DisplayAlertAsync("Pachtvertrag", "Der Pachtvertrag wurde zur Signatur vorbereitet und unter Vorgänge > Signaturen > Meine gespeichert.", "OK");
         }
     }
 
