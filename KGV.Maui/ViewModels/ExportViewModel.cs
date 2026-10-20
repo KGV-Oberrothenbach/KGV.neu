@@ -378,8 +378,8 @@ namespace KGV.Maui.ViewModels
                 {
                 }
 
-                // For mobile robustness: avoid applying problematic server-side filters/sorting.
-                // Build minimal params: drop any filter/sort params that historically caused issues on server.
+                // Export parameters are supplied by metadata and forwarded unchanged so every
+                // client uses the same canonical, server-side source and ordering.
                 var minimalParams = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
                 if (mapped != null)
                 {
@@ -388,99 +388,7 @@ namespace KGV.Maui.ViewModels
                         minimalParams[kv.Key] = kv.Value;
                     }
                 }
-                var keysToRemove = minimalParams.Keys.Where(k =>
-                    !isArbeitsstundenUebersicht &&
-                    k != null &&
-                    (k.ToString()!.Contains("filter", StringComparison.OrdinalIgnoreCase)
-                     || string.Equals(k.ToString(), "p_sortierung", StringComparison.OrdinalIgnoreCase)
-                     || string.Equals(k.ToString(), "sortierung", StringComparison.OrdinalIgnoreCase))).ToList();
-                foreach (var k in keysToRemove)
-                    minimalParams.Remove(k);
-
-                // Call RPC with minimal parameters to retrieve the full raw dataset, then apply filters/sorts locally
-                // Special-case: Mitgliedersliste should be assembled locally from typed service calls
-                if (string.Equals(SelectedDefinition?.ExportKey ?? string.Empty, "mitgliederliste", StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(rpcName ?? string.Empty, "rpc_export_mitgliederliste", StringComparison.OrdinalIgnoreCase))
-                {
-                    // Load typed data like MemberSearchViewModel
-                    var membersTask = _supabaseService.GetMitgliederAsync();
-                    var parzellenTask = _supabaseService.GetAllParzellenAsync();
-                    var belegungenTask = _supabaseService.GetAllParzellenBelegungenAsync();
-
-                    await Task.WhenAll(membersTask, parzellenTask, belegungenTask);
-
-                    var members = membersTask.Result ?? new List<MitgliedRecord>();
-                    var parzellen = parzellenTask.Result ?? new List<ParzelleRecord>();
-                    var belegungen = belegungenTask.Result ?? new List<ParzellenBelegungRecord>();
-
-                    // Build lookup of active belegungen -> garden numbers per member
-                    var parzellenById = parzellen.Where(p => p.Id > 0).ToDictionary(p => p.Id);
-                    var today = DateTime.Today;
-                    var activeBelegungen = belegungen
-                        .Where(b => b.MitgliedId > 0 && b.ParzelleId > 0 &&
-                            (!b.VonDatum.HasValue || b.VonDatum.Value.Date <= today) &&
-                            (!b.BisDatum.HasValue || b.BisDatum.Value.Date >= today))
-                        .ToList();
-
-                    var gaertenByMitglied = activeBelegungen
-                        .GroupBy(b => b.MitgliedId)
-                        .ToDictionary(g => g.Key, g => g
-                            .Select(b => parzellenById.TryGetValue(b.ParzelleId, out var p) ? (p.GartenNr ?? string.Empty) : string.Empty)
-                            .Where(s => !string.IsNullOrWhiteSpace(s))
-                            .Distinct(StringComparer.CurrentCultureIgnoreCase)
-                            .OrderBy(s => s, StringComparer.CurrentCultureIgnoreCase)
-                            .ToList());
-
-                    var built = new List<System.Collections.Generic.Dictionary<string, string>>();
-                    foreach (var m in members)
-                    {
-                        var dict = new System.Collections.Generic.Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-                        {
-                            ["id"] = m.Id.ToString(),
-                            ["mitgliedsnummer"] = m.Id.ToString(),
-                            ["name"] = m.Name ?? string.Empty,
-                            ["vorname"] = m.Vorname ?? string.Empty,
-                            ["adresse"] = m.Adresse ?? string.Empty,
-                            ["plz"] = m.Plz ?? string.Empty,
-                            ["ort"] = m.Ort ?? string.Empty,
-                            ["telefon"] = m.Telefon ?? string.Empty,
-                            ["mobil"] = m.Handy ?? string.Empty,
-                            ["email"] = m.Email ?? string.Empty,
-                            ["geburtsdatum"] = m.Geburtsdatum?.ToString("yyyy-MM-dd") ?? string.Empty,
-                            ["bemerkung"] = m.Bemerkung ?? string.Empty,
-                            ["whatsapp"] = m.WhatsappEinwilligung ? "Ja" : "Nein",
-                            ["email_rechnung_einwilligung"] = m.EmailRechnungEinwilligung ? "Ja" : "Nein",
-                            ["email_info_einwilligung"] = m.EmailInfoEinwilligung ? "Ja" : "Nein",
-                            ["auth_user_id"] = m.AuthUserId?.ToString() ?? string.Empty,
-                            ["aktiv"] = m.Aktiv ? "Ja" : "Nein",
-                            ["mitglied_seit"] = m.MitgliedSeit?.ToString("yyyy-MM-dd") ?? string.Empty
-                        };
-
-                        if (gaertenByMitglied.TryGetValue(m.Id, out var gList) && gList.Count > 0)
-                        {
-                            dict["gaerten"] = string.Join(", ", gList);
-                            dict["gartennummern"] = string.Join(", ", gList);
-                        }
-                        else
-                        {
-                            dict["gaerten"] = string.Empty;
-                            dict["gartennummern"] = string.Empty;
-                        }
-
-                        built.Add(dict);
-                    }
-
-                    rows = built;
-
-                    try
-                    {
-                        Console.WriteLine($"EXPORTDBG: mitgliederliste loaded members={members.Count} parzellen={parzellen.Count} belegungen={belegungen.Count}");
-                        System.Diagnostics.Debug.WriteLine($"EXPORTDBG: mitgliederliste loaded members={members.Count} parzellen={parzellen.Count} belegungen={belegungen.Count}");
-                    }
-                    catch { }
-                }
-
-                else if (string.Equals(SelectedDefinition?.ExportKey ?? string.Empty, "rfid_status", StringComparison.OrdinalIgnoreCase)
+                if (string.Equals(SelectedDefinition?.ExportKey ?? string.Empty, "rfid_status", StringComparison.OrdinalIgnoreCase)
                     || string.Equals(rpcName ?? string.Empty, "rpc_export_rfid_status", StringComparison.OrdinalIgnoreCase)
                     || string.Equals(rpcName ?? string.Empty, "rfid_status", StringComparison.OrdinalIgnoreCase))
                 {
@@ -677,62 +585,6 @@ namespace KGV.Maui.ViewModels
                 VisibleColumnsMapped.Add((col, tech));
             }
 
-            // Special-case: for mitgliederliste use explicit field aliases to map export column keys to local raw fields
-            try
-            {
-                var exportKey = SelectedDefinition?.ExportKey ?? string.Empty;
-                if (string.Equals(exportKey, "mitgliederliste", StringComparison.OrdinalIgnoreCase))
-                {
-                    var memberFieldAliases = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-                    {
-                        { "mitgliedsnr", "mitgliedsnummer" },
-                        { "mitgliedsnummer", "mitgliedsnummer" },
-                        { "strasse_hsnr", "adresse" },
-                        { "adresse", "adresse" },
-                        { "email", "email" },
-                        { "geburtsdatum", "geburtsdatum" },
-                        { "bemerkung", "bemerkung" },
-                        { "whatsapp", "whatsapp" },
-                        { "email_rechnung", "email_rechnung_einwilligung" },
-                        { "email_rechnung_einwilligung", "email_rechnung_einwilligung" },
-                        { "email_info", "email_info_einwilligung" },
-                        { "email_info_einwilligung", "email_info_einwilligung" },
-                        { "auth_user", "auth_user_id" },
-                        { "auth_user_id", "auth_user_id" },
-                        { "aktiv", "aktiv" },
-                        { "mitglied_seit", "mitglied_seit" },
-                        { "gaerten", "gaerten" },
-                        { "gartennummern", "gartennummern" },
-                        { "pachtgaerten", "gaerten" }
-                    };
-
-                    // additional short/legacy aliases often used in column definitions
-                    memberFieldAliases.TryAdd("re", "email_rechnung_einwilligung");
-                    memberFieldAliases.TryAdd("info", "email_info_einwilligung");
-                    memberFieldAliases.TryAdd("rechnung_per_mail", "email_rechnung_einwilligung");
-                    memberFieldAliases.TryAdd("info_per_mail", "email_info_einwilligung");
-                    memberFieldAliases.TryAdd("wa", "whatsapp");
-
-                    var remapped = new List<(AppExportColumnDefinitionRecord Column, string CanonicalKey)>();
-                    foreach (var (col, canonical) in VisibleColumnsMapped)
-                    {
-                        var search = canonical ?? col.ColumnKey ?? col.Name ?? string.Empty;
-                        if (memberFieldAliases.TryGetValue(search, out var target))
-                        {
-                            remapped.Add((col, target));
-                        }
-                        else
-                        {
-                            remapped.Add((col, canonical ?? string.Empty));
-                        }
-                    }
-
-                    VisibleColumnsMapped = remapped;
-                    Console.WriteLine($"EXPORTDBG: mitgliederliste applied {VisibleColumnsMapped.Count} member-field aliases");
-                }
-            }
-            catch { }
-
             // Results already materialized as dictionaries by the service; MapRpcRowsToCanonical overloads accept dictionaries now
             // Offload CPU-heavy mapping to background thread to avoid UI-thread ANR
             List<System.Collections.Generic.Dictionary<string, string>> mappedRows;
@@ -898,78 +750,15 @@ namespace KGV.Maui.ViewModels
         {
             var exportKey = SelectedDefinition?.ExportKey ?? "export";
 
-            if (string.Equals(exportKey, "mitgliederliste", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(exportKey, "zaehler_eichfaelligkeit", StringComparison.OrdinalIgnoreCase))
-            {
-                // Central renderer owns data, orientation, catalog template and layout.
-                var centralPdf = await _supabaseService.GenerateExportPdfAsync(BuildCentralExportRequest());
-                var fallbackName = $"{DateTime.Now:yyyy-MM-dd_HH-mm-ss}_{exportKey}.pdf";
-                var centralFileName = string.IsNullOrWhiteSpace(centralPdf.FileName) ? fallbackName : centralPdf.FileName;
-                var centralFilePath = System.IO.Path.Combine(Microsoft.Maui.Storage.FileSystem.CacheDirectory, centralFileName);
-                await System.IO.File.WriteAllBytesAsync(centralFilePath, centralPdf.Content);
-                return centralFilePath;
-            }
+            if (SelectedDefinition?.ErlaubtPdf != true)
+                throw new InvalidOperationException("PDF-Export ist für diesen Export nicht freigegeben.");
 
-            if (ProcessedResults.Count == 0 || ColumnsVisibleOrdered.Count == 0)
-                throw new InvalidOperationException("Keine Daten zum Exportieren.");
-
-            var remappedRows = new List<Dictionary<string, string>>();
-            for (var rowIndex = 0; rowIndex < ProcessedResults.Count; rowIndex++)
-            {
-                var row = ProcessedResults[rowIndex];
-                var rem = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-                foreach (var (col, canonical) in VisibleColumnsMapped)
-                {
-                    row.TryGetValue(canonical, out var val);
-                    var targetKey = col.ColumnKey ?? col.Name ?? canonical;
-                    rem[targetKey] = val ?? string.Empty;
-                }
-
-                // Der Regelgrund ist in der Bildschirmtabelle bewusst ausgeblendet,
-                // wird aber für die fachliche Gruppierung des Arbeitsstunden-PDFs benötigt.
-                if (string.Equals(exportKey, "arbeitsstunden_uebersicht", StringComparison.OrdinalIgnoreCase)
-                    && rowIndex < Results.Count)
-                {
-                    var rawRow = Results[rowIndex];
-                    var normalizedRaw = rawRow.Keys
-                        .Where(key => !string.IsNullOrWhiteSpace(key))
-                        .ToDictionary(NormalizeKey, key => key, StringComparer.OrdinalIgnoreCase);
-                    rem["regelgrund"] = ResolveMaterializedValue(rawRow, normalizedRaw, "regelgrund");
-                    rem["zeilentyp"] = ResolveMaterializedValue(rawRow, normalizedRaw, "zeilentyp");
-                }
-                remappedRows.Add(rem);
-            }
-
-            try
-            {
-                Console.WriteLine($"EXPORTDBG: ExportToPdfAsync remapped rows for PDF count={remappedRows.Count}");
-                System.Diagnostics.Debug.WriteLine($"EXPORTDBG: ExportToPdfAsync remapped rows for PDF count={remappedRows.Count}");
-            }
-            catch
-            {
-            }
-
-            if (EXPORT_DIAG)
-            {
-                try
-                {
-                    Console.WriteLine("EXPORTDBG: ----- EXPORTDBG PDF -----");
-                    Console.WriteLine($"EXPORTDBG: PDF rows passed={remappedRows.Count}");
-                    if (remappedRows.Count > 0)
-                        Console.WriteLine($"EXPORTDBG: PDF sample keys/values={FormatDebugDictionarySample(remappedRows[0])}");
-                    Console.WriteLine("EXPORTDBG: ----- END PDF -----");
-                }
-                catch
-                {
-                }
-            }
-
-            var pdf = KGV.Core.Utilities.ExportPdfBuilder.BuildExportPdf(exportKey, ColumnsVisibleOrdered, remappedRows);
-
-            var fileName = $"{DateTime.Now:yyyy-MM-dd_HH-mm-ss}_{exportKey}.pdf";
-            var filePath = System.IO.Path.Combine(Microsoft.Maui.Storage.FileSystem.CacheDirectory, fileName);
-            await System.IO.File.WriteAllBytesAsync(filePath, pdf);
-            return filePath;
+            var centralPdf = await _supabaseService.GenerateExportPdfAsync(BuildCentralExportRequest());
+            var fallbackName = $"{DateTime.Now:yyyy-MM-dd_HH-mm-ss}_{exportKey}.pdf";
+            var centralFileName = string.IsNullOrWhiteSpace(centralPdf.FileName) ? fallbackName : centralPdf.FileName;
+            var centralFilePath = System.IO.Path.Combine(Microsoft.Maui.Storage.FileSystem.CacheDirectory, centralFileName);
+            await System.IO.File.WriteAllBytesAsync(centralFilePath, centralPdf.Content);
+            return centralFilePath;
         }
 
         private CentralExportRequest BuildCentralExportRequest()
