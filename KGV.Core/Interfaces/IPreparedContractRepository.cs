@@ -19,4 +19,6 @@ public interface IPreparedContractRepository
     Task<KommunikationsvorgangDto> MarkFinalDocumentReadyForReviewAsync(long id, int expectedRevision, long finalDocumentId, CancellationToken cancellationToken = default)
         => throw new NotSupportedException();
     Task<KommunikationsvorgangDto> CompleteAsync(long id, CancellationToken cancellationToken = default);
+    Task<KommunikationsvorgangDto> DiscardAsync(long id, int expectedRevision, CancellationToken cancellationToken = default)
+        => throw new NotSupportedException();
 }

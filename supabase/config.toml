@@ -423,6 +423,16 @@ enabled = true
 verify_jwt = false
 entrypoint = "./functions/kgv-complete-prepared-lease-contract/index.ts"
 
+[functions.kgv-discard-prepared-contract]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/kgv-discard-prepared-contract/index.ts"
+
+[functions.kgv-complete-prepared-membership-application]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/kgv-complete-prepared-membership-application/index.ts"
+
 [functions.kgv-generate-export-pdf]
 enabled = true
 verify_jwt = false

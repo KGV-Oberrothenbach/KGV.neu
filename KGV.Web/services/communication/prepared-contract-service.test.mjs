@@ -25,7 +25,7 @@ test("prepared lease final review completes only through the lease edge-function
     readFile(new URL("repositories/contracts/lease-contract-completion-repository.ts", root), "utf8"),
   ]);
   assert.match(service, /dokumenttyp === "pachtvertrag"[\s\S]*completePreparedLeaseContract/);
-  assert.match(service, /return completePreparedContract\(/);
+  assert.match(service, /completePreparedMembershipApplication/);
   assert.match(completion, /kgv-complete-prepared-lease-contract/);
   assert.match(completion, /expected_revision: expectedRevision/);
   assert.match(completion, /Authorization: `Bearer \$\{session\.accessToken\}`/);

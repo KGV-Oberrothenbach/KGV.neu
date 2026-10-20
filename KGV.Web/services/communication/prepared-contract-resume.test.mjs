@@ -53,8 +53,8 @@ test("communication opens only own or successfully claimed prepared contracts an
     assert.match(flow, /Änderungen speichern/);
     assert.match(flow, /startPreparedContractSigning/);
   }
-  assert.match(membership, /generateContract\(club, session, request\("preview"\)\)/);
-  assert.match(lease, /generateContract\(club, session, request\("preview"\)\)/);
+  assert.match(membership, /generateContract\(club, session, request\("preview", snapshot\)\)/);
+  assert.match(lease, /generateContract\(club, session, request\("preview", snapshot\)\)/);
   assert.doesNotMatch(membership.match(/const savePrepared[\s\S]*?const preview/)?.[0] ?? "", /signature_/i);
   assert.doesNotMatch(lease.match(/const savePrepared[\s\S]*?const preview/)?.[0] ?? "", /signature_/i);
 });

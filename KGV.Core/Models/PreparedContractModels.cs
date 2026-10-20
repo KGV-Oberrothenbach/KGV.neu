@@ -13,6 +13,7 @@ public static class PreparedContractConstants
     public const string ReadyForSignature = "zur_signatur";
     public const string FinalReview = "letzte_pruefung";
     public const string Completed = "erledigt";
+    public const string Discarded = "verworfen";
 }
 
 public sealed record KommunikationsvorgangDto

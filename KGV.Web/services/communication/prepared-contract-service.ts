@@ -2,10 +2,11 @@ import type { ClubContext } from "../../models/auth/club";
 import type { BrowserSession } from "../../lib/supabase-auth";
 import { parsePreparedContractDraft, type PreparedContractDraft } from "../../models/communication/prepared-contract-draft";
 import type { CommunicationItem } from "../../models/communication/communication-item";
-import { completePreparedContract, createPreparedContract, findActivePreparedContract, findFinalDocumentByProvenance, getCommunicationContractDraft, markPreparedContractFinalDocument, startPreparedContractSignature, updatePreparedContractDraft } from "../../repositories/communication/communication-repository";
+import { completePreparedContract, createPreparedContract, discardPreparedContract, findActivePreparedContract, findFinalDocumentByProvenance, getCommunicationContractDraft, markPreparedContractFinalDocument, startPreparedContractSignature, updatePreparedContractDraft } from "../../repositories/communication/communication-repository";
 import { getActiveDocumentById } from "../../repositories/documents/document-repository";
 import { resolveDocumentOpenUrl } from "../documents/document-open-service";
 import { completePreparedLeaseContract } from "../../repositories/contracts/lease-contract-completion-repository";
+import { completePreparedMembershipApplication } from "../../repositories/contracts/membership-application-completion-repository";
 
 export type PreparedContractResumeContext = {
   id: number;
@@ -95,7 +96,11 @@ export async function recoverPreparedContractFinalDocument(club: ClubContext, se
 export async function completePreparedContractFinalReview(club: ClubContext, session: BrowserSession, context: PreparedContractResumeContext, userId: string) {
   if (context.status !== "letzte_pruefung" || context.final_dokument_id === null) throw new Error("Der Vorgang ist nicht zur letzten Prüfung bereit.");
   if (context.dokumenttyp === "pachtvertrag") return completePreparedLeaseContract(club, session, context.id, context.revision);
-  return completePreparedContract(club, session, context.id, context.revision, userId, context.final_dokument_id);
+  await completePreparedMembershipApplication(club, session, context.id, context.revision);
+  return;
+}
+export async function discardPreparedContractWorkflow(club: ClubContext, session: BrowserSession, context: PreparedContractResumeContext) {
+  await discardPreparedContract(club, session, context.id, context.revision);
 }
 
 export async function openPreparedContractFinalDocument(club: ClubContext, session: BrowserSession, context: PreparedContractResumeContext) {

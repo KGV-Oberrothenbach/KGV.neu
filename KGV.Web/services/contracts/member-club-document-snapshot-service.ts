@@ -13,5 +13,17 @@ export function createMemberClubDocumentSnapshot(status: MemberClubDocumentStatu
   });
 }
 export const isCompleteMemberClubDocumentSnapshot = (snapshot: MemberClubDocumentSnapshotItem[] | undefined): snapshot is MemberClubDocumentSnapshotItem[] => !!snapshot && snapshot.length === order.length && snapshot.every((item, index) => item.dokumenttyp === order[index] && item.vereinsdokument_fassung_id > 0 && item.bereitstellung_id > 0 && !!item.fassung && !!item.gueltig_ab && !!item.bereitgestellt_am);
-export const memberClubDocumentSnapshotsEqual = (left: MemberClubDocumentSnapshotItem[] | undefined, right: MemberClubDocumentSnapshotItem[] | undefined) => isCompleteMemberClubDocumentSnapshot(left) && isCompleteMemberClubDocumentSnapshot(right) && JSON.stringify(left) === JSON.stringify(right);
+/** Compares the persisted evidence, not its JSON representation. JSONB may reorder keys and omit undefined values. */
+export const memberClubDocumentSnapshotsEqual = (left: MemberClubDocumentSnapshotItem[] | undefined, right: MemberClubDocumentSnapshotItem[] | undefined) =>
+  isCompleteMemberClubDocumentSnapshot(left) && isCompleteMemberClubDocumentSnapshot(right) && left.every((item, index) => {
+    const other = right[index];
+    return item.dokumenttyp === other.dokumenttyp &&
+      item.vereinsdokument_fassung_id === other.vereinsdokument_fassung_id &&
+      item.fassung === other.fassung &&
+      item.gueltig_ab === other.gueltig_ab &&
+      (item.gueltig_bis ?? null) === (other.gueltig_bis ?? null) &&
+      item.bereitstellungsart === other.bereitstellungsart &&
+      item.bereitgestellt_am === other.bereitgestellt_am &&
+      item.bereitstellung_id === other.bereitstellung_id;
+  });
 export const formatMemberClubDocumentSnapshotForPdf = (snapshot: MemberClubDocumentSnapshotItem[]) => { if (!isCompleteMemberClubDocumentSnapshot(snapshot)) throw new Error("Der Vereinsunterlagen-Nachweis ist unvollständig."); return snapshot.map((item) => `${labels[item.dokumenttyp]} – Fassung ${item.fassung} – ${item.bereitstellungsart === "papier" ? "Papier übergeben" : "digital bereitgestellt"} am ${new Intl.DateTimeFormat("de-DE", { dateStyle: "short", timeStyle: "short" }).format(new Date(item.bereitgestellt_am))}`).join("\n"); };

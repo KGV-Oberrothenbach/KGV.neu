@@ -126,10 +126,34 @@ public sealed class PreparedContractRepository : IPreparedContractRepository
         var current = await LoadRequiredAsync(id, cancellationToken);
         if (current.Status != PreparedContractConstants.FinalReview || current.SignaturRevision != current.Revision || current.SignaturGestartetAm is null || current.FinalDokumentId is not > 0)
             throw new PreparedContractConflictException("Der Vertragsvorgang ist noch nicht zur letzten Prüfung bereit.");
+        if (current.Dokumenttyp == PreparedContractConstants.MembershipApplication)
+        {
+            var token = await _auth.GetAccessTokenAsync() ?? throw new PreparedContractConflictException("Die Anmeldung ist abgelaufen.");
+            using var client = _httpClientFactory(); using var request = new HttpRequestMessage(HttpMethod.Post, $"{_clientFactory.Url.TrimEnd('/')}/functions/v1/kgv-complete-prepared-membership-application");
+            request.Headers.Add("apikey", _clientFactory.Key); request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            request.Content = new StringContent(JsonSerializer.Serialize(new { kommunikationsvorgang_id = id, expected_revision = current.Revision }), Encoding.UTF8, "application/json");
+            using var response = await client.SendAsync(request, cancellationToken);
+            if (!response.IsSuccessStatusCode) throw new PreparedContractConflictException("Der Mitgliedsantrag kann nicht abgeschlossen werden.");
+            var completedByServer = await LoadRequiredAsync(id, cancellationToken);
+            if (completedByServer.Status != PreparedContractConstants.Completed) throw new PreparedContractConflictException("Der Server hat den Mitgliedsantragsabschluss nicht bestätigt.");
+            return completedByServer;
+        }
         var completed = Single(await PatchAsync($"kommunikationsvorgang?id=eq.{id}&status=eq.{PreparedContractConstants.FinalReview}&revision=eq.{current.Revision}&signatur_revision=eq.{current.Revision}&final_dokument_id=eq.{current.FinalDokumentId}&zugewiesen_an=eq.{CurrentUserId()}", new { status = PreparedContractConstants.Completed }, cancellationToken), "Der Vertragsvorgang kann nicht abgeschlossen werden.");
         if (completed.Id != id || completed.Status != PreparedContractConstants.Completed || completed.Revision != current.Revision || completed.FinalDokumentId != current.FinalDokumentId)
             throw new PreparedContractConflictException("Der Server hat den Vertragsabschluss nicht korrekt bestätigt.");
         return completed;
+    }
+
+    public async Task<KommunikationsvorgangDto> DiscardAsync(long id, int expectedRevision, CancellationToken cancellationToken = default)
+    {
+        var token = await _auth.GetAccessTokenAsync() ?? throw new PreparedContractConflictException("Die Anmeldung ist abgelaufen.");
+        using var client = _httpClientFactory(); using var request = new HttpRequestMessage(HttpMethod.Post, $"{_clientFactory.Url.TrimEnd('/')}/functions/v1/kgv-discard-prepared-contract");
+        request.Headers.Add("apikey", _clientFactory.Key); request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        request.Content = new StringContent(JsonSerializer.Serialize(new { kommunikationsvorgang_id = id, expected_revision = expectedRevision }), Encoding.UTF8, "application/json");
+        using var response = await client.SendAsync(request, cancellationToken);
+        if (!response.IsSuccessStatusCode) throw new PreparedContractConflictException("Der Vertragsvorgang konnte nicht verworfen werden.");
+        var updated = await LoadRequiredAsync(id, cancellationToken);
+        return updated.Status == PreparedContractConstants.Discarded ? updated : throw new PreparedContractConflictException("Der Server hat das Verwerfen nicht bestätigt.");
     }
 
     private async Task<KommunikationsvorgangDto> LoadRequiredAsync(long id, CancellationToken ct) => await LoadAsync(id, ct);

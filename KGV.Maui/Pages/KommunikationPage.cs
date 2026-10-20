@@ -245,6 +245,15 @@ public sealed class KommunikationPage : ContentPage
         }
     }
 
+    private async Task DiscardAsync(SignatureListItem item)
+    {
+        if (!item.IsMine || item.Contract.Status is not (PreparedContractConstants.Prepared or PreparedContractConstants.ReadyForSignature or PreparedContractConstants.FinalReview)) return;
+        var confirmed = await DisplayAlertAsync("Vorgang verwerfen", "Vorgang wirklich verwerfen? Alle bisherigen Eingaben und Unterschriften dieses Vorgangs gehen verloren. Bereits versendete Vereinsunterlagen bleiben erhalten.", "Verwerfen", "Abbrechen");
+        if (!confirmed) return;
+        try { await _repository.DiscardAsync(item.Contract.Id, item.Contract.Revision); await LoadAsync(); }
+        catch (Exception ex) { await DisplayAlertAsync("Vorgang verwerfen", ex.Message, "OK"); await LoadAsync(); }
+    }
+
     private View CreateItem()
     {
         var title = new Label { FontAttributes = FontAttributes.Bold, FontSize = 17 };
@@ -262,7 +271,10 @@ public sealed class KommunikationPage : ContentPage
         action.SetBinding(Button.TextProperty, nameof(SignatureListItem.PrimaryAction));
         action.SetBinding(IsVisibleProperty, nameof(SignatureListItem.IsMine));
         action.Clicked += async (sender, _) => { if (sender is Button { BindingContext: SignatureListItem item }) await OpenAsync(item); };
-        return new Border { Stroke = Colors.LightGray, Padding = 12, Content = new VerticalStackLayout { Spacing = 4, Children = { title, details, status, assignment, claim, action } } };
+        var discard = new Button { Text = "Verwerfen", HorizontalOptions = LayoutOptions.Start, TextColor = Colors.DarkRed };
+        discard.SetBinding(IsVisibleProperty, nameof(SignatureListItem.CanDiscard));
+        discard.Clicked += async (sender, _) => { if (sender is Button { BindingContext: SignatureListItem item }) await DiscardAsync(item); };
+        return new Border { Stroke = Colors.LightGray, Padding = 12, Content = new VerticalStackLayout { Spacing = 4, Children = { title, details, status, assignment, claim, action, discard } } };
     }
 
     private bool MatchesFilter(KommunikationsvorgangDto contract, Guid currentUserId) => _filter switch
@@ -287,6 +299,7 @@ public sealed class KommunikationPage : ContentPage
         public string Details => GardenNumber is null ? MemberName : $"{MemberName} · Garten {GardenNumber}";
         public string Status => Contract.Status switch { PreparedContractConstants.Prepared => "Vorbereitet", PreparedContractConstants.ReadyForSignature => "Zur Signatur", PreparedContractConstants.FinalReview => "Letzte Prüfung", _ => Contract.Status };
         public string PrimaryAction => Contract.Status == PreparedContractConstants.FinalReview ? "Letzte Prüfung" : "Zur Signatur";
+        public bool CanDiscard => IsMine && Contract.Status is PreparedContractConstants.Prepared or PreparedContractConstants.ReadyForSignature or PreparedContractConstants.FinalReview;
         public string Assignment => IsMine ? "Mir zugewiesen" : IsUnassigned ? "Unzugeordnet" : "Anderem Bearbeiter zugewiesen";
     }
 }
