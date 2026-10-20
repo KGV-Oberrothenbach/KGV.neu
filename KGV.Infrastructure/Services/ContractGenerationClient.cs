@@ -116,6 +116,8 @@ public sealed class ContractGenerationClient : IContractGenerationClient
         var draft = prepared.Draft;
         var payload = new Dictionary<string, object?> { ["action"] = action, ["type"] = "pachtvertrag", ["member_id"] = memberId, ["parcel_id"] = parcelId, ["start_date"] = draft.StartDate, ["has_previous_contract"] = draft.HasPreviousContract, ["include_secondary_member"] = draft.IncludeSecondaryMember, ["handover_date"] = draft.HandoverDate };
         if (draft.HasPreviousContract == true) payload["previous_contract_date"] = draft.PreviousContractDate;
+        if (draft.IncludeSecondaryMember) payload["secondary_member_id"] = draft.SecondaryMemberId;
+        if (!string.IsNullOrWhiteSpace(draft.EffectiveDate)) payload["effective_date"] = draft.EffectiveDate;
         if (!string.IsNullOrWhiteSpace(draft.AdditionalAgreements)) payload["additional_agreements"] = draft.AdditionalAgreements;
         if (!string.IsNullOrWhiteSpace(draft.ClubSignatory)) payload["club_signatory"] = draft.ClubSignatory;
         if (prepared.VereinsunterlagenNachweis is not null) payload["club_documents_snapshot"] = VereinsunterlagenNachweisHelper.FormatForPdf(prepared.VereinsunterlagenNachweis);

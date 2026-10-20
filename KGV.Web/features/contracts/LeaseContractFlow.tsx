@@ -44,8 +44,7 @@ export function LeaseContractFlow({ session, memberId, parcelId, startDate, onSa
     const [clubDocumentSnapshot, setClubDocumentSnapshot] = useState<MemberClubDocumentSnapshotItem[] | undefined>();
     const clearSignatures = () => { setSignatures({}); setSignatureIndex(0); };
     useEffect(() => { let active = true; loadLeaseContractDocumentState(club, session, parcelId).then(async (state) => { if (!active)
-        return; setDocumentState(state); if (state.status !== "none" && !preparedContractId)
-        return; const value = await loadLeaseContractData(club, session, memberId, parcelId, startDate); if (!active)
+        return; setDocumentState(state); const value = await loadLeaseContractData(club, session, memberId, parcelId, startDate); if (!active)
         return; setData(value); if (!preparedContractId) setDraft(current => ({ ...current, includeSecondaryMember: value.isMinor ? false : Boolean(value.secondaryMember), secondaryMemberId: value.isMinor ? null : value.secondaryMember?.id ?? null })); }).catch(e => active && setMessage(e instanceof Error ? e.message : "Pachtvertragsbasis konnte nicht geladen werden.")); return () => { active = false; }; }, [session, memberId, parcelId, startDate, club, preparedContractId]);
     useEffect(() => { if (!preparedContractId || !data)
         return; let active = true; const loadPrepared = resumeMode === "signatures" ? loadPreparedContractForSignature : resumeMode === "review" ? loadPreparedContractForFinalReview : loadPreparedContractForEditing; loadPrepared(club, session, preparedContractId, session.user.id, "pachtvertrag").then(async context => { if (!active)
@@ -54,7 +53,6 @@ export function LeaseContractFlow({ session, memberId, parcelId, startDate, onSa
     useEffect(() => () => { if (previewUrl)
         URL.revokeObjectURL(previewUrl); }, [previewUrl]);
     const statusMessage = documentState?.status === "signed" ? "Ein signierter Pachtvertrag ist bereits vorhanden." : documentState?.status === "unsigned" ? "Ein unsignierter Pachtvertrag ist bereits vorhanden." : "";
-    const blocked = Boolean(statusMessage);
     const changeLeaseDraft = (next: Partial<LeaseContractDraft>) => { clearSignatures(); if (previewUrl)
         URL.revokeObjectURL(previewUrl); setPreviewUrl(null); setStep("edit"); setDraft(current => ({ ...current, ...next })); };
     const request = (action: "preview" | "finalize", snapshot: MemberClubDocumentSnapshotItem[] | undefined = resumeContext ? (resumeContext.entwurf_daten as PreparedLeaseContractDraft).vereinsunterlagen_nachweis : clubDocumentSnapshot) => { if (!data)
@@ -163,8 +161,6 @@ export function LeaseContractFlow({ session, memberId, parcelId, startDate, onSa
     finally {
         setOpening(false);
     } };
-    if (blocked && !resumeContext)
-        return <section className="contract-composer"><h3>Pachtvertrag</h3><p className="notice" role="status">{statusMessage}</p>{message && <p className="notice" role="status">{message}</p>}<button disabled={opening} onClick={openExisting}>{opening ? "Öffne …" : "Pachtvertrag öffnen"}</button>{documentState?.status === "unsigned" && <p className="detail-hint">Archivierung erfolgt über die Dokumentverwaltung.</p>}</section>;
     if (finalDocumentId !== null)
         return <section className="contract-composer"><h3>Pachtvertrag</h3><p className="notice" role="status">{message}</p><button disabled={busy} onClick={() => void retryFinalReviewPersistence()}>Finales Dokument zur Prüfung vormerken</button></section>;
     if (step === "review" && resumeContext)

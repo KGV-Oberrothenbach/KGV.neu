@@ -244,41 +244,10 @@ public sealed class MemberParzellenDetailPage : ContentPage
                 return;
             }
 
-            // If there is a signed contract -> only open
-            if (_viewModel.HasSignedPachtvertrag)
-            {
-                _pachtvertragButton.IsVisible = false;
-                _openPachtvertragButton.IsVisible = true;
-                _discardPachtvertragButton.IsVisible = false;
-                _pachtvertragDiagnoseLabel.Text = string.Empty;
-                // enable state
-                _openPachtvertragButton.IsEnabled = _openPachtvertragButton.IsVisible;
-                _pachtvertragButton.IsEnabled = false;
-                _discardPachtvertragButton.IsEnabled = false;
-                return;
-            }
-
-            // If there is an existing unsigniertes Pachtvertrag, offer open and discard actions
-            var hasUnsigniertes = _viewModel.Dokumente?.Any(d => string.Equals(d.FormularDokumentTypKey, "Pachtvertrag", StringComparison.Ordinal) && string.Equals(d.FormularDokumentStatusKey, "Unsigniert", StringComparison.Ordinal)) == true;
-            if (hasUnsigniertes)
-            {
-                _pachtvertragButton.IsVisible = false;
-                _openPachtvertragButton.IsVisible = true; // open unsigniertes
-                // Verträge werden ausschließlich über die Dokumentseite archiviert.
-                // Dort gilt Admin-Rolle, Archivpasswort und Pflichtbegründung.
-                _discardPachtvertragButton.IsVisible = false;
-                _pachtvertragDiagnoseLabel.Text = BuildPachtvertragDiagnoseText();
-                // enable state
-                _openPachtvertragButton.IsEnabled = _openPachtvertragButton.IsVisible && !_contractCreationInProgress;
-                _discardPachtvertragButton.IsEnabled = _discardPachtvertragButton.IsVisible && !_contractCreationInProgress;
-                _pachtvertragButton.IsEnabled = false;
-                return;
-            }
-
             // Default creation state
             var canCreate = PermissionChecks.CanCreateMitglied(_userContextState.CurrentUserContext);
             _pachtvertragButton.IsVisible = canCreate;
-            _openPachtvertragButton.IsVisible = false;
+            _openPachtvertragButton.IsVisible = _viewModel.Dokumente?.Any(d => string.Equals(d.FormularDokumentTypKey, FormularDokumentTyp.Pachtvertrag, StringComparison.Ordinal)) == true;
             _discardPachtvertragButton.IsVisible = false;
             _pachtvertragButton.IsEnabled = _pachtvertragButton.IsVisible
                 && !_contractCreationInProgress
