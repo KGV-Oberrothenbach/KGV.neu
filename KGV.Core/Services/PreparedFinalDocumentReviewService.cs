@@ -80,6 +80,14 @@ public sealed class PreparedFinalDocumentReviewService
         }
     }
 
+    public async Task DiscardAsync(CancellationToken cancellationToken = default)
+    {
+        var contract = RequireReviewContract();
+        await _repository.DiscardAsync(contract.Id, contract.Revision, cancellationToken);
+        _contract = null;
+        _document = null;
+    }
+
     private async Task<KommunikationsvorgangDto> CompleteLeaseAsync(KommunikationsvorgangDto contract, CancellationToken cancellationToken)
     {
         await _leaseCompletionClient.CompleteAsync(contract.Id, contract.Revision, cancellationToken);

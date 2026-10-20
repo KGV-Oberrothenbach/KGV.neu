@@ -153,7 +153,7 @@ internal sealed class PreparedFinalDocumentReviewPage : ContentPage
         _reloadButton.IsEnabled = _completeButton.IsEnabled = _discardButton.IsEnabled = false;
         try
         {
-            await _repository.DiscardAsync(_contract.Id, _contract.Revision, _cancellationToken);
+            await _reviewService.DiscardAsync(_cancellationToken);
             _closed = true; _completion.TrySetResult();
             await Navigation.PopModalAsync();
         }
