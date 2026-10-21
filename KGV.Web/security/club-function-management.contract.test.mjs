@@ -1,0 +1,11 @@
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+const page = await readFile(new URL("../features/club-functions/ClubFunctionManagement.tsx", import.meta.url), "utf8");
+const repository = await readFile(new URL("../repositories/club-functions/club-function-repository.ts", import.meta.url), "utf8");
+const navigation = await readFile(new URL("../services/workspace/navigation-service.ts", import.meta.url), "utf8");
+assert.match(repository, /vereinsfunktion_besetzung/); assert.match(repository, /vereinsfunktion_vertretung/); assert.match(repository, /vereinsfunktion_verwendung/);
+assert.match(page, /impressum_ist_hauptkontakt/); assert.match(page, /impressum_zeige_ladungsfaehige_anschrift/);
+assert.doesNotMatch(page, /Vorsitz|Bauausschuss|isImprintChairSlot/);
+assert.match(navigation, /canManageClubFunctions/);
+assert.match(page, /explainClubFunctionError/);
+console.log("club-function management contract passed");

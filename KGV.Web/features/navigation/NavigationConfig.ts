@@ -59,6 +59,7 @@ export const navigationConfig = {
         annualClosing: { id: "jahresabschluss", label: "Jahresabschluss", detail: "Jahresabschluss vorbereiten und bearbeiten", depth: 1 },
         club: { id: "verein", label: "Vereinskonfiguration", detail: "Vereinsdaten und Grundeinstellungen", depth: 1 },
         clubDocuments: { id: "vereinsunterlagen", label: "Vereinsunterlagen", detail: "Versionierte Satzungen und Ordnungen verwalten", depth: 1 },
+        clubFunctions: { id: "vereinsfunktionen", label: "Vereinsfunktionen", detail: "Funktionen, Besetzungen, Vertretungen und Impressum verwalten", depth: 1 },
       },
     },
     members: {
