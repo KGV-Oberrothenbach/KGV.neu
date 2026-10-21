@@ -2,8 +2,7 @@
 
 ## Vereinsfunktionen
 
-- Web-Verwaltungsoberfläche für Vereinsfunktionen, Besetzungen, Vertretungen und Impressum-Metadaten auf DEMO fachlich abnehmen; danach kontrolliert auf VDB übernehmen.
-- Mobile MAUI-Schreibstrecke für Vereinsfunktionen, Besetzungen, Vertretungen und Impressum-Metadaten als atomaren Editor auf Basis der bestehenden Verwaltungsarchitektur ergänzen.
+- Verwaltungsoberfläche für Vereinsfunktionen, Besetzungen, Vertretungen und Impressum-Metadaten auf DEMO fachlich abnehmen; danach kontrolliert auf VDB übernehmen.
 - Vereinsunterzeichner aus einer gültigen Funktionsbesetzung ableiten und Person plus Funktion als Vertrags-Snapshot speichern.
 
 ## Kommunikation und Dokumente

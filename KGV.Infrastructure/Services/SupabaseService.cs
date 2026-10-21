@@ -705,6 +705,46 @@ namespace KGV.Infrastructure.Services
             },
             new List<MitgliedRecord>());
 
+        public Task<List<VereinsfunktionRecord>> GetVereinsfunktionenAsync() => ExecuteAsync("GetVereinsfunktionenAsync", async () =>
+            (await (await EnsureClientAsync()).From<VereinsfunktionRecord>().Get()).Models?.OrderBy(x => x.Bezeichnung, StringComparer.CurrentCultureIgnoreCase).ToList() ?? new List<VereinsfunktionRecord>(), new List<VereinsfunktionRecord>());
+        public Task<List<VereinsfunktionBesetzungRecord>> GetVereinsfunktionBesetzungenAsync() => ExecuteAsync("GetVereinsfunktionBesetzungenAsync", async () =>
+            (await (await EnsureClientAsync()).From<VereinsfunktionBesetzungRecord>().Get()).Models?.OrderByDescending(x => x.GueltigAb).ThenBy(x => x.SortOrder).ToList() ?? new List<VereinsfunktionBesetzungRecord>(), new List<VereinsfunktionBesetzungRecord>());
+        public Task<List<VereinsfunktionVertretungRecord>> GetVereinsfunktionVertretungenAsync() => ExecuteAsync("GetVereinsfunktionVertretungenAsync", async () =>
+            (await (await EnsureClientAsync()).From<VereinsfunktionVertretungRecord>().Get()).Models?.OrderByDescending(x => x.GueltigAb).ToList() ?? new List<VereinsfunktionVertretungRecord>(), new List<VereinsfunktionVertretungRecord>());
+        public Task<List<VereinsfunktionVerwendungRecord>> GetVereinsfunktionVerwendungenAsync() => ExecuteAsync("GetVereinsfunktionVerwendungenAsync", async () =>
+            (await (await EnsureClientAsync()).From<VereinsfunktionVerwendungRecord>().Get()).Models?.OrderBy(x => x.Verwendungszweck).ThenBy(x => x.SortOrder).ToList() ?? new List<VereinsfunktionVerwendungRecord>(), new List<VereinsfunktionVerwendungRecord>());
+
+        public Task<VereinsfunktionRecord?> SaveVereinsfunktionAsync(VereinsfunktionRecord record) => ExecuteAsync("SaveVereinsfunktionAsync", async () =>
+        {
+            var client = await EnsureClientAsync();
+            var response = record.Id > 0 ? await client.From<VereinsfunktionRecord>().Where(x => x.Id == record.Id).Update(record) : await client.From<VereinsfunktionRecord>().Insert(record);
+            return response.Models?.FirstOrDefault();
+        }, null);
+        public Task<VereinsfunktionBesetzungRecord?> SaveVereinsfunktionBesetzungAsync(VereinsfunktionBesetzungRecord record) => ExecuteAsync("SaveVereinsfunktionBesetzungAsync", async () =>
+        {
+            var client = await EnsureClientAsync();
+            var response = record.Id > 0 ? await client.From<VereinsfunktionBesetzungRecord>().Where(x => x.Id == record.Id).Update(record) : await client.From<VereinsfunktionBesetzungRecord>().Insert(record);
+            return response.Models?.FirstOrDefault();
+        }, null);
+        public Task<VereinsfunktionVertretungRecord?> SaveVereinsfunktionVertretungAsync(VereinsfunktionVertretungRecord record) => ExecuteAsync("SaveVereinsfunktionVertretungAsync", async () =>
+        {
+            var client = await EnsureClientAsync();
+            var response = record.Id > 0 ? await client.From<VereinsfunktionVertretungRecord>().Where(x => x.Id == record.Id).Update(record) : await client.From<VereinsfunktionVertretungRecord>().Insert(record);
+            return response.Models?.FirstOrDefault();
+        }, null);
+        public Task<VereinsfunktionVerwendungRecord?> SaveVereinsfunktionVerwendungAsync(VereinsfunktionVerwendungRecord record) => ExecuteAsync("SaveVereinsfunktionVerwendungAsync", async () =>
+        {
+            var client = await EnsureClientAsync();
+            var response = record.Id > 0 ? await client.From<VereinsfunktionVerwendungRecord>().Where(x => x.Id == record.Id).Update(record) : await client.From<VereinsfunktionVerwendungRecord>().Insert(record);
+            return response.Models?.FirstOrDefault();
+        }, null);
+        public Task<bool> DeleteVereinsfunktionVerwendungAsync(long id) => ExecuteAsync("DeleteVereinsfunktionVerwendungAsync", async () =>
+        {
+            if (id <= 0) return false;
+            await (await EnsureClientAsync()).From<VereinsfunktionVerwendungRecord>().Where(x => x.Id == id).Delete();
+            return true;
+        }, false);
+
         public Task<ImpressumInfo> GetImpressumInfoAsync(bool includeDemo = false) => ExecuteAsync(
             "GetImpressumInfoAsync",
             async () =>

@@ -188,6 +188,8 @@ public sealed class AdminShell : Shell, IAppShellInitializer
             managementEntries.Add(("Vereinskonfiguration", "club_configuration", () => _services.GetRequiredService<VereinskonfigurationPage>()));
         if (managementContext?.Role is UserRole.Admin or UserRole.Vorstand)
             managementEntries.Add(("Vereinsunterlagen", "club_documents", () => _services.GetRequiredService<VereinsunterlagenPage>()));
+        if (managementContext?.Role is UserRole.Admin or UserRole.Vorstand)
+            managementEntries.Add(("Vereinsfunktionen", "club_functions", () => _services.GetRequiredService<VereinsfunktionenPage>()));
         if (managementEntries.Count > 0)
             Items.Add(CreateManagementItem("Verwaltung", managementEntries.ToArray()));
 

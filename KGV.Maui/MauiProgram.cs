@@ -162,6 +162,7 @@ public static class MauiProgram
         services.AddTransient<JahresabschlussPage>();
         services.AddTransient<VereinskonfigurationPage>();
         services.AddTransient<VereinsunterlagenPage>();
+        services.AddTransient<VereinsfunktionenPage>();
         services.AddTransient<WartungsvertraegePage>();
         services.AddTransient<MemberWartungsvertraegePage>();
         services.AddTransient<WartungsvertragDetailPage>();

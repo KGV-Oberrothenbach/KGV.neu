@@ -16,9 +16,12 @@ bearbeitet: Gruppenkennung und -bezeichnung, beide Sortierungen,
 Hauptkontakt und ausdrückliche Anschriftsfreigabe. Keine Bedienoberfläche
 leitet diese Daten aus Funktionsbezeichnungen, Schlüsseln oder App-Rollen ab.
 
-Die MAUI-App zeigt die bestehende mobile Verwaltungsarchitektur derzeit nicht
-als parallele Schreiboberfläche für diesen neuen, mehrteiligen Datenbereich.
-Die fachlich vollständige Pflege erfolgt im Web; MAUI nutzt weiterhin die
-identische Impressum-RPC als Leseweg. Vor einer mobilen Schreiboberfläche ist
-eine eigene, atomare Service-/Editorstrecke erforderlich, damit keine
-Teiländerungen an Besetzungen und Vertretungen entstehen.
+Die MAUI-App stellt denselben Verwaltungsbereich unter **Verwaltung →
+Vereinsfunktionen** für `admin` und `vorstand` bereit. Sie verwendet den
+zentralen `ISupabaseService` und die gemeinsamen Core-Records für Funktionen,
+Besetzungen, Vertretungen und Verwendungen. Damit werden weder eigene
+HTTP-Zugriffe noch abweichende Regeln oder Textheuristiken eingeführt.
+
+Jeder Speichervorgang betrifft genau einen fachlichen Datensatz; die
+Datenbank-Trigger prüfen weiterhin alle übergreifenden Regeln. Die mobile
+Oberfläche ordnet diese Rückmeldungen verständlichen deutschen Hinweisen zu.
