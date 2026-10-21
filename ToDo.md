@@ -13,7 +13,6 @@
 
 ## Wartungsverträge
 
-- W4 mitgliedsbezogene Zuordnung in Web und MAUI auf gleiche Zeit- und Hauptmitgliedslogik abgleichen.
 - W5 Arbeitsstunden-, Gutschrift-, Befreiungs- und Exportregressionen absichern.
 - W6 Wartungsverträge auf DEMO fachlich abnehmen und anschließend kontrolliert auf VDB übernehmen.
 - Pro zugeordnetem Mitglied eigenen Dokumentvorgang mit PDF-Vorschau, Signatur, Vereinsunterzeichner, letzter Prüfung, Abschließen, Verwerfen und Archivierung umsetzen.

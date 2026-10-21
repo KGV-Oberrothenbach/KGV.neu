@@ -19,12 +19,16 @@ public sealed class MemberWartungsvertraegePage : ContentPage
     private readonly ISupabaseService _supabaseService;
     private readonly MemberContextState _memberContextState;
     private readonly UserContextState _userContextState;
-    private readonly ObservableCollection<MemberContractListItem> _items = new();
+    private readonly ObservableCollection<MemberContractListItem> _currentItems = new();
+    private readonly ObservableCollection<MemberContractListItem> _futureItems = new();
+    private readonly ObservableCollection<MemberContractListItem> _historyItems = new();
     private readonly ObservableCollection<SelectableWartungsvertragItem> _assignableItems = new();
     private readonly Label _headlineLabel;
     private readonly Label _countLabel;
     private readonly Label _statusLabel;
-    private readonly CollectionView _itemsView;
+    private readonly CollectionView _currentItemsView;
+    private readonly CollectionView _futureItemsView;
+    private readonly CollectionView _historyItemsView;
     private readonly Button _refreshButton;
     private readonly Button _assignButton;
     private readonly Border _assignSection;
@@ -53,63 +57,9 @@ public sealed class MemberWartungsvertraegePage : ContentPage
         _assignButton = new Button { Text = "Wartungsvertrag zuweisen", IsVisible = false };
         _assignButton.Clicked += async (_, _) => await BeginAssignAsync();
 
-        _itemsView = new CollectionView
-        {
-            SelectionMode = SelectionMode.Single,
-            ItemsSource = _items,
-            EmptyView = new Label
-            {
-                Text = "Für dieses Mitglied liegen aktuell keine aktiven Wartungsverträge vor.",
-                TextColor = Colors.Gray
-            },
-            ItemTemplate = new DataTemplate(() =>
-            {
-                var title = new Label { FontAttributes = FontAttributes.Bold, LineBreakMode = LineBreakMode.WordWrap };
-                title.SetBinding(Label.TextProperty, nameof(MemberContractListItem.Titel));
-
-                var description = new Label { FontSize = 12, TextColor = Colors.Gray, LineBreakMode = LineBreakMode.WordWrap };
-                description.SetBinding(Label.TextProperty, nameof(MemberContractListItem.Kurzbeschreibung));
-
-                var validity = new Label { FontSize = 12, TextColor = Colors.Gray, LineBreakMode = LineBreakMode.WordWrap };
-                validity.SetBinding(Label.TextProperty, nameof(MemberContractListItem.GueltigkeitText));
-
-                var usage = new Label { FontSize = 12, TextColor = Colors.DarkSlateBlue, LineBreakMode = LineBreakMode.WordWrap };
-                usage.SetBinding(Label.TextProperty, nameof(MemberContractListItem.BelegungText));
-
-                var status = new Label { FontSize = 12, TextColor = Colors.DarkSlateBlue, LineBreakMode = LineBreakMode.WordWrap };
-                status.SetBinding(Label.TextProperty, nameof(MemberContractListItem.StatusText));
-
-                var endButton = new Button { Text = "Beenden", FontSize = 12, HorizontalOptions = LayoutOptions.End };
-                endButton.SetBinding(IsVisibleProperty, nameof(MemberContractListItem.CanEnd));
-                endButton.Clicked += async (sender, _) =>
-                {
-                    if (sender is Button button && button.BindingContext is MemberContractListItem item)
-                        await EndAssignmentAsync(item);
-                };
-
-                return new Border
-                {
-                    Stroke = Colors.LightGray,
-                    Padding = 12,
-                    Margin = new Thickness(0, 0, 0, 8),
-                    Content = new VerticalStackLayout
-                    {
-                        Spacing = 4,
-                        Children = { title, description, validity, usage, status, endButton }
-                    }
-                };
-            })
-        };
-
-        _itemsView.SelectionChanged += async (_, e) =>
-        {
-            var selected = e.CurrentSelection?.Count > 0 ? e.CurrentSelection[0] as MemberContractListItem : null;
-            _itemsView.SelectedItem = null;
-            if (selected == null)
-                return;
-
-            await Shell.Current.GoToAsync($"{nameof(WartungsvertragDetailPage)}?wartungsvertragId={selected.ContractId}");
-        };
+        _currentItemsView = CreateMemberContractsView(_currentItems);
+        _futureItemsView = CreateMemberContractsView(_futureItems);
+        _historyItemsView = CreateMemberContractsView(_historyItems);
 
         _assignDatePicker = new DatePicker { Date = DateTime.Today };
         _assignView = new CollectionView
@@ -206,7 +156,7 @@ public sealed class MemberWartungsvertraegePage : ContentPage
                     _headlineLabel,
                     new Label
                     {
-                        Text = "Mitgliedsbezogene Übersicht der aktiven Wartungsverträge. Antippen öffnet dieselbe Detailansicht wie im globalen Bereich.",
+                        Text = "Mitgliedsbezogene Übersicht aktueller, zukünftiger und historischer Wartungsvertragszuordnungen. Antippen öffnet dieselbe Detailansicht wie im globalen Bereich.",
                         TextColor = Colors.Gray,
                         LineBreakMode = LineBreakMode.WordWrap
                     },
@@ -218,7 +168,9 @@ public sealed class MemberWartungsvertraegePage : ContentPage
                     },
                     _countLabel,
                     _statusLabel,
-                    _itemsView,
+                    CreateAssignmentSection("Aktuell", _currentItemsView),
+                    CreateAssignmentSection("Zukünftig", _futureItemsView),
+                    CreateAssignmentSection("Historisch", _historyItemsView),
                     _assignSection
                 }
             }
@@ -239,7 +191,9 @@ public sealed class MemberWartungsvertraegePage : ContentPage
             _assignButton.IsVisible = _canManage;
             SetBusyState(true);
             _statusLabel.Text = "Wartungsverträge werden geladen.";
-            _items.Clear();
+            _currentItems.Clear();
+            _futureItems.Clear();
+            _historyItems.Clear();
 
             var selectedMember = _memberContextState.SelectedMember;
             if (selectedMember?.Id is not > 0)
@@ -259,11 +213,23 @@ public sealed class MemberWartungsvertraegePage : ContentPage
 
             var items = await _supabaseService.GetWartungsvertraegeForMitgliedAsync(selectedMember.Id);
             foreach (var item in items)
-                _items.Add(new MemberContractListItem(item, _canManage));
+            {
+                var listItem = new MemberContractListItem(item, _canManage);
+                switch (item.Zeitstatus)
+                {
+                    case WartungsvertragZeitstatus.Aktuell:
+                        _currentItems.Add(listItem);
+                        break;
+                    case WartungsvertragZeitstatus.Zukuenftig:
+                        _futureItems.Add(listItem);
+                        break;
+                    case WartungsvertragZeitstatus.Historisch:
+                        _historyItems.Add(listItem);
+                        break;
+                }
+            }
 
-            _countLabel.Text = items.Count > 0
-                ? $"{items.Count} aktive Zuordnung(en)"
-                : "Keine aktiven Wartungsverträge.";
+            _countLabel.Text = $"{_currentItems.Count} aktuell · {_futureItems.Count} zukünftig · {_historyItems.Count} historisch";
             _statusLabel.Text = string.Empty;
 
             if (_isAssignMode)
@@ -349,17 +315,21 @@ public sealed class MemberWartungsvertraegePage : ContentPage
         try
         {
             var result = await _supabaseService.AssignWartungsvertraegeToMitgliedAsync(selectedMember.Id, _assignDatePicker.Date!.Value, selectedIds);
+            var resultText = result.Items.Count > 0
+                ? string.Join(Environment.NewLine, result.Items.Select(x => x.AnzeigeText))
+                : result.Message;
             if (!result.Success || result.FailedCount > 0)
             {
-                _statusLabel.Text = result.Message;
+                _isBusy = false;
                 await LoadAsync();
+                _statusLabel.Text = resultText;
                 return;
             }
 
             HideAssignMode();
             _isBusy = false;
             await LoadAsync();
-            _statusLabel.Text = result.Message;
+            _statusLabel.Text = resultText;
             return;
         }
         catch (Exception ex)
@@ -432,10 +402,81 @@ public sealed class MemberWartungsvertraegePage : ContentPage
     {
         _refreshButton.IsEnabled = !isBusy;
         _assignButton.IsEnabled = _canManage && !isBusy;
-        _itemsView.IsEnabled = !isBusy;
+        _currentItemsView.IsEnabled = !isBusy;
+        _futureItemsView.IsEnabled = !isBusy;
+        _historyItemsView.IsEnabled = !isBusy;
         _assignDatePicker.IsEnabled = !isBusy;
         _assignView.IsEnabled = !isBusy;
         UpdateAssignSelectionState();
+    }
+
+    private CollectionView CreateMemberContractsView(ObservableCollection<MemberContractListItem> items)
+    {
+        var view = new CollectionView
+        {
+            SelectionMode = SelectionMode.Single,
+            ItemsSource = items,
+            EmptyView = new Label { Text = "Keine Zuordnungen.", TextColor = Colors.Gray },
+            ItemTemplate = new DataTemplate(() =>
+            {
+                var title = new Label { FontAttributes = FontAttributes.Bold, LineBreakMode = LineBreakMode.WordWrap };
+                title.SetBinding(Label.TextProperty, nameof(MemberContractListItem.Titel));
+
+                var description = new Label { FontSize = 12, TextColor = Colors.Gray, LineBreakMode = LineBreakMode.WordWrap };
+                description.SetBinding(Label.TextProperty, nameof(MemberContractListItem.Kurzbeschreibung));
+
+                var validity = new Label { FontSize = 12, TextColor = Colors.Gray, LineBreakMode = LineBreakMode.WordWrap };
+                validity.SetBinding(Label.TextProperty, nameof(MemberContractListItem.GueltigkeitText));
+
+                var status = new Label { FontSize = 12, TextColor = Colors.DarkSlateBlue, LineBreakMode = LineBreakMode.WordWrap };
+                status.SetBinding(Label.TextProperty, nameof(MemberContractListItem.StatusText));
+
+                var effect = new Label { FontSize = 12, TextColor = Colors.DarkSlateBlue, LineBreakMode = LineBreakMode.WordWrap };
+                effect.SetBinding(Label.TextProperty, nameof(MemberContractListItem.ArbeitsstundenwirkungText));
+
+                var endButton = new Button { Text = "Beenden", FontSize = 12, HorizontalOptions = LayoutOptions.End };
+                endButton.SetBinding(IsVisibleProperty, nameof(MemberContractListItem.CanEnd));
+                endButton.Clicked += async (sender, _) =>
+                {
+                    if (sender is Button button && button.BindingContext is MemberContractListItem item)
+                        await EndAssignmentAsync(item);
+                };
+
+                return new Border
+                {
+                    Stroke = Colors.LightGray,
+                    Padding = 12,
+                    Margin = new Thickness(0, 0, 0, 8),
+                    Content = new VerticalStackLayout
+                    {
+                        Spacing = 4,
+                        Children = { title, description, validity, status, effect, endButton }
+                    }
+                };
+            })
+        };
+
+        view.SelectionChanged += async (_, e) =>
+        {
+            var selected = e.CurrentSelection?.Count > 0 ? e.CurrentSelection[0] as MemberContractListItem : null;
+            view.SelectedItem = null;
+            if (selected != null)
+                await Shell.Current.GoToAsync($"{nameof(WartungsvertragDetailPage)}?wartungsvertragId={selected.ContractId}");
+        };
+        return view;
+    }
+
+    private static VerticalStackLayout CreateAssignmentSection(string title, CollectionView itemsView)
+    {
+        return new VerticalStackLayout
+        {
+            Spacing = 8,
+            Children =
+            {
+                new Label { Text = title, FontSize = 18, FontAttributes = FontAttributes.Bold },
+                itemsView
+            }
+        };
     }
 
     private static Border CreateField(string title, View input)
@@ -471,9 +512,9 @@ public sealed class MemberWartungsvertraegePage : ContentPage
             Titel = source.Titel;
             Kurzbeschreibung = source.Kurzbeschreibung;
             GueltigkeitText = source.GueltigkeitText;
-            BelegungText = source.BelegungText;
             StatusText = source.StatusText;
-            CanEnd = canEnd && source.ZuordnungId > 0;
+            ArbeitsstundenwirkungText = source.ArbeitsstundenwirkungText;
+            CanEnd = canEnd && source.Zeitstatus == WartungsvertragZeitstatus.Aktuell && source.ZuordnungId > 0;
         }
 
         public long ContractId { get; }
@@ -481,8 +522,8 @@ public sealed class MemberWartungsvertraegePage : ContentPage
         public string Titel { get; }
         public string Kurzbeschreibung { get; }
         public string GueltigkeitText { get; }
-        public string BelegungText { get; }
         public string StatusText { get; }
+        public string ArbeitsstundenwirkungText { get; }
         public bool CanEnd { get; }
     }
 

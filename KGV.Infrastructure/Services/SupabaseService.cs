@@ -4760,17 +4760,27 @@ namespace KGV.Infrastructure.Services
                     .GroupBy(x => x.WartungsvertragId)
                     .ToDictionary(x => x.Key, x => x.Count());
                 var contractsById = bundle.Contracts.ToDictionary(x => x.Id);
+                var today = DateTime.Today;
 
-                return bundle.ActiveAssignments
+                var memberItems = bundle.Assignments
                     .Where(x => x.HauptmitgliedId == normalizedMitgliedId)
-                    .OrderBy(x => contractsById.TryGetValue(x.WartungsvertragId, out var contract)
-                        ? contract.Titel ?? string.Empty
-                        : string.Empty,
-                        StringComparer.CurrentCultureIgnoreCase)
-                    .ThenBy(x => x.GueltigAb)
-                    .Select(x => CreateMemberWartungsvertragItem(x, contractsById, countsByContractId))
+                    .Select(x => CreateMemberWartungsvertragItem(x, contractsById, countsByContractId, today))
                     .Where(x => x != null)
                     .Cast<MemberWartungsvertragItem>()
+                    .ToList();
+
+                return memberItems
+                    .Where(x => x.Zeitstatus == WartungsvertragZeitstatus.Aktuell)
+                    .OrderBy(x => x.Titel, StringComparer.CurrentCultureIgnoreCase)
+                    .ThenBy(x => x.GueltigAb)
+                    .Concat(memberItems
+                        .Where(x => x.Zeitstatus == WartungsvertragZeitstatus.Zukuenftig)
+                        .OrderBy(x => x.GueltigAb)
+                        .ThenBy(x => x.Titel, StringComparer.CurrentCultureIgnoreCase))
+                    .Concat(memberItems
+                        .Where(x => x.Zeitstatus == WartungsvertragZeitstatus.Historisch)
+                        .OrderByDescending(x => x.GueltigBis)
+                        .ThenBy(x => x.Titel, StringComparer.CurrentCultureIgnoreCase))
                     .ToList();
             },
             new List<MemberWartungsvertragItem>());
@@ -7287,7 +7297,8 @@ namespace KGV.Infrastructure.Services
         private static MemberWartungsvertragItem? CreateMemberWartungsvertragItem(
             WartungsvertragZuordnungRecord zuordnung,
             IReadOnlyDictionary<long, WartungsvertragRecord> contractsById,
-            IReadOnlyDictionary<long, int> countsByContractId)
+            IReadOnlyDictionary<long, int> countsByContractId,
+            DateTime stichtag)
         {
             if (!contractsById.TryGetValue(zuordnung.WartungsvertragId, out var contract))
                 return null;
@@ -7307,7 +7318,7 @@ namespace KGV.Infrastructure.Services
                 Aktiv = overview.Aktiv,
                 GueltigAb = zuordnung.GueltigAb,
                 GueltigBis = zuordnung.GueltigBis,
-                Zeitstatus = WartungsvertragZeitmodell.Klassifiziere(zuordnung.GueltigAb, zuordnung.GueltigBis, DateTime.Today)
+                Zeitstatus = WartungsvertragZeitmodell.Klassifiziere(zuordnung.GueltigAb, zuordnung.GueltigBis, stichtag)
             };
         }
 

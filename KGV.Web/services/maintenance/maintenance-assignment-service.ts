@@ -6,6 +6,9 @@ import { getMember } from "../members/member-service";
 import { listCurrentGardenNumbersByMemberId } from "../parcels/parcel-service";
 import { loadMaintenanceContract, loadMaintenanceContracts } from "./maintenance-contract-service";
 import { createMaintenanceAssignment, endMaintenanceAssignment, listMaintenanceAssignmentMembers, listMaintenanceAssignments, listMaintenanceAssignmentsForContract, resolveMaintenanceAssignmentMembers, resolveMaintenanceAssignmentPrincipalMember, type MaintenanceAssignmentMemberRow, type MaintenanceAssignmentRow } from "../../repositories/maintenance/maintenance-assignment-repository";
+import { classifyMaintenanceAssignments, maintenanceReferenceDate } from "./maintenance-assignment-time-model.js";
+
+export { classifyMaintenanceAssignments } from "./maintenance-assignment-time-model.js";
 
 function fromRow(row: MaintenanceAssignmentRow): MaintenanceAssignment {
   return { id: row.id, maintenanceContractId: row.wartungsvertrag_id, principalMemberId: row.hauptmitglied_id, validFrom: row.gueltig_ab, validUntil: row.gueltig_bis, note: row.bemerkung };
@@ -52,19 +55,6 @@ export async function loadMaintenanceMemberCandidates(club: ClubContext, session
     }),
   };
 }
-export function classifyMaintenanceAssignments(assignments: MaintenanceAssignment[], referenceDate: string): ClassifiedMaintenanceAssignments {
-  const result = assignments.reduce<ClassifiedMaintenanceAssignments>((result, assignment) => {
-    if (assignment.validFrom > referenceDate) result.future.push(assignment);
-    else if (assignment.validUntil && assignment.validUntil < referenceDate) result.history.push(assignment);
-    else result.active.push(assignment);
-    return result;
-  }, { active: [], future: [], history: [] });
-  result.active.sort((left, right) => left.validFrom.localeCompare(right.validFrom) || left.principalMemberId - right.principalMemberId);
-  result.future.sort((left, right) => left.validFrom.localeCompare(right.validFrom) || left.principalMemberId - right.principalMemberId);
-  result.history.sort((left, right) => (right.validUntil ?? "").localeCompare(left.validUntil ?? "") || left.principalMemberId - right.principalMemberId);
-  return result;
-}
-
 export async function loadMaintenanceAssignments(club: ClubContext, session: BrowserSession, principalMemberId?: number): Promise<MaintenanceAssignment[]> {
   return (await listMaintenanceAssignments(club, session, principalMemberId)).map(fromRow);
 }
@@ -76,7 +66,7 @@ export async function loadMemberMaintenanceContracts(club: ClubContext, session:
   if (!member) throw new Error("Das Mitglied wurde nicht gefunden.");
   const principalMemberId = await resolveMaintenancePrincipalMember(club, session, selectedMemberId);
   const [principalMember, assignments, contracts] = await Promise.all([principalMemberId === selectedMemberId ? Promise.resolve(member) : getMember(club, session, principalMemberId), loadMaintenanceAssignments(club, session, principalMemberId), loadMaintenanceContracts(club, session)]);
-  return { member, principalMember, principalMemberId, assignments, contracts };
+  return { member, principalMember, principalMemberId, assignments: classifyMaintenanceAssignments(assignments, maintenanceReferenceDate(), contracts), contracts };
 }
 
 export async function loadAssignableMaintenanceContractsForMember(club: ClubContext, session: BrowserSession, selectedMemberId: number, validFrom: string): Promise<MaintenanceContractCandidate[]> {

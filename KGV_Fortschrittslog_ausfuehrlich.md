@@ -18,6 +18,30 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 - `KGV.Core`
 - `KGV.Maui`
 
+## 2026-10-21 – Wartungsverträge W4: Mitgliedsbezogene Zeitlisten
+
+- Web und MAUI zeigen Mitgliedszuordnungen in den Bereichen Aktuell,
+  Zukünftig und Historisch mit Vertragsname, inklusiver Gültigkeit, Status und
+  Vertrags-Arbeitsstundenwirkung.
+- Infrastructure klassifiziert alle Mitgliedszuordnungen über
+  `WartungsvertragZeitmodell` und verwendet die gleiche Hauptmitgliedsauflösung
+  beim Lesen, bei Kandidatenlisten und beim Speichern. Web verwendet dafür den
+  bestehenden Mitgliedsauflösungs-Service. UI-seitige Arbeitsstunden-
+  oder Zeitberechnungen wurden nicht ergänzt.
+- Beide Clients sortieren Aktuelles nach Vertragstitel, Zukünftiges nach
+  nächstem Beginn und Historisches nach zuletzt beendetem Zeitraum.
+- Teilerfolge aktualisieren die Mitgliedslisten; die bestehenden Web- und
+  MAUI-W3-Ergebnismodelle einschließlich Einzelergebnissen bleiben erhalten.
+- Tests: neun Wartungsvertrags-Contracts bestanden. Infrastructure-Build und
+  Web-Produktionsbuild erfolgreich. MAUI-Build blockiert durch blockfremde
+  fehlende MAUI-Usings in `MemberClubDocumentsSection.cs`,
+  `VereinsunterlagenPage.cs` und `VereinsfunktionenPage.cs`; es gab keine
+  W4-Fehler in `MemberWartungsvertraegePage.cs`. Der fokussierte
+  `KGV.Tests`-Lauf scheitert an bereits bestehenden Fehlern in
+  `PreparedMembershipApplicationSigningServiceTests.cs`. Der Web-Typecheck
+  scheitert an bereits bestehenden Typfehlern in den Vertrags-, Dokument- und
+  Kommunikationsbereichen außerhalb W4. ImageSharp-Warnungen bleiben ignoriert.
+
 ## 2026-10-17 – MAUI: Android-PDF-Buildfehler
 
 - Die drei fehlerhaften `DocumentInfo.Titel`-Verwendungen auf `DocumentInfo.Title` korrigiert; keine zweite Modelleigenschaft ergänzt.

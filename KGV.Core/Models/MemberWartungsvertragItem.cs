@@ -11,6 +11,6 @@ public sealed class MemberWartungsvertragItem : WartungsvertragOverviewItem
     public string StatusText => WartungsvertragZeitmodell.Bezeichnung(Zeitstatus);
 
     public string GueltigkeitText => GueltigBis.HasValue
-        ? $"Aktiv vom {GueltigAb:dd.MM.yyyy} bis {GueltigBis.Value:dd.MM.yyyy}"
-        : $"Aktiv seit {GueltigAb:dd.MM.yyyy}";
+        ? $"Gültig ab {GueltigAb:dd.MM.yyyy} bis {GueltigBis.Value:dd.MM.yyyy}"
+        : $"Gültig ab {GueltigAb:dd.MM.yyyy} bis offen";
 }

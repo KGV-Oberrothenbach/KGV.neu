@@ -15,7 +15,7 @@ test("W2 MAUI overview and detail use the shared current-state contract model", 
   assert.match(overview, /AktivText/);
   assert.match(detail, /GetWartungsvertragDetailAsync/);
   for (const label of ["Bereich", "Arbeitsstundenwirkung", "Status", "Bemerkung"]) assert.ok(detail.includes(`CreateInfoSection("${label}"`));
-  assert.match(detail, /Text = "Aktive Zuordnungen"/);
+  assert.match(detail, /Text = "Aktuelle Zuordnungen"/);
   assert.match(model, /ArbeitsstundenwirkungText/);
   assert.match(service, /IsWartungsvertragZuordnungAktivOn\(x, activeDate\)/);
   assert.doesNotMatch(overview, /validFrom|GueltigAb|future|history/i);

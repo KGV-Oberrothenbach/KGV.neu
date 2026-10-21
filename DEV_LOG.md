@@ -2,6 +2,31 @@
 
 ---
 
+## 2026-10-21 – Wartungsverträge W4: Mitgliedsbezogene Zeitlisten
+
+- Mitgliedsbezogene Wartungsverträge verwenden in Web und MAUI nun die drei
+  Listen Aktuell, Zukünftig und Historisch. Infrastructure liefert sämtliche
+  Zuordnungen, klassifiziert sie einmal über das Core-Zeitmodell und sortiert
+  aktuell nach Bezeichnung, zukünftig nach Beginn und historisch nach Ende.
+- Die Web-Serviceklassifikation folgt denselben inklusiven Grenzen und
+  Sortierregeln. React-Komponenten berechnen weder Zeitstatus noch
+  Arbeitsstundenwirkung; beide UIs zeigen die Vertragswirkung unverändert an.
+- Hauptmitgliedsnormalisierung bleibt in den bestehenden Infrastructure- und
+  Web-Repository-/Servicepfaden. Nebenmitglieder erhalten damit denselben
+  Hauptmitgliedskontext statt einer zweiten Zuordnung.
+- Nach Batch-Voll- und Teilerfolg werden die Mitgliedslisten erneut geladen;
+  das vorhandene W3-Ergebnis mit Einzelergebnissen bleibt sichtbar.
+- Validiert: W4-Web-/MAUI-Contracts (9 Tests), Web-Build und Infrastructure-
+  Build erfolgreich. Der MAUI-Build bleibt wegen bestehender, blockfremder
+  Fehler in `MemberClubDocumentsSection.cs`, `VereinsunterlagenPage.cs` und
+  `VereinsfunktionenPage.cs` offen. Der fokussierte .NET-Testlauf ist durch
+  einen vorhandenen Compilerfehler in `PreparedMembershipApplicationSigningServiceTests.cs`
+  blockiert; die W4-Zeitmodell-Testquelle ist ergänzt. Der Web-Typecheck bleibt
+  durch bestehende Fehler in `LeaseContractFlow.tsx`,
+  `MembershipApplicationFlow.tsx`, `communication-repository.ts`,
+  `member-club-document-delivery-service.ts` und `prepared-contract-service.ts`
+  blockiert. ImageSharp-Warnungen wurden ignoriert.
+
 ## 2026-10-17 – MAUI: Android-PDF-Buildfehler behoben
 
 - `DocumentInfo` wird in den drei MAUI-PDF-Aufrufstellen über `Title` statt des nicht vorhandenen `Titel` angesprochen. Die lokalen Variablen im zentralen PDF-Exportzweig sind eindeutig benannt; dessen Server-/Cache-Verhalten bleibt unverändert.

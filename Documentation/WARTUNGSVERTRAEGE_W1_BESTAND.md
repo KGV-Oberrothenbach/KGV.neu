@@ -52,10 +52,10 @@ Titel, Aktivstatus, aktuelle Belegung gegen das verpflichtende Kontingent und
 die Arbeitsstundenwirkung. Das Datenmodell kennt kein unbegrenztes Kontingent;
 es gilt stets mindestens ein Platz.
 
-Die Detailansichten zeigen Titel, Bereich, Beschreibung, Aktivstatus,
+Die Vertragsdetailansichten zeigen Titel, Bereich, Beschreibung, Aktivstatus,
 Kontingent, heutige Belegung, freie Plätze, Arbeitsstundenwirkung, Bemerkung
-und ausschließlich die aktuell zugeordneten Mitglieder. Zukunft und Historie
-sind bewusst nicht Teil von W2.
+sowie aktuelle, zukünftige und historische Zuordnungen. Nur aktuelle
+Zuordnungen zählen zur heutigen Belegung.
 
 Die vorhandenen Bearbeitungspfade verwenden dieselben Vertragsfelder in Web
 und MAUI: Bereich, Beschreibung, Kontingent, Befreiung oder Gutschrift,
@@ -64,20 +64,19 @@ beim Anlegen als auch beim Aktualisieren. Die aktuelle Belegung entsteht aus
 dem gemeinsamen Stichtags-Bundle im SupabaseService; die Oberflächen rechnen
 sie nicht selbst nach.
 
-## Festgestellte Lücken
+## W1-Feststellungen und Status nach W4
 
-1. Globale und mitgliedsbezogene Core-/MAUI-Übersichten zeigen über das
-gemeinsame Bundle aktuell nur den heutigen Stand. Zukunft und Historie müssen
-in W3 explizit als zeitliche Listen ergänzt werden, ohne die Kapazitäts- oder
-Arbeitsstundenregeln zu verändern.
-2. Mehrfachzuordnungen werden in den Web- und MAUI-Batchpfaden nicht über
-eine eigene DB-RPC als fachliche Sammeltransaktion ausgeführt. Der einzelne
-Tabellen-Insert ist serverseitig validiert; bei einer späteren
-Batch-Fehlersituation muss der UI-Status transparent bleiben. Das ist W3 zu
-klären, nicht im W1-Fundament durch eine neue Regel zu ersetzen.
+1. Die Zeitlisten Aktuell, Zukünftig und Historisch wurden in W3 ergänzt und in
+W4 für Mitgliedsdetails in Web und MAUI an dieselbe Klassifikation
+angeschlossen.
+2. Web und MAUI verwenden weiterhin ihre bestehenden Batch-Ergebnismodelle.
+Teilfehler werden angezeigt und nach Teilerfolgen werden Mitgliedslisten
+aktualisiert; eine neue DB-RPC oder clientseitige Rückabwicklung gibt es
+nicht.
 3. Die Arbeitsstundenwirkung ist saisonüberlappend (Intervallschnitt), nicht
 taggenau anteilig. Das ist der vorhandene fachliche Stand und darf ohne
-Fachentscheidung nicht geändert werden.
+Fachentscheidung nicht geändert werden. W5 sichert diese zentrale Wirkung
+in den Pflichtstunden- und Exportpfaden weiter ab.
 
 ## W3 – Zeitdarstellung und Batch-Ergebnisse
 
@@ -92,9 +91,28 @@ bleiben bestehen. Es gibt weder eine fachliche RPC-Sammeltransaktion noch einen
 clientseitigen Rollback. Die Datenbank bleibt für Hauptmitglied, Zeitraum,
 Doppelzuordnung und Kapazität maßgeblich.
 
+## W4 – Mitgliedsbezogene Ansichten
+
+Web und MAUI zeigen bei einem Mitglied dieselben drei Zeitbereiche: Aktuell,
+Zukünftig und Historisch. Jede Zuordnung enthält Vertragsbezeichnung,
+Gültigkeitsbeginn und -ende, Zeitstatus und die im Vertrag hinterlegte
+Arbeitsstundenwirkung. Die Wirkung wird nur dargestellt; die Oberflächen
+berechnen weder Pflichtstunden noch Gutschriften.
+
+Die Listen verwenden inklusive Datumsgrenzen aus dem Zeitmodell. Aktuelle
+Verträge sind nach Bezeichnung sortiert, zukünftige nach dem nächsten Beginn
+und historische nach dem zuletzt beendeten Vertrag. Infrastruktur und Web
+verwenden die vorhandene Hauptmitgliedsauflösung; für ein Nebenmitglied wird
+dieselbe Hauptmitgliedszuordnung angezeigt und nicht als zweite Zuordnung
+dupliziert.
+
+Die Mitgliedszuordnung bleibt an die vorhandenen Speicherpfade und das W3-
+Batchergebnis gebunden. Nach Voll- und Teilerfolg werden die Mitgliedslisten
+erneut geladen; W3-Fehlerdetails bleiben sichtbar. Die W4-Contracts prüfen
+Grenztage, Sortierung, Hauptmitgliedspfad, Batchmodell, reine Anzeige der
+Vertragswirkung und die MAUI-/Web-Servicebindung.
+
 ## Nächste Teilblöcke
 
-- W4: Mitgliedsbezogene Zuordnung in Web und MAUI gegen dieselbe Zeitdarstellung
-  und Hauptmitglied-Normalisierung abgleichen.
 - W5: Regression der Pflichtstunden-, Gutschrift-, Befreiungs- und Exportpfade.
 - W6: Fachliche DEMO-Abnahme und kontrollierter VDB-Rollout.
