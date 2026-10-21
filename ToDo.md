@@ -1,53 +1,52 @@
 # ToDo – KGV-Software
 
-Letzte Aktualisierung: 2026-10-17 (K3 der Kommunikations-/Dokumentvorgangs-Zentrale abgeschlossen)
+## Vereinsfunktionen
 
-Diese Datei enthält ausschließlich offene, aktuelle Aufgaben. Erledigte Punkte, historische Abgleiche und frühere Zielbildtexte werden nicht fortgeführt.
+- V2-Vereinsfunktions-Grundmodell lokal prüfen und nach Bereitstellung der Migration fachlich abnehmen.
+- V3 festlegen: fachliche Funktionen, Mehrfachbesetzungen, Vertretungen, Amtszeiten und Verwendungszwecke.
+- Impressum von der Textheuristik auf Vereinsfunktionen umstellen.
+- Verwaltungsoberfläche für Vereinsfunktionen und Besetzungen erstellen.
+- Vereinsunterzeichner aus einer gültigen Funktionsbesetzung ableiten und Person plus Funktion als Vertrags-Snapshot speichern.
+- app_user.role weiterhin ausschließlich als technische Berechtigungsrolle behandeln.
 
-## Pflege der ToDo
+## Kommunikation und Dokumente
 
-- Neue Punkte immer dem passenden Themenbereich zuordnen.
-- Nach jedem erfolgreich abgeschlossenen Auftrag gruppieren, committen und auf den aktuellen Arbeitsbranch pushen.
-- Keine erledigten Punkte in dieser Liste führen; bei Abschluss entfernen oder in die zugehörige Dokumentation bzw. Release-Notiz übernehmen.
-- Punkte unter „manuell eingetragene Punkte“ fachlich eindeutig einem passenden Themenbereich zuordnen und anschließend den Sammelbereich nur für nicht eindeutig zuordenbare Punkte verwenden.
+- Gemeinsamen WEB-/MAUI-Kommunikationsworkflow abschließen: verbleibende K4-Teile sowie Mail-/Druckentscheidung, Versand, Druck, Archivierung und weitere Dokumenttypen gemäß Documentation/KOMMUNIKATIONS_WORKFLOW.md.
+- Mailversand direkt im Web über denselben Backendpfad wie MAUI fertigstellen: Empfängervorbelegung, Betreff/Text, mehrere Anhänge, Versand-/Fehlerstatus, Retry ohne doppelte Fachaktion und Versandnachweis.
+- DEMO-Testempfänger und reale VDB-Empfänger im End-to-End-Betrieb prüfen.
+- Druckworkflow und Archivierung im Kommunikationsvorgang abschließen.
 
-## WEB App
+## Wartungsverträge
 
-### Kopfbereich und Markenauftritt
+- Erstellung, Bearbeitung, Mitgliederzuordnung und Rechte vollständig gegen MAUI prüfen.
+- Saison-/Laufzeitbefristung und Verlängerung/Beendigung fachlich festlegen und umsetzen.
+- Pro zugeordnetem Mitglied eigenen Dokumentvorgang mit PDF-Vorschau, Signatur, Vereinsunterzeichner, letzter Prüfung, Abschließen, Verwerfen und Archivierung umsetzen.
 
-- [ ] Das bisherige „K“-Logo durch das echte KGV-Logo ersetzen.
+## Verträge
 
-### Kommunikation
+- Pachtvertrag fachlich finalisieren; zusätzliche bearbeitbare Vertragsfelder gegen den Bedarf prüfen.
+- Mitgliedsantrag- und Pachtvertragsabläufe inklusive Vertreter-/Nebenmitgliedslogik, Vorschau, Signatur und End-to-End-Finalisierung weiter abgleichen.
 
-- [ ] Mailversand direkt aus der WEB-App ermöglichen.
-- [ ] Kommunikations-/Dokumentvorgangs-Zentrale weiterführen: K4 gemeinsamer WEB-/MAUI-Workflow, K5 Mail-/Druckentscheidung, K6 Mailversand, K7 Druck/Archivierung, K8 weitere Dokumenttypen (Grundlage: `Documentation/KOMMUNIKATIONS_WORKFLOW.md`).
+## WEB
 
-### Kleine UI- und Kosmetikfehler
+- Eigenen rechtegesteuerten Bereich Meine Daten / Profil umsetzen.
+- Verbliebene funktionale Detailabweichungen zu MAUI bei Mitgliedsstammdaten, Nebenmitgliedern, Benutzerrechten, Arbeitsstunden, Wartungsverträgen, Dokumenten und Vereinskonfiguration gezielt abgleichen.
+- Parzellenprotokoll nach Bereitstellung der Serverfunktion produktiv als PDF-/Ablage-End-to-End testen.
+- Echtes KGV-Logo integrieren.
+- Kleine sichtbare UI-Fehler und funktional relevante Web-Warnungen priorisiert bereinigen.
 
-- [ ] Kleine sichtbare UI-Fehler (Beschriftungen, Abstände, Darstellung und ähnliche Auffälligkeiten) gesammelt aufnehmen und priorisiert bereinigen.
-- [ ] Nur funktional relevante WEB-Warnungen und Restfehler nachziehen; keine unnötigen Großumbauten.
+## Arbeitsstunden
 
-### Verträge und Dokumente
-
-- [ ] Pachtvertrag fachlich weiter ausarbeiten und finalisieren.
-- [ ] Im Pachtvertrag separate, zusätzlich bearbeitbare Felder vorsehen.
-
-### Wartungsverträge
-
-- [ ] Wartungsvertrag optional auf eine Saison befristen können.
-- [ ] Signaturpfad einführen: Für jedes zugeordnete Mitglied ein eigenes unterschreibbares Dokument erzeugen, auch bei demselben Wartungsvertrag.
-
-### Arbeitsstunden
-
-- [ ] Arbeitsstunden-Prüfprozess im Realbetrieb weiter absichern.
+- Arbeitsstunden-Prüfprozess im Realbetrieb testen und absichern, insbesondere Rechte, Sperren, Kommentare und Verlauf.
+- Restliche MAUI-Abweichungen bei Pflichtstunden-, Alters- und Wartungsvertragsregeln sowie Review-Filterung/Gruppierung schließen.
 
 ## Technische Qualität und Release
 
-- [ ] Funktional relevante technische Restwarnungen nachziehen.
-- [ ] Google-Play-Test- und Release-Reife prüfen und fehlende Anforderungen ergänzen.
-- [ ] Aktuelle Release-Skripte `AWR.bat` und `A-WR.bat` mit realen Releases und Versionsflüssen verifizieren.
-- [ ] Produktiv- und Testreife durch reale Installations-, Update- und Geräteprüfungen erhöhen.
+- AWR.bat und A-WR.bat mit realen Releases und Versionsflüssen verifizieren.
+- Google-Play-Test-/Release-Reife sowie reale Installations-, Update- und Gerätetests durchführen.
+- Funktional relevante technische Warnungen und Release-Restfehler nachziehen.
+- Responsive Bedienung, Barrierefreiheit und Parallelbearbeitung mit realen Geräten/Browsern testen.
 
 ## Später / Neuentwicklung
 
-- [ ] Jahresabschluss in MAUI umsetzen (Details: `Documentation/MAUI_JAHRESABSCHLUSS_UMSETZUNGSPLAN.md`).
+- Jahresabschluss in MAUI umsetzen; Details: Documentation/MAUI_JAHRESABSCHLUSS_UMSETZUNGSPLAN.md.
