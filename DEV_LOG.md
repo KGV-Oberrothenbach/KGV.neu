@@ -2,6 +2,35 @@
 
 ---
 
+## 2026-10-21 – Wartungsverträge W5: zentrale Arbeitsstundenwirkung
+
+- Repo-weite Prüfung bestätigt: Pflichtstundenstatus und Vertragswirkung werden
+  ausschließlich durch `fn_berechne_pflichtstunden_status` ermittelt und über
+  `v_pflichtstunden_uebersicht` an Web, MAUI und den Arbeitsstundenexport
+  geliefert. Keine UI- oder Exportberechnung ergänzt; kein SQL geändert.
+- Regressions-Contract ergänzt für keine anwendbare Zuordnung, aktive
+  Befreiung, aktive Gutschrift, saisonfremde Zukunft/Historie, inklusive
+  Saisonrandtage, Teiljahresüberschneidung und Mehrfachverträge. Das
+  bestehende Verhalten wird belegt: bereits jede Saisonüberschneidung zählt
+  für das ganze Saisonergebnis, Gutschriften werden je Vertrags-ID summiert
+  und auf das Soll begrenzt; ein befreiender Vertrag setzt Soll/offen auf null
+  und die Gutschrift auf null.
+- Beachtenswerte bestehende Jahressemantik: Ein erst künftig beginnender
+  Vertrag im selben Saisonjahr wirkt laut SQL bereits im ganzen Jahresergebnis,
+  weil die Funktion nur den Saisonintervallschnitt prüft und keinen heutigen
+  Stichtag. Regression dokumentiert dies, statt eine neue zeitliche Regel zu
+  erfinden; vor W6-Demoabnahme fachlich bestätigen.
+- Web- und MAUI-Pflichtstundenanzeigen sowie PDF-/RPC-Exporte nutzen weiterhin
+  die zentralen Werte. Dokumentation auf W5 gehoben und W5 aus `ToDo.md`
+  entfernt; offen sind W6 und der separate Dokumentvorgang je Zuordnung.
+- Validierung: 13 Wartungsvertrags-, Arbeitsstunden- und Export-Contracts
+  bestanden. Frühere W5-Fremdblock-Buildfehler bleiben bekannt: MAUI-Build
+  wegen `MemberClubDocumentsSection.cs`, `VereinsunterlagenPage.cs` und
+  `VereinsfunktionenPage.cs`; .NET-Tests wegen
+  `PreparedMembershipApplicationSigningServiceTests.cs`; Web-Typecheck wegen
+  Vertrags-, Dokument- und Kommunikationsdateien. Es wurde kein DB-Link und
+  kein Push ausgeführt.
+
 ## 2026-10-21 – Wartungsverträge W4: Mitgliedsbezogene Zeitlisten
 
 - Mitgliedsbezogene Wartungsverträge verwenden in Web und MAUI nun die drei

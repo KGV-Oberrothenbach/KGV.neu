@@ -18,6 +18,35 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 - `KGV.Core`
 - `KGV.Maui`
 
+## 2026-10-21 – Wartungsverträge W5: Arbeitsstunden-, Befreiungs- und Exportregressionen
+
+- Die Repo-Prüfung hat bestätigt, dass
+  `fn_berechne_pflichtstunden_status` die einzige fachliche Berechnung ist.
+  `v_pflichtstunden_uebersicht` liefert Soll, geleistete/offene Stunden,
+  Befreiung, Vertragsindikator, Wartungsvertragsgutschrift und Fehlbetrag an
+  die Clients und die Export-RPC.
+- W5 ergänzt Regressionstests gegen die vorhandene SQL-Funktion:
+  saisonübergreifende Zuordnungsüberschneidung mit inklusiven Jahresgrenzen,
+  vollständig außerhalb liegende Historie/Zukunft, anteilige Saisonintervalle,
+  Befreiung, Vertragsgutschrift, Mehrfachzuordnung und Soll-Obergrenze.
+- Festgehalten wurde die bestehende Saisonregel ohne Neuinterpretation:
+  jede Überschneidung mit 01.01.–31.12. zählt als ganze Saisonwirkung, auch
+  wenn eine Zuordnung erst später im selben Jahr beginnt oder innerhalb des
+  Jahres endet. Das SQL verwendet keinen Tagesstichtag. Befreiung überstimmt
+  Gutschrift; Credits werden je Vertrags-ID addiert und auf das Soll begrenzt.
+- Daraus folgt, dass ein aus heutiger Sicht erst künftig beginnender Vertrag
+  im selben Saisonjahr laut bestehender DB-Regel schon im Jahresergebnis wirkt.
+  Dieser Unterschied zum taggenauen Zeitstatus der Mitgliederlisten ist
+  regressionsgetestet und für die fachliche DEMO-Abnahme offengelegt, nicht
+  eigenmächtig verändert.
+- Web-/MAUI-Arbeitsstundenanzeigen und der PDF-/RPC-Export lesen weiterhin
+  zentrale View-Felder. Kein eigener Pflichtstunden- oder WV-Rechenweg wurde
+  ergänzt. Dokumentation fortgeschrieben und W5 aus `ToDo.md` entfernt.
+- Validierung: 13 zielgerichtete W5-, W4- und bestehende Export-/Work-Hours-
+  Contracts bestanden. Infrastructure-/Web-Build waren bereits im W4-Block
+  erfolgreich. W5 wiederholte keine unnötigen Komplettbuilds; die bekannten
+  blockfremden MAUI-, .NET-Test- und Web-Typecheck-Fehler bleiben unverändert.
+
 ## 2026-10-21 – Wartungsverträge W4: Mitgliedsbezogene Zeitlisten
 
 - Web und MAUI zeigen Mitgliedszuordnungen in den Bereichen Aktuell,

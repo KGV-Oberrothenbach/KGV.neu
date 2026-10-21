@@ -64,7 +64,7 @@ beim Anlegen als auch beim Aktualisieren. Die aktuelle Belegung entsteht aus
 dem gemeinsamen Stichtags-Bundle im SupabaseService; die Oberflächen rechnen
 sie nicht selbst nach.
 
-## W1-Feststellungen und Status nach W4
+## W1-Feststellungen und Status nach W5
 
 1. Die Zeitlisten Aktuell, Zukünftig und Historisch wurden in W3 ergänzt und in
 W4 für Mitgliedsdetails in Web und MAUI an dieselbe Klassifikation
@@ -75,8 +75,8 @@ aktualisiert; eine neue DB-RPC oder clientseitige Rückabwicklung gibt es
 nicht.
 3. Die Arbeitsstundenwirkung ist saisonüberlappend (Intervallschnitt), nicht
 taggenau anteilig. Das ist der vorhandene fachliche Stand und darf ohne
-Fachentscheidung nicht geändert werden. W5 sichert diese zentrale Wirkung
-in den Pflichtstunden- und Exportpfaden weiter ab.
+Fachentscheidung nicht geändert werden. W5 hat diese zentrale Wirkung in
+Pflichtstunden-, Web-/MAUI-Anzeige- und Exportpfaden regressionsgesichert.
 
 ## W3 – Zeitdarstellung und Batch-Ergebnisse
 
@@ -112,7 +112,42 @@ erneut geladen; W3-Fehlerdetails bleiben sichtbar. Die W4-Contracts prüfen
 Grenztage, Sortierung, Hauptmitgliedspfad, Batchmodell, reine Anzeige der
 Vertragswirkung und die MAUI-/Web-Servicebindung.
 
+## W5 – Arbeitsstunden- und Exportregressionen
+
+Die alleinige fachliche Berechnung bleibt
+`fn_berechne_pflichtstunden_status`; Web, MAUI und Exporte lesen deren Werte
+aus `v_pflichtstunden_uebersicht`. W5 ändert weder Datenbank noch Produktiv-
+Berechnung und ergänzt keine clientseitigen Pflichtstundenregeln.
+
+Der zentrale Saisonbezug prüft inklusive Überschneidung der Zuordnung mit dem
+Kalenderjahr der Saison (`gueltig_ab <= 31.12.` und `gueltig_bis >= 01.01.`,
+offenes Ende eingeschlossen). Eine Zuordnung, die die Saison auch nur teilweise
+schneidet, wirkt in dieser Saison mit ihrer vollen Vertragswirkung; sie wird
+nicht taganteilig berechnet. Das SQL prüft keinen zusätzlichen heutigen
+Stichtag: Eine zukünftige Zuordnung innerhalb desselben Saisonjahrs zählt
+bereits zum Ergebnis dieser Saison, auch wenn der Vertragsbeginn aus Sicht des
+heutigen Tags noch bevorsteht. Eine vollständig außerhalb der Saison liegende
+zukünftige Zuordnung zählt nicht. Gleiches gilt für beendete Zuordnungen,
+sofern ihr Beginn spätestens am Saisonende und ihr Ende mindestens am
+Saisonbeginn liegt. Diese Jahresregel ist vom taggenauen Zeitstatus der
+Mitgliedsansicht zu unterscheiden und vor einer fachlichen DEMO-Abnahme zu
+bestätigen; W5 ändert sie nicht.
+
+Ein aktiver befreiender Vertrag setzt Soll und offene Stunden auf null und
+unterdrückt die Gutschrift. Andernfalls summiert die Funktion
+Gutschriftbeträge aktiver, saisonüberlappend zugeordneter Verträge einmal je
+Vertrags-ID und begrenzt die Summe auf das Soll. Mehrere Verträge folgen
+ausschließlich dieser vorhandenen SQL-Regel; W5 erfindet keine neue
+Kombinationslogik.
+
+Die Arbeitsstundenübersicht im Export übernimmt Soll, geleistete Stunden,
+Gutschrift, offen, Vertragsstatus und Regelgrund aus der zentralen View. Der
+Export ergänzt nur die Vertragsbezeichnungen und Detailzeilen. Web- und
+MAUI-Arbeitsstundenanzeigen geben View-Werte wieder; auch die
+PDF-Exportdarstellung berechnet keine Befreiung oder Gutschrift erneut.
+Regressionstests verankern die SQL-Intervall-, Befreiungs-, Gutschrift- und
+Mehrfachvertragsregeln sowie die zentralen Web-, MAUI- und Exportpfade.
+
 ## Nächste Teilblöcke
 
-- W5: Regression der Pflichtstunden-, Gutschrift-, Befreiungs- und Exportpfade.
 - W6: Fachliche DEMO-Abnahme und kontrollierter VDB-Rollout.
