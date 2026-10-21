@@ -2,7 +2,6 @@
 
 ## Vereinsfunktionen
 
-- V3b auf DEMO fachlich testen und anschließend auf VDB übernehmen.
 - Impressum von der Textheuristik auf Vereinsfunktionen umstellen.
 - Verwaltungsoberfläche für Vereinsfunktionen, Besetzungen und Vertretungen erstellen.
 - Vereinsunterzeichner aus einer gültigen Funktionsbesetzung ableiten und Person plus Funktion als Vertrags-Snapshot speichern.
