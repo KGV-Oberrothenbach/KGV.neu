@@ -4735,8 +4735,12 @@ namespace KGV.Infrastructure.Services
                     MaxKontingent = overview.MaxKontingent,
                     Belegt = overview.Belegt,
                     Frei = overview.Frei,
+                    BefreitVonPflichtstunden = overview.BefreitVonPflichtstunden,
+                    ArbeitsstundenGutschrift = overview.ArbeitsstundenGutschrift,
                     Aktiv = overview.Aktiv,
-                    Beschreibung = CleanWartungsvertragText(FirstNonEmpty(contract.Beschreibung, contract.Bereich, contract.Bemerkung)),
+                    Beschreibung = CleanWartungsvertragText(contract.Beschreibung, string.Empty),
+                    Bereich = CleanWartungsvertragText(contract.Bereich, string.Empty),
+                    Bemerkung = CleanWartungsvertragText(contract.Bemerkung, string.Empty),
                     ZugeordneteMitglieder = assignedMembers
                 };
             },
@@ -4815,6 +4819,7 @@ namespace KGV.Infrastructure.Services
                     Bereich = CleanOptionalText(request.Bereich),
                     MaxAktiveZuordnungen = NormalizeWartungsvertragKontingent(request.MaxAktiveZuordnungen),
                     BefreitVonPflichtstunden = request.BefreitVonPflichtstunden,
+                    ArbeitsstundenGutschrift = request.BefreitVonPflichtstunden ? 0 : NormalizeWartungsvertragArbeitsstundenGutschrift(request.ArbeitsstundenGutschrift),
                     Aktiv = request.Aktiv,
                     Bemerkung = CleanOptionalText(request.Bemerkung),
                     CreatedAt = now,
@@ -4830,6 +4835,7 @@ namespace KGV.Infrastructure.Services
                     Bereich = insertRecord.Bereich,
                     MaxAktiveZuordnungen = insertRecord.MaxAktiveZuordnungen,
                     BefreitVonPflichtstunden = insertRecord.BefreitVonPflichtstunden,
+                    ArbeitsstundenGutschrift = insertRecord.ArbeitsstundenGutschrift,
                     Aktiv = insertRecord.Aktiv,
                     Bemerkung = insertRecord.Bemerkung,
                     CreatedAt = insertRecord.CreatedAt,
@@ -4980,8 +4986,12 @@ namespace KGV.Infrastructure.Services
                     .Where(x => x.Id == record.Id)
                     .Set(x => x.Titel, CleanRequiredText(record.Titel))
                     .Set(x => x.Beschreibung, CleanOptionalText(record.Beschreibung))
+                    .Set(x => x.Bereich, CleanOptionalText(record.Bereich))
                     .Set(x => x.MaxAktiveZuordnungen, NormalizeWartungsvertragKontingent(record.MaxAktiveZuordnungen))
+                    .Set(x => x.BefreitVonPflichtstunden, record.BefreitVonPflichtstunden)
+                    .Set(x => x.ArbeitsstundenGutschrift, record.BefreitVonPflichtstunden ? 0 : NormalizeWartungsvertragArbeitsstundenGutschrift(record.ArbeitsstundenGutschrift))
                     .Set(x => x.Aktiv, record.Aktiv)
+                    .Set(x => x.Bemerkung, CleanOptionalText(record.Bemerkung))
                     .Set(x => x.UpdatedAt, DateTime.UtcNow)
                     .Update();
 
@@ -7147,6 +7157,8 @@ namespace KGV.Infrastructure.Services
                 MaxKontingent = maxKontingent,
                 Belegt = belegt,
                 Frei = Math.Max(0, maxKontingent - belegt),
+                BefreitVonPflichtstunden = contract.BefreitVonPflichtstunden,
+                ArbeitsstundenGutschrift = contract.ArbeitsstundenGutschrift,
                 Aktiv = contract.Aktiv
             };
         }
@@ -7169,6 +7181,8 @@ namespace KGV.Infrastructure.Services
                 MaxKontingent = overview.MaxKontingent,
                 Belegt = overview.Belegt,
                 Frei = overview.Frei,
+                BefreitVonPflichtstunden = overview.BefreitVonPflichtstunden,
+                ArbeitsstundenGutschrift = overview.ArbeitsstundenGutschrift,
                 Aktiv = overview.Aktiv,
                 GueltigAb = zuordnung.GueltigAb,
                 GueltigBis = zuordnung.GueltigBis
@@ -7230,6 +7244,9 @@ namespace KGV.Infrastructure.Services
 
         private static int NormalizeWartungsvertragKontingent(int maxAktiveZuordnungen)
             => Math.Max(1, maxAktiveZuordnungen);
+
+        private static decimal NormalizeWartungsvertragArbeitsstundenGutschrift(decimal arbeitsstundenGutschrift)
+            => Math.Max(0, arbeitsstundenGutschrift);
 
         private static bool IsSameWartungsvertragForReload(WartungsvertragRecord existing, WartungsvertragRecord candidate)
         {

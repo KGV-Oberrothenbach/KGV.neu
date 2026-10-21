@@ -98,6 +98,7 @@ public static class InsertRecordMappingExtensions
             Bereich = record.Bereich,
             MaxAktiveZuordnungen = record.MaxAktiveZuordnungen,
             BefreitVonPflichtstunden = record.BefreitVonPflichtstunden,
+            ArbeitsstundenGutschrift = record.ArbeitsstundenGutschrift,
             Aktiv = record.Aktiv,
             Bemerkung = record.Bemerkung,
             CreatedAt = record.CreatedAt,

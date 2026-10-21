@@ -10,9 +10,16 @@ public class WartungsvertragOverviewItem
     public int MaxKontingent { get; init; }
     public int Belegt { get; init; }
     public int Frei { get; init; }
+    public bool BefreitVonPflichtstunden { get; init; }
+    public decimal ArbeitsstundenGutschrift { get; init; }
     public bool Aktiv { get; init; }
 
     public string BelegungText => $"{Belegt.ToString(CultureInfo.CurrentCulture)} von {MaxKontingent.ToString(CultureInfo.CurrentCulture)} belegt";
     public string FreiText => Frei.ToString(CultureInfo.CurrentCulture);
     public string AktivText => Aktiv ? "Aktiv" : "Inaktiv";
+    public string ArbeitsstundenwirkungText => BefreitVonPflichtstunden
+        ? "Vollbefreiung von Pflichtstunden"
+        : ArbeitsstundenGutschrift > 0
+            ? $"{ArbeitsstundenGutschrift.ToString("0.##", CultureInfo.CurrentCulture)} Stunden Gutschrift pro Saison"
+            : "Keine Anrechnung";
 }

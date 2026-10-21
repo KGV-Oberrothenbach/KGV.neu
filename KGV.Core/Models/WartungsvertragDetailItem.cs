@@ -7,6 +7,8 @@ namespace KGV.Core.Models;
 public sealed class WartungsvertragDetailItem : WartungsvertragOverviewItem
 {
     public string Beschreibung { get; init; } = string.Empty;
+    public string Bereich { get; init; } = string.Empty;
+    public string Bemerkung { get; init; } = string.Empty;
     public List<WartungsvertragAssignedMemberItem> ZugeordneteMitglieder { get; init; } = new();
     public string BeschreibungText => string.IsNullOrWhiteSpace(Beschreibung) ? "Keine Beschreibung hinterlegt." : Beschreibung.Trim();
 }

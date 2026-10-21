@@ -18,3 +18,10 @@ export function maintenanceWorkHoursEffect(contract: Pick<MaintenanceContract, "
   if (contract.exemptsFromDutyHours) return "exempt";
   return contract.workHoursCredit > 0 ? "credit" : "none";
 }
+
+export function maintenanceWorkHoursEffectLabel(contract: Pick<MaintenanceContract, "exemptsFromDutyHours" | "workHoursCredit">): string {
+  const effect = maintenanceWorkHoursEffect(contract);
+  if (effect === "exempt") return "Vollbefreiung von Pflichtstunden";
+  if (effect === "credit") return `${contract.workHoursCredit} Stunden Gutschrift pro Saison`;
+  return "Keine Anrechnung";
+}

@@ -13,7 +13,6 @@
 
 ## Wartungsverträge
 
-- W2 globale Web-/MAUI-Übersicht, Detailansicht und Bearbeitungszugang gegen Documentation/WARTUNGSVERTRAEGE_W1_BESTAND.md abgleichen.
 - W3 Zeitdarstellung für aktuelle, zukünftige und historische Zuordnungen sowie Batch-Fehlerverhalten fachlich und technisch schließen.
 - W4 mitgliedsbezogene Zuordnung in Web und MAUI auf gleiche Zeit- und Hauptmitgliedslogik abgleichen.
 - W5 Arbeitsstunden-, Gutschrift-, Befreiungs- und Exportregressionen absichern.

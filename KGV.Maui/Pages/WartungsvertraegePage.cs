@@ -58,6 +58,12 @@ public sealed class WartungsvertraegePage : ContentPage
                 var usage = new Label { FontSize = 12, TextColor = Colors.DarkSlateBlue };
                 usage.SetBinding(Label.TextProperty, nameof(WartungsvertragOverviewItem.BelegungText));
 
+                var effect = new Label { FontSize = 12, TextColor = Colors.DarkSlateBlue };
+                effect.SetBinding(Label.TextProperty, nameof(WartungsvertragOverviewItem.ArbeitsstundenwirkungText));
+
+                var status = new Label { FontSize = 12, TextColor = Colors.Gray };
+                status.SetBinding(Label.TextProperty, nameof(WartungsvertragOverviewItem.AktivText));
+
                 return new Border
                 {
                     Stroke = Colors.LightGray,
@@ -66,7 +72,7 @@ public sealed class WartungsvertraegePage : ContentPage
                     Content = new VerticalStackLayout
                     {
                         Spacing = 4,
-                        Children = { title, description, usage }
+                        Children = { title, description, status, usage, effect }
                     }
                 };
             })

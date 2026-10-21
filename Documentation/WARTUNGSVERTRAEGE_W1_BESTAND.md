@@ -45,17 +45,24 @@ Zuordnung, die das Saisonintervall schneidet:
 Web, MAUI und Export lesen das Ergebnis aus v_pflichtstunden_uebersicht; sie
 berechnen keine zweite Wartungsvertragswirkung.
 
-## Bestehender Produktstand
+## Produktstand nach W2
 
-Web besitzt globale Übersicht, Detail-/Editorfluss, Zuordnung zu Vertrag,
-mitgliedsbezogene Zuordnung und Beenden. Die Web-Service-Schicht klassifiziert
-Zeitstände bereits für die Detaildarstellung und prüft Eingaben vor dem
-speichernden Tabellenzugriff.
+Web und MAUI zeigen in der globalen Übersicht einheitlich den heutigen Stand:
+Titel, Aktivstatus, aktuelle Belegung gegen das verpflichtende Kontingent und
+die Arbeitsstundenwirkung. Das Datenmodell kennt kein unbegrenztes Kontingent;
+es gilt stets mindestens ein Platz.
 
-MAUI besitzt globale Liste, Detail, Editor, Vertragszuweisung und
-mitgliedsbezogene Ansicht. Die zentralen Overview-/Detail-Methoden des
-SupabaseService verdichten derzeit bewusst nur am heutigen Stichtag aktive
-Zuordnungen.
+Die Detailansichten zeigen Titel, Bereich, Beschreibung, Aktivstatus,
+Kontingent, heutige Belegung, freie Plätze, Arbeitsstundenwirkung, Bemerkung
+und ausschließlich die aktuell zugeordneten Mitglieder. Zukunft und Historie
+sind bewusst nicht Teil von W2.
+
+Die vorhandenen Bearbeitungspfade verwenden dieselben Vertragsfelder in Web
+und MAUI: Bereich, Beschreibung, Kontingent, Befreiung oder Gutschrift,
+Bemerkung und Aktivstatus. Die Infrastruktur übernimmt diese Felder sowohl
+beim Anlegen als auch beim Aktualisieren. Die aktuelle Belegung entsteht aus
+dem gemeinsamen Stichtags-Bundle im SupabaseService; die Oberflächen rechnen
+sie nicht selbst nach.
 
 ## Festgestellte Lücken
 
@@ -74,8 +81,6 @@ Fachentscheidung nicht geändert werden.
 
 ## Nächste Teilblöcke
 
-- W2: Globale Web-/MAUI-Übersicht und Detailansicht konsistent prüfen,
-  Anzeige der Arbeitsstundenwirkung und Bearbeiten klar führen.
 - W3: Zeitbezogene Zuordnungshistorie und Zukunft in den gemeinsamen
   Detail-/Mitgliedsmodellen ergänzen; Batch-Fehlerverhalten absichern.
 - W4: Mitgliedsbezogene Zuordnung in Web und MAUI gegen dieselbe Zeitdarstellung

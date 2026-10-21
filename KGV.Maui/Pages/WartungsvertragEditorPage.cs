@@ -19,8 +19,12 @@ public sealed class WartungsvertragEditorPage : ContentPage, IQueryAttributable
     private readonly Label _descriptionLabel;
     private readonly Label _statusLabel;
     private readonly Entry _titleEntry;
+    private readonly Entry _bereichEntry;
     private readonly Editor _descriptionEditor;
+    private readonly Editor _bemerkungEditor;
     private readonly Entry _maxKontingentEntry;
+    private readonly Switch _befreitVonPflichtstundenSwitch;
+    private readonly Entry _arbeitsstundenGutschriftEntry;
     private readonly Switch _activeSwitch;
     private readonly Button _saveButton;
     private readonly Button _cancelButton;
@@ -41,8 +45,13 @@ public sealed class WartungsvertragEditorPage : ContentPage, IQueryAttributable
         _descriptionLabel = new Label { TextColor = Colors.Gray, LineBreakMode = LineBreakMode.WordWrap };
         _statusLabel = new Label { TextColor = Colors.DarkSlateBlue, LineBreakMode = LineBreakMode.WordWrap };
         _titleEntry = new Entry { Placeholder = "Titel" };
+        _bereichEntry = new Entry { Placeholder = "Bereich" };
         _descriptionEditor = new Editor { AutoSize = EditorAutoSizeOption.TextChanges, HeightRequest = 140, Placeholder = "Beschreibung" };
+        _bemerkungEditor = new Editor { AutoSize = EditorAutoSizeOption.TextChanges, HeightRequest = 100, Placeholder = "Bemerkung" };
         _maxKontingentEntry = new Entry { Placeholder = "Max. Kontingent", Keyboard = Keyboard.Numeric };
+        _befreitVonPflichtstundenSwitch = new Switch();
+        _befreitVonPflichtstundenSwitch.Toggled += (_, e) => _arbeitsstundenGutschriftEntry.IsEnabled = !e.Value && _isAuthorized;
+        _arbeitsstundenGutschriftEntry = new Entry { Placeholder = "Stunden pro Saison", Keyboard = Keyboard.Numeric };
         _activeSwitch = new Switch { IsToggled = true };
         _saveButton = new Button { Text = "Speichern" };
         _saveButton.Clicked += async (_, _) => await SaveAsync();
@@ -61,8 +70,12 @@ public sealed class WartungsvertragEditorPage : ContentPage, IQueryAttributable
                     _descriptionLabel,
                     _statusLabel,
                     CreateField("Titel *", _titleEntry),
+                    CreateField("Bereich", _bereichEntry),
                     CreateField("Beschreibung", _descriptionEditor),
                     CreateField("Max. Kontingent *", _maxKontingentEntry),
+                    CreateField("Vollständige Befreiung von Pflichtstunden", _befreitVonPflichtstundenSwitch),
+                    CreateField("Arbeitsstunden-Gutschrift pro Saison", _arbeitsstundenGutschriftEntry),
+                    CreateField("Bemerkung", _bemerkungEditor),
                     CreateField("Aktiv", _activeSwitch),
                     new FlexLayout
                     {
@@ -148,8 +161,12 @@ public sealed class WartungsvertragEditorPage : ContentPage, IQueryAttributable
         _headlineLabel.Text = "Wartungsvertrag bearbeiten";
         _descriptionLabel.Text = "Mobiler Editorpfad für den ausgewählten Wartungsvertrag. Nach dem Speichern geht es in die produktive Detailansicht zurück.";
         _titleEntry.Text = contract.Titel ?? string.Empty;
+        _bereichEntry.Text = contract.Bereich ?? string.Empty;
         _descriptionEditor.Text = contract.Beschreibung ?? string.Empty;
+        _bemerkungEditor.Text = contract.Bemerkung ?? string.Empty;
         _maxKontingentEntry.Text = Math.Max(1, contract.MaxAktiveZuordnungen).ToString();
+        _befreitVonPflichtstundenSwitch.IsToggled = contract.BefreitVonPflichtstunden;
+        _arbeitsstundenGutschriftEntry.Text = contract.ArbeitsstundenGutschrift.ToString("0.##");
         _activeSwitch.IsToggled = contract.Aktiv;
         _statusLabel.Text = string.Empty;
         SetEnabledState(true);
@@ -159,10 +176,14 @@ public sealed class WartungsvertragEditorPage : ContentPage, IQueryAttributable
     {
         Title = "Wartungsvertrag neu";
         _headlineLabel.Text = "Neuer Wartungsvertrag";
-        _descriptionLabel.Text = "Mobiler Editorpfad für einen neuen Wartungsvertrag mit Titel, Beschreibung, Kontingent und Aktivstatus.";
+        _descriptionLabel.Text = "Mobiler Editorpfad für einen neuen Wartungsvertrag mit Kontingent, Arbeitsstundenwirkung und Aktivstatus.";
         _titleEntry.Text = string.Empty;
+        _bereichEntry.Text = string.Empty;
         _descriptionEditor.Text = string.Empty;
+        _bemerkungEditor.Text = string.Empty;
         _maxKontingentEntry.Text = "1";
+        _befreitVonPflichtstundenSwitch.IsToggled = false;
+        _arbeitsstundenGutschriftEntry.Text = "0";
         _activeSwitch.IsToggled = true;
         _statusLabel.Text = string.Empty;
         SetEnabledState(true);
@@ -237,11 +258,22 @@ public sealed class WartungsvertragEditorPage : ContentPage, IQueryAttributable
             return false;
         }
 
+        if (!decimal.TryParse(_arbeitsstundenGutschriftEntry.Text?.Trim(), out var arbeitsstundenGutschrift) || arbeitsstundenGutschrift < 0)
+        {
+            _statusLabel.Text = "Die Arbeitsstunden-Gutschrift darf nicht negativ sein.";
+            _arbeitsstundenGutschriftEntry.Focus();
+            return false;
+        }
+
         record = new WartungsvertragRecord
         {
             Titel = _titleEntry.Text.Trim(),
+            Bereich = string.IsNullOrWhiteSpace(_bereichEntry.Text) ? null : _bereichEntry.Text.Trim(),
             Beschreibung = string.IsNullOrWhiteSpace(_descriptionEditor.Text) ? null : _descriptionEditor.Text.Trim(),
+            Bemerkung = string.IsNullOrWhiteSpace(_bemerkungEditor.Text) ? null : _bemerkungEditor.Text.Trim(),
             MaxAktiveZuordnungen = maxKontingent,
+            BefreitVonPflichtstunden = _befreitVonPflichtstundenSwitch.IsToggled,
+            ArbeitsstundenGutschrift = _befreitVonPflichtstundenSwitch.IsToggled ? 0 : arbeitsstundenGutschrift,
             Aktiv = _activeSwitch.IsToggled
         };
         return true;
@@ -267,8 +299,12 @@ public sealed class WartungsvertragEditorPage : ContentPage, IQueryAttributable
     private void SetEnabledState(bool isEnabled)
     {
         _titleEntry.IsEnabled = isEnabled;
+        _bereichEntry.IsEnabled = isEnabled;
         _descriptionEditor.IsEnabled = isEnabled;
+        _bemerkungEditor.IsEnabled = isEnabled;
         _maxKontingentEntry.IsEnabled = isEnabled;
+        _befreitVonPflichtstundenSwitch.IsEnabled = isEnabled;
+        _arbeitsstundenGutschriftEntry.IsEnabled = isEnabled && !_befreitVonPflichtstundenSwitch.IsToggled;
         _activeSwitch.IsEnabled = isEnabled;
         _saveButton.IsEnabled = isEnabled;
         _cancelButton.IsEnabled = isEnabled;

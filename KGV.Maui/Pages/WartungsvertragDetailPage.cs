@@ -19,9 +19,13 @@ public sealed class WartungsvertragDetailPage : ContentPage, IQueryAttributable
     private readonly ObservableCollection<WartungsvertragAssignedMemberItem> _members = new();
     private readonly Label _titleLabel;
     private readonly Label _descriptionLabel;
+    private readonly Label _bereichLabel;
     private readonly Label _maxKontingentLabel;
     private readonly Label _belegtLabel;
     private readonly Label _freiLabel;
+    private readonly Label _arbeitsstundenwirkungLabel;
+    private readonly Label _aktivLabel;
+    private readonly Label _bemerkungLabel;
     private readonly Label _statusLabel;
     private readonly Label _membersEmptyLabel;
     private readonly CollectionView _membersView;
@@ -41,9 +45,13 @@ public sealed class WartungsvertragDetailPage : ContentPage, IQueryAttributable
 
         _titleLabel = new Label { FontSize = 24, FontAttributes = FontAttributes.Bold, LineBreakMode = LineBreakMode.WordWrap };
         _descriptionLabel = new Label { TextColor = Colors.Gray, LineBreakMode = LineBreakMode.WordWrap };
+        _bereichLabel = new Label { LineBreakMode = LineBreakMode.WordWrap };
         _maxKontingentLabel = new Label();
         _belegtLabel = new Label();
         _freiLabel = new Label();
+        _arbeitsstundenwirkungLabel = new Label { LineBreakMode = LineBreakMode.WordWrap };
+        _aktivLabel = new Label();
+        _bemerkungLabel = new Label { LineBreakMode = LineBreakMode.WordWrap };
         _statusLabel = new Label { TextColor = Colors.DarkSlateBlue, LineBreakMode = LineBreakMode.WordWrap };
         _membersEmptyLabel = new Label { Text = "Aktuell keine aktiven Mitgliedszuordnungen.", TextColor = Colors.Gray, IsVisible = false };
 
@@ -99,6 +107,10 @@ public sealed class WartungsvertragDetailPage : ContentPage, IQueryAttributable
                     CreateInfoSection("Max. Kontingent", _maxKontingentLabel),
                     CreateInfoSection("Belegt", _belegtLabel),
                     CreateInfoSection("Frei", _freiLabel),
+                    CreateInfoSection("Bereich", _bereichLabel),
+                    CreateInfoSection("Arbeitsstundenwirkung", _arbeitsstundenwirkungLabel),
+                    CreateInfoSection("Status", _aktivLabel),
+                    CreateInfoSection("Bemerkung", _bemerkungLabel),
                     _statusLabel,
                     new Label { Text = "Aktive Zuordnungen", FontAttributes = FontAttributes.Bold, FontSize = 18 },
                     _membersEmptyLabel,
@@ -147,6 +159,10 @@ public sealed class WartungsvertragDetailPage : ContentPage, IQueryAttributable
                 _maxKontingentLabel.Text = "-";
                 _belegtLabel.Text = "-";
                 _freiLabel.Text = "-";
+                _bereichLabel.Text = "-";
+                _arbeitsstundenwirkungLabel.Text = "-";
+                _aktivLabel.Text = "-";
+                _bemerkungLabel.Text = "-";
                 _statusLabel.Text = string.Empty;
                 return;
             }
@@ -156,6 +172,10 @@ public sealed class WartungsvertragDetailPage : ContentPage, IQueryAttributable
             _maxKontingentLabel.Text = detail.MaxKontingent.ToString();
             _belegtLabel.Text = detail.Belegt.ToString();
             _freiLabel.Text = detail.Frei.ToString();
+            _bereichLabel.Text = string.IsNullOrWhiteSpace(detail.Bereich) ? "Kein Bereich hinterlegt." : detail.Bereich;
+            _arbeitsstundenwirkungLabel.Text = detail.ArbeitsstundenwirkungText;
+            _aktivLabel.Text = detail.AktivText;
+            _bemerkungLabel.Text = string.IsNullOrWhiteSpace(detail.Bemerkung) ? "Keine Bemerkung hinterlegt." : detail.Bemerkung;
 
             foreach (var member in detail.ZugeordneteMitglieder)
                 _members.Add(member);
