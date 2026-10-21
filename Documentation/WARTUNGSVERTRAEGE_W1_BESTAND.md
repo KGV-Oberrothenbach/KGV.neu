@@ -79,10 +79,21 @@ klären, nicht im W1-Fundament durch eine neue Regel zu ersetzen.
 taggenau anteilig. Das ist der vorhandene fachliche Stand und darf ohne
 Fachentscheidung nicht geändert werden.
 
+## W3 – Zeitdarstellung und Batch-Ergebnisse
+
+W3 ergänzt die gemeinsame Zeitklassifikation Aktuell, Zukünftig und Historisch
+mit inklusiven Datumsgrenzen. Vertragsdetails zeigen alle drei Bereiche; nur
+aktuelle Zuordnungen zählen zur heutigen Belegung.
+
+Mehrfachzuordnungen werden bewusst als einzelne Speicheroperationen ausgeführt.
+Jede Operation liefert Mitglied, Vertrag und ein verständliches Ergebnis. Ein
+Fehler hält spätere Operationen nicht auf; bereits erfolgreiche Zuordnungen
+bleiben bestehen. Es gibt weder eine fachliche RPC-Sammeltransaktion noch einen
+clientseitigen Rollback. Die Datenbank bleibt für Hauptmitglied, Zeitraum,
+Doppelzuordnung und Kapazität maßgeblich.
+
 ## Nächste Teilblöcke
 
-- W3: Zeitbezogene Zuordnungshistorie und Zukunft in den gemeinsamen
-  Detail-/Mitgliedsmodellen ergänzen; Batch-Fehlerverhalten absichern.
 - W4: Mitgliedsbezogene Zuordnung in Web und MAUI gegen dieselbe Zeitdarstellung
   und Hauptmitglied-Normalisierung abgleichen.
 - W5: Regression der Pflichtstunden-, Gutschrift-, Befreiungs- und Exportpfade.

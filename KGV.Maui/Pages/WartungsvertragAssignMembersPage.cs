@@ -283,9 +283,10 @@ public sealed class WartungsvertragAssignMembersPage : ContentPage, IQueryAttrib
             }
 
             var result = await _supabaseService.AssignMitgliederToWartungsvertragAsync(_wartungsvertragId, _gueltigAbDatePicker.Date.Value, selectedIds);
-            if (!result.Success)
+            if (!result.Success || result.FailedCount > 0)
             {
                 _statusLabel.Text = result.Message;
+                await LoadAsync();
                 return;
             }
 

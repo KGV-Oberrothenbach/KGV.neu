@@ -37,9 +37,10 @@ test("member assignment stays in the selected contract detail and reuses the exi
   ]);
 
   assert.match(overview, /memberAssignmentPanel=\{assignmentPanel\}/);
-  assert.match(detail, /<h3>Aktuelle Mitgliederzuordnung<\/h3>/);
-  assert.match(detail, /<h4>Aktuell zugeordnet<\/h4>/);
-  assert.doesNotMatch(detail, /Zukünftige Zuordnungen|<h4>Historie<\/h4>/);
+  assert.match(detail, /<h3>Mitgliederzuordnung<\/h3>/);
+  assert.match(detail, /title="Aktuelle Zuordnungen"/);
+  assert.match(detail, /title="Zukünftige Zuordnungen"/);
+  assert.match(detail, /title="Historische Zuordnungen"/);
   assert.match(detail, /memberAssignmentPanel/);
   assert.match(assignmentForm, /assignMembersToMaintenanceContract/);
   assert.match(assignmentService, /resolveMaintenanceAssignmentMembers/);

@@ -349,9 +349,10 @@ public sealed class MemberWartungsvertraegePage : ContentPage
         try
         {
             var result = await _supabaseService.AssignWartungsvertraegeToMitgliedAsync(selectedMember.Id, _assignDatePicker.Date!.Value, selectedIds);
-            if (!result.Success)
+            if (!result.Success || result.FailedCount > 0)
             {
                 _statusLabel.Text = result.Message;
+                await LoadAsync();
                 return;
             }
 

@@ -13,7 +13,6 @@
 
 ## Wartungsverträge
 
-- W3 Zeitdarstellung für aktuelle, zukünftige und historische Zuordnungen sowie Batch-Fehlerverhalten fachlich und technisch schließen.
 - W4 mitgliedsbezogene Zuordnung in Web und MAUI auf gleiche Zeit- und Hauptmitgliedslogik abgleichen.
 - W5 Arbeitsstunden-, Gutschrift-, Befreiungs- und Exportregressionen absichern.
 - W6 Wartungsverträge auf DEMO fachlich abnehmen und anschließend kontrolliert auf VDB übernehmen.

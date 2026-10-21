@@ -4712,19 +4712,16 @@ namespace KGV.Infrastructure.Services
                     .GroupBy(x => x.WartungsvertragId)
                     .ToDictionary(x => x.Key, x => x.Count());
 
-                var assignedMembers = bundle.ActiveAssignments
+                var assignedMembers = bundle.Assignments
                     .Where(x => x.WartungsvertragId == wartungsvertragId)
-                    .OrderBy(x => bundle.MembersById.TryGetValue(x.HauptmitgliedId, out var member)
-                        ? GetMemberLastNameSortKey(member)
-                        : string.Empty,
-                        StringComparer.CurrentCultureIgnoreCase)
-                    .ThenBy(x => bundle.MembersById.TryGetValue(x.HauptmitgliedId, out var member)
-                        ? GetMemberFirstNameSortKey(member)
-                        : string.Empty,
-                        StringComparer.CurrentCultureIgnoreCase)
-                    .ThenBy(x => x.HauptmitgliedId)
                     .Select(x => CreateWartungsvertragAssignedMemberItem(x, bundle))
                     .ToList();
+                var aktuelleMitglieder = assignedMembers.Where(x => x.Zeitstatus == WartungsvertragZeitstatus.Aktuell)
+                    .OrderBy(x => x.GueltigAb).ThenBy(x => x.DisplayName, StringComparer.CurrentCultureIgnoreCase).ToList();
+                var zukuenftigeMitglieder = assignedMembers.Where(x => x.Zeitstatus == WartungsvertragZeitstatus.Zukuenftig)
+                    .OrderBy(x => x.GueltigAb).ThenBy(x => x.DisplayName, StringComparer.CurrentCultureIgnoreCase).ToList();
+                var historischeMitglieder = assignedMembers.Where(x => x.Zeitstatus == WartungsvertragZeitstatus.Historisch)
+                    .OrderByDescending(x => x.GueltigBis).ThenBy(x => x.DisplayName, StringComparer.CurrentCultureIgnoreCase).ToList();
 
                 var overview = CreateWartungsvertragOverviewItem(contract, countsByContractId);
                 return new WartungsvertragDetailItem
@@ -4741,7 +4738,10 @@ namespace KGV.Infrastructure.Services
                     Beschreibung = CleanWartungsvertragText(contract.Beschreibung, string.Empty),
                     Bereich = CleanWartungsvertragText(contract.Bereich, string.Empty),
                     Bemerkung = CleanWartungsvertragText(contract.Bemerkung, string.Empty),
-                    ZugeordneteMitglieder = assignedMembers
+                    AktuelleZugeordneteMitglieder = aktuelleMitglieder,
+                    ZukuenftigeZugeordneteMitglieder = zukuenftigeMitglieder,
+                    HistorischeZugeordneteMitglieder = historischeMitglieder,
+                    ZugeordneteMitglieder = aktuelleMitglieder
                 };
             },
             null);
@@ -5016,6 +5016,9 @@ namespace KGV.Infrastructure.Services
                 .Distinct()
                 .ToList();
 
+            if (wartungsvertragId > 0 && requestedIds.Count > 0)
+                return await SaveWartungsvertragAssignmentsForMembersAsync(wartungsvertragId, gueltigAb, requestedIds);
+
             try
             {
                 if (wartungsvertragId <= 0)
@@ -5117,6 +5120,9 @@ namespace KGV.Infrastructure.Services
                 .Where(x => x > 0)
                 .Distinct()
                 .ToList();
+
+            if (mitgliedId > 0 && requestedContractIds.Count > 0)
+                return await SaveWartungsvertragAssignmentsForContractsAsync(mitgliedId, gueltigAb, requestedContractIds);
 
             try
             {
@@ -6988,7 +6994,7 @@ namespace KGV.Infrastructure.Services
                 ?? new List<WartungsvertragRecord>();
 
             if (wartungsvertraege.Count == 0)
-                return new WartungsvertragBundle(new List<WartungsvertragRecord>(), new List<WartungsvertragZuordnungRecord>(), new Dictionary<long, MitgliedRecord>(), new Dictionary<long, string>());
+                return new WartungsvertragBundle(new List<WartungsvertragRecord>(), new List<WartungsvertragZuordnungRecord>(), new List<WartungsvertragZuordnungRecord>(), new Dictionary<long, MitgliedRecord>(), new Dictionary<long, string>());
 
             var contractIds = wartungsvertraege.Select(x => x.Id).ToHashSet();
             var zuordnungenResponse = await client.From<WartungsvertragZuordnungRecord>().Get();
@@ -6999,23 +7005,138 @@ namespace KGV.Infrastructure.Services
                 .ToDictionary(x => (long)x.Id, x => x);
 
             var activeDate = DateTime.Today;
-            var activeAssignments = zuordnungenResponse?.Models?
+            var assignments = zuordnungenResponse?.Models?
                 .Where(x => x.WartungsvertragId > 0)
                 .Where(x => x.HauptmitgliedId > 0)
                 .Where(x => contractIds.Contains(x.WartungsvertragId))
                 .Where(x => operationalMembers.ContainsKey(x.HauptmitgliedId))
-                .Where(x => IsWartungsvertragZuordnungAktivOn(x, activeDate))
                 .OrderBy(x => x.WartungsvertragId)
                 .ThenBy(x => x.GueltigAb)
                 .ThenBy(x => x.Id)
                 .ToList()
                 ?? new List<WartungsvertragZuordnungRecord>();
+            var activeAssignments = assignments.Where(x => IsWartungsvertragZuordnungAktivOn(x, activeDate)).ToList();
 
             var parzellen = await GetAllParzellenAsync();
             var belegungen = await GetAllParzellenBelegungenAsync();
             var gardenLookup = BuildWartungsvertragGardenLookup(parzellen, belegungen, operationalMembers.Keys, activeDate);
 
-            return new WartungsvertragBundle(wartungsvertraege, activeAssignments, operationalMembers, gardenLookup);
+            return new WartungsvertragBundle(wartungsvertraege, assignments, activeAssignments, operationalMembers, gardenLookup);
+        }
+
+        private async Task<WartungsvertragAssignmentSaveResult> SaveWartungsvertragAssignmentsForMembersAsync(long wartungsvertragId, DateTime gueltigAb, IReadOnlyCollection<int> mitgliedIds)
+        {
+            var client = await EnsureClientAsync();
+            var contract = await GetWartungsvertragByIdInternalAsync(client, wartungsvertragId);
+            if (contract == null || contract.IsDemo)
+                return CreateWartungsvertragAssignmentSaveResult(false, "Der ausgewählte Wartungsvertrag konnte nicht geladen werden.", mitgliedIds.Count, 0, 0);
+
+            var bundle = await LoadWartungsvertragBundleAsync();
+            var items = new List<WartungsvertragAssignmentSaveItem>();
+            foreach (var memberId in mitgliedIds)
+            {
+                bundle.MembersById.TryGetValue(memberId, out var member);
+                var memberName = BuildWartungsvertragMemberDisplayName(member, memberId);
+                var normalizedId = member == null ? 0 : await ResolveHomeMitgliedIdAsync(memberId);
+                if (normalizedId <= 0)
+                {
+                    items.Add(CreateWartungsvertragAssignmentSaveItem(memberId, memberName, contract, false, "Ungültiges Hauptmitglied."));
+                    continue;
+                }
+
+                try
+                {
+                    await client.From<WartungsvertragZuordnungInsertRecord>().Insert(new WartungsvertragZuordnungInsertRecord
+                    {
+                        WartungsvertragId = wartungsvertragId, HauptmitgliedId = normalizedId, GueltigAb = gueltigAb.Date,
+                        CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow
+                    });
+                    items.Add(CreateWartungsvertragAssignmentSaveItem(memberId, memberName, contract, true, "Gespeichert."));
+                }
+                catch (PostgrestException ex)
+                {
+                    LogPostgrestFailure("AssignMitgliederToWartungsvertragAsync", ex);
+                    items.Add(CreateWartungsvertragAssignmentSaveItem(memberId, memberName, contract, false, BuildWartungsvertragAssignmentUserMessage(ex)));
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogError(ex, "AssignMitgliederToWartungsvertragAsync failed for member {MemberId}.", memberId);
+                    items.Add(CreateWartungsvertragAssignmentSaveItem(memberId, memberName, contract, false, "Zuordnung konnte nicht gespeichert werden."));
+                }
+            }
+            return CreateWartungsvertragAssignmentSaveResult(items, mitgliedIds.Count);
+        }
+
+        private async Task<WartungsvertragAssignmentSaveResult> SaveWartungsvertragAssignmentsForContractsAsync(int mitgliedId, DateTime gueltigAb, IReadOnlyCollection<long> contractIds)
+        {
+            var client = await EnsureClientAsync();
+            var bundle = await LoadWartungsvertragBundleAsync();
+            bundle.MembersById.TryGetValue(mitgliedId, out var member);
+            var memberName = BuildWartungsvertragMemberDisplayName(member, mitgliedId);
+            var normalizedId = member == null ? 0 : await ResolveHomeMitgliedIdAsync(mitgliedId);
+            var items = new List<WartungsvertragAssignmentSaveItem>();
+            foreach (var contractId in contractIds)
+            {
+                var contract = bundle.Contracts.FirstOrDefault(x => x.Id == contractId);
+                if (contract == null || !contract.Aktiv)
+                {
+                    items.Add(CreateWartungsvertragAssignmentSaveItem(mitgliedId, memberName, contractId, contract?.Titel, false, "Der Wartungsvertrag ist nicht aktiv oder nicht verfügbar."));
+                    continue;
+                }
+                if (normalizedId <= 0)
+                {
+                    items.Add(CreateWartungsvertragAssignmentSaveItem(mitgliedId, memberName, contract, false, "Ungültiges Hauptmitglied."));
+                    continue;
+                }
+                try
+                {
+                    await client.From<WartungsvertragZuordnungInsertRecord>().Insert(new WartungsvertragZuordnungInsertRecord
+                    {
+                        WartungsvertragId = contractId, HauptmitgliedId = normalizedId, GueltigAb = gueltigAb.Date,
+                        CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow
+                    });
+                    items.Add(CreateWartungsvertragAssignmentSaveItem(mitgliedId, memberName, contract, true, "Gespeichert."));
+                }
+                catch (PostgrestException ex)
+                {
+                    LogPostgrestFailure("AssignWartungsvertraegeToMitgliedAsync", ex);
+                    items.Add(CreateWartungsvertragAssignmentSaveItem(mitgliedId, memberName, contract, false, BuildWartungsvertragAssignmentUserMessage(ex)));
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogError(ex, "AssignWartungsvertraegeToMitgliedAsync failed for contract {ContractId}.", contractId);
+                    items.Add(CreateWartungsvertragAssignmentSaveItem(mitgliedId, memberName, contract, false, "Zuordnung konnte nicht gespeichert werden."));
+                }
+            }
+            return CreateWartungsvertragAssignmentSaveResult(items, contractIds.Count);
+        }
+
+        private static WartungsvertragAssignmentSaveItem CreateWartungsvertragAssignmentSaveItem(int memberId, string memberName, WartungsvertragRecord contract, bool success, string message)
+            => CreateWartungsvertragAssignmentSaveItem(memberId, memberName, contract.Id, contract.Titel, success, message);
+
+        private static WartungsvertragAssignmentSaveItem CreateWartungsvertragAssignmentSaveItem(int memberId, string memberName, long contractId, string? contractTitle, bool success, string message)
+            => new() { MitgliedId = memberId, MitgliedName = memberName, WartungsvertragId = contractId, WartungsvertragTitel = CleanWartungsvertragText(contractTitle, "Wartungsvertrag"), Success = success, Message = message };
+
+        private static string BuildWartungsvertragAssignmentUserMessage(PostgrestException ex)
+        {
+            var text = (ex.Content ?? string.Empty).ToLowerInvariant();
+            if (text.Contains("max_aktive") || text.Contains("kapaz") || text.Contains("kontingent")) return "Maximale Anzahl aktiver Zuordnungen erreicht.";
+            if (text.Contains("overlap") || text.Contains("doppel") || text.Contains("bereits")) return "Doppelzuordnung im gewählten Zeitraum.";
+            if (text.Contains("gueltig") || text.Contains("daterange")) return "Ungültiger Zeitraum.";
+            if (text.Contains("hauptmitglied")) return "Ungültiges Hauptmitglied.";
+            return "Zuordnung konnte nicht gespeichert werden.";
+        }
+
+        private static WartungsvertragAssignmentSaveResult CreateWartungsvertragAssignmentSaveResult(List<WartungsvertragAssignmentSaveItem> items, int requestedCount)
+        {
+            var successCount = items.Count(x => x.Success);
+            var failed = items.Where(x => !x.Success).ToList();
+            var message = failed.Count == 0
+                ? $"{successCount} Zuordnung(en) wurden gespeichert."
+                : successCount == 0
+                    ? $"Keine von {requestedCount} Zuordnungen wurde gespeichert. {string.Join(" ", failed.Select(x => x.AnzeigeText))}"
+                    : $"{successCount} von {requestedCount} Zuordnungen wurden gespeichert. {string.Join(" ", failed.Select(x => x.AnzeigeText))}";
+            return new WartungsvertragAssignmentSaveResult { Success = successCount > 0, Message = message, RequestedCount = requestedCount, AddedCount = successCount, RemainingFreeSlots = 0, Items = items };
         }
 
         private static WartungsvertragAssignmentSaveResult CreateWartungsvertragAssignmentSaveResult(bool success, string message, int requestedCount, int addedCount, int remainingFreeSlots)
@@ -7185,7 +7306,8 @@ namespace KGV.Infrastructure.Services
                 ArbeitsstundenGutschrift = overview.ArbeitsstundenGutschrift,
                 Aktiv = overview.Aktiv,
                 GueltigAb = zuordnung.GueltigAb,
-                GueltigBis = zuordnung.GueltigBis
+                GueltigBis = zuordnung.GueltigBis,
+                Zeitstatus = WartungsvertragZeitmodell.Klassifiziere(zuordnung.GueltigAb, zuordnung.GueltigBis, DateTime.Today)
             };
         }
 
@@ -7206,7 +7328,8 @@ namespace KGV.Infrastructure.Services
                     ? "Nebenmitglied"
                     : "Hauptmitglied",
                 GueltigAb = zuordnung.GueltigAb,
-                GueltigBis = zuordnung.GueltigBis
+                GueltigBis = zuordnung.GueltigBis,
+                Zeitstatus = WartungsvertragZeitmodell.Klassifiziere(zuordnung.GueltigAb, zuordnung.GueltigBis, DateTime.Today)
             };
         }
 
@@ -7261,6 +7384,7 @@ namespace KGV.Infrastructure.Services
 
         private sealed record WartungsvertragBundle(
             List<WartungsvertragRecord> Contracts,
+            List<WartungsvertragZuordnungRecord> Assignments,
             List<WartungsvertragZuordnungRecord> ActiveAssignments,
             Dictionary<long, MitgliedRecord> MembersById,
             Dictionary<long, string> GardenNumbersByMemberId);

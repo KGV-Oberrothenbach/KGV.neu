@@ -16,7 +16,9 @@ public sealed class WartungsvertragDetailPage : ContentPage, IQueryAttributable
 {
     private readonly ISupabaseService _supabaseService;
     private readonly UserContextState _userContextState;
-    private readonly ObservableCollection<WartungsvertragAssignedMemberItem> _members = new();
+    private readonly ObservableCollection<WartungsvertragAssignedMemberItem> _currentMembers = new();
+    private readonly ObservableCollection<WartungsvertragAssignedMemberItem> _futureMembers = new();
+    private readonly ObservableCollection<WartungsvertragAssignedMemberItem> _historicMembers = new();
     private readonly Label _titleLabel;
     private readonly Label _descriptionLabel;
     private readonly Label _bereichLabel;
@@ -27,8 +29,10 @@ public sealed class WartungsvertragDetailPage : ContentPage, IQueryAttributable
     private readonly Label _aktivLabel;
     private readonly Label _bemerkungLabel;
     private readonly Label _statusLabel;
-    private readonly Label _membersEmptyLabel;
-    private readonly CollectionView _membersView;
+    private readonly Label _currentMembersEmptyLabel;
+    private readonly CollectionView _currentMembersView;
+    private readonly CollectionView _futureMembersView;
+    private readonly CollectionView _historicMembersView;
     private readonly Button _refreshButton;
     private readonly Button _editButton;
     private readonly Button _assignButton;
@@ -53,7 +57,7 @@ public sealed class WartungsvertragDetailPage : ContentPage, IQueryAttributable
         _aktivLabel = new Label();
         _bemerkungLabel = new Label { LineBreakMode = LineBreakMode.WordWrap };
         _statusLabel = new Label { TextColor = Colors.DarkSlateBlue, LineBreakMode = LineBreakMode.WordWrap };
-        _membersEmptyLabel = new Label { Text = "Aktuell keine aktiven Mitgliedszuordnungen.", TextColor = Colors.Gray, IsVisible = false };
+        _currentMembersEmptyLabel = new Label { Text = "Keine aktuellen Mitgliedszuordnungen.", TextColor = Colors.Gray, IsVisible = false };
 
         _refreshButton = new Button { Text = "Aktualisieren" };
         _refreshButton.Clicked += async (_, _) => await LoadAsync();
@@ -62,31 +66,9 @@ public sealed class WartungsvertragDetailPage : ContentPage, IQueryAttributable
         _assignButton = new Button { Text = "Mitglieder zuweisen", IsVisible = false };
         _assignButton.Clicked += async (_, _) => await OpenAssignMembersAsync();
 
-        _membersView = new CollectionView
-        {
-            SelectionMode = SelectionMode.None,
-            ItemsSource = _members,
-            ItemTemplate = new DataTemplate(() =>
-            {
-                var title = new Label { FontAttributes = FontAttributes.Bold, LineBreakMode = LineBreakMode.WordWrap };
-                title.SetBinding(Label.TextProperty, nameof(WartungsvertragAssignedMemberItem.DisplayName));
-
-                var subtitle = new Label { FontSize = 12, TextColor = Colors.Gray, LineBreakMode = LineBreakMode.WordWrap };
-                subtitle.SetBinding(Label.TextProperty, nameof(WartungsvertragAssignedMemberItem.Subtitle));
-
-                return new Border
-                {
-                    Stroke = Colors.LightGray,
-                    Padding = 12,
-                    Margin = new Thickness(0, 0, 0, 8),
-                    Content = new VerticalStackLayout
-                    {
-                        Spacing = 4,
-                        Children = { title, subtitle }
-                    }
-                };
-            })
-        };
+        _currentMembersView = CreateMembersView(_currentMembers);
+        _futureMembersView = CreateMembersView(_futureMembers);
+        _historicMembersView = CreateMembersView(_historicMembers);
 
         Content = new ScrollView
         {
@@ -112,9 +94,13 @@ public sealed class WartungsvertragDetailPage : ContentPage, IQueryAttributable
                     CreateInfoSection("Status", _aktivLabel),
                     CreateInfoSection("Bemerkung", _bemerkungLabel),
                     _statusLabel,
-                    new Label { Text = "Aktive Zuordnungen", FontAttributes = FontAttributes.Bold, FontSize = 18 },
-                    _membersEmptyLabel,
-                    _membersView
+                    new Label { Text = "Aktuelle Zuordnungen", FontAttributes = FontAttributes.Bold, FontSize = 18 },
+                    _currentMembersEmptyLabel,
+                    _currentMembersView,
+                    new Label { Text = "Zukünftige Zuordnungen", FontAttributes = FontAttributes.Bold, FontSize = 18 },
+                    _futureMembersView,
+                    new Label { Text = "Historische Zuordnungen", FontAttributes = FontAttributes.Bold, FontSize = 18 },
+                    _historicMembersView
                 }
             }
         };
@@ -148,8 +134,8 @@ public sealed class WartungsvertragDetailPage : ContentPage, IQueryAttributable
             UpdateActionVisibility();
             SetBusyState(true);
             _statusLabel.Text = "Daten werden geladen.";
-            _members.Clear();
-            _membersEmptyLabel.IsVisible = false;
+            _currentMembers.Clear(); _futureMembers.Clear(); _historicMembers.Clear();
+            _currentMembersEmptyLabel.IsVisible = false;
 
             var detail = await _supabaseService.GetWartungsvertragDetailAsync(_wartungsvertragId);
             if (detail == null)
@@ -177,12 +163,13 @@ public sealed class WartungsvertragDetailPage : ContentPage, IQueryAttributable
             _aktivLabel.Text = detail.AktivText;
             _bemerkungLabel.Text = string.IsNullOrWhiteSpace(detail.Bemerkung) ? "Keine Bemerkung hinterlegt." : detail.Bemerkung;
 
-            foreach (var member in detail.ZugeordneteMitglieder)
-                _members.Add(member);
+            foreach (var member in detail.AktuelleZugeordneteMitglieder) _currentMembers.Add(member);
+            foreach (var member in detail.ZukuenftigeZugeordneteMitglieder) _futureMembers.Add(member);
+            foreach (var member in detail.HistorischeZugeordneteMitglieder) _historicMembers.Add(member);
 
-            _membersEmptyLabel.IsVisible = _members.Count == 0;
-            _statusLabel.Text = _members.Count > 0
-                ? $"{_members.Count} aktive Zuordnung(en) geladen."
+            _currentMembersEmptyLabel.IsVisible = _currentMembers.Count == 0;
+            _statusLabel.Text = _currentMembers.Count + _futureMembers.Count + _historicMembers.Count > 0
+                ? $"{_currentMembers.Count} aktuell, {_futureMembers.Count} zukünftig, {_historicMembers.Count} historisch."
                 : string.Empty;
         }
         catch (Exception ex)
@@ -223,8 +210,24 @@ public sealed class WartungsvertragDetailPage : ContentPage, IQueryAttributable
         _refreshButton.IsEnabled = !isBusy;
         _editButton.IsEnabled = _canManage && !isBusy;
         _assignButton.IsEnabled = _canManage && !isBusy;
-        _membersView.IsEnabled = !isBusy;
+        _currentMembersView.IsEnabled = !isBusy;
+        _futureMembersView.IsEnabled = !isBusy;
+        _historicMembersView.IsEnabled = !isBusy;
     }
+
+    private static CollectionView CreateMembersView(ObservableCollection<WartungsvertragAssignedMemberItem> members) => new()
+    {
+        SelectionMode = SelectionMode.None,
+        ItemsSource = members,
+        ItemTemplate = new DataTemplate(() =>
+        {
+            var title = new Label { FontAttributes = FontAttributes.Bold, LineBreakMode = LineBreakMode.WordWrap };
+            title.SetBinding(Label.TextProperty, nameof(WartungsvertragAssignedMemberItem.DisplayName));
+            var subtitle = new Label { FontSize = 12, TextColor = Colors.Gray, LineBreakMode = LineBreakMode.WordWrap };
+            subtitle.SetBinding(Label.TextProperty, nameof(WartungsvertragAssignedMemberItem.Subtitle));
+            return new Border { Stroke = Colors.LightGray, Padding = 12, Margin = new Thickness(0, 0, 0, 8), Content = new VerticalStackLayout { Spacing = 4, Children = { title, subtitle } } };
+        })
+    };
 
     private static bool TryGetBoolValue(IDictionary<string, object> query, string key)
     {
