@@ -16,8 +16,7 @@ namespace KGV.Maui.Pages;
 public sealed class ImpressumPage : ContentPage
 {
     private readonly ISupabaseService _supabaseService;
-    private readonly VerticalStackLayout _weitereVorstandContainer;
-    private readonly VerticalStackLayout _bauausschussContainer;
+    private readonly VerticalStackLayout _kontaktgruppenContainer;
     private readonly Label _statusLabel;
     private readonly Label _vereinsnameLabel;
     private readonly Label _registerLabel;
@@ -25,8 +24,7 @@ public sealed class ImpressumPage : ContentPage
     private readonly Label _verantwortlichAdresseLabel;
     private readonly Label _emailLabel;
     private readonly UserContextState _userContextState;
-    private List<ImpressumKontaktItem> _allWeitereVorstandsmitglieder = new();
-    private List<ImpressumKontaktItem> _allBauausschussmitglieder = new();
+    private List<ImpressumKontaktGruppe> _kontaktgruppen = new();
     private bool _isBusy;
 
     public ImpressumPage(ISupabaseService supabaseService, UserContextState userContextState)
@@ -42,8 +40,7 @@ public sealed class ImpressumPage : ContentPage
             IsVisible = false
         };
 
-        _weitereVorstandContainer = new VerticalStackLayout { Spacing = 12 };
-        _bauausschussContainer = new VerticalStackLayout { Spacing = 12 };
+        _kontaktgruppenContainer = new VerticalStackLayout { Spacing = 12 };
         _vereinsnameLabel = new Label { FontAttributes = FontAttributes.Bold, LineBreakMode = LineBreakMode.WordWrap };
         _registerLabel = new Label { LineBreakMode = LineBreakMode.WordWrap };
         _verantwortlichNameLabel = new Label { LineBreakMode = LineBreakMode.WordWrap };
@@ -72,12 +69,11 @@ public sealed class ImpressumPage : ContentPage
                     },
                     new Label
                     {
-                        Text = "Vereinskopf und Verantwortlichkeit aus der aktiven Vereinskonfiguration sowie den zugeordneten Funktionsslots.",
+                        Text = "Vereinskopf und Verantwortlichkeit aus der aktiven Vereinskonfiguration sowie den aktuellen Vereinsfunktionen.",
                         LineBreakMode = LineBreakMode.WordWrap
                     },
                     CreateClubSection(),
-                    CreateDynamicSection("Weitere Vorstandsmitglieder", _weitereVorstandContainer),
-                    CreateDynamicSection("Bauausschuss", _bauausschussContainer),
+                    _kontaktgruppenContainer,
                     CreateDatenschutzSection(datenschutzButton),
                     _statusLabel
                 }
@@ -104,8 +100,7 @@ public sealed class ImpressumPage : ContentPage
 
             var info = await _supabaseService.GetImpressumInfoAsync(_userContextState.CurrentUserContext?.IsDemoAccount == true) ?? new ImpressumInfo();
             ApplyClubInfo(info);
-            _allWeitereVorstandsmitglieder = info.WeitereVorstandsmitglieder.ToList();
-            _allBauausschussmitglieder = info.WeitereBauausschussmitglieder.ToList();
+            _kontaktgruppen = info.Kontaktgruppen.ToList();
             ApplyVisibleItems();
 
             _statusLabel.IsVisible = false;
@@ -113,8 +108,7 @@ public sealed class ImpressumPage : ContentPage
         }
         catch (Exception)
         {
-            _allWeitereVorstandsmitglieder = new List<ImpressumKontaktItem>();
-            _allBauausschussmitglieder = new List<ImpressumKontaktItem>();
+            _kontaktgruppen = new List<ImpressumKontaktGruppe>();
             ApplyClubInfo(new ImpressumInfo());
             ApplyVisibleItems();
             _statusLabel.Text = "Weitere Impressumskontakte konnten aktuell nicht geladen werden.";
@@ -128,19 +122,16 @@ public sealed class ImpressumPage : ContentPage
 
     private void ApplyVisibleItems()
     {
-        RenderSection(
-            _weitereVorstandContainer,
-            FilterVisibleItems(_allWeitereVorstandsmitglieder),
-            "Aktuell keine weiteren Vorstandsangaben hinterlegt.");
-        RenderSection(
-            _bauausschussContainer,
-            FilterVisibleItems(_allBauausschussmitglieder),
-            "Aktuell keine Angaben zum Bauausschuss hinterlegt.");
+        _kontaktgruppenContainer.Children.Clear();
+        foreach (var gruppe in _kontaktgruppen)
+            _kontaktgruppenContainer.Children.Add(CreateDynamicSection(gruppe.Bezeichnung, CreateEntries(gruppe.Kontakte)));
     }
 
-    private IReadOnlyCollection<ImpressumKontaktItem> FilterVisibleItems(IEnumerable<ImpressumKontaktItem> items)
+    private static VerticalStackLayout CreateEntries(IEnumerable<ImpressumKontaktItem> items)
     {
-        return items.ToList();
+        var target = new VerticalStackLayout { Spacing = 12 };
+        RenderSection(target, items.ToList(), "Aktuell keine Angaben hinterlegt.");
+        return target;
     }
 
     private void ApplyClubInfo(ImpressumInfo info)
@@ -148,8 +139,8 @@ public sealed class ImpressumPage : ContentPage
         var configuration = info.Vereinskonfiguration;
         _vereinsnameLabel.Text = string.IsNullOrWhiteSpace(configuration?.Vereinsname) ? "Aktuell nicht hinterlegt" : configuration.Vereinsname.Trim();
         _registerLabel.Text = string.IsNullOrWhiteSpace(configuration?.Registerangabe) ? "Aktuell nicht hinterlegt" : configuration.Registerangabe.Trim();
-        _verantwortlichNameLabel.Text = info.Verantwortlich?.DisplayName ?? "Aktuell nicht hinterlegt.";
-        _verantwortlichAdresseLabel.Text = info.Verantwortlich?.Adresse ?? string.Empty;
+        _verantwortlichNameLabel.Text = info.Verantwortliche.Count == 0 ? "Aktuell nicht hinterlegt." : string.Join("\n", info.Verantwortliche.Select(x => x.DisplayName));
+        _verantwortlichAdresseLabel.Text = string.Join("\n", info.Verantwortliche.Where(x => x.ShowAdresse).Select(x => x.Adresse));
         _emailLabel.Text = string.IsNullOrWhiteSpace(configuration?.StandardEmail) ? "Aktuell nicht hinterlegt" : $"E-Mail: {configuration.StandardEmail.Trim()}";
     }
 

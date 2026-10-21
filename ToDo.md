@@ -2,7 +2,7 @@
 
 ## Vereinsfunktionen
 
-- Impressum von der Textheuristik auf Vereinsfunktionen umstellen.
+- Impressum-Umstellung auf DEMO fachlich abnehmen und anschließend auf VDB übernehmen.
 - Verwaltungsoberfläche für Vereinsfunktionen, Besetzungen und Vertretungen erstellen.
 - Vereinsunterzeichner aus einer gültigen Funktionsbesetzung ableiten und Person plus Funktion als Vertrags-Snapshot speichern.
 

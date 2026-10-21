@@ -710,36 +710,18 @@ namespace KGV.Infrastructure.Services
             async () =>
             {
                 var client = await EnsureClientAsync();
-                var slotsResponse = await client.From<ImpressumFunktionSlotRecord>().Get();
-                var slots = slotsResponse?.Models?
-                    .OrderBy(x => x.SortOrder)
-                    .ThenBy(x => x.SlotKey ?? string.Empty, StringComparer.CurrentCultureIgnoreCase)
-                    .ToList()
-                    ?? new List<ImpressumFunktionSlotRecord>();
-
                 var info = new ImpressumInfo { Vereinskonfiguration = await GetAktiveVereinskonfigurationAsync() };
-                if (slots.Count == 0)
-                    return info;
-
-                var membersResponse = await client.From<MitgliedRecord>().Get();
-                var members = membersResponse?.Models?
-                    .Where(member => includeDemo || !member.IsDemo)
-                    .ToList()
-                    ?? new List<MitgliedRecord>();
-                var membersById = members
-                    .Where(x => x.Id > 0)
-                    .ToDictionary(x => (long)x.Id, x => x);
-
-                foreach (var slot in slots)
+                var contacts = await client.Rpc<List<ImpressumKontaktRecord>>("impressum_kontakte", new { })
+                    ?? new List<ImpressumKontaktRecord>();
+                foreach (var contact in contacts)
                 {
-                    var item = CreateImpressumKontaktItem(slot, membersById);
-                    if (IsVorstandsvorsitzSlot(slot))
-                        info.Verantwortlich ??= item;
-                    else if (IsBauausschussSlot(slot))
-                        info.Bauausschuss.Add(item);
-                    else
-                        info.Vorstand.Add(item);
+                    var item = CreateImpressumKontaktItem(contact);
+                    if (contact.IstHauptkontakt) { info.Verantwortliche.Add(item); continue; }
+                    var group = info.Kontaktgruppen.FirstOrDefault(x => x.Schluessel == contact.GruppenSchluessel);
+                    if (group == null) { group = new ImpressumKontaktGruppe { Schluessel = contact.GruppenSchluessel, Bezeichnung = contact.GruppenBezeichnung, SortOrder = contact.GruppenSortOrder }; info.Kontaktgruppen.Add(group); }
+                    group.Kontakte.Add(item);
                 }
+                info.Kontaktgruppen = info.Kontaktgruppen.OrderBy(x => x.SortOrder).ThenBy(x => x.Bezeichnung, StringComparer.CurrentCultureIgnoreCase).ToList();
 
                 return info;
             },
@@ -7054,54 +7036,16 @@ namespace KGV.Infrastructure.Services
                 && (!end.HasValue || end.Value >= target);
         }
 
-        private static ImpressumKontaktItem CreateImpressumKontaktItem(ImpressumFunktionSlotRecord slot, IReadOnlyDictionary<long, MitgliedRecord> membersById)
+        private static ImpressumKontaktItem CreateImpressumKontaktItem(ImpressumKontaktRecord contact)
         {
-            MitgliedRecord? member = null;
-            if (slot.MitgliedId.HasValue && membersById.TryGetValue(slot.MitgliedId.Value, out var resolvedMember))
-                member = resolvedMember;
-
-            var isVorstandsvorsitzende = IsVorstandsvorsitzSlot(slot);
-
             return new ImpressumKontaktItem
             {
-                Funktion = string.IsNullOrWhiteSpace(slot.Funktion) ? "Funktion" : slot.Funktion.Trim(),
-                Name = BuildImpressumDisplayName(member),
-                Email = string.Empty,
-                Telefon = string.Empty,
-                Handy = BuildImpressumHandy(member),
-                Adresse = isVorstandsvorsitzende ? BuildImpressumAdresse(member) : string.Empty,
-                IsVorstandsvorsitzende = isVorstandsvorsitzende
+                Funktion = string.IsNullOrWhiteSpace(contact.Bezeichnung) ? "Funktion" : contact.Bezeichnung.Trim(),
+                Name = string.Join(" ", new[] { contact.Vorname, contact.Nachname }.Where(x => !string.IsNullOrWhiteSpace(x))).Trim(),
+                Handy = contact.Handy?.Trim() ?? string.Empty,
+                Adresse = string.Join(", ", new[] { contact.Adresse, string.Join(" ", new[] { contact.Plz, contact.Ort }.Where(x => !string.IsNullOrWhiteSpace(x))) }.Where(x => !string.IsNullOrWhiteSpace(x))).Trim(),
+                IsHauptkontakt = contact.IstHauptkontakt
             };
-        }
-
-        private static bool IsBauausschussSlot(ImpressumFunktionSlotRecord slot)
-        {
-            var slotKey = (slot.SlotKey ?? string.Empty).Trim().ToLowerInvariant();
-            var funktion = (slot.Funktion ?? string.Empty).Trim().ToLowerInvariant();
-
-            return slotKey.Contains("bauausschuss", StringComparison.Ordinal)
-                || slotKey.Contains("ausschuss", StringComparison.Ordinal)
-                || slotKey.Contains("bau", StringComparison.Ordinal)
-                || funktion.Contains("bauausschuss", StringComparison.Ordinal)
-                || funktion.Contains("bau-ausschuss", StringComparison.Ordinal)
-                || funktion.Contains("bau ausschuss", StringComparison.Ordinal)
-                || (funktion.Contains("bau", StringComparison.Ordinal) && funktion.Contains("ausschuss", StringComparison.Ordinal));
-        }
-
-        private static bool IsVorstandsvorsitzSlot(ImpressumFunktionSlotRecord slot)
-        {
-            var combined = string.Join(" ", new[] { slot.SlotKey, slot.Funktion }
-                .Where(x => !string.IsNullOrWhiteSpace(x))
-                .Select(x => x!.Trim().ToLowerInvariant()));
-
-            if (string.IsNullOrWhiteSpace(combined) || !combined.Contains("vorsitz", StringComparison.Ordinal))
-                return false;
-
-            return !combined.Contains("stellv", StringComparison.Ordinal)
-                && !combined.Contains("stellvertr", StringComparison.Ordinal)
-                && !combined.Contains("stv", StringComparison.Ordinal)
-                && !combined.Contains("2. vorsitz", StringComparison.Ordinal)
-                && !combined.Contains("zweite vorsitz", StringComparison.Ordinal);
         }
 
         private static string BuildImpressumDisplayName(MitgliedRecord? member)

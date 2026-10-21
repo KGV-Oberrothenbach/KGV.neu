@@ -10,13 +10,13 @@ namespace KGV.Core.Models
         public string Telefon { get; set; } = string.Empty;
         public string Handy { get; set; } = string.Empty;
         public string Adresse { get; set; } = string.Empty;
-        public bool IsVorstandsvorsitzende { get; set; }
+        public bool IsHauptkontakt { get; set; }
 
         public bool HasEmail => !string.IsNullOrWhiteSpace(Email);
         public bool HasTelefon => !string.IsNullOrWhiteSpace(Telefon);
         public bool HasHandy => !string.IsNullOrWhiteSpace(Handy);
         public bool HasAdresse => !string.IsNullOrWhiteSpace(Adresse);
-        public bool ShowAdresse => IsVorstandsvorsitzende && HasAdresse;
+        public bool ShowAdresse => HasAdresse;
         public string DisplayHandyText => HasHandy
             ? $"Handynummer: {Handy.Trim()}"
             : "Handynummer: aktuell nicht hinterlegt.";

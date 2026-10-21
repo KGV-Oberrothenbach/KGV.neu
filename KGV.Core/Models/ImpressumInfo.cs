@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Linq;
 
 namespace KGV.Core.Models
 {
@@ -13,18 +12,16 @@ namespace KGV.Core.Models
         public const string DatenschutzHinweis = "Die Datenschutzerklärung zur App ist online abrufbar.";
         public const string DatenschutzUrl = "https://kgv-oberrothenbach.github.io/KGV.neu/datenschutz.html";
 
-        public List<ImpressumKontaktItem> Vorstand { get; set; } = new();
-        public List<ImpressumKontaktItem> Bauausschuss { get; set; } = new();
+        public List<ImpressumKontaktGruppe> Kontaktgruppen { get; set; } = new();
         public VereinskonfigurationRecord? Vereinskonfiguration { get; set; }
-        public ImpressumKontaktItem? Verantwortlich { get; set; }
+        public List<ImpressumKontaktItem> Verantwortliche { get; set; } = new();
+    }
 
-        public bool HasVorstand => Vorstand.Count > 0;
-        public bool HasBauausschuss => Bauausschuss.Count > 0;
-        public IReadOnlyList<ImpressumKontaktItem> WeitereVorstandsmitglieder => Vorstand
-            .Where(x => x != null && !x.IsVorstandsvorsitzende)
-            .ToList();
-        public IReadOnlyList<ImpressumKontaktItem> WeitereBauausschussmitglieder => Bauausschuss
-            .Where(x => x != null)
-            .ToList();
+    public sealed class ImpressumKontaktGruppe
+    {
+        public string Schluessel { get; set; } = string.Empty;
+        public string Bezeichnung { get; set; } = string.Empty;
+        public short SortOrder { get; set; }
+        public List<ImpressumKontaktItem> Kontakte { get; set; } = new();
     }
 }

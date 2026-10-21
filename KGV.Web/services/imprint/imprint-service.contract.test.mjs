@@ -9,13 +9,11 @@ const [service, repository, page] = await Promise.all([
 ]);
 
 assert.match(service, /loadClubConfiguration/);
-assert.match(service, /isImprintChairSlot/);
-assert.match(service, /responsible \?\?= contact/);
-assert.match(service, /session\.isDemoAccount \|\| !member\.is_demo/);
-assert.doesNotMatch(service, /demo\|test\|play/);
-assert.match(repository, /is_demo/);
+assert.match(repository, /impressum_kontakte/);
+assert.match(service, /groupImprintContacts/);
+assert.doesNotMatch(service, /isImprintChairSlot|isConstructionSlot|vorsitz|bauausschuss/i);
+assert.doesNotMatch(repository, /impressum_funktion_slot|readSupabaseRest/);
 assert.match(page, /loadImprintData/);
 assert.match(page, /imprint\.responsible/);
-assert.match(page, /imprint\.board/);
-assert.match(page, /imprint\.construction/);
+assert.match(page, /imprint\.groups/);
 assert.doesNotMatch(page, /Kleingartenverein Oberrothenbach/);
