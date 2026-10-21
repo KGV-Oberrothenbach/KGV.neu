@@ -7,6 +7,7 @@ import { listCurrentGardenNumbersByMemberId } from "../parcels/parcel-service";
 import { loadMaintenanceContract, loadMaintenanceContracts } from "./maintenance-contract-service";
 import { createMaintenanceAssignment, endMaintenanceAssignment, listMaintenanceAssignmentMembers, listMaintenanceAssignments, listMaintenanceAssignmentsForContract, resolveMaintenanceAssignmentMembers, resolveMaintenanceAssignmentPrincipalMember, type MaintenanceAssignmentMemberRow, type MaintenanceAssignmentRow } from "../../repositories/maintenance/maintenance-assignment-repository";
 import { classifyMaintenanceAssignments, maintenanceReferenceDate } from "./maintenance-assignment-time-model.js";
+import { ensureMaintenanceDocumentWorkflow, type MaintenanceDocumentWorkflowRow } from "../../repositories/maintenance/maintenance-document-workflow-repository";
 
 export { classifyMaintenanceAssignments } from "./maintenance-assignment-time-model.js";
 
@@ -20,7 +21,12 @@ export type MaintenanceAssignmentBatchInput = { maintenanceContractId: number; s
 export type MaintenanceMemberCandidate = { selectedMemberId: number; principalMemberId: number; displayName: string; memberContext: "Hauptmitglied" | "Nebenmitglied"; gardenNumbers: string[]; alreadyAssignedInPeriod: boolean; selectable: boolean; statusText: string | null };
 export type MaintenanceContractCandidate = { contract: MaintenanceContract; principalMemberId: number; alreadyAssignedInPeriod: boolean; availableInPeriod: boolean; selectable: boolean; statusText: string | null };
 export type MaintenanceContractBatchInput = { selectedMemberId: number; maintenanceContractIds: number[]; validFrom: string; validUntil: null; note: string | null };
-export type MaintenanceBatchSaveResult = { created: MaintenanceAssignment[]; failures: { targetId: number; message: string }[] };
+export type MaintenanceBatchSaveResult = {
+  created: MaintenanceAssignment[];
+  failures: { targetId: number; message: string }[];
+  documentWorkflows: MaintenanceDocumentWorkflowRow[];
+  documentFailures: { assignmentId: number; message: string }[];
+};
 
 export function maintenanceAssignmentIntervalsOverlap(aFrom: string, aUntil: string | null, bFrom: string, bUntil: string | null): boolean {
   return aFrom <= (bUntil ?? "9999-12-31") && bFrom <= (aUntil ?? "9999-12-31");
@@ -66,7 +72,7 @@ export async function loadMemberMaintenanceContracts(club: ClubContext, session:
   if (!member) throw new Error("Das Mitglied wurde nicht gefunden.");
   const principalMemberId = await resolveMaintenancePrincipalMember(club, session, selectedMemberId);
   const [principalMember, assignments, contracts] = await Promise.all([principalMemberId === selectedMemberId ? Promise.resolve(member) : getMember(club, session, principalMemberId), loadMaintenanceAssignments(club, session, principalMemberId), loadMaintenanceContracts(club, session)]);
-  return { member, principalMember, principalMemberId, assignments: classifyMaintenanceAssignments(assignments, maintenanceReferenceDate(), contracts), contracts };
+  return { member, principalMember, principalMemberId, assignments: classifyMaintenanceAssignments(assignments, maintenanceReferenceDate(), contracts), contracts, documentWorkflows: [] as MaintenanceDocumentWorkflowRow[] };
 }
 
 export async function loadAssignableMaintenanceContractsForMember(club: ClubContext, session: BrowserSession, selectedMemberId: number, validFrom: string): Promise<MaintenanceContractCandidate[]> {
@@ -92,7 +98,29 @@ export async function createMaintenanceAssignmentForContract(club: ClubContext, 
   const created = await createMaintenanceAssignment(club, session, { wartungsvertrag_id: input.maintenanceContractId, hauptmitglied_id: principalMemberId, gueltig_ab: input.validFrom, gueltig_bis: input.validUntil, bemerkung: input.note?.trim() || null });
   const row = created[0];
   if (!row) throw new Error("Wartungsvertragszuordnung konnte nicht gespeichert werden.");
+  try {
+    await ensureMaintenanceDocumentWorkflow(club, session, row.id);
+  } catch (cause) {
+    const message = cause instanceof Error ? cause.message : "Unbekannter Fehler";
+    console.error("Wartungsvertragszuordnung gespeichert, Dokumentworkflow konnte nicht vorbereitet werden.", { assignmentId: row.id, message });
+    throw new Error("Zuordnung wurde gespeichert, das Wartungsvertragsdokument konnte jedoch nicht erstellt werden.", { cause });
+  }
   return fromRow(row);
+}
+
+async function ensureDocumentWorkflows(club: ClubContext, session: BrowserSession, assignments: MaintenanceAssignment[]) {
+  const workflows: MaintenanceDocumentWorkflowRow[] = [];
+  const failures: { assignmentId: number; message: string }[] = [];
+  for (const assignment of assignments) {
+    try {
+      workflows.push(await ensureMaintenanceDocumentWorkflow(club, session, assignment.id));
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : "Dokumentworkflow konnte nicht angelegt werden.";
+      console.error("Wartungsvertrags-Dokumentworkflow konnte nicht vorbereitet werden.", { assignmentId: assignment.id, message });
+      failures.push({ assignmentId: assignment.id, message });
+    }
+  }
+  return { workflows, failures };
 }
 
 export async function assignMembersToMaintenanceContract(club: ClubContext, session: BrowserSession, input: MaintenanceAssignmentBatchInput): Promise<MaintenanceBatchSaveResult> {
@@ -120,7 +148,8 @@ export async function assignMembersToMaintenanceContract(club: ClubContext, sess
       failures.push({ targetId, message: cause instanceof Error ? cause.message : "Zuordnung konnte nicht gespeichert werden." });
     }
   }
-  return { created, failures };
+  const documentResult = await ensureDocumentWorkflows(club, session, created);
+  return { created, failures, documentWorkflows: documentResult.workflows, documentFailures: documentResult.failures };
 }
 
 export async function assignMaintenanceContractsToMember(club: ClubContext, session: BrowserSession, input: MaintenanceContractBatchInput): Promise<MaintenanceBatchSaveResult> {
@@ -145,7 +174,8 @@ export async function assignMaintenanceContractsToMember(club: ClubContext, sess
       failures.push({ targetId: contract.id, message: cause instanceof Error ? cause.message : "Zuordnung konnte nicht gespeichert werden." });
     }
   }
-  return { created, failures };
+  const documentResult = await ensureDocumentWorkflows(club, session, created);
+  return { created, failures, documentWorkflows: documentResult.workflows, documentFailures: documentResult.failures };
 }
 
 export async function endMaintenanceAssignmentForContract(club: ClubContext, session: BrowserSession, assignment: Pick<MaintenanceAssignment, "id" | "validFrom">, validUntil: string): Promise<MaintenanceAssignment> {

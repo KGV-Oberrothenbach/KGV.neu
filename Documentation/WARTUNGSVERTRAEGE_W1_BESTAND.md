@@ -1,15 +1,21 @@
-# Wartungsverträge – Abschlussdokument W1–W6
+# Wartungsverträge – W1–W6 und Dokumentworkflow
 
 Stand: 21.10.2026
 
 ## Abschluss W6
 
-W1–W6 sind im Repository abgeschlossen. W1–W5 haben keine neue Supabase-
-Migration hinzugefügt; W6 ändert ebenfalls weder Schema noch Daten. Für diesen
-Wartungsvertragsblock ist daher kein Supabase-DB-Rollout notwendig. Es wurde
-kein Projekt verknüpft und keine Remote-Datenbank abgefragt oder verändert.
-Die Feststellung beruht auf dem Git-Migrationsverlauf des W1–W5-Änderungs-
-bereichs; die bestehende Saisonregel wird unverändert verwendet.
+Die Fachblöcke W1–W6 sind im Repository umgesetzt. Der nachfolgend
+beschriebene Wartungsvertrags-Dokumentworkflow ist ein nachträglicher,
+technischer Erweiterungsblock und noch nicht fachlich vollständig: Es gibt
+keine freigegebene Wartungsvertragsvorlage und keine festgelegten
+Signaturparteien. Die tatsächliche PDF-Erzeugung und Signaturfreigabe bleiben
+deshalb ausdrücklich offen.
+
+Für diesen technischen Block ist eine neue Supabase-Migration vorbereitet.
+Sie ist nicht angewendet. Vor produktiver Nutzung ist ein bewusster DB-Rollout
+dieser Migration erforderlich. Es wurde kein Projekt verknüpft und keine
+Remote-Datenbank abgefragt oder verändert. Die bestehende Saisonregel bleibt
+unverändert.
 
 ### DEMO-Abnahme – kurze manuelle Prüfliste
 
@@ -29,6 +35,63 @@ bereichs; die bestehende Saisonregel wird unverändert verwendet.
 
 Diese Liste ist für die fachliche DEMO-Abnahme vorbereitet; sie dokumentiert
 keine ausgeführte Abnahme in einer verbundenen DEMO- oder VDB-Instanz.
+
+## Technische Vorbereitung des Wartungsvertrags-Dokumentworkflows
+
+Jede neu gespeicherte `wartungsvertrag_zuordnungen`-Zeile erhält durch einen
+DB-Trigger genau einen Eintrag in `wartungsvertrag_dokument_workflow`.
+Die Zuordnungs-ID ist eindeutig; vorbereiteter Kommunikationsvorgang und
+finales Dokument erhalten ebenfalls eindeutige Zuordnungsbindungen. Validierungs-
+Trigger prüfen, dass Kommunikationsvorgang und Dokument zur gespeicherten
+Zuordnung und ihrem Hauptmitglied gehören. Die Workflow-RPC kann für eine
+bereits vorhandene Zuordnung manuell und idempotent aufgerufen werden. Sie
+erzeugt selbst weder PDF noch Signatur.
+
+Web und MAUI stoßen den gemeinsamen Workflow nach jeder erfolgreichen
+Einzelzuordnung an. Bei Batch-Zuordnungen werden nur gespeicherte
+Einzelzuordnungen verarbeitet; W3-Ergebnisse behalten ihre Einzelresultate und
+Dokumentworkflowfehler getrennt. Ist die Zuordnung gespeichert, aber der
+Workflow nicht erreichbar, bleibt die Zuordnung bestehen und der Fehler wird
+als Dokumentfehler ausgewiesen. In Mitgliedsansichten ist eine manuelle
+Workflow-Prüf-/Vorbereitungsaktion für bestehende Zuordnungen vorhanden; beim
+Öffnen erfolgt keine automatische Massenerzeugung. Hauptmitgliedsbezug wird
+durch die bestehende Zuordnungsnormalisierung übernommen und zusätzlich in
+der DB-Verknüpfung validiert.
+
+Solange Vorlage und Signaturparteien fehlen, bleibt der Status
+`dokument_ausstehend` mit dem Hinweis „Zuordnung gespeichert,
+Wartungsvertragsdokument noch nicht erzeugt“. Der manuelle Aufruf kann den
+technischen Workfloweintrag idempotent anlegen bzw. auslesen, aber kein
+Dokument nachholen. Es wird kein Vertragstext, kein PDF und kein
+Signaturvorgang fingiert.
+
+### Noch festzulegende fachliche Angaben
+
+1. **Vorlage und Platzhalter:** die freigegebene Wartungsvertragsvorlage samt
+   Version; die vollständige Platzhalterliste; für jeden Platzhalter die
+   verbindliche Datenquelle aus Vertrag, Zuordnung, Hauptmitglied oder Verein;
+   außerdem Formatierung und welche Werte als unveränderlicher Snapshot im
+   Vorgang festgehalten werden müssen. Die konkrete Liste kann erst aus der
+   freigegebenen Vorlage abgeleitet werden.
+2. **Signaturparteien und Rollen:** wer auf Mitgliedsseite unterschreibt
+   (Hauptmitglied oder gegebenenfalls Vertretung/Nebenmitglied), welche
+   Vereinsrolle unterschreibt, wie Person und Funktion ermittelt werden und
+   in welcher Reihenfolge die Parteien signieren. Es sind weder Personen noch
+   Rollen oder Reihenfolge vorgegeben.
+3. **Wiederverwendung:** empfohlen ist der bestehende Prepared-Contract-/
+   `kommunikationsvorgang`-Ablauf für Revision, Signaturstart, letzte Prüfung,
+   Abschluss/Verwerfen und Finaldokument-Provenienz. Mitgliedsantrag und
+   Pachtvertrag dienen als vorhandene konkrete Flows und Generator-/UI-Muster;
+   die bestehende `VertragsSignaturPage` ist der MAUI-Signaturanschluss.
+   Nach Freigabe von Vorlage und Rollen muss entschieden und implementiert
+   werden, welche dieser Flows direkt erweitert wird und wie der Wartungsvertrag
+   in Generator, Signaturplan und Web-Kommunikationsansicht abgebildet wird.
+
+Die technische Migration ist vorbereitet, aber nicht angewendet. Sie ergänzt
+Zuordnungsbindungen an Kommunikationsvorgang und Dokument sowie die
+idempotente Workflowtabelle, Trigger und RPC. Vor einem späteren Merge/Rollout
+ist die Migration nach dem Repository-Migrationsverfahren syntaktisch,
+idempotent und hinsichtlich RLS/Triggern zu prüfen.
 
 ## Datenmodell und Datenbankregeln
 
@@ -193,7 +256,9 @@ Mehrfachvertragsregeln sowie die zentralen Web-, MAUI- und Exportpfade.
 - Die maßgeblichen Datenbankregeln und RLS-Policies stammen aus bereits
   vorhandenen Migrationen. Zwischen dem W1-Ausgangsstand und W5 wurde keine
   Migration hinzugefügt oder geändert. W6 erforderte ebenfalls keine Migration
-  und keine Produktivdatenänderung.
-- Der getrennte Dokumentvorgang je zugeordnetem Mitglied ist nicht Teil des
-  abgeschlossenen W1–W6-Vertragsbereichs und bleibt ein eigener offener
-  Dokumentworkflow.
+  und keine Produktivdatenänderung. Die nachträgliche technische Vorbereitung
+  des Dokumentworkflows enthält dagegen eine neue, noch nicht angewendete
+  Migration; kein DB-Rollout wurde ausgeführt.
+- Der Dokumentworkflow ist technisch vorbereitet, aber fachlich nicht
+  abgeschlossen. PDF-Erzeugung, freigegebene Vorlage, konkrete Platzhalter,
+  Signaturparteien und Signaturfreigabe sind echte offene Punkte.

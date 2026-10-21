@@ -283,13 +283,22 @@ public sealed class WartungsvertragAssignMembersPage : ContentPage, IQueryAttrib
             }
 
             var result = await _supabaseService.AssignMitgliederToWartungsvertragAsync(_wartungsvertragId, _gueltigAbDatePicker.Date.Value, selectedIds);
+            var resultText = result.Items.Count > 0
+                ? string.Join(Environment.NewLine, result.Items.Select(x => x.AnzeigeText))
+                : result.Message;
             if (!result.Success || result.FailedCount > 0)
             {
-                _statusLabel.Text = result.Message;
+                _statusLabel.Text = resultText;
                 await LoadAsync();
+                if (result.AddedCount > 0)
+                {
+                    await DisplayAlertAsync("Teilweise zugeordnet", resultText, "OK");
+                    await Shell.Current.GoToAsync("..");
+                }
                 return;
             }
 
+            await DisplayAlertAsync("Zuordnung gespeichert", resultText, "OK");
             await Shell.Current.GoToAsync("..");
         }
         catch (Exception ex)

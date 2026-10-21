@@ -18,6 +18,49 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 - `KGV.Core`
 - `KGV.Maui`
 
+## 2026-10-21 – Wartungsvertrags-Dokumentworkflow technisch vorbereitet
+
+- Die vorhandene Prepared-Contract-Architektur mit `kommunikationsvorgang`,
+  Revisionen, Signaturstart, letzter Prüfung, Finaldokument-Provenienz und den
+  vorhandenen Web-/MAUI-Signaturoberflächen wurde als Wiederverwendungspfad
+  ausgewählt. Eine Wartungsvertragsvorlage und konkrete Unterzeichnerrollen
+  existieren noch nicht; deshalb wurde keine tatsächliche PDF-Erzeugung oder
+  Signaturfreigabe implementiert.
+- Eine neue Migration bindet Kommunikationsvorgänge und finale Dokumente
+  eindeutig an `wartungsvertrag_zuordnungen`; eindeutige Indizes und
+  DB-Validierungstrigger sichern die Zuordnung und das normalisierte
+  Hauptmitglied. Ein Insert-Trigger und eine Admin/Vorstand-RPC erstellen
+  idempotent einen Status `dokument_ausstehend` und ermöglichen die explizite
+  Nachholung bestehender Workfloweinträge. Die Migration ist vorbereitet,
+  aber nicht angewendet.
+- Die Infrastructure hängt Dokumentstatus/-fehler an die vorhandenen W3-
+  Einzelresultate an. Web und MAUI rufen den gemeinsamen Workflow nach
+  erfolgreichen Einzelzuordnungen auf; Batch-Teilerfolge erzeugen
+  Workfloweinträge nur für tatsächlich gespeicherte Zuordnungen. Fehler beim
+  Workflow werden protokolliert und nicht als Zuordnungsfehler ausgegeben.
+- Web- und MAUI-Mitgliedsansichten bieten eine manuelle Status-/Vorbereitungs-
+  aktion für bereits gespeicherte Zuordnungen ohne Massenerzeugung. Die
+  Oberfläche weist darauf hin, dass die Vorlage fehlt und das Dokument daher
+  noch nicht erstellt werden kann.
+- Noch zu entscheiden sind: freigegebene Vorlage und deren konkrete
+  Platzhalter mit Datenquellen/Snapshotfeldern; Mitglieds- und
+  Vereinsunterzeichnerrollen einschließlich Reihenfolge und Vertretung;
+  konkrete Erweiterung des Prepared-Contract-Generators und der vorhandenen
+  Signaturplanung für Wartungsverträge.
+- Keine Supabase-Verknüpfung, kein `db push`, keine Demo-/VDB-Datenänderung,
+  kein Commit und kein Push.
+- Validierung: 16 gezielte Wartungsvertrags-, Batch-, Zeitmodell-,
+  Arbeitsstunden- und Export-Contracts bestanden. Infrastructure-Build und
+  Web-Produktionsbuild erfolgreich. MAUI-Build scheitert nur in den
+  blockfremden Dateien `MemberClubDocumentsSection.cs`,
+  `VereinsunterlagenPage.cs` und `VereinsfunktionenPage.cs`; die geänderten
+  Wartungsvertrags-Pages verursachen keine Compilerfehler. `KGV.Tests` wird
+  durch den bekannten fehlenden Parameter `vereinsunterlagenService` in
+  `PreparedMembershipApplicationSigningServiceTests.cs` blockiert. Der
+  Web-Typecheck zeigt nur bereits bekannte Fehler in Vertrags-, Dokument-
+  und Kommunikationsdateien außerhalb dieses Blocks. ImageSharp-Warnungen
+  blieben unberührt.
+
 ## 2026-10-21 – Wartungsverträge W6: Abschlussprüfung
 
 - W1–W5-Contracts für Zeitstatus, inklusive Randtage, Sortierung,

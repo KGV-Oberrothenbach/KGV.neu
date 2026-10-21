@@ -203,6 +203,8 @@ namespace KGV.Core.Interfaces
         Task<WartungsvertragAssignmentSaveResult> AssignMitgliederToWartungsvertragAsync(long wartungsvertragId, DateTime gueltigAb, IReadOnlyCollection<int> mitgliedIds);
         Task<WartungsvertragAssignmentSaveResult> AssignWartungsvertraegeToMitgliedAsync(int mitgliedId, DateTime gueltigAb, IReadOnlyCollection<long> wartungsvertragIds);
         Task<bool> EndWartungsvertragZuordnungAsync(long wartungsvertragZuordnungId, DateTime gueltigBis);
+        Task<WartungsvertragDokumentWorkflowRecord?> GetWartungsvertragDokumentWorkflowAsync(long wartungsvertragZuordnungId);
+        Task<WartungsvertragDokumentWorkflowRecord> EnsureWartungsvertragDokumentWorkflowAsync(long wartungsvertragZuordnungId);
 
         Task<HomeOverviewDTO> GetHomeOverviewAsync(KGV.Core.Security.UserRole role, int? mitgliedId);
 

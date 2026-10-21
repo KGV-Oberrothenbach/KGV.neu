@@ -434,6 +434,17 @@ public sealed class MemberWartungsvertraegePage : ContentPage
                 var effect = new Label { FontSize = 12, TextColor = Colors.DarkSlateBlue, LineBreakMode = LineBreakMode.WordWrap };
                 effect.SetBinding(Label.TextProperty, nameof(MemberContractListItem.ArbeitsstundenwirkungText));
 
+                var documentWorkflow = new Label { FontSize = 12, TextColor = Colors.DarkSlateBlue, LineBreakMode = LineBreakMode.WordWrap };
+                documentWorkflow.SetBinding(Label.TextProperty, nameof(MemberContractListItem.DokumentWorkflowText));
+
+                var documentButton = new Button { Text = "Dokumentworkflow prüfen / vorbereiten", FontSize = 12, HorizontalOptions = LayoutOptions.Start };
+                documentButton.SetBinding(IsVisibleProperty, nameof(MemberContractListItem.CanPrepareDocument));
+                documentButton.Clicked += async (sender, _) =>
+                {
+                    if (sender is Button button && button.BindingContext is MemberContractListItem item)
+                        await PrepareDocumentWorkflowAsync(item);
+                };
+
                 var endButton = new Button { Text = "Beenden", FontSize = 12, HorizontalOptions = LayoutOptions.End };
                 endButton.SetBinding(IsVisibleProperty, nameof(MemberContractListItem.CanEnd));
                 endButton.Clicked += async (sender, _) =>
@@ -450,7 +461,7 @@ public sealed class MemberWartungsvertraegePage : ContentPage
                     Content = new VerticalStackLayout
                     {
                         Spacing = 4,
-                        Children = { title, description, validity, status, effect, endButton }
+                        Children = { title, description, validity, status, effect, documentWorkflow, documentButton, endButton }
                     }
                 };
             })
@@ -464,6 +475,34 @@ public sealed class MemberWartungsvertraegePage : ContentPage
                 await Shell.Current.GoToAsync($"{nameof(WartungsvertragDetailPage)}?wartungsvertragId={selected.ContractId}");
         };
         return view;
+    }
+
+    private async Task PrepareDocumentWorkflowAsync(MemberContractListItem item)
+    {
+        if (!_canManage || _isBusy || item.ZuordnungId <= 0)
+            return;
+
+        _isBusy = true;
+        SetBusyState(true);
+        item.DokumentWorkflowText = "Dokumentworkflow wird geprüft.";
+        try
+        {
+            var workflow = await _supabaseService.EnsureWartungsvertragDokumentWorkflowAsync(item.ZuordnungId);
+            item.DokumentWorkflowText = string.IsNullOrWhiteSpace(workflow.Fehlermeldung)
+                ? $"Dokumentworkflow: {workflow.Status}. Eine freigegebene Vorlage und Signaturfreigabe stehen noch aus."
+                : $"Dokumentworkflow: {workflow.Status}. {workflow.Fehlermeldung}";
+            _statusLabel.Text = item.DokumentWorkflowText;
+        }
+        catch (Exception ex)
+        {
+            item.DokumentWorkflowText = ex.Message;
+            _statusLabel.Text = ex.Message;
+        }
+        finally
+        {
+            _isBusy = false;
+            SetBusyState(false);
+        }
     }
 
     private static VerticalStackLayout CreateAssignmentSection(string title, CollectionView itemsView)
@@ -503,9 +542,11 @@ public sealed class MemberWartungsvertraegePage : ContentPage
         return string.IsNullOrWhiteSpace(displayName) ? $"Mitglied #{fallbackId}" : displayName;
     }
 
-    private sealed class MemberContractListItem
+    private sealed class MemberContractListItem : INotifyPropertyChanged
     {
-        public MemberContractListItem(MemberWartungsvertragItem source, bool canEnd)
+        private string _dokumentWorkflowText = "Dokumentworkflow noch nicht geprüft.";
+
+        public MemberContractListItem(MemberWartungsvertragItem source, bool canManage)
         {
             ContractId = source.Id;
             ZuordnungId = source.ZuordnungId;
@@ -514,7 +555,8 @@ public sealed class MemberWartungsvertraegePage : ContentPage
             GueltigkeitText = source.GueltigkeitText;
             StatusText = source.StatusText;
             ArbeitsstundenwirkungText = source.ArbeitsstundenwirkungText;
-            CanEnd = canEnd && source.Zeitstatus == WartungsvertragZeitstatus.Aktuell && source.ZuordnungId > 0;
+            CanEnd = canManage && source.Zeitstatus == WartungsvertragZeitstatus.Aktuell && source.ZuordnungId > 0;
+            CanPrepareDocument = canManage && source.ZuordnungId > 0;
         }
 
         public long ContractId { get; }
@@ -525,6 +567,20 @@ public sealed class MemberWartungsvertraegePage : ContentPage
         public string StatusText { get; }
         public string ArbeitsstundenwirkungText { get; }
         public bool CanEnd { get; }
+        public bool CanPrepareDocument { get; }
+        public string DokumentWorkflowText
+        {
+            get => _dokumentWorkflowText;
+            set
+            {
+                if (_dokumentWorkflowText == value)
+                    return;
+                _dokumentWorkflowText = value;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(DokumentWorkflowText)));
+            }
+        }
+
+        public event PropertyChangedEventHandler? PropertyChanged;
     }
 
     private sealed class SelectableWartungsvertragItem : INotifyPropertyChanged

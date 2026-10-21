@@ -9,6 +9,7 @@ public static class PreparedContractConstants
     public const string ContractSignatureProcess = "vertrag_signatur";
     public const string MembershipApplication = "mitgliedsantrag";
     public const string LeaseContract = "pachtvertrag";
+    public const string MaintenanceContract = "wartungsvertrag";
     public const string Prepared = "vorbereitet";
     public const string ReadyForSignature = "zur_signatur";
     public const string FinalReview = "letzte_pruefung";
@@ -29,6 +30,7 @@ public sealed record KommunikationsvorgangDto
     [JsonPropertyName("signatur_revision")] public int? SignaturRevision { get; init; }
     [JsonPropertyName("signatur_gestartet_am")] public DateTimeOffset? SignaturGestartetAm { get; init; }
     [JsonPropertyName("final_dokument_id")] public long? FinalDokumentId { get; init; }
+    [JsonPropertyName("wartungsvertrag_zuordnung_id")] public long? WartungsvertragZuordnungId { get; init; }
     [JsonPropertyName("zugewiesen_an")] public Guid? ZugewiesenAn { get; init; }
     [JsonPropertyName("erstellt_am")] public DateTimeOffset ErstelltAm { get; init; }
     [JsonPropertyName("bearbeitet_am")] public DateTimeOffset BearbeitetAm { get; init; }

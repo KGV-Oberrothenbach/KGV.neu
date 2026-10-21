@@ -10,7 +10,7 @@
 - Mailversand direkt im Web über denselben Backendpfad wie MAUI fertigstellen: Empfängervorbelegung, Betreff/Text, mehrere Anhänge, Versand-/Fehlerstatus, Retry ohne doppelte Fachaktion und Versandnachweis.
 - DEMO-Testempfänger und reale VDB-Empfänger im End-to-End-Betrieb prüfen.
 - Druckworkflow und Archivierung im Kommunikationsvorgang abschließen.
-- Pro Wartungsvertragszuordnung den separaten Dokumentvorgang je Mitglied mit PDF-Vorschau, Signatur, Vereinsunterzeichner, letzter Prüfung, Abschließen, Verwerfen und Archivierung umsetzen.
+- Wartungsvertrags-Dokumentworkflow fachlich vervollständigen: freigegebene Vorlage samt Platzhalter-/Datenquellen festlegen, Signaturparteien und Reihenfolge bestimmen, danach Prepared-Contract-Flow/Generator/Web-/MAUI-Signaturstrecke anschließen; PDF-Erzeugung, Vorschau, Signaturfreigabe, letzte Prüfung, Abschließen/Verwerfen und Archivierung bleiben offen. Die technische Zuordnungsbindung, Duplikatsicherung, Trigger/RPC, Batch-Teilfehler und manuelle Workflow-Vorbereitung sind implementiert; Migration noch nicht angewendet.
 
 ## Verträge
 

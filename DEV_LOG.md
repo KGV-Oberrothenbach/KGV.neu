@@ -2,6 +2,41 @@
 
 ---
 
+## 2026-10-21 – Wartungsvertrags-Dokumentworkflow technisch vorbereitet
+
+- Gemeinsame Dokument-/Signaturarchitektur geprüft: Der Prepared-Contract- und
+  `kommunikationsvorgang`-Ablauf ist der passende Anschluss für Revision,
+  Signaturstart, Prüfung, Abschluss/Verwerfen und Dokumentherkunft. Es gibt
+  keine freigegebene Wartungsvertragsvorlage oder festgelegte
+  Signaturparteien; daher wurden weder Vertragstext noch PDF-/Signaturplan
+  erfunden.
+- Neue, nicht angewendete Migration bindet genau einen idempotenten
+  Workfloweintrag an jede Wartungsvertragszuordnung und sichert die
+  Hauptmitgliedsbeziehung von Kommunikationsvorgang und finalem Dokument.
+  Insert-Trigger und Nachhol-RPC legen ausschließlich den Zustand
+  `dokument_ausstehend` an; PDF-Erzeugung und Signaturfreigabe bleiben offen.
+- Web und MAUI stoßen den zentralen Workflow nach erfolgreichen neuen
+  Zuordnungen an. Batch-Ergebnisse behalten gespeicherte Einzelzuordnungen,
+  Zuordnungsfehler und Dokumentworkflowfehler getrennt. Mitgliedsansichten
+  bieten eine manuelle Workflow-Prüf-/Vorbereitungsaktion für bestehende
+  Zuordnungen; kein automatischer Massenlauf.
+- `ToDo.md` und Wartungsvertragsdokumentation nennen die offenen Angaben
+  ausdrücklich: freigegebene Vorlage und Platzhalter/Datenquellen,
+  Signaturparteien/Rollen/Reihenfolge sowie die konkrete Erweiterung der
+  bestehenden Prepared-Contract-, Generator- und Signaturstrecke.
+- Keine Migration angewendet, keine Demo-/VDB-Daten geändert, kein Supabase-
+  Projekt verbunden, kein Commit und kein Push.
+- Validierung: 16 Wartungsvertrags-/Arbeitsstunden-Contracts bestanden;
+  Infrastructure-Build und Web-Produktionsbuild erfolgreich. MAUI-Build
+  bleibt durch bekannte Fehler in `MemberClubDocumentsSection.cs`,
+  `VereinsunterlagenPage.cs` und `VereinsfunktionenPage.cs` blockiert; in den
+  geänderten WV-Pages gab es keine Compilerfehler. Der .NET-Testlauf bleibt
+  durch den bekannten Konstruktorfehler in
+  `PreparedMembershipApplicationSigningServiceTests.cs` blockiert. Der
+  Web-Typecheck meldet nur vorhandene Fehler in Vertrags-, Dokument- und
+  Kommunikationsdateien außerhalb dieses Blocks. ImageSharp-Warnungen wurden
+  nicht behandelt.
+
 ## 2026-10-21 – Wartungsverträge W6: Abschlussprüfung und Dokumentation
 
 - Die W1–W5-Contracts für Zeitmodell, Batch-Ergebnisse, Mitgliedsbezug,

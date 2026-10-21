@@ -5263,6 +5263,47 @@ namespace KGV.Infrastructure.Services
             },
             false);
 
+        public async Task<WartungsvertragDokumentWorkflowRecord?> GetWartungsvertragDokumentWorkflowAsync(long wartungsvertragZuordnungId)
+        {
+            if (wartungsvertragZuordnungId <= 0)
+                throw new ArgumentOutOfRangeException(nameof(wartungsvertragZuordnungId));
+
+            try
+            {
+                var client = await EnsureClientAsync();
+                var response = await client.From<WartungsvertragDokumentWorkflowRecord>()
+                    .Where(x => x.WartungsvertragZuordnungId == wartungsvertragZuordnungId)
+                    .Get();
+                return response?.Models?.SingleOrDefault();
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "GetWartungsvertragDokumentWorkflowAsync failed for assignment {AssignmentId}.", wartungsvertragZuordnungId);
+                throw;
+            }
+        }
+
+        public async Task<WartungsvertragDokumentWorkflowRecord> EnsureWartungsvertragDokumentWorkflowAsync(long wartungsvertragZuordnungId)
+        {
+            if (wartungsvertragZuordnungId <= 0)
+                throw new ArgumentOutOfRangeException(nameof(wartungsvertragZuordnungId));
+
+            try
+            {
+                var client = await EnsureClientAsync();
+                var records = await client.Rpc<List<WartungsvertragDokumentWorkflowRecord>>(
+                    "ensure_wartungsvertrag_dokument_workflow",
+                    new { p_zuordnung_id = wartungsvertragZuordnungId });
+                return records?.SingleOrDefault()
+                    ?? throw new InvalidOperationException("Der Wartungsvertrags-Dokumentvorgang wurde nicht bestätigt.");
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "EnsureWartungsvertragDokumentWorkflowAsync failed for assignment {AssignmentId}.", wartungsvertragZuordnungId);
+                throw;
+            }
+        }
+
         public Task<HomeOverviewDTO> GetHomeOverviewAsync(UserRole role, int? mitgliedId) => ExecuteAsync(
             "GetHomeOverviewAsync",
             async () =>
@@ -7061,7 +7102,21 @@ namespace KGV.Infrastructure.Services
                         WartungsvertragId = wartungsvertragId, HauptmitgliedId = normalizedId, GueltigAb = gueltigAb.Date,
                         CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow
                     });
-                    items.Add(CreateWartungsvertragAssignmentSaveItem(memberId, memberName, contract, true, "Gespeichert."));
+                    var item = CreateWartungsvertragAssignmentSaveItem(memberId, memberName, contract, true, "Gespeichert.");
+                    long? assignmentId;
+                    try
+                    {
+                        assignmentId = await FindWartungsvertragZuordnungIdAsync(wartungsvertragId, normalizedId, gueltigAb.Date);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger?.LogError(ex, "Stored maintenance assignment could not be reloaded for document workflow. Contract {ContractId}, member {MemberId}.", wartungsvertragId, normalizedId);
+                        items.Add(item with { DokumentMessage = "Zuordnung wurde gespeichert, das Wartungsvertragsdokument konnte jedoch nicht erstellt werden. Bitte den Dokumentworkflow aus der Mitgliedsansicht nachholen." });
+                        continue;
+                    }
+                    items.Add(assignmentId is > 0
+                        ? await AttachWartungsvertragDokumentWorkflowAsync(item, assignmentId.Value)
+                        : item with { DokumentMessage = "Zuordnung wurde gespeichert, das Wartungsvertragsdokument konnte jedoch nicht erstellt werden. Die Zuordnung konnte für den Dokumentworkflow nicht wieder geladen werden; bitte aus der Mitgliedsansicht nachholen." });
                 }
                 catch (PostgrestException ex)
                 {
@@ -7105,7 +7160,21 @@ namespace KGV.Infrastructure.Services
                         WartungsvertragId = contractId, HauptmitgliedId = normalizedId, GueltigAb = gueltigAb.Date,
                         CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow
                     });
-                    items.Add(CreateWartungsvertragAssignmentSaveItem(mitgliedId, memberName, contract, true, "Gespeichert."));
+                    var item = CreateWartungsvertragAssignmentSaveItem(mitgliedId, memberName, contract, true, "Gespeichert.");
+                    long? assignmentId;
+                    try
+                    {
+                        assignmentId = await FindWartungsvertragZuordnungIdAsync(contractId, normalizedId, gueltigAb.Date);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger?.LogError(ex, "Stored maintenance assignment could not be reloaded for document workflow. Contract {ContractId}, member {MemberId}.", contractId, normalizedId);
+                        items.Add(item with { DokumentMessage = "Zuordnung wurde gespeichert, das Wartungsvertragsdokument konnte jedoch nicht erstellt werden. Bitte den Dokumentworkflow aus der Mitgliedsansicht nachholen." });
+                        continue;
+                    }
+                    items.Add(assignmentId is > 0
+                        ? await AttachWartungsvertragDokumentWorkflowAsync(item, assignmentId.Value)
+                        : item with { DokumentMessage = "Zuordnung wurde gespeichert, das Wartungsvertragsdokument konnte jedoch nicht erstellt werden. Die Zuordnung konnte für den Dokumentworkflow nicht wieder geladen werden; bitte aus der Mitgliedsansicht nachholen." });
                 }
                 catch (PostgrestException ex)
                 {
@@ -7126,6 +7195,44 @@ namespace KGV.Infrastructure.Services
 
         private static WartungsvertragAssignmentSaveItem CreateWartungsvertragAssignmentSaveItem(int memberId, string memberName, long contractId, string? contractTitle, bool success, string message)
             => new() { MitgliedId = memberId, MitgliedName = memberName, WartungsvertragId = contractId, WartungsvertragTitel = CleanWartungsvertragText(contractTitle, "Wartungsvertrag"), Success = success, Message = message };
+
+        private async Task<long?> FindWartungsvertragZuordnungIdAsync(long wartungsvertragId, long hauptmitgliedId, DateTime gueltigAb)
+        {
+            var client = await EnsureClientAsync();
+            var response = await client.From<WartungsvertragZuordnungRecord>()
+                .Where(x => x.WartungsvertragId == wartungsvertragId)
+                .Where(x => x.HauptmitgliedId == hauptmitgliedId)
+                .Where(x => x.GueltigAb == gueltigAb)
+                .Get();
+            return response?.Models?.OrderByDescending(x => x.Id).FirstOrDefault()?.Id;
+        }
+
+        private async Task<WartungsvertragAssignmentSaveItem> AttachWartungsvertragDokumentWorkflowAsync(
+            WartungsvertragAssignmentSaveItem item,
+            long wartungsvertragZuordnungId)
+        {
+            try
+            {
+                var workflow = await EnsureWartungsvertragDokumentWorkflowAsync(wartungsvertragZuordnungId);
+                return item with
+                {
+                    ZuordnungId = wartungsvertragZuordnungId,
+                    DokumentStatus = workflow.Status,
+                    DokumentMessage = workflow.Fehlermeldung
+                        ?? "Zuordnung gespeichert, Wartungsvertragsdokument noch nicht erzeugt."
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Wartungsvertrag document workflow could not be ensured for assignment {AssignmentId}.", wartungsvertragZuordnungId);
+                return item with
+                {
+                    ZuordnungId = wartungsvertragZuordnungId,
+                    DokumentStatus = "dokument_ausstehend",
+                    DokumentMessage = "Zuordnung wurde gespeichert, das Wartungsvertragsdokument konnte jedoch nicht erstellt werden. " + ex.Message
+                };
+            }
+        }
 
         private static string BuildWartungsvertragAssignmentUserMessage(PostgrestException ex)
         {

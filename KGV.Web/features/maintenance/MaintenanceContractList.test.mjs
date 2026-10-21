@@ -47,6 +47,6 @@ test("member assignment stays in the selected contract detail and reuses the exi
   assert.match(assignmentService, /calculatePeakMaintenanceOccupancy[\s\S]*?maxActiveAssignments/);
   assert.match(assignmentService, /endMaintenanceAssignmentForContract/);
   assert.match(page, /assignmentPanel=\{canManage && selected\?\.active/);
-  assert.match(page, /onSaved=\{async \(count\) => \{ setAssigningMembers\(false\); await load\(\);/);
+  assert.match(page, /onSaved=\{async \(result\) => \{ setAssigningMembers\(false\); await load\(\);/);
   assert.match(page, /await endMaintenanceAssignmentForContract\(club, session, item, endDate\); await load\(\);/);
 });

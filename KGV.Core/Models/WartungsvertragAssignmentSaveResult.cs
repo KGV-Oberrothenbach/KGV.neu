@@ -4,6 +4,9 @@ public sealed class WartungsvertragAssignmentSaveResult
 {
     public bool Success { get; init; }
     public string Message { get; init; } = string.Empty;
+    public long? ZuordnungId { get; init; }
+    public string? DokumentStatus { get; init; }
+    public string? DokumentMessage { get; init; }
     public int RequestedCount { get; init; }
     public int AddedCount { get; init; }
     public int RemainingFreeSlots { get; init; }
@@ -11,7 +14,7 @@ public sealed class WartungsvertragAssignmentSaveResult
     public int FailedCount => Items.Count(x => !x.Success);
 }
 
-public sealed class WartungsvertragAssignmentSaveItem
+public sealed record WartungsvertragAssignmentSaveItem
 {
     public int MitgliedId { get; init; }
     public string MitgliedName { get; init; } = string.Empty;
@@ -19,5 +22,10 @@ public sealed class WartungsvertragAssignmentSaveItem
     public string WartungsvertragTitel { get; init; } = string.Empty;
     public bool Success { get; init; }
     public string Message { get; init; } = string.Empty;
-    public string AnzeigeText => $"{MitgliedName} – {WartungsvertragTitel}: {Message}";
+    public long? ZuordnungId { get; init; }
+    public string? DokumentStatus { get; init; }
+    public string? DokumentMessage { get; init; }
+    public string AnzeigeText => string.IsNullOrWhiteSpace(DokumentMessage)
+        ? $"{MitgliedName} – {WartungsvertragTitel}: {Message}"
+        : $"{MitgliedName} – {WartungsvertragTitel}: {Message} {DokumentMessage}";
 }
