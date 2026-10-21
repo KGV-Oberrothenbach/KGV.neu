@@ -2,12 +2,10 @@
 
 ## Vereinsfunktionen
 
-- V2-Vereinsfunktions-Grundmodell lokal prüfen und nach Bereitstellung der Migration fachlich abnehmen.
-- V3 festlegen: fachliche Funktionen, Mehrfachbesetzungen, Vertretungen, Amtszeiten und Verwendungszwecke.
+- V3b auf DEMO fachlich testen und anschließend auf VDB übernehmen.
 - Impressum von der Textheuristik auf Vereinsfunktionen umstellen.
-- Verwaltungsoberfläche für Vereinsfunktionen und Besetzungen erstellen.
+- Verwaltungsoberfläche für Vereinsfunktionen, Besetzungen und Vertretungen erstellen.
 - Vereinsunterzeichner aus einer gültigen Funktionsbesetzung ableiten und Person plus Funktion als Vertrags-Snapshot speichern.
-- app_user.role weiterhin ausschließlich als technische Berechtigungsrolle behandeln.
 
 ## Kommunikation und Dokumente
 
