@@ -2,7 +2,6 @@
 
 ## Vereinsfunktionen
 
-- Verwaltungsoberfläche für Vereinsfunktionen, Besetzungen, Vertretungen und Impressum-Metadaten auf DEMO fachlich abnehmen; danach kontrolliert auf VDB übernehmen.
 - Vereinsunterzeichner aus einer gültigen Funktionsbesetzung ableiten und Person plus Funktion als Vertrags-Snapshot speichern.
 
 ## Kommunikation und Dokumente
@@ -14,8 +13,11 @@
 
 ## Wartungsverträge
 
-- Erstellung, Bearbeitung, Mitgliederzuordnung und Rechte vollständig gegen MAUI prüfen.
-- Saison-/Laufzeitbefristung und Verlängerung/Beendigung fachlich festlegen und umsetzen.
+- W2 globale Web-/MAUI-Übersicht, Detailansicht und Bearbeitungszugang gegen Documentation/WARTUNGSVERTRAEGE_W1_BESTAND.md abgleichen.
+- W3 Zeitdarstellung für aktuelle, zukünftige und historische Zuordnungen sowie Batch-Fehlerverhalten fachlich und technisch schließen.
+- W4 mitgliedsbezogene Zuordnung in Web und MAUI auf gleiche Zeit- und Hauptmitgliedslogik abgleichen.
+- W5 Arbeitsstunden-, Gutschrift-, Befreiungs- und Exportregressionen absichern.
+- W6 Wartungsverträge auf DEMO fachlich abnehmen und anschließend kontrolliert auf VDB übernehmen.
 - Pro zugeordnetem Mitglied eigenen Dokumentvorgang mit PDF-Vorschau, Signatur, Vereinsunterzeichner, letzter Prüfung, Abschließen, Verwerfen und Archivierung umsetzen.
 
 ## Verträge

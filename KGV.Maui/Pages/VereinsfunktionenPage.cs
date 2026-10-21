@@ -71,7 +71,7 @@ public sealed class VereinsfunktionenPage : ContentPage
             _details.Children.Add(Row(x.Verwendungszweck == "impressum" ? "Impressum · " + x.ImpressumGruppeBezeichnung : x.Verwendungszweck, "Bearbeiten", () => EditUseAsync(x)));
         _details.Children.Add(new Label { Text = "Vertretungen", FontAttributes = FontAttributes.Bold });
         _details.Children.Add(Buttons(("Neue Vertretung", NewRepresentationAsync)));
-        foreach (var x in _representations)
+        foreach (var x in _representations.Where(IsRepresentationForSelected))
             _details.Children.Add(Row(AssignmentName(x.VertreteneBesetzungId) + " → " + AssignmentName(x.VertreterBesetzungId) + " · " + Date(x.GueltigAb) + " – " + Date(x.GueltigBis), "Bearbeiten", () => EditRepresentationAsync(x)));
     }
 
@@ -133,6 +133,7 @@ public sealed class VereinsfunktionenPage : ContentPage
     private Picker AssignmentPicker(long id) { var values = _assignments.Select(x => new Choice(x.Id, AssignmentName(x.Id))).ToList(); var picker = new Picker { ItemsSource = values, ItemDisplayBinding = new Binding(nameof(Choice.Label)) }; picker.SelectedItem = values.FirstOrDefault(x => x.Id == id); return picker; }
     private string MemberName(long id) => _members.TryGetValue(id, out var m) ? (m.Vorname + " " + m.Name + (string.IsNullOrWhiteSpace(m.Email) ? "" : " · " + m.Email)) : "Unbekanntes Mitglied";
     private string AssignmentName(long id) { var item = _assignments.FirstOrDefault(x => x.Id == id); return item == null ? "Unbekannte Besetzung" : (_functions.FirstOrDefault(x => x.Id == item.VereinsfunktionId)?.Bezeichnung ?? "Funktion") + ": " + MemberName(item.MitgliedId); }
+    private bool IsRepresentationForSelected(VereinsfunktionVertretungRecord representation) => _selected != null && _assignments.Any(x => x.VereinsfunktionId == _selected.Id && (x.Id == representation.VertreteneBesetzungId || x.Id == representation.VertreterBesetzungId));
     private static string Date(DateTime? value) => value?.ToString("dd.MM.yyyy") ?? "offen";
     private static string AssignmentState(VereinsfunktionBesetzungRecord item) => item.GueltigAb.Date > DateTime.Today ? "zukünftig" : item.GueltigBis is { } until && until.Date < DateTime.Today ? "historisch" : "aktuell";
     private static string Key(string value) => string.Concat(value.ToLowerInvariant().Select(c => char.IsLetterOrDigit(c) ? c : '_')).Trim('_');

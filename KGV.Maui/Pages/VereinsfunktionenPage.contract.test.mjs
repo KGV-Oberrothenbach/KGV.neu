@@ -7,6 +7,7 @@ assert.match(page, /UserRole\.Admin or UserRole\.Vorstand/);
 assert.match(page, /SaveVereinsfunktionBesetzungAsync/);
 assert.match(page, /SaveVereinsfunktionVertretungAsync/);
 assert.match(page, /SaveVereinsfunktionVerwendungAsync/);
+assert.match(page, /IsRepresentationForSelected/);
 assert.match(page, /eigene Besetzung/);
 assert.match(page, /Vertretungszeitraum/);
 assert.doesNotMatch(page, /Vorsitz|Bauausschuss|app_user\.role/);
