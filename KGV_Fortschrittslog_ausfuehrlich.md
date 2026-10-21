@@ -18,6 +18,26 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 - `KGV.Core`
 - `KGV.Maui`
 
+## 2026-10-21 – Wartungsverträge W6: Abschlussprüfung
+
+- W1–W5-Contracts für Zeitstatus, inklusive Randtage, Sortierung,
+  Hauptmitgliedsbezug, Batch-Teilfehler, Web-/MAUI-Ansichten,
+  Arbeitsstundenwirkung und Export gemeinsam ausgeführt: 24 Tests bestanden.
+- Repo-weite Suche über Web, MAUI, Core, Infrastructure und Export bestätigt:
+  Pflichtstunden, Befreiung und Gutschrift stammen aus der zentralen
+  DB-Funktion/View; Export formatiert zentrale Werte. React-Komponenten und
+  MAUI-Pages bauen keine eigene Zeitklassifikation oder Vertragsberechnung.
+  Web-Service und Core enthalten die jeweiligen sprachspezifischen
+  Klassifizierer, abgesichert durch die gemeinsamen Grenzfall-Contracts.
+- Im Git-Vergleich der W1–W5-Commits mit dem W1-Ausgangsstand ist keine
+  Supabase-Migration hinzugekommen oder geändert worden. W6 ändert keine
+  Migration und keine Daten; daher ist für diesen Block kein DB-Rollout
+  erforderlich. Kein Remote-Projekt wurde verbunden oder abgefragt.
+- Wartungsvertrags-Abschlussdokument und knappe DEMO-Prüfliste erstellt;
+  keine ausgeführte DEMO-/VDB-Abnahme behauptet. W6 ist aus `ToDo.md` entfernt.
+  Der separate Dokumentworkflow je Wartungsvertragszuordnung bleibt als
+  eigenständiger offener Vorgang bestehen.
+
 ## 2026-10-21 – Wartungsverträge W5: Arbeitsstunden-, Befreiungs- und Exportregressionen
 
 - Die Repo-Prüfung hat bestätigt, dass

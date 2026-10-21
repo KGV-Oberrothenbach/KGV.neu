@@ -2,6 +2,27 @@
 
 ---
 
+## 2026-10-21 – Wartungsverträge W6: Abschlussprüfung und Dokumentation
+
+- Die W1–W5-Contracts für Zeitmodell, Batch-Ergebnisse, Mitgliedsbezug,
+  Arbeitsstundenwirkung und Export einschließlich der Web- und
+  MAUI-Seitenverträge gemeinsam ausgeführt: 24 Tests bestanden.
+- Repository-Scan bestätigt für Web und MAUI die zentrale
+  `v_pflichtstunden_uebersicht`, keine UI-eigene Pflichtstundenberechnung und
+  keinen separaten Wartungsvertrags-Rechenweg im Export. Zeitstatus und
+  Batch-Ergebnisse folgen den bestehenden gemeinsamen Modellen.
+- Der Git-Migrationsvergleich im W1–W5-Änderungsbereich zeigt keine neue oder
+  geänderte Supabase-Migration. W6 ändert ebenfalls keine DB-Datei; für den
+  WV-Block ist daher kein DB-Rollout erforderlich. Es wurde kein
+  Supabase-Projekt verbunden und keine Remote-Datenbank abgefragt.
+- Abschlussdokument enthält Datenmodell, Rollen/RLS, Kapazität,
+  Zeitklassifikation, Mitgliedsbezug, Batchverhalten, zentrale Saisonwirkung,
+  Exportpfade und eine kurze manuelle DEMO-Prüfliste. Die Liste ist vorbereitet,
+  nicht als bereits ausgeführte DEMO-Abnahme zu verstehen.
+- W6 aus `ToDo.md` entfernt; der eigenständige Dokumentvorgang je
+  Wartungsvertragszuordnung bleibt unter Kommunikation/Dokumente offen.
+- Kein Fachcode, keine Migration und keine Produktivdaten geändert.
+
 ## 2026-10-21 – Wartungsverträge W5: zentrale Arbeitsstundenwirkung
 
 - Repo-weite Prüfung bestätigt: Pflichtstundenstatus und Vertragswirkung werden

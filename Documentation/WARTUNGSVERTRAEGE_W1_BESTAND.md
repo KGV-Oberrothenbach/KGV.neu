@@ -1,6 +1,34 @@
-# Wartungsverträge – W1 Bestandsprüfung und fachliche Basis
+# Wartungsverträge – Abschlussdokument W1–W6
 
 Stand: 21.10.2026
+
+## Abschluss W6
+
+W1–W6 sind im Repository abgeschlossen. W1–W5 haben keine neue Supabase-
+Migration hinzugefügt; W6 ändert ebenfalls weder Schema noch Daten. Für diesen
+Wartungsvertragsblock ist daher kein Supabase-DB-Rollout notwendig. Es wurde
+kein Projekt verknüpft und keine Remote-Datenbank abgefragt oder verändert.
+Die Feststellung beruht auf dem Git-Migrationsverlauf des W1–W5-Änderungs-
+bereichs; die bestehende Saisonregel wird unverändert verwendet.
+
+### DEMO-Abnahme – kurze manuelle Prüfliste
+
+- Vertragsliste und Detail öffnen; Vertrag bearbeiten und speichern.
+- Je einen Vertrag aktuell, zukünftig und historisch zuordnen; Mitgliedsdetail
+  und Hauptmitgliedsbezug prüfen, einschließlich Nebenmitglied ohne
+  Doppelzuordnung.
+- Mehrfachzuordnung bis zur Kapazitätsgrenze testen; bei einem Teilfehler
+  erfolgreiche Einträge und konkretes Fehlerergebnis kontrollieren.
+- Befreiung, Gutschrift und Vertrag ohne Anrechnung jeweils bei gültiger
+  Zuordnung prüfen; Kapazitätsüberschreitung muss abgewiesen werden.
+- Pflichtstundenanzeige sowie Arbeitsstundenexport gegen dieselbe zentrale
+  Wirkung vergleichen, einschließlich einer erst später im selben Saisonjahr
+  beginnenden Zuordnung.
+- Berechtigungen prüfen: Verwaltungsänderungen nur für berechtigte Rollen;
+  Mitgliedsansicht nur im erlaubten eigenen bzw. DEMO-Mitgliedsumfang.
+
+Diese Liste ist für die fachliche DEMO-Abnahme vorbereitet; sie dokumentiert
+keine ausgeführte Abnahme in einer verbundenen DEMO- oder VDB-Instanz.
 
 ## Datenmodell und Datenbankregeln
 
@@ -25,8 +53,10 @@ Die Triggerfunktion validate_wartungsvertrag_zuordnung prüft serverseitig:
 
 Kapazität ist daher nicht nur UI-Logik. Web und MAUI führen zusätzlich eine
 Vorschauprüfung aus; bei Parallelzugriff bleibt der Trigger verbindlich.
-RLS ist vorhanden: Schreiben erfolgt nur für admin/vorstand; lesend sind neben
-der Verwaltung die eigenen zugeordneten Verträge zulässig.
+RLS ist vorhanden: Produktive Verwaltungsänderungen sind auf Admin/Vorstand
+beschränkt; Mitglieder dürfen ihre eigenen Zuordnungen lesen. Für
+eingeschränkte DEMO-Admin-/Vorstandsrollen begrenzen eigene Policies Lese- und
+Schreibzugriffe auf den zulässigen DEMO-Mitglieds-/Vertragsumfang.
 
 ## Arbeitsstundenwirkung
 
@@ -64,7 +94,7 @@ beim Anlegen als auch beim Aktualisieren. Die aktuelle Belegung entsteht aus
 dem gemeinsamen Stichtags-Bundle im SupabaseService; die Oberflächen rechnen
 sie nicht selbst nach.
 
-## W1-Feststellungen und Status nach W5
+## W1-Feststellungen und Status nach W6
 
 1. Die Zeitlisten Aktuell, Zukünftig und Historisch wurden in W3 ergänzt und in
 W4 für Mitgliedsdetails in Web und MAUI an dieselbe Klassifikation
@@ -148,6 +178,22 @@ PDF-Exportdarstellung berechnet keine Befreiung oder Gutschrift erneut.
 Regressionstests verankern die SQL-Intervall-, Befreiungs-, Gutschrift- und
 Mehrfachvertragsregeln sowie die zentralen Web-, MAUI- und Exportpfade.
 
-## Nächste Teilblöcke
+## Abschlussprüfung W6
 
-- W6: Fachliche DEMO-Abnahme und kontrollierter VDB-Rollout.
+- Die W1–W5-Contracts für Zeitmodell, Batch-Ergebnisse, Mitgliedsbezug,
+  zentrale Arbeitsstundenwirkung und Export wurden gemeinsam ausgeführt:
+  einschließlich der Web- und MAUI-Seitenverträge gemeinsam ausgeführt:
+  24 Tests bestanden.
+- Repo-weite Prüfung der Web-, MAUI-, Core-, Infrastructure- und Exportpfade
+  fand keine zweite Pflichtstundenberechnung, keinen eigenen
+  Wartungsvertrags-Rechenweg im Export. React-Komponenten und MAUI-Pages
+  klassifizieren nicht selbst; der Web-Service und das Core-Zeitmodell
+  verwenden sprachspezifische Implementierungen mit denselben Stichtags- und
+  inklusiven Randtagregeln, die durch Contracts abgesichert sind.
+- Die maßgeblichen Datenbankregeln und RLS-Policies stammen aus bereits
+  vorhandenen Migrationen. Zwischen dem W1-Ausgangsstand und W5 wurde keine
+  Migration hinzugefügt oder geändert. W6 erforderte ebenfalls keine Migration
+  und keine Produktivdatenänderung.
+- Der getrennte Dokumentvorgang je zugeordnetem Mitglied ist nicht Teil des
+  abgeschlossenen W1–W6-Vertragsbereichs und bleibt ein eigener offener
+  Dokumentworkflow.

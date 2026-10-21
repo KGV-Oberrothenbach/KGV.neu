@@ -10,11 +10,7 @@
 - Mailversand direkt im Web über denselben Backendpfad wie MAUI fertigstellen: Empfängervorbelegung, Betreff/Text, mehrere Anhänge, Versand-/Fehlerstatus, Retry ohne doppelte Fachaktion und Versandnachweis.
 - DEMO-Testempfänger und reale VDB-Empfänger im End-to-End-Betrieb prüfen.
 - Druckworkflow und Archivierung im Kommunikationsvorgang abschließen.
-
-## Wartungsverträge
-
-- W6 Wartungsverträge auf DEMO fachlich abnehmen und anschließend kontrolliert auf VDB übernehmen.
-- Pro zugeordnetem Mitglied eigenen Dokumentvorgang mit PDF-Vorschau, Signatur, Vereinsunterzeichner, letzter Prüfung, Abschließen, Verwerfen und Archivierung umsetzen.
+- Pro Wartungsvertragszuordnung den separaten Dokumentvorgang je Mitglied mit PDF-Vorschau, Signatur, Vereinsunterzeichner, letzter Prüfung, Abschließen, Verwerfen und Archivierung umsetzen.
 
 ## Verträge
 
@@ -24,7 +20,7 @@
 ## WEB
 
 - Eigenen rechtegesteuerten Bereich Meine Daten / Profil umsetzen.
-- Verbliebene funktionale Detailabweichungen zu MAUI bei Mitgliedsstammdaten, Nebenmitgliedern, Benutzerrechten, Arbeitsstunden, Wartungsverträgen, Dokumenten und Vereinskonfiguration gezielt abgleichen.
+- Verbliebene funktionale Detailabweichungen zu MAUI bei Mitgliedsstammdaten, Nebenmitgliedern, Benutzerrechten, Arbeitsstunden, Dokumenten und Vereinskonfiguration gezielt abgleichen.
 - Parzellenprotokoll nach Bereitstellung der Serverfunktion produktiv als PDF-/Ablage-End-to-End testen.
 - Echtes KGV-Logo integrieren.
 - Kleine sichtbare UI-Fehler und funktional relevante Web-Warnungen priorisiert bereinigen.
@@ -32,7 +28,7 @@
 ## Arbeitsstunden
 
 - Arbeitsstunden-Prüfprozess im Realbetrieb testen und absichern, insbesondere Rechte, Sperren, Kommentare und Verlauf.
-- Restliche MAUI-Abweichungen bei Pflichtstunden-, Alters- und Wartungsvertragsregeln sowie Review-Filterung/Gruppierung schließen.
+- Restliche MAUI-Abweichungen bei Pflichtstunden-, Altersregeln sowie Review-Filterung/Gruppierung schließen.
 
 ## Technische Qualität und Release
 
