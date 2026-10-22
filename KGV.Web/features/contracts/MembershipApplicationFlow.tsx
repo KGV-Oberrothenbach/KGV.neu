@@ -6,7 +6,10 @@ import { SignaturePad } from "../../components/signature/SignaturePad";
 import type { BrowserSession } from "../../lib/supabase-auth";
 import { emptyLegalRepresentativeDraft, loadLegalRepresentativeContext, validateLegalRepresentative, type LegalRepresentativeDraft, type LegalRepresentativeOption } from "../../services/contracts/legal-representative-service";
 import { calculateMembershipApplicationContribution, loadMembershipApplicationData, type MembershipApplicationData } from "../../services/contracts/membership-application-service";
-import { buildMembershipApplicationSignatureSteps, canFinalizeMembershipApplication, canStartMembershipApplicationSignatures, hasCompletedMembershipApplicationSignatures, type MembershipApplicationSignatureKey } from "../../services/contracts/membership-application-flow-service";
+import { buildMembershipApplicationPersistentSlots, membershipApplicationPositionLabel, nextOpenPreparedSignature, preparedSignatureProgress } from "../../services/contracts/membership-application-flow-service";
+import { ensurePreparedContractSignaturePosition, listPreparedContractSignatures, savePreparedContractSignature, uploadPreparedContractSignature, type PreparedContractAuthorizedSignatory, type PreparedContractSignature } from "../../repositories/contracts/prepared-contract-signature-repository";
+import { loadPreparedContractSignatories } from "../../services/contracts/prepared-contract-signatory-service";
+import { PreparedContractSignatorySelector } from "../../components/contracts/PreparedContractSignatorySelector";
 import { generateContract } from "../../services/contracts/contract-generation-service";
 import { ContractPreview } from "./ContractPreview";
 import { LegalRepresentativeFields } from "./LegalRepresentativeFields";
@@ -27,8 +30,13 @@ export function MembershipApplicationFlow({ session, memberId, onSaved, onPrepar
   const [minor, setMinor] = useState(false);
   const [step, setStep] = useState<"edit" | "documents" | "preview" | "signatures" | "review">("edit");
   const [includeSecondaryMember, setIncludeSecondaryMember] = useState(false);
-  const [signatures, setSignatures] = useState<Partial<Record<MembershipApplicationSignatureKey, string>>>({});
-  const [signatureIndex, setSignatureIndex] = useState(0);
+  const [positions, setPositions] = useState<PreparedContractSignature[]>([]);
+  const [activePositionKey, setActivePositionKey] = useState<string | null>(null);
+  const [signatureDrawing, setSignatureDrawing] = useState("");
+  const [selectedSignatory, setSelectedSignatory] = useState<PreparedContractAuthorizedSignatory | null>(null);
+  const [signatories, setSignatories] = useState<PreparedContractAuthorizedSignatory[]>([]);
+  const [positionsLoading, setPositionsLoading] = useState(false);
+  const [signatoriesLoading, setSignatoriesLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [resumeContext, setResumeContext] = useState<PreparedContractResumeContext | null>(null);
@@ -66,15 +74,15 @@ export function MembershipApplicationFlow({ session, memberId, onSaved, onPrepar
         const review = await recoverPreparedContractFinalDocument(club, session, context, session.user.id);
         if (review) {
           if (!active) return;
-          setResumeContext(review); setStartDate(saved.startDate); setFee(String(saved.memberFee)); setDraft(saved.representative ?? emptyLegalRepresentativeDraft()); setIncludeSecondaryMember(saved.includeSecondaryMember); setSignatures({}); setSignatureIndex(0); setStep("review"); setMessage("Das bereits erstellte finale Dokument wurde zur letzten Prüfung übernommen."); await onSaved(); return;
+        setResumeContext(review); setStartDate(saved.startDate); setFee(String(saved.memberFee)); setDraft(saved.representative ?? emptyLegalRepresentativeDraft()); setIncludeSecondaryMember(saved.includeSecondaryMember); setStep("review"); setMessage("Das bereits erstellte finale Dokument wurde zur letzten Prüfung übernommen."); await onSaved(); return;
         }
       }
-      setResumeContext(context); setClubDocumentSnapshot(saved.vereinsunterlagen_nachweis); setStartDate(saved.startDate); setFee(String(saved.memberFee)); setDraft(saved.representative ?? emptyLegalRepresentativeDraft()); setIncludeSecondaryMember(saved.includeSecondaryMember); setSignatures({}); setSignatureIndex(0); setStep(resumeMode === "signatures" ? "signatures" : resumeMode === "review" ? "review" : "edit");
+      setResumeContext(context); setClubDocumentSnapshot(saved.vereinsunterlagen_nachweis); setStartDate(saved.startDate); setFee(String(saved.memberFee)); setDraft(saved.representative ?? emptyLegalRepresentativeDraft()); setIncludeSecondaryMember(saved.includeSecondaryMember); setStep(resumeMode === "signatures" ? "signatures" : resumeMode === "review" ? "review" : "edit");
     }).catch((error) => active && setMessage(error instanceof Error ? error.message : "Der vorbereitete Mitgliedsantrag konnte nicht geöffnet werden."));
     return () => { active = false; };
   }, [club, session, preparedContractId, memberId, data, resumeMode]);
 
-  const request = (action: "preview" | "finalize", snapshot = clubDocumentSnapshot) => ({ action, type: "mitgliedsantrag" as const, member_id: memberId, start_date: startDate, member_fee: Number(fee.replace(",", ".")), admission_fee: data?.admissionFee, club_documents_snapshot: snapshot ? formatMemberClubDocumentSnapshotForPdf(snapshot) : undefined, ...(action === "finalize" && resumeContext ? { source_kommunikationsvorgang_id: resumeContext.id, source_revision: resumeContext.revision } : {}), representative: minor ? { mode: draft.mode, member_id: draft.memberId ?? undefined, vorname: draft.vorname, nachname: draft.nachname, adresse_abweichend: draft.adresseAbweichend, adresse: draft.adresse, plz: draft.plz, ort: draft.ort } : undefined, include_secondary_member: !minor && includeSecondaryMember, signature_application_member: signatures.applicationMember || undefined, signature_privacy_member: signatures.privacyMember || undefined, signature_application_representative: minor ? signatures.applicationSecondParty || undefined : undefined, signature_privacy_representative: minor ? signatures.privacySecondParty || undefined : undefined, signature_application_secondary: !minor ? signatures.applicationSecondParty || undefined : undefined, signature_privacy_secondary: !minor ? signatures.privacySecondParty || undefined : undefined, signature_board: signatures.board || undefined });
+  const request = (action: "preview" | "finalize", snapshot = clubDocumentSnapshot) => ({ action, type: "mitgliedsantrag" as const, member_id: memberId, start_date: startDate, member_fee: Number(fee.replace(",", ".")), admission_fee: data?.admissionFee, club_documents_snapshot: snapshot ? formatMemberClubDocumentSnapshotForPdf(snapshot) : undefined, ...(action === "finalize" && resumeContext ? { kommunikationsvorgang_id: resumeContext.id } : {}), representative: minor ? { mode: draft.mode, member_id: draft.memberId ?? undefined, vorname: draft.vorname, nachname: draft.nachname, adresse_abweichend: draft.adresseAbweichend, adresse: draft.adresse, plz: draft.plz, ort: draft.ort } : undefined, include_secondary_member: !minor && includeSecondaryMember });
   const validate = () => { if (minor) validateLegalRepresentative(draft); };
   const preparedDraft = (snapshot = clubDocumentSnapshot): PreparedMembershipApplicationDraft => ({ schema_version: preparedContractSchemaVersion, document_type: "mitgliedsantrag", memberId, startDate, memberFee: Number(fee.replace(",", ".")), representative: minor ? draft : null, includeSecondaryMember: !minor && includeSecondaryMember, vereinsunterlagen_nachweis: snapshot });
   const loadCurrentClubDocumentStatus = async () => { const now = new Date(); const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`; return getMemberClubDocumentStatus(club, session, memberId, today); };
@@ -86,6 +94,32 @@ export function MembershipApplicationFlow({ session, memberId, onSaved, onPrepar
     if (updated !== resumeContext) setMessage("Die Änderungen am vorbereiteten Vertrag wurden gespeichert.");
     return updated;
   };
+  const persistentSlots = () => buildMembershipApplicationPersistentSlots({ isMinor: minor, includeSecondaryMember, memberId, representativeMemberId: draft.mode === "existing" ? draft.memberId ?? undefined : undefined, secondaryMemberId: data?.secondaryMember?.id });
+  const refreshPositions = async (context = resumeContext) => {
+    if (!context || context.signatur_revision === null) throw new Error("Die eingefrorene Signaturrevision fehlt.");
+    setPositionsLoading(true);
+    try { const loaded = await listPreparedContractSignatures(club, session, context.id, context.signatur_revision); setPositions(loaded); return loaded; }
+    finally { setPositionsLoading(false); }
+  };
+  const ensurePositions = async (context: PreparedContractResumeContext) => {
+    if (context.signatur_revision === null) throw new Error("Die eingefrorene Signaturrevision fehlt.");
+    for (const slot of persistentSlots()) await ensurePreparedContractSignaturePosition(club, session, context.id, context.signatur_revision, slot);
+    return refreshPositions(context);
+  };
+  useEffect(() => {
+    if (step !== "signatures" || !resumeContext || resumeContext.signatur_revision === null) return;
+    void ensurePositions(resumeContext).catch(error => setMessage(error instanceof Error ? error.message : "Signaturpositionen konnten nicht geladen werden."));
+  // The frozen context is intentionally the trigger; this restores an existing workflow once.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, resumeContext?.id, resumeContext?.signatur_revision]);
+  const openPosition = async (position: PreparedContractSignature) => {
+    if (position.status === "unterschrieben") return;
+    setActivePositionKey(position.signatur_schluessel); setSignatureDrawing(""); setSelectedSignatory(null);
+    if (position.unterzeichner_typ !== "vereinsunterzeichner") return;
+    try { setSignatoriesLoading(true); setSignatories(await loadPreparedContractSignatories(club, session, startDate)); }
+    catch (error) { setMessage(error instanceof Error ? error.message : "Vertragsunterzeichner konnten nicht geladen werden."); }
+    finally { setSignatoriesLoading(false); }
+  };
   const beginSignatures = async () => {
     try {
       validate(); setBusy(true); setMessage("");
@@ -96,7 +130,7 @@ export function MembershipApplicationFlow({ session, memberId, onSaved, onPrepar
       if (context?.status === "vorbereitet") context = await savePrepared() ?? context;
       if (!context) throw new Error("Die Signatur kann nur aus der Vorgangszentrale gestartet werden.");
       const started = context.status === "zur_signatur" ? context : await startPreparedContractSigning(club, session, context, session.user.id);
-      setResumeContext(started); setSignatures({}); setSignatureIndex(0); setStep("signatures");
+      setResumeContext(started); await ensurePositions(started); setActivePositionKey(null); setStep("signatures");
     } catch (error) { setMessage(error instanceof Error ? error.message : "Die Signatur konnte nicht gestartet werden."); }
     finally { setBusy(false); }
   };
@@ -104,7 +138,7 @@ export function MembershipApplicationFlow({ session, memberId, onSaved, onPrepar
     if (!resumeContext) throw new Error("Der Vorgang ist nicht geladen.");
     try {
       const review = await markPreparedContractReadyForReview(club, session, resumeContext, session.user.id, documentId);
-      setResumeContext(review); setFinalDocumentId(null); setSignatures({}); setSignatureIndex(0); setStep("review"); await onSaved();
+      setResumeContext(review); setFinalDocumentId(null); setStep("review"); await onSaved();
     } catch (error) {
       setFinalDocumentId(documentId);
       setMessage("Das Vertragsdokument wurde erfolgreich erstellt, konnte aber noch nicht zur letzten Prüfung vorgemerkt werden. Das Dokument wird nicht erneut erzeugt.");
@@ -124,8 +158,7 @@ export function MembershipApplicationFlow({ session, memberId, onSaved, onPrepar
   const finalize = async () => {
     try {
       validate();
-      const signatureSteps = buildMembershipApplicationSignatureSteps({ isMinor: minor, includeSecondaryMember, memberId, representativeMemberId: draft.mode === "existing" ? draft.memberId ?? undefined : undefined });
-      if (!canFinalizeMembershipApplication(step, signatureSteps, signatures)) throw new Error("Alle erforderlichen Signaturen müssen nach der Vorschau einzeln erfasst werden.");
+      if (!preparedSignatureProgress(positions).complete) throw new Error("Alle erforderlichen persistierten Signaturen müssen vor der Finalisierung vorliegen.");
       setBusy(true); setMessage("");
       const result = await generateContract(club, session, request("finalize"));
       if (!result.documentId || result.documentId <= 0) throw new Error("Der Finalize-Vorgang hat keine gültige Dokument-ID zurückgegeben.");
@@ -134,15 +167,35 @@ export function MembershipApplicationFlow({ session, memberId, onSaved, onPrepar
     } catch (error) { setMessage(error instanceof Error ? error.message : "Mitgliedsantrag konnte nicht gespeichert werden."); }
     finally { setBusy(false); }
   };
+  const saveCurrentPosition = async (continueToNext: boolean) => {
+    const position = positions.find(item => item.signatur_schluessel === activePositionKey);
+    if (!position || !resumeContext || resumeContext.signatur_revision === null || position.status === "unterschrieben") return;
+    try {
+      if (!signatureDrawing) throw new Error("Bitte erfassen Sie zuerst die Unterschrift.");
+      if (position.unterzeichner_typ === "vereinsunterzeichner" && !selectedSignatory) throw new Error("Bitte wählen Sie einen berechtigten Vereinsunterzeichner.");
+      setBusy(true); setMessage("");
+      const upload = await uploadPreparedContractSignature(club, session, resumeContext.id, resumeContext.signatur_revision, position.signatur_schluessel, signatureDrawing);
+      const memberForPosition = selectedSignatory?.mitglied_id ?? position.mitglied_id;
+      const manualRepresentativeName = position.signatur_schluessel.startsWith("gesetzliche_vertretung.") && draft.mode === "manual" ? `${draft.vorname} ${draft.nachname}`.trim() : null;
+      if (!memberForPosition && !manualRepresentativeName) throw new Error("Für die private Signatur fehlt die unterzeichnende Person.");
+      await savePreparedContractSignature(club, session, { id: resumeContext.id, revision: resumeContext.signatur_revision, key: position.signatur_schluessel, memberId: memberForPosition ?? null, signerNameSnapshot: manualRepresentativeName, signatory: selectedSignatory, storagePath: upload.storage_path, sha256: upload.sha256 });
+      const refreshed = await refreshPositions();
+      const next = continueToNext ? nextOpenPreparedSignature(refreshed) : null;
+      setActivePositionKey(next?.signatur_schluessel ?? null); setSignatureDrawing(""); setSelectedSignatory(null);
+      if (next) await openPosition(next);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Die Signatur konnte nicht gespeichert werden.");
+      if (position.unterzeichner_typ === "vereinsunterzeichner") { try { setSignatories(await loadPreparedContractSignatories(club, session, startDate)); } catch { /* Originalfehler bleibt sichtbar. */ } }
+    } finally { setBusy(false); }
+  };
 
   if (!data) return <p className="detail-hint">Mitgliedsantrag wird geladen …</p>;
   if (data.member.hauptmitglied_id !== null) return <section className="contract-composer"><p className="detail-hint">Für Nebenmitglieder kann kein eigener Mitgliedsantrag erstellt werden. Die Mitunterzeichnung beim Mitgliedsantrag des Hauptmitglieds bleibt möglich.</p></section>;
   const annualMemberFee = Number(fee.replace(",", "."));
   const contribution = Number.isFinite(annualMemberFee) ? calculateMembershipApplicationContribution(annualMemberFee, startDate, data.season.jahr) : null;
-  const signatureSteps = buildMembershipApplicationSignatureSteps({ isMinor: minor, includeSecondaryMember, memberId, representativeMemberId: draft.mode === "existing" ? draft.memberId ?? undefined : undefined });
-  const currentSignatureStep = signatureSteps[signatureIndex] ?? null;
-  const signaturesComplete = hasCompletedMembershipApplicationSignatures(signatureSteps, signatures);
-  const advanceSignature = () => { if (!currentSignatureStep || !signatures[currentSignatureStep.key]) return; setSignatureIndex((current) => Math.min(current + 1, signatureSteps.length)); };
+  const activePosition = positions.find(position => position.signatur_schluessel === activePositionKey) ?? null;
+  const signatureProgress = preparedSignatureProgress(positions);
+  const boardSignerAlreadyUsed = positions.find(position => position.signatur_schluessel !== activePositionKey && (position.signatur_schluessel === "vorstand_1" || position.signatur_schluessel === "vorstand_2") && position.status === "unterschrieben")?.mitglied_id ?? null;
 
   return <section className="contract-composer">
     {message && <p className="notice" role="status">{message}</p>}
@@ -159,17 +212,18 @@ export function MembershipApplicationFlow({ session, memberId, onSaved, onPrepar
       <div className="editor-actions"><button disabled={busy || data.status !== "none" || !contribution} onClick={preview}>Vorschau</button></div>
     </>}
     {step === "documents" && <><p className="notice">Die Vorschau bleibt gesperrt, bis alle aktuellen Pflichtunterlagen bereitgestellt sind.</p><MemberClubDocuments session={session} member={data.member} onStatusUpdated={(status) => { if (status.complete) { setMessage("Pflichtunterlagen sind vollständig. Bitte erstellen Sie jetzt die Vorschau."); setStep("edit"); } }} /><div className="editor-actions"><button className="secondary-action" onClick={() => setStep("edit")}>Zurück zum Mitgliedsantrag</button></div></>}
-    {step === "preview" && <><ContractPreview onBack={() => setStep("edit")} onPark={() => void park()} parkLabel={resumeContext ? "Änderungen speichern" : "Zur Signatur vorbereiten"} {...(preparedContractId ? { onContinue: () => { if (!canStartMembershipApplicationSignatures(step)) return; void beginSignatures(); } } : {})} />{resumeContext && <div className="editor-actions"><button className="secondary-action" disabled={busy} onClick={() => void discard()}>Verwerfen</button></div>}</>}
+    {step === "preview" && <><ContractPreview onBack={() => setStep("edit")} onPark={() => void park()} parkLabel={resumeContext ? "Änderungen speichern" : "Zur Signatur vorbereiten"} {...(preparedContractId ? { onContinue: () => { void beginSignatures(); } } : {})} />{resumeContext && <div className="editor-actions"><button className="secondary-action" disabled={busy} onClick={() => void discard()}>Verwerfen</button></div>}</>}
     {step === "signatures" && <section className="signature-grid">
-      {currentSignatureStep ? <>
-        <p className="detail-hint wide">Signatur {signatureIndex + 1} von {signatureSteps.length}: {currentSignatureStep.label}</p>
-        <SignaturePad key={currentSignatureStep.key} label={currentSignatureStep.label} value={signatures[currentSignatureStep.key] ?? ""} onChange={(value) => setSignatures((current) => ({ ...current, [currentSignatureStep.key]: value }))} />
-        <div className="editor-actions"><button disabled={busy || !signatures[currentSignatureStep.key]} onClick={advanceSignature}>{signatureIndex + 1 === signatureSteps.length ? "Signatur übernehmen" : "Speichern und Weiter"}</button></div>
-      </> : <>
-        <p className="detail-hint wide">Alle {signatureSteps.length} erforderlichen Signaturen wurden erfasst.</p>
-        <div className="editor-actions"><button disabled={busy || !signaturesComplete} onClick={finalize}>{busy ? "Verarbeitet …" : "Signiertes Dokument speichern"}</button></div>
+      <p className="detail-hint wide">{positionsLoading ? "Signaturpositionen werden geladen …" : `${signatureProgress.requiredSigned} von ${signatureProgress.requiredTotal} Pflichtunterschriften`}</p>
+      {!activePosition && <div className="wide">{positions.map(position => <button type="button" key={position.id} className="secondary-action" disabled={busy || position.status === "unterschrieben"} onClick={() => void openPosition(position)}>{position.status === "unterschrieben" ? "✓" : "○"} {membershipApplicationPositionLabel(position)}{position.unterzeichnet_am ? ` (${new Intl.DateTimeFormat("de-DE", { dateStyle: "short", timeStyle: "short" }).format(new Date(position.unterzeichnet_am))})` : ""}</button>)}</div>}
+      {activePosition && <>
+        <p className="detail-hint wide">{membershipApplicationPositionLabel(activePosition)}</p>
+        {activePosition.unterzeichner_typ === "vereinsunterzeichner" && <PreparedContractSignatorySelector label={signatoriesLoading ? "Vertragsunterzeichner werden geladen …" : "Vereinsunterzeichner"} options={signatories} value={selectedSignatory} excludeMemberId={boardSignerAlreadyUsed} onChange={setSelectedSignatory} />}
+        <SignaturePad key={activePosition.signatur_schluessel} label={membershipApplicationPositionLabel(activePosition)} value={signatureDrawing} onChange={setSignatureDrawing} />
+        <div className="editor-actions"><button disabled={busy || !signatureDrawing || (activePosition.unterzeichner_typ === "vereinsunterzeichner" && !selectedSignatory)} onClick={() => void saveCurrentPosition(false)}>Speichern</button><button disabled={busy || !signatureDrawing || (activePosition.unterzeichner_typ === "vereinsunterzeichner" && !selectedSignatory)} onClick={() => void saveCurrentPosition(true)}>Speichern und Weiter</button><button className="secondary-action" disabled={busy} onClick={() => { setActivePositionKey(null); setSignatureDrawing(""); setSelectedSignatory(null); }}>Abbrechen</button></div>
       </>}
-    {resumeContext && <div className="editor-actions"><button className="secondary-action" disabled={busy} onClick={() => void discard()}>Verwerfen</button></div>}</section>}
+      <div className="editor-actions"><button disabled={busy || !signatureProgress.complete} onClick={() => void finalize()}>{busy ? "Verarbeitet …" : "Signierten Mitgliedsantrag finalisieren"}</button><button className="secondary-action" disabled={busy} onClick={() => void discard()}>Verwerfen</button></div>
+    </section>}
     {step === "review" && resumeContext && <PreparedFinalReview session={session} context={resumeContext} onCompleted={async () => { await onSaved(); onCancel?.(); }} />}
   </section>;
 }

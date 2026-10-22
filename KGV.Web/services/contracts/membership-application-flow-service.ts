@@ -1,38 +1,18 @@
-export type MembershipApplicationSignatureKey = "applicationMember" | "applicationSecondParty" | "board" | "privacyMember" | "privacySecondParty";
+import type { PreparedContractSignature } from "../../repositories/contracts/prepared-contract-signature-repository";
 
-export type MembershipApplicationSignatureStep = {
-  key: MembershipApplicationSignatureKey;
-  order: number;
-  personType: "mitglied" | "nebenmitglied" | "gesetzlicher_vertreter" | "vorstand";
-  personId?: number;
-  purpose: "mitgliedsantrag" | "datenschutz" | "freigabe";
-  label: string;
-};
-
-export type MembershipApplicationFlowStage = "edit" | "preview" | "signatures";
-
-export function buildMembershipApplicationSignatureSteps({ isMinor, includeSecondaryMember, memberId, representativeMemberId }: { isMinor: boolean; includeSecondaryMember: boolean; memberId?: number; representativeMemberId?: number }): MembershipApplicationSignatureStep[] {
+export type MembershipApplicationPersistentSlot = { key: string; sortOrder: number; required: boolean; signerType: "mitglied" | "gesetzlicher_vertreter" | "nebenmitglied" | "vereinsunterzeichner"; memberId?: number };
+export function buildMembershipApplicationPersistentSlots({ isMinor, includeSecondaryMember, memberId, representativeMemberId, secondaryMemberId }: { isMinor: boolean; includeSecondaryMember: boolean; memberId: number; representativeMemberId?: number; secondaryMemberId?: number }) {
   if (isMinor && includeSecondaryMember) throw new Error("Ein minderjähriges Mitglied kann kein Nebenmitglied im Mitgliedsantrag haben.");
-  const secondParty = isMinor ? { personType: "gesetzlicher_vertreter" as const, label: "Gesetzlicher Vertreter" } : { personType: "nebenmitglied" as const, label: "Nebenmitglied" };
-  const steps: MembershipApplicationSignatureStep[] = [
-    { key: "applicationMember", order: 1, personType: "mitglied", personId: memberId, purpose: "mitgliedsantrag", label: "Mitglied – Mitgliedsantrag" },
-    { key: "privacyMember", order: 2, personType: "mitglied", personId: memberId, purpose: "datenschutz", label: "Mitglied – Datenschutz" },
-  ];
-  if (isMinor || includeSecondaryMember) {
-    steps.push(
-      { key: "applicationSecondParty", order: steps.length + 1, personType: secondParty.personType, personId: isMinor ? representativeMemberId : undefined, purpose: "mitgliedsantrag", label: `${secondParty.label} – Mitgliedsantrag` },
-      { key: "privacySecondParty", order: steps.length + 2, personType: secondParty.personType, personId: isMinor ? representativeMemberId : undefined, purpose: "datenschutz", label: `${secondParty.label} – Datenschutz` },
-    );
-  }
-  steps.push({ key: "board", order: steps.length + 1, personType: "vorstand", purpose: "freigabe", label: "Vorstand – Freigabe" });
-  return steps;
+  const slots: MembershipApplicationPersistentSlot[] = [{ key: "member.application", sortOrder: 10, required: true, signerType: "mitglied", memberId }, { key: "member.privacy", sortOrder: 20, required: true, signerType: "mitglied", memberId }];
+  if (isMinor) slots.push({ key: "gesetzliche_vertretung.antrag", sortOrder: 30, required: true, signerType: "gesetzlicher_vertreter", memberId: representativeMemberId }, { key: "gesetzliche_vertretung.datenschutz", sortOrder: 40, required: true, signerType: "gesetzlicher_vertreter", memberId: representativeMemberId });
+  else if (includeSecondaryMember) slots.push({ key: "nebenmitglied.antrag", sortOrder: 30, required: true, signerType: "nebenmitglied", memberId: secondaryMemberId }, { key: "nebenmitglied.datenschutz", sortOrder: 40, required: true, signerType: "nebenmitglied", memberId: secondaryMemberId });
+  slots.push({ key: "vorstand_1", sortOrder: 90, required: true, signerType: "vereinsunterzeichner" }, { key: "vorstand_2", sortOrder: 100, required: true, signerType: "vereinsunterzeichner" });
+  return slots;
 }
-
-export function hasCompletedMembershipApplicationSignatures(steps: MembershipApplicationSignatureStep[], signatures: Partial<Record<MembershipApplicationSignatureKey, string>>) {
-  return steps.every((step) => Boolean(signatures[step.key]));
-}
-
-export const canStartMembershipApplicationSignatures = (stage: MembershipApplicationFlowStage) => stage === "preview";
-
-export const canFinalizeMembershipApplication = (stage: MembershipApplicationFlowStage, steps: MembershipApplicationSignatureStep[], signatures: Partial<Record<MembershipApplicationSignatureKey, string>>) =>
-  stage === "signatures" && hasCompletedMembershipApplicationSignatures(steps, signatures);
+export const membershipApplicationPositionLabel = (position: Pick<PreparedContractSignature, "signatur_schluessel" | "unterzeichner_name_snapshot" | "vereinsfunktion_bezeichnung_snapshot" | "vertretung_id" | "vertretene_funktion_bezeichnung_snapshot">) => {
+  const labels: Record<string, string> = { "member.application": "Antragsteller – Mitgliedsantrag", "member.privacy": "Antragsteller – Datenschutz", "gesetzliche_vertretung.antrag": "Gesetzliche Vertretung – Mitgliedsantrag", "gesetzliche_vertretung.datenschutz": "Gesetzliche Vertretung – Datenschutz", "nebenmitglied.antrag": "Nebenmitglied – Mitgliedsantrag", "nebenmitglied.datenschutz": "Nebenmitglied – Datenschutz", vorstand_1: "Vereinsunterzeichner 1", vorstand_2: "Vereinsunterzeichner 2" };
+  const details = [position.unterzeichner_name_snapshot, position.vereinsfunktion_bezeichnung_snapshot, position.vertretung_id !== null ? `in Vertretung für ${position.vertretene_funktion_bezeichnung_snapshot ?? "Funktion"}` : null].filter(Boolean).join(" · ");
+  return details ? `${labels[position.signatur_schluessel] ?? position.signatur_schluessel} – ${details}` : (labels[position.signatur_schluessel] ?? position.signatur_schluessel);
+};
+export const preparedSignatureProgress = (positions: PreparedContractSignature[]) => { const required = positions.filter(position => position.pflicht); return { requiredTotal: required.length, requiredSigned: required.filter(position => position.status === "unterschrieben").length, complete: required.length > 0 && required.every(position => position.status === "unterschrieben") }; };
+export const nextOpenPreparedSignature = (positions: PreparedContractSignature[]) => positions.filter(position => position.status === "offen").sort((left, right) => left.sort_order - right.sort_order || left.signatur_schluessel.localeCompare(right.signatur_schluessel))[0] ?? null;

@@ -3,6 +3,7 @@ using KGV.Core.Models;
 
 namespace KGV.Core.Services;
 
+/// <summary>Orchestrates the persistent, revision-bound lease-contract signature workflow.</summary>
 public sealed class PreparedLeaseContractSigningService
 {
     private readonly IPreparedContractRepository _repository;
@@ -10,44 +11,82 @@ public sealed class PreparedLeaseContractSigningService
     private readonly ISupabaseService _supabaseService;
     private readonly PreparedLeaseContractVereinsunterlagenService _unterlagen;
     private readonly PreparedContractSigningStartService _start;
-    private readonly PreparedFinalDocumentRecoveryService _recovery;
+    private readonly IPreparedContractSignatureService _signatures;
 
-    public PreparedLeaseContractSigningService(IPreparedContractRepository repository, IContractGenerationClient contractClient, ISupabaseService supabaseService, PreparedLeaseContractVereinsunterlagenService unterlagen, PreparedContractSigningStartService? start = null)
-    { _repository = repository; _contractClient = contractClient; _supabaseService = supabaseService; _unterlagen = unterlagen; _start = start ?? new(repository); _recovery = new(repository); }
+    public PreparedLeaseContractSigningService(IPreparedContractRepository repository, IContractGenerationClient contractClient, ISupabaseService supabaseService, PreparedLeaseContractVereinsunterlagenService unterlagen, PreparedContractSigningStartService? start = null, IPreparedContractSignatureService? persistentSignatures = null)
+    {
+        _repository = repository ?? throw new ArgumentNullException(nameof(repository));
+        _contractClient = contractClient ?? throw new ArgumentNullException(nameof(contractClient));
+        _supabaseService = supabaseService ?? throw new ArgumentNullException(nameof(supabaseService));
+        _unterlagen = unterlagen ?? throw new ArgumentNullException(nameof(unterlagen));
+        _signatures = persistentSignatures ?? throw new ArgumentNullException(nameof(persistentSignatures), "Der persistente Signaturservice ist erforderlich.");
+        _start = start ?? new PreparedContractSigningStartService(repository, _signatures);
+    }
 
-    public async Task<KommunikationsvorgangDto> StartAsync(KommunikationsvorgangDto contract, CancellationToken cancellationToken = default)
+    public async Task<PreparedLeaseContractSignatureState> StartOrResumeAsync(KommunikationsvorgangDto contract, CancellationToken cancellationToken = default)
+    {
+        var prepared = await PrepareAsync(contract, cancellationToken);
+        var (draft, resolution) = await ValidateAndResolveAsync(prepared, cancellationToken);
+        var positions = await _signatures.EnsurePositionsAsync(prepared, PreparedLeaseContractSignaturePlanBuilder.BuildPersistent(draft, resolution.IstMinderjaehrig, resolution.HatAktivenGesetzlichenVertreter), cancellationToken);
+        return new(prepared, draft, resolution.IstMinderjaehrig, positions, PreparedContractSignatureProgress.From(positions));
+    }
+
+    public async Task<PreparedLeaseContractSignatureState> GetSignatureStateAsync(KommunikationsvorgangDto contract, CancellationToken cancellationToken = default)
+    {
+        var prepared = await PrepareAsync(contract, cancellationToken);
+        var (draft, resolution) = await ValidateAndResolveAsync(prepared, cancellationToken);
+        var positions = await _signatures.GetSignaturesAsync(prepared, cancellationToken);
+        return new(prepared, draft, resolution.IstMinderjaehrig, positions, PreparedContractSignatureProgress.From(positions));
+    }
+
+    public async Task<PreparedContractSignatureDto> SaveSignatureAsync(KommunikationsvorgangDto contract, PreparedContractSignatureSaveRequest request, CancellationToken cancellationToken = default)
+    {
+        var state = await GetSignatureStateAsync(contract, cancellationToken);
+        if (request.KommunikationsvorgangId != state.Contract.Id || request.SignaturRevision != state.Contract.SignaturRevision)
+            throw new PreparedContractConflictException("Die Signatur gehört nicht zur aktuell eingefrorenen Pachtvertragsrevision.");
+        if (!PreparedLeaseContractSignaturePlanBuilder.BuildPersistent(state.Draft, state.IsMinor, true).Any(slot => slot.Key == request.SignaturSchluessel))
+            throw new PreparedContractValidationException("Die Signaturposition gehört nicht zum Pachtvertrag.");
+        return await _signatures.SaveSignatureAsync(request, cancellationToken);
+    }
+
+    public async Task<PreparedLeaseContractSigningResult> FinalizeAsync(KommunikationsvorgangDto contract, CancellationToken cancellationToken = default)
+    {
+        var state = await GetSignatureStateAsync(contract, cancellationToken);
+        if (!await _signatures.AreRequiredSignaturesCompleteAsync(state.Contract, cancellationToken))
+            throw new PreparedContractValidationException("Alle erforderlichen persistenten Signaturen müssen vor der Finalisierung vorliegen.");
+        try
+        {
+            var result = await _contractClient.FinalizeLeaseContractAsync(new LeaseContractFinalizeRequest { Contract = PreparedLeaseContractMapper.ToDocumentRequest(state.Draft, state.IsMinor), KommunikationsvorgangId = state.Contract.Id, SourceRevision = state.Contract.SignaturRevision!.Value }, cancellationToken);
+            if (result.DocumentId is not > 0) throw new PreparedContractValidationException("Der Finalize-Vorgang hat keine gültige Dokument-ID zurückgegeben.");
+            var reviewed = await _repository.MarkFinalDocumentReadyForReviewAsync(state.Contract.Id, state.Contract.Revision, result.DocumentId.Value, cancellationToken);
+            return new(true, result, reviewed, null);
+        }
+        catch (Exception exception) { return new(false, null, state.Contract, exception); }
+    }
+
+    private async Task<KommunikationsvorgangDto> PrepareAsync(KommunikationsvorgangDto contract, CancellationToken cancellationToken)
     {
         contract = await _repository.LoadAsync(contract.Id, cancellationToken);
-        var draft = Parse(contract);
+        Parse(contract);
         if (contract.Status == PreparedContractConstants.Prepared)
         {
             await _unterlagen.RevalidateBeforeStartAsync(contract, cancellationToken);
             contract = await _start.StartAsync(contract, cancellationToken);
         }
-        ValidateStarted(contract);
-        await PlanAsync(draft, cancellationToken);
+        if (contract.Status != PreparedContractConstants.ReadyForSignature || contract.SignaturRevision != contract.Revision || contract.SignaturGestartetAm is null)
+            throw new PreparedContractValidationException("Der Pachtvertrag ist nicht korrekt für die Signatur eingefroren.");
         return contract;
     }
 
-    public async Task<KommunikationsvorgangDto> FinalizeAsync(KommunikationsvorgangDto contract, IPreparedSignatureCapture capture, CancellationToken cancellationToken = default)
+    private async Task<(PreparedLeaseContractDraft Draft, GesetzlicherVertreterAufloesung Resolution)> ValidateAndResolveAsync(KommunikationsvorgangDto contract, CancellationToken cancellationToken)
     {
-        contract = await _repository.LoadAsync(contract.Id, cancellationToken);
-        var recovered = await _recovery.RecoverAsync(contract, cancellationToken);
-        if (recovered is not null) return recovered;
-        ValidateStarted(contract); var draft = Parse(contract); var plan = await PlanAsync(draft, cancellationToken);
-        var values = new Dictionary<string, string>();
-        foreach (var step in plan) { var captured = await capture.CaptureAsync(step, cancellationToken); if (captured is null) throw new OperationCanceledException("Die Signaturerfassung wurde abgebrochen."); values[step.Key] = DigitalSignatureEncoder.EncodePngDataUrl(captured); }
-        contract = await _repository.LoadAsync(contract.Id, cancellationToken);
-        recovered = await _recovery.RecoverAsync(contract, cancellationToken); if (recovered is not null) return recovered;
-        ValidateStarted(contract);
-        var minor = (await ResolveAsync(draft, cancellationToken)).IstMinderjaehrig;
-        var result = await _contractClient.FinalizeLeaseContractAsync(new LeaseContractFinalizeRequest { Contract = PreparedLeaseContractMapper.ToDocumentRequest(draft, minor), MemberSignature = values[LeaseContractSignatureKeys.Member], SecondarySignature = values.GetValueOrDefault(LeaseContractSignatureKeys.SecondParty), BoardSignature = values[LeaseContractSignatureKeys.Board] }, cancellationToken);
-        if (result.DocumentId is not > 0) throw new PreparedContractValidationException("Der Finalize-Vorgang hat keine gültige Dokument-ID zurückgegeben.");
-        return await _repository.MarkFinalDocumentReadyForReviewAsync(contract.Id, contract.Revision, result.DocumentId.Value, cancellationToken);
+        var draft = Parse(contract);
+        var resolution = await _supabaseService.ResolveGesetzlicherVertreterAsync(draft.MemberId, DateTime.ParseExact(draft.Draft.StartDate, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture));
+        var relationship = await _supabaseService.GetAktivesPachtverhaeltnisStatusAsync(draft.Draft.ParcelId ?? 0);
+        ValidateFrozenDraft(draft, resolution.IstMinderjaehrig, relationship);
+        return (draft, resolution);
     }
 
-    private async Task<IReadOnlyList<SignatureStep>> PlanAsync(PreparedLeaseContractDraft draft, CancellationToken ct) { var resolution = await ResolveAsync(draft, ct); var relationship = await _supabaseService.GetAktivesPachtverhaeltnisStatusAsync(draft.Draft.ParcelId ?? 0); ValidateFrozenDraft(draft, resolution.IstMinderjaehrig, relationship); return PreparedLeaseContractSignaturePlanBuilder.Build(draft, resolution.IstMinderjaehrig, resolution.HatAktivenGesetzlichenVertreter); }
-    private Task<GesetzlicherVertreterAufloesung> ResolveAsync(PreparedLeaseContractDraft draft, CancellationToken ct) => _supabaseService.ResolveGesetzlicherVertreterAsync(draft.MemberId, DateTime.ParseExact(draft.Draft.StartDate, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture));
     private static PreparedLeaseContractDraft Parse(KommunikationsvorgangDto contract) => contract.Dokumenttyp == PreparedContractConstants.LeaseContract && PreparedContractDraftParser.Parse(contract.EntwurfDaten) is PreparedLeaseContractDraft draft && draft.MemberId == contract.MitgliedId ? draft : throw new PreparedContractValidationException("Der gespeicherte Vertragsentwurf ist kein passender Pachtvertrag.");
     private static void ValidateFrozenDraft(PreparedLeaseContractDraft draft, bool isMinor, AktivesPachtverhaeltnisStatus relationship)
     {
@@ -58,5 +97,7 @@ public sealed class PreparedLeaseContractSigningService
         if (relationship.HatAktivesPachtverhaeltnis && relationship.Vertragsfassungen == 0) throw new PreparedContractValidationException("Das aktive Pachtverhältnis besitzt keine Vertragsfassung. Eine Neufassung kann nicht gestartet werden.");
         if (relationship.HatAktivesPachtverhaeltnis && !DateTime.TryParseExact(draft.Draft.EffectiveDate, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out _)) throw new PreparedContractValidationException("Für die Neufassung fehlt ein gültiges Wirksamkeitsdatum. Bitte eine neue Vorschau erstellen.");
     }
-    private static void ValidateStarted(KommunikationsvorgangDto c) { if (c.Status != PreparedContractConstants.ReadyForSignature || c.SignaturRevision != c.Revision || c.SignaturGestartetAm is null) throw new PreparedContractValidationException("Der Pachtvertrag ist nicht korrekt für die Signatur eingefroren."); }
 }
+
+public sealed record PreparedLeaseContractSignatureState(KommunikationsvorgangDto Contract, PreparedLeaseContractDraft Draft, bool IsMinor, IReadOnlyList<PreparedContractSignatureDto> Positions, PreparedContractSignatureProgress Progress);
+public sealed record PreparedLeaseContractSigningResult(bool ReadyForReview, ContractFinalizeResult? FinalizeResult, KommunikationsvorgangDto Contract, Exception? Error);

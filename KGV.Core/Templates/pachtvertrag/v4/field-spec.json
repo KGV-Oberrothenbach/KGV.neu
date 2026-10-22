@@ -1,0 +1,23 @@
+{
+  "schema_version": "kgv-pdf-field-spec/v1",
+  "coordinate_system": "top-left-points",
+  "settings": { "coordinateOrigin": "topLeft" },
+  "field_spec_version": "pachtvertrag-field-spec/v4",
+  "fields": [
+    { "name": "paechter_name", "type": "text", "page": 1, "rect": { "x": 147, "y": 234, "w": 298, "h": 14 } },
+    { "name": "paechter_geburtsdatum", "type": "text", "page": 1, "rect": { "x": 124, "y": 260, "w": 298, "h": 14 } },
+    { "name": "paechter_anschrift", "type": "text", "page": 1, "rect": { "x": 95, "y": 285, "w": 313, "h": 14 } },
+    { "name": "paechter_kontakt", "type": "text", "page": 1, "rect": { "x": 175, "y": 311, "w": 233, "h": 14 } },
+    { "name": "zweite_partei_name", "type": "text", "page": 1, "rect": { "x": 338, "y": 334, "w": 175, "h": 14 } },
+    { "name": "vertragsbeginn", "type": "text", "page": 1, "rect": { "x": 193, "y": 541, "w": 85, "h": 14 } },
+    { "name": "uebergabe_datum", "type": "text", "page": 1, "rect": { "x": 357, "y": 541, "w": 85, "h": 14 } },
+    { "name": "weitere_vereinbarungen", "type": "multiline", "page": 3, "rect": { "x": 42, "y": 544, "w": 510, "h": 32 } },
+    { "name": "ort_datum", "type": "text", "page": 3, "rect": { "x": 110, "y": 603, "w": 276, "h": 14 } },
+    { "name": "unterschrift_paechter_1", "type": "signature", "page": 3, "rect": { "x": 110, "y": 631, "w": 129, "h": 28 } },
+    { "name": "unterschrift_paechter_2", "type": "signature", "page": 3, "rect": { "x": 357, "y": 631, "w": 113, "h": 28 } },
+    { "name": "vereinsunterzeichner_1", "type": "multiline", "page": 3, "rect": { "x": 153, "y": 714, "w": 131, "h": 29 } },
+    { "name": "unterschrift_vorstand_1", "type": "signature", "page": 3, "rect": { "x": 357, "y": 717, "w": 113, "h": 28 } },
+    { "name": "vereinsunterzeichner_2", "type": "multiline", "page": 3, "rect": { "x": 153, "y": 757, "w": 131, "h": 29 } },
+    { "name": "unterschrift_vorstand_2", "type": "signature", "page": 3, "rect": { "x": 357, "y": 760, "w": 113, "h": 28 } }
+  ]
+}

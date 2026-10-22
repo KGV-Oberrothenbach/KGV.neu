@@ -16,4 +16,8 @@ public interface IContractGenerationClient
     Task<ContractFinalizeResult> FinalizeLeaseContractAsync(
         LeaseContractFinalizeRequest request,
         CancellationToken cancellationToken = default);
+
+    Task<ContractFinalizeResult> FinalizeMaintenanceContractAsync(
+        MaintenanceContractFinalizeRequest request,
+        CancellationToken cancellationToken = default);
 }

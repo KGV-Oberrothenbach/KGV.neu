@@ -8,4 +8,9 @@ assert.match(page, /impressum_ist_hauptkontakt/); assert.match(page, /impressum_
 assert.doesNotMatch(page, /Vorsitz|Bauausschuss|isImprintChairSlot/);
 assert.match(navigation, /canManageClubFunctions/);
 assert.match(page, /explainClubFunctionError/);
+assert.match(page, /Vertragsunterzeichnung/);
+assert.match(page, /verwendungszweck: "vertragsunterzeichnung"/);
+assert.match(page, /Vertretungen \/ Vollmachten/);
+assert.match(page, /Vollmacht erfassen/);
+assert.match(page, /Vertretung beenden/);
 console.log("club-function management contract passed");

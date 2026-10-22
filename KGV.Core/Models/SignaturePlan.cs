@@ -28,10 +28,10 @@ public static class MembershipApplicationSignatureKeys
 {
     public const string MemberApplication = "member.application";
     public const string MemberPrivacy = "member.privacy";
-    public const string SecondaryApplication = "secondary.application";
-    public const string SecondaryPrivacy = "secondary.privacy";
-    public const string RepresentativeApplication = "representative.application";
-    public const string RepresentativePrivacy = "representative.privacy";
+    public const string SecondaryApplication = "nebenmitglied.antrag";
+    public const string SecondaryPrivacy = "nebenmitglied.datenschutz";
+    public const string RepresentativeApplication = "gesetzliche_vertretung.antrag";
+    public const string RepresentativePrivacy = "gesetzliche_vertretung.datenschutz";
     public const string BoardApproval = "board.approval";
 }
 

@@ -5,6 +5,31 @@ namespace KGV.Core.Services;
 /// <summary>Defines the complete, ordered signature plan for a membership application.</summary>
 public static class PreparedMembershipApplicationSignaturePlanBuilder
 {
+    /// <summary>Persistent slots for the new workflow. The legacy Build method remains used by the in-memory finalizer until Phase F/G.</summary>
+    public static IReadOnlyList<PreparedContractSignatureSlot> BuildPersistent(PreparedMembershipApplicationDraft draft)
+    {
+        ArgumentNullException.ThrowIfNull(draft);
+        if (draft.MemberId <= 0) throw new PreparedContractValidationException("Für den Signaturplan fehlt das Mitglied.");
+        if (draft.Representative is not null && draft.IncludeSecondaryMember) throw new PreparedContractValidationException("Ein minderjähriges Mitglied kann kein Nebenmitglied im Mitgliedsantrag haben.");
+        var slots = new List<PreparedContractSignatureSlot>();
+        AddSlot(slots, MembershipApplicationSignatureKeys.MemberApplication, SignaturePersonTypes.Member, "Mitglied – Mitgliedsantrag", draft.MemberId);
+        AddSlot(slots, MembershipApplicationSignatureKeys.MemberPrivacy, SignaturePersonTypes.Member, "Mitglied – Datenschutz", draft.MemberId);
+        if (draft.Representative is not null)
+        {
+            var id = draft.Representative.Mode == "existing" ? draft.Representative.MemberId : null;
+            AddSlot(slots, MembershipApplicationSignatureKeys.RepresentativeApplication, SignaturePersonTypes.LegalRepresentative, "Gesetzlicher Vertreter – Mitgliedsantrag", id);
+            AddSlot(slots, MembershipApplicationSignatureKeys.RepresentativePrivacy, SignaturePersonTypes.LegalRepresentative, "Gesetzlicher Vertreter – Datenschutz", id);
+        }
+        else if (draft.IncludeSecondaryMember)
+        {
+            AddSlot(slots, MembershipApplicationSignatureKeys.SecondaryApplication, SignaturePersonTypes.SecondaryMember, "Nebenmitglied – Mitgliedsantrag");
+            AddSlot(slots, MembershipApplicationSignatureKeys.SecondaryPrivacy, SignaturePersonTypes.SecondaryMember, "Nebenmitglied – Datenschutz");
+        }
+        AddSlot(slots, PreparedContractBoardSignatureKeys.Board1, "vereinsunterzeichner", "Vorstand 1");
+        AddSlot(slots, PreparedContractBoardSignatureKeys.Board2, "vereinsunterzeichner", "Vorstand 2");
+        return slots;
+    }
+
     public static IReadOnlyList<SignatureStep> Build(PreparedMembershipApplicationDraft draft)
     {
         ArgumentNullException.ThrowIfNull(draft);
@@ -35,4 +60,7 @@ public static class PreparedMembershipApplicationSignaturePlanBuilder
 
     private static void Add(List<SignatureStep> steps, string personType, int? personId, string purpose, string displayName, string key)
         => steps.Add(new SignatureStep(steps.Count + 1, personType, personId, purpose, displayName, key));
+
+    private static void AddSlot(List<PreparedContractSignatureSlot> slots, string key, string signerType, string label, long? memberId = null)
+        => slots.Add(new PreparedContractSignatureSlot(key, checked((short)((slots.Count + 1) * 10)), true, signerType, label, memberId));
 }

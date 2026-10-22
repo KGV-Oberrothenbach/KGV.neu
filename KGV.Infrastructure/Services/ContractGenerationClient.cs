@@ -88,27 +88,50 @@ public sealed class ContractGenerationClient : IContractGenerationClient
             throw new ArgumentException("Kommunikationsvorgang und Revision sind für die Finalisierung erforderlich.", nameof(request));
         var draft = PreparedMembershipApplicationMapper.ToPreparedDraft(application, application.IstMinderjaehrig);
         var payload = new Dictionary<string, object?> { ["action"] = "finalize", ["type"] = "mitgliedsantrag", ["member_id"] = draft.MemberId, ["start_date"] = draft.StartDate, ["member_fee"] = draft.MemberFee, ["admission_fee"] = request.AdmissionFee, ["include_secondary_member"] = !application.IstMinderjaehrig && application.NebenmitgliedEinbeziehen, ["source_kommunikationsvorgang_id"] = request.SourceKommunikationsvorgangId, ["source_revision"] = request.SourceRevision };
+        if (request.KommunikationsvorgangId > 0) payload["kommunikationsvorgang_id"] = request.KommunikationsvorgangId;
         if (application.IstMinderjaehrig && draft.Representative is { } representative)
             payload["representative"] = representative.Mode == "existing" ? new Dictionary<string, object?> { ["mode"] = "existing", ["member_id"] = representative.MemberId, ["adresse_abweichend"] = false } : new Dictionary<string, object?> { ["mode"] = "manual", ["vorname"] = representative.Vorname, ["nachname"] = representative.Nachname, ["adresse_abweichend"] = representative.AdresseAbweichend, ["adresse"] = representative.Adresse, ["plz"] = representative.Plz, ["ort"] = representative.Ort };
-        Add(payload, "signature_application_member", request.ApplicationMemberSignature); Add(payload, "signature_privacy_member", request.PrivacyMemberSignature); Add(payload, "signature_board", request.BoardSignature);
-        if (application.IstMinderjaehrig) { Add(payload, "signature_application_representative", request.ApplicationRepresentativeSignature); Add(payload, "signature_privacy_representative", request.PrivacyRepresentativeSignature); }
-        else if (application.NebenmitgliedEinbeziehen) { Add(payload, "signature_application_secondary", request.ApplicationSecondarySignature); Add(payload, "signature_privacy_secondary", request.PrivacySecondarySignature); }
+        if (request.KommunikationsvorgangId <= 0)
+        {
+            Add(payload, "signature_application_member", request.ApplicationMemberSignature); Add(payload, "signature_privacy_member", request.PrivacyMemberSignature); Add(payload, "signature_board", request.BoardSignature);
+            if (application.IstMinderjaehrig) { Add(payload, "signature_application_representative", request.ApplicationRepresentativeSignature); Add(payload, "signature_privacy_representative", request.PrivacyRepresentativeSignature); }
+            else if (application.NebenmitgliedEinbeziehen) { Add(payload, "signature_application_secondary", request.ApplicationSecondarySignature); Add(payload, "signature_privacy_secondary", request.PrivacySecondarySignature); }
+        }
         return await SendFinalizeAsync(payload, cancellationToken);
     }
 
     public async Task<ContractFinalizeResult> FinalizeLeaseContractAsync(LeaseContractFinalizeRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request); ArgumentNullException.ThrowIfNull(request.Contract);
-        if (string.IsNullOrWhiteSpace(request.MemberSignature)) throw new ArgumentException("Die Unterschrift des Mitglieds ist erforderlich.", nameof(request));
-        if (string.IsNullOrWhiteSpace(request.BoardSignature)) throw new ArgumentException("Die Unterschrift des Vorstands ist erforderlich.", nameof(request));
-        if (request.Contract.IncludeSecondaryMember == true && string.IsNullOrWhiteSpace(request.SecondarySignature)) throw new ArgumentException("Die Unterschrift des Nebenmitglieds ist erforderlich.", nameof(request));
+        if (request.KommunikationsvorgangId <= 0)
+        {
+            if (string.IsNullOrWhiteSpace(request.MemberSignature)) throw new ArgumentException("Die Unterschrift des Mitglieds ist erforderlich.", nameof(request));
+            if (string.IsNullOrWhiteSpace(request.BoardSignature)) throw new ArgumentException("Die Unterschrift des Vorstands ist erforderlich.", nameof(request));
+            if (request.Contract.IncludeSecondaryMember == true && string.IsNullOrWhiteSpace(request.SecondarySignature)) throw new ArgumentException("Die Unterschrift des Nebenmitglieds ist erforderlich.", nameof(request));
+        }
 
         var contract = request.Contract;
         var draft = PreparedLeaseContractMapper.ToPreparedDraft(contract);
         var payload = CreateLeasePayload("finalize", draft, contract.MitgliedId, contract.ParzelleId);
-        payload["signature_member"] = request.MemberSignature; payload["signature_board"] = request.BoardSignature;
-        if (contract.IncludeSecondaryMember == true) payload["signature_secondary"] = request.SecondarySignature;
+        if (request.KommunikationsvorgangId > 0)
+        {
+            payload["kommunikationsvorgang_id"] = request.KommunikationsvorgangId;
+            payload["source_kommunikationsvorgang_id"] = request.KommunikationsvorgangId;
+            payload["source_revision"] = request.SourceRevision;
+        }
+        else
+        {
+            payload["signature_member"] = request.MemberSignature; payload["signature_board"] = request.BoardSignature;
+            if (contract.IncludeSecondaryMember == true) payload["signature_secondary"] = request.SecondarySignature;
+        }
         return await SendFinalizeAsync(payload, cancellationToken);
+    }
+
+    public async Task<ContractFinalizeResult> FinalizeMaintenanceContractAsync(MaintenanceContractFinalizeRequest request, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        if (request.KommunikationsvorgangId <= 0) throw new ArgumentException("Der Kommunikationsvorgang ist für die Wartungsvertragsfinalisierung erforderlich.", nameof(request));
+        return await SendFinalizeAsync(new Dictionary<string, object?> { ["action"] = "finalize", ["type"] = "wartungsvertrag", ["kommunikationsvorgang_id"] = request.KommunikationsvorgangId }, cancellationToken);
     }
 
     private static Dictionary<string, object?> CreateLeasePayload(string action, PreparedLeaseContractDraft prepared, int memberId, int parcelId)
@@ -144,7 +167,7 @@ public sealed class ContractGenerationClient : IContractGenerationClient
         message.Headers.Add("apikey", _clientFactory.Key); message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token); message.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
         using var response = await client.SendAsync(message, cancellationToken); if (!response.IsSuccessStatusCode) throw new InvalidOperationException($"Die Vertragsfinalisierung konnte nicht erzeugt werden ({(int)response.StatusCode}): {await ReadErrorMessageAsync(response, cancellationToken)}");
         var content = await response.Content.ReadAsStringAsync(cancellationToken); if (string.IsNullOrWhiteSpace(content)) throw new InvalidOperationException("Die Vertragsfinalisierung lieferte keine JSON-Antwort.");
-        try { using var json = JsonDocument.Parse(content); var root = json.RootElement; return new(root.TryGetProperty("documentId", out var id) && id.TryGetInt32(out var documentId) ? documentId : null, root.TryGetProperty("message", out var messageValue) && messageValue.ValueKind == JsonValueKind.String ? messageValue.GetString() : null); }
+        try { using var json = JsonDocument.Parse(content); var root = json.RootElement; return new((root.TryGetProperty("document_id", out var id) || root.TryGetProperty("documentId", out id)) && id.TryGetInt32(out var documentId) ? documentId : null, root.TryGetProperty("message", out var messageValue) && messageValue.ValueKind == JsonValueKind.String ? messageValue.GetString() : null); }
         catch (JsonException ex) { throw new InvalidOperationException("Die Vertragsfinalisierung lieferte keine gültige JSON-Antwort.", ex); }
     }
 

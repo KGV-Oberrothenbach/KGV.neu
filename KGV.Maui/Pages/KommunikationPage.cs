@@ -17,6 +17,7 @@ public sealed class KommunikationPage : ContentPage
     private readonly IAuthService _authService;
     private readonly ISupabaseService _supabaseService;
     private readonly ILeaseContractCompletionClient _leaseCompletionClient;
+    private readonly IPreparedContractSignatureService _preparedSignatures;
     private readonly UserContextState _userContext;
     private readonly ObservableCollection<SignatureListItem> _items = [];
     private readonly CollectionView _list;
@@ -32,6 +33,7 @@ public sealed class KommunikationPage : ContentPage
         IAuthService authService,
         ISupabaseService supabaseService,
         ILeaseContractCompletionClient leaseCompletionClient,
+        IPreparedContractSignatureService preparedSignatures,
         UserContextState userContext)
     {
         _repository = repository ?? throw new ArgumentNullException(nameof(repository));
@@ -39,6 +41,7 @@ public sealed class KommunikationPage : ContentPage
         _authService = authService ?? throw new ArgumentNullException(nameof(authService));
         _supabaseService = supabaseService ?? throw new ArgumentNullException(nameof(supabaseService));
         _leaseCompletionClient = leaseCompletionClient ?? throw new ArgumentNullException(nameof(leaseCompletionClient));
+        _preparedSignatures = preparedSignatures ?? throw new ArgumentNullException(nameof(preparedSignatures));
         _userContext = userContext ?? throw new ArgumentNullException(nameof(userContext));
         Title = "Vorgänge";
 
@@ -141,6 +144,12 @@ public sealed class KommunikationPage : ContentPage
             await LoadAsync();
             return;
         }
+        if (item.Contract.Dokumenttyp == PreparedContractConstants.MaintenanceContract)
+        {
+            await RunMaintenanceSigningAsync(item.Contract);
+            await LoadAsync();
+            return;
+        }
         if (item.Contract.Dokumenttyp == PreparedContractConstants.LeaseContract)
         {
             await RunLeaseSigningAsync(item.Contract);
@@ -178,47 +187,173 @@ public sealed class KommunikationPage : ContentPage
 
     private async Task RunMembershipSigningAsync(KommunikationsvorgangDto contract)
     {
-        var sourceDocument = new DocumentInfo { Title = "Mitgliedsantrag", Dateiname = "Mitgliedsantrag.pdf" };
-        var capture = new MauiPreparedSignatureCapture(this, sourceDocument);
-        var signing = new PreparedMembershipApplicationSigningService(_repository, _contractClient, new MitgliedsantragVereinsunterlagenService(_supabaseService));
-        var result = await signing.RunAsync(contract, capture);
-        if (result.State == PreparedMembershipApplicationSigningState.FinalDocumentReadyForReview && result.Contract is not null)
-        {
-            var review = new PreparedFinalDocumentReviewFlow(this, _repository, _supabaseService, _leaseCompletionClient);
-            await review.OpenAsync(result.Contract);
-            return;
-        }
+        var signing = new PreparedMembershipApplicationSigningService(
+            _repository,
+            _contractClient,
+            new MitgliedsantragVereinsunterlagenService(_supabaseService),
+            persistentSignatures: _preparedSignatures);
+        PreparedMembershipApplicationSignatureState state;
+        try { state = await signing.StartOrResumeAsync(contract); }
+        catch (Exception ex) { await DisplayAlertAsync("Mitgliedsantrag", ex.Message, "OK"); return; }
 
-        if (result.State != PreparedMembershipApplicationSigningState.Cancelled)
-            await DisplayAlertAsync("Mitgliedsantrag", result.Error?.Message ?? "Der Signaturvorgang konnte nicht abgeschlossen werden.", "OK");
+        while (true)
+        {
+            var choices = state.Positions.OrderBy(position => position.SortOrder).Select(MembershipPositionText).ToArray();
+            var finalize = state.Progress.AllRequiredSigned ? "Mitgliedsantrag finalisieren" : null;
+            var actions = finalize is null ? choices : choices.Append(finalize).ToArray();
+            var action = await DisplayActionSheetAsync($"Mitgliedsantrag\n{state.Progress.RequiredSignedCount} von {state.Progress.RequiredCount} Pflichtunterschriften", "Schließen", null, actions);
+            if (string.IsNullOrWhiteSpace(action) || action == "Schließen") return;
+            if (action == finalize)
+            {
+                var result = await signing.FinalizeAsync(state.Contract);
+                if (result.State == PreparedMembershipApplicationSigningState.FinalDocumentReadyForReview && result.Contract is not null)
+                {
+                    var review = new PreparedFinalDocumentReviewFlow(this, _repository, _supabaseService, _leaseCompletionClient);
+                    await review.OpenAsync(result.Contract); return;
+                }
+                await DisplayAlertAsync("Mitgliedsantrag", result.Error?.Message ?? "Die Finalisierung ist fehlgeschlagen. Die gespeicherten Signaturen bleiben erhalten.", "OK");
+                state = await signing.GetSignatureStateAsync(state.Contract); continue;
+            }
+            var position = state.Positions.First(position => MembershipPositionText(position) == action);
+            if (position.Status == PreparedContractSignatureStatuses.Signed) { await DisplayAlertAsync("Unterschrift", "Diese Position ist bereits unterschrieben und kann nicht überschrieben werden.", "OK"); continue; }
+            var signatory = await SelectClubSignatoryAsync(state, position);
+            if (position.UnterzeichnerTyp == "vereinsunterzeichner" && signatory is null) continue;
+            var capture = new MauiPreparedSignatureCapture(this, new DocumentInfo { Title = "Mitgliedsantrag", Dateiname = "Mitgliedsantrag.pdf" });
+            var capturePosition = new MauiPreparedSignaturePosition(
+                state.Contract.Id,
+                state.Contract.SignaturRevision!.Value,
+                position.SignaturSchluessel,
+                MembershipPositionLabel(position),
+                signatory);
+            var captured = await capture.CaptureSingleAsync(capturePosition);
+            if (captured is null) continue;
+            try
+            {
+                var png = Convert.FromBase64String(DigitalSignatureEncoder.EncodePngDataUrl(captured).Split(',', 2)[1]);
+                var representativeName = position.UnterzeichnerTyp == SignaturePersonTypes.LegalRepresentative && state.Draft.Representative?.Mode == "manual"
+                    ? $"{state.Draft.Representative.Vorname} {state.Draft.Representative.Nachname}".Trim()
+                    : null;
+                var request = new PreparedContractSignatureSaveRequest(
+                    state.Contract.Id,
+                    state.Contract.SignaturRevision!.Value,
+                    position.SignaturSchluessel,
+                    png,
+                    signatory?.MitgliedId ?? position.MitgliedId,
+                    UnterzeichnerNameSnapshot: representativeName,
+                    VereinsfunktionBesetzungId: signatory?.VereinsfunktionBesetzungId,
+                    VertretungId: signatory?.VertretungId,
+                    VertreteneBesetzungId: signatory?.VertreteneBesetzungId);
+                await signing.SaveSignatureAsync(state.Contract, request);
+                state = await signing.GetSignatureStateAsync(state.Contract);
+            }
+            catch (Exception ex) { await DisplayAlertAsync("Unterschrift", $"Die Signatur konnte nicht gespeichert werden. {ex.Message}", "OK"); }
+        }
     }
+
+    private async Task<PreparedContractAuthorizedSignatoryDto?> SelectClubSignatoryAsync(PreparedMembershipApplicationSignatureState state, PreparedContractSignatureDto position)
+    {
+        if (position.UnterzeichnerTyp != "vereinsunterzeichner") return null;
+        var excluded = state.Positions.FirstOrDefault(other => other.SignaturSchluessel != position.SignaturSchluessel && other.SignaturSchluessel is "vorstand_1" or "vorstand_2" && other.Status == PreparedContractSignatureStatuses.Signed)?.MitgliedId;
+        var date = DateOnly.Parse(state.Draft.StartDate, System.Globalization.CultureInfo.InvariantCulture);
+        var options = (await _preparedSignatures.GetAuthorizedClubSignatoriesAsync(date)).Where(option => option.MitgliedId != excluded).ToArray();
+        if (options.Length == 0) { await DisplayAlertAsync("Vereinsunterzeichner", "Es ist kein berechtigter Vereinsunterzeichner verfügbar.", "OK"); return null; }
+        var labels = options.Select(ClubSignatoryText).ToArray(); var selected = await DisplayActionSheetAsync("Vereinsunterzeichner auswählen", "Abbrechen", null, labels);
+        return options.FirstOrDefault(option => ClubSignatoryText(option) == selected);
+    }
+
+    private static string MembershipPositionLabel(PreparedContractSignatureDto position) => position.SignaturSchluessel switch { "member.application" => "Antragsteller – Mitgliedsantrag", "member.privacy" => "Antragsteller – Datenschutz", "gesetzliche_vertretung.antrag" => "Gesetzliche Vertretung – Mitgliedsantrag", "gesetzliche_vertretung.datenschutz" => "Gesetzliche Vertretung – Datenschutz", "nebenmitglied.antrag" => "Nebenmitglied – Mitgliedsantrag", "nebenmitglied.datenschutz" => "Nebenmitglied – Datenschutz", "vorstand_1" => "Vereinsunterzeichner 1", "vorstand_2" => "Vereinsunterzeichner 2", _ => position.SignaturSchluessel };
+    private static string MembershipPositionText(PreparedContractSignatureDto position) => $"{(position.Status == PreparedContractSignatureStatuses.Signed ? "✓" : "○")} {MembershipPositionLabel(position)}{(string.IsNullOrWhiteSpace(position.UnterzeichnerNameSnapshot) ? "" : $" – {position.UnterzeichnerNameSnapshot}")}{(string.IsNullOrWhiteSpace(position.VereinsfunktionBezeichnungSnapshot) ? "" : $" · {position.VereinsfunktionBezeichnungSnapshot}")}{(position.VertretungId is null ? "" : $" · Vertretung für {position.VertreteneFunktionBezeichnungSnapshot}")}{(position.UnterzeichnetAm is null ? "" : $" · {position.UnterzeichnetAm.Value.LocalDateTime:g}")}";
+    private static string ClubSignatoryText(PreparedContractAuthorizedSignatoryDto option) => option.VertretungId is null ? $"{option.Anzeigename} – {option.VereinsfunktionBezeichnung}" : $"{option.Anzeigename} – {option.VereinsfunktionBezeichnung}\nVertretung für {option.VertreteneFunktionBezeichnung}";
+
+    private async Task RunMaintenanceSigningAsync(KommunikationsvorgangDto contract)
+    {
+        var signing = new PreparedMaintenanceContractSigningService(_repository, _contractClient, _preparedSignatures);
+        PreparedMaintenanceContractSignatureState state;
+        try { state = await signing.StartOrResumeAsync(contract); }
+        catch (Exception ex) { await DisplayAlertAsync("Wartungsvertrag", ex.Message, "OK"); return; }
+        while (true)
+        {
+            var choices = state.Positions.OrderBy(position => position.SortOrder).Select(MaintenancePositionText).ToArray();
+            var finalize = state.Progress.AllRequiredSigned ? "Wartungsvertrag finalisieren" : null;
+            var action = await DisplayActionSheetAsync($"Wartungsvertrag\n{state.Progress.RequiredSignedCount} von {state.Progress.RequiredCount} Pflichtunterschriften", "Schließen", null, finalize is null ? choices : choices.Append(finalize).ToArray());
+            if (string.IsNullOrWhiteSpace(action) || action == "Schließen") return;
+            if (action == finalize)
+            {
+                var result = await signing.FinalizeAsync(state.Contract);
+                if (result.Completed) { await DisplayAlertAsync("Wartungsvertrag", result.FinalizeResult?.Message ?? "Wartungsvertrag abgeschlossen.", "OK"); return; }
+                await DisplayAlertAsync("Wartungsvertrag", result.Error?.Message ?? "Finalisierung fehlgeschlagen. Die Signaturen bleiben erhalten.", "OK"); state = await signing.GetSignatureStateAsync(state.Contract); continue;
+            }
+            var position = state.Positions.First(item => MaintenancePositionText(item) == action);
+            if (position.Status == PreparedContractSignatureStatuses.Signed) continue;
+            PreparedContractAuthorizedSignatoryDto? signatory = null;
+            if (position.UnterzeichnerTyp == "vereinsunterzeichner") signatory = await SelectMaintenanceClubSignatoryAsync(state, position);
+            if (position.UnterzeichnerTyp == "vereinsunterzeichner" && signatory is null) continue;
+            var capture = new MauiPreparedSignatureCapture(this, new DocumentInfo { Title = "Wartungsvertrag", Dateiname = "Wartungsvertrag.pdf" });
+            var captured = await capture.CaptureSingleAsync(new MauiPreparedSignaturePosition(state.Contract.Id, state.Contract.SignaturRevision!.Value, position.SignaturSchluessel, MaintenancePositionLabel(position), signatory));
+            if (captured is null) continue;
+            try { var png = Convert.FromBase64String(DigitalSignatureEncoder.EncodePngDataUrl(captured).Split(',', 2)[1]); await signing.SaveSignatureAsync(state.Contract, new PreparedContractSignatureSaveRequest(state.Contract.Id, state.Contract.SignaturRevision!.Value, position.SignaturSchluessel, png, signatory?.MitgliedId ?? position.MitgliedId, VereinsfunktionBesetzungId: signatory?.VereinsfunktionBesetzungId, VertretungId: signatory?.VertretungId, VertreteneBesetzungId: signatory?.VertreteneBesetzungId)); state = await signing.GetSignatureStateAsync(state.Contract); }
+            catch (Exception ex) { await DisplayAlertAsync("Unterschrift", $"Die Signatur konnte nicht gespeichert werden. {ex.Message}", "OK"); }
+        }
+    }
+    private async Task<PreparedContractAuthorizedSignatoryDto?> SelectMaintenanceClubSignatoryAsync(PreparedMaintenanceContractSignatureState state, PreparedContractSignatureDto position)
+    { var excluded = state.Positions.FirstOrDefault(other => other.SignaturSchluessel != position.SignaturSchluessel && other.SignaturSchluessel is "vorstand_1" or "vorstand_2" && other.Status == PreparedContractSignatureStatuses.Signed)?.MitgliedId; var options = (await _preparedSignatures.GetAuthorizedClubSignatoriesAsync(DateOnly.FromDateTime(DateTime.Today))).Where(option => option.MitgliedId != excluded).ToArray(); if (options.Length == 0) { await DisplayAlertAsync("Vereinsunterzeichner", "Es ist kein berechtigter Vereinsunterzeichner verfügbar.", "OK"); return null; } var selected = await DisplayActionSheetAsync("Vereinsunterzeichner auswählen", "Abbrechen", null, options.Select(ClubSignatoryText).ToArray()); return options.FirstOrDefault(option => ClubSignatoryText(option) == selected); }
+    private static string MaintenancePositionLabel(PreparedContractSignatureDto position) => position.SignaturSchluessel switch { "mitglied" => "Mitglied", "vorstand_1" => "Vereinsunterzeichner 1", "vorstand_2" => "Vereinsunterzeichner 2", _ => position.SignaturSchluessel };
+    private static string MaintenancePositionText(PreparedContractSignatureDto position) => $"{(position.Status == PreparedContractSignatureStatuses.Signed ? "✓" : "○")} {MaintenancePositionLabel(position)}{(string.IsNullOrWhiteSpace(position.UnterzeichnerNameSnapshot) ? "" : $" – {position.UnterzeichnerNameSnapshot}")}{(string.IsNullOrWhiteSpace(position.VereinsfunktionBezeichnungSnapshot) ? "" : $" · {position.VereinsfunktionBezeichnungSnapshot}")}{(position.VertretungId is null ? "" : $" · Vertretung für {position.VertreteneFunktionBezeichnungSnapshot}")}{(position.UnterzeichnetAm is null ? "" : $" · {position.UnterzeichnetAm.Value.LocalDateTime:g}")}";
 
     private async Task RunLeaseSigningAsync(KommunikationsvorgangDto contract)
     {
-        try
-        {
-            if (contract.Status == PreparedContractConstants.Prepared)
-            {
-                if (PreparedContractDraftParser.Parse(contract.EntwurfDaten) is not PreparedLeaseContractDraft draft)
-                    throw new PreparedContractValidationException("Der gespeicherte Vertragsentwurf ist kein Pachtvertrag.");
-                var resolution = await _supabaseService.ResolveGesetzlicherVertreterAsync(contract.MitgliedId, DateTime.ParseExact(draft.Draft.StartDate, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture));
-                var request = PreparedLeaseContractMapper.ToDocumentRequest(draft, resolution.IstMinderjaehrig);
-                var pdf = await _contractClient.PreviewLeaseContractAsync(request);
-                var preview = new PachtvertragPreviewPage(new DokumentUploadRequest { MitgliedId = contract.MitgliedId, Titel = "Pachtvertrag – Vorschau", FileName = "Pachtvertrag_Vorschau.pdf", MimeType = "application/pdf", FileContent = pdf }, persistForSignature: false, preparedActionLabel: "Signatur starten");
-                await Navigation.PushModalAsync(new NavigationPage(preview));
-                if (await preview.WaitForResultAsync() != PachtvertragPreviewDecision.SavePrepared) return;
-            }
+        var signing = new PreparedLeaseContractSigningService(_repository, _contractClient, _supabaseService, new PreparedLeaseContractVereinsunterlagenService(_repository, new MitgliedsantragVereinsunterlagenService(_supabaseService)), persistentSignatures: _preparedSignatures);
+        PreparedLeaseContractSignatureState state;
+        try { state = await signing.StartOrResumeAsync(contract); }
+        catch (Exception ex) { await DisplayAlertAsync("Pachtvertrag", ex.Message, "OK"); return; }
 
-            var signing = new PreparedLeaseContractSigningService(_repository, _contractClient, _supabaseService, new PreparedLeaseContractVereinsunterlagenService(_repository, new MitgliedsantragVereinsunterlagenService(_supabaseService)));
-            var started = await signing.StartAsync(contract);
+        while (true)
+        {
+            var choices = state.Positions.OrderBy(position => position.SortOrder).Select(LeasePositionText).ToArray();
+            var finalize = state.Progress.AllRequiredSigned ? "Pachtvertrag finalisieren" : null;
+            var action = await DisplayActionSheetAsync($"Pachtvertrag\n{state.Progress.RequiredSignedCount} von {state.Progress.RequiredCount} Pflichtunterschriften", "Schließen", null, finalize is null ? choices : choices.Append(finalize).ToArray());
+            if (string.IsNullOrWhiteSpace(action) || action == "Schließen") return;
+            if (action == finalize)
+            {
+                var result = await signing.FinalizeAsync(state.Contract);
+                if (result.ReadyForReview)
+                {
+                    var review = new PreparedFinalDocumentReviewFlow(this, _repository, _supabaseService, _leaseCompletionClient);
+                    await review.OpenAsync(result.Contract); return;
+                }
+                await DisplayAlertAsync("Pachtvertrag", result.Error?.Message ?? "Die Finalisierung ist fehlgeschlagen. Die gespeicherten Signaturen bleiben erhalten.", "OK");
+                state = await signing.GetSignatureStateAsync(state.Contract); continue;
+            }
+            var position = state.Positions.First(item => LeasePositionText(item) == action);
+            if (position.Status == PreparedContractSignatureStatuses.Signed) { await DisplayAlertAsync("Unterschrift", "Diese Position ist bereits unterschrieben und kann nicht überschrieben werden.", "OK"); continue; }
+            var signatory = await SelectLeaseClubSignatoryAsync(state, position);
+            if (position.UnterzeichnerTyp == "vereinsunterzeichner" && signatory is null) continue;
             var capture = new MauiPreparedSignatureCapture(this, new DocumentInfo { Title = "Pachtvertrag", Dateiname = "Pachtvertrag.pdf" });
-            var reviewed = await signing.FinalizeAsync(started, capture);
-            var review = new PreparedFinalDocumentReviewFlow(this, _repository, _supabaseService, _leaseCompletionClient);
-            await review.OpenAsync(reviewed);
+            var captured = await capture.CaptureSingleAsync(new MauiPreparedSignaturePosition(state.Contract.Id, state.Contract.SignaturRevision!.Value, position.SignaturSchluessel, LeasePositionLabel(position), signatory));
+            if (captured is null) continue;
+            try
+            {
+                var png = Convert.FromBase64String(DigitalSignatureEncoder.EncodePngDataUrl(captured).Split(',', 2)[1]);
+                await signing.SaveSignatureAsync(state.Contract, new PreparedContractSignatureSaveRequest(state.Contract.Id, state.Contract.SignaturRevision!.Value, position.SignaturSchluessel, png, signatory?.MitgliedId ?? position.MitgliedId, VereinsfunktionBesetzungId: signatory?.VereinsfunktionBesetzungId, VertretungId: signatory?.VertretungId, VertreteneBesetzungId: signatory?.VertreteneBesetzungId));
+                state = await signing.GetSignatureStateAsync(state.Contract);
+            }
+            catch (Exception ex) { await DisplayAlertAsync("Unterschrift", $"Die Signatur konnte nicht gespeichert werden. {ex.Message}", "OK"); }
         }
-        catch (OperationCanceledException) { }
-        catch (Exception ex) { await DisplayAlertAsync("Pachtvertrag", ex.Message, "OK"); }
     }
+
+    private async Task<PreparedContractAuthorizedSignatoryDto?> SelectLeaseClubSignatoryAsync(PreparedLeaseContractSignatureState state, PreparedContractSignatureDto position)
+    {
+        if (position.UnterzeichnerTyp != "vereinsunterzeichner") return null;
+        var excluded = state.Positions.FirstOrDefault(other => other.SignaturSchluessel != position.SignaturSchluessel && other.SignaturSchluessel is "vorstand_1" or "vorstand_2" && other.Status == PreparedContractSignatureStatuses.Signed)?.MitgliedId;
+        var date = DateOnly.Parse(state.Draft.Draft.StartDate, System.Globalization.CultureInfo.InvariantCulture);
+        var options = (await _preparedSignatures.GetAuthorizedClubSignatoriesAsync(date)).Where(option => option.MitgliedId != excluded).ToArray();
+        if (options.Length == 0) { await DisplayAlertAsync("Vereinsunterzeichner", "Es ist kein berechtigter Vereinsunterzeichner verfügbar.", "OK"); return null; }
+        var labels = options.Select(ClubSignatoryText).ToArray(); var selected = await DisplayActionSheetAsync("Vereinsunterzeichner auswählen", "Abbrechen", null, labels);
+        return options.FirstOrDefault(option => ClubSignatoryText(option) == selected);
+    }
+
+    private static string LeasePositionLabel(PreparedContractSignatureDto position) => position.SignaturSchluessel switch { "lease.member" => "Pächter/in 1", "lease.second_party" => "Pächter/in 2", "vorstand_1" => "Vereinsunterzeichner 1", "vorstand_2" => "Vereinsunterzeichner 2", _ => position.SignaturSchluessel };
+    private static string LeasePositionText(PreparedContractSignatureDto position) => $"{(position.Status == PreparedContractSignatureStatuses.Signed ? "✓" : "○")} {LeasePositionLabel(position)}{(string.IsNullOrWhiteSpace(position.UnterzeichnerNameSnapshot) ? "" : $" – {position.UnterzeichnerNameSnapshot}")}{(string.IsNullOrWhiteSpace(position.VereinsfunktionBezeichnungSnapshot) ? "" : $" · {position.VereinsfunktionBezeichnungSnapshot}")}{(position.VertretungId is null ? "" : $" · Vertretung für {position.VertreteneFunktionBezeichnungSnapshot}")}{(position.UnterzeichnetAm is null ? "" : $" · {position.UnterzeichnetAm.Value.LocalDateTime:g}")}";
 
     private async Task ClaimAsync(SignatureListItem item)
     {
@@ -295,7 +430,7 @@ public sealed class KommunikationPage : ContentPage
         public SignatureListItem(KommunikationsvorgangDto contract, string memberName, string? gardenNumber, Guid currentUserId)
         { Contract = contract; MemberName = memberName; GardenNumber = gardenNumber; IsMine = contract.ZugewiesenAn == currentUserId; IsUnassigned = contract.ZugewiesenAn is null && contract.Status is PreparedContractConstants.Prepared or PreparedContractConstants.ReadyForSignature; }
         public KommunikationsvorgangDto Contract { get; } public string MemberName { get; } public string? GardenNumber { get; } public bool IsMine { get; } public bool IsUnassigned { get; }
-        public string DocumentType => Contract.Dokumenttyp == PreparedContractConstants.MembershipApplication ? "Mitgliedsantrag" : "Pachtvertrag";
+        public string DocumentType => Contract.Dokumenttyp == PreparedContractConstants.MembershipApplication ? "Mitgliedsantrag" : Contract.Dokumenttyp == PreparedContractConstants.MaintenanceContract ? "Wartungsvertrag" : "Pachtvertrag";
         public string Details => GardenNumber is null ? MemberName : $"{MemberName} · Garten {GardenNumber}";
         public string Status => Contract.Status switch { PreparedContractConstants.Prepared => "Vorbereitet", PreparedContractConstants.ReadyForSignature => "Zur Signatur", PreparedContractConstants.FinalReview => "Letzte Prüfung", _ => Contract.Status };
         public string PrimaryAction => Contract.Status == PreparedContractConstants.FinalReview ? "Letzte Prüfung" : "Zur Signatur";

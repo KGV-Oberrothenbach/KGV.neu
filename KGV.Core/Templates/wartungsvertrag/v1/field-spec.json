@@ -1,0 +1,23 @@
+{
+  "schema_version": "kgv-pdf-field-spec/v1",
+  "coordinate_system": "top-left-points",
+  "settings": { "coordinateOrigin": "topLeft" },
+  "field_spec_version": "wartungsvertrag-field-spec/v1",
+  "fields": [
+    { "name": "mitglied_name", "type": "text", "page": 1, "rect": { "x": 190, "y": 255, "w": 250, "h": 14 } },
+    { "name": "mitgliedsnummer", "type": "text", "page": 1, "rect": { "x": 130, "y": 281, "w": 95, "h": 14 } },
+    { "name": "parzelle_nummer", "type": "text", "page": 1, "rect": { "x": 350, "y": 281, "w": 160, "h": 14 } },
+    { "name": "wartungsvertrag_titel", "type": "text", "page": 1, "rect": { "x": 180, "y": 337, "w": 365, "h": 14 } },
+    { "name": "wartungsvertrag_bereich", "type": "text", "page": 1, "rect": { "x": 90, "y": 363, "w": 205, "h": 14 } },
+    { "name": "saisonjahr", "type": "text", "page": 1, "rect": { "x": 400, "y": 363, "w": 145, "h": 14 } },
+    { "name": "wartungsvertrag_beschreibung", "type": "multiline", "page": 1, "rect": { "x": 51, "y": 450, "w": 493, "h": 118 } },
+    { "name": "arbeitsstundenwirkung", "type": "text", "page": 1, "rect": { "x": 180, "y": 615, "w": 365, "h": 14 } },
+    { "name": "wartungsvertrag_bemerkung", "type": "text", "page": 1, "rect": { "x": 105, "y": 643, "w": 440, "h": 14 } },
+    { "name": "ort_datum", "type": "text", "page": 2, "rect": { "x": 116, "y": 581, "w": 264, "h": 14 } },
+    { "name": "unterschrift_mitglied", "type": "signature", "page": 2, "rect": { "x": 184, "y": 676, "w": 202, "h": 34 } },
+    { "name": "vereinsunterzeichner_1", "type": "multiline", "page": 2, "rect": { "x": 153, "y": 438, "w": 131, "h": 29 } },
+    { "name": "unterschrift_vorstand_1", "type": "signature", "page": 2, "rect": { "x": 357, "y": 439, "w": 113, "h": 30 } },
+    { "name": "vereinsunterzeichner_2", "type": "multiline", "page": 2, "rect": { "x": 153, "y": 489, "w": 131, "h": 29 } },
+    { "name": "unterschrift_vorstand_2", "type": "signature", "page": 2, "rect": { "x": 357, "y": 490, "w": 113, "h": 30 } }
+  ]
+}

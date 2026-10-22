@@ -1,0 +1,524 @@
+{
+  "schema_version": "kgv-pdf-field-spec/v1",
+  "coordinate_system": "top-left-points",
+  "settings": {
+    "coordinateOrigin": "topLeft"
+  },
+  "fields": [
+    {
+      "name": "ausstellungsdatum",
+      "type": "text",
+      "page": 1,
+      "rect": {
+        "x": 443,
+        "y": 58,
+        "w": 118,
+        "h": 10
+      },
+      "flags": {}
+    },
+    {
+      "name": "dokument_ort",
+      "type": "text",
+      "page": 1,
+      "rect": {
+        "x": 443,
+        "y": 80,
+        "w": 118,
+        "h": 10
+      },
+      "flags": {}
+    },
+    {
+      "name": "mitglied_name",
+      "type": "text",
+      "page": 1,
+      "rect": {
+        "x": 30,
+        "y": 172,
+        "w": 129,
+        "h": 9
+      },
+      "flags": {}
+    },
+    {
+      "name": "mitglied_vorname",
+      "type": "text",
+      "page": 1,
+      "rect": {
+        "x": 165,
+        "y": 172,
+        "w": 129,
+        "h": 9
+      },
+      "flags": {}
+    },
+    {
+      "name": "mitglied_geburtsdatum",
+      "type": "text",
+      "page": 1,
+      "rect": {
+        "x": 300,
+        "y": 172,
+        "w": 129,
+        "h": 9
+      },
+      "flags": {}
+    },
+    {
+      "name": "mitglied_aufnahme_ab",
+      "type": "text",
+      "page": 1,
+      "rect": {
+        "x": 435,
+        "y": 172,
+        "w": 130,
+        "h": 9
+      },
+      "flags": {}
+    },
+    {
+      "name": "mitglied_telefon",
+      "type": "text",
+      "page": 1,
+      "rect": {
+        "x": 30,
+        "y": 197,
+        "w": 129,
+        "h": 9
+      },
+      "flags": {}
+    },
+    {
+      "name": "mitglied_mobil",
+      "type": "text",
+      "page": 1,
+      "rect": {
+        "x": 165,
+        "y": 197,
+        "w": 129,
+        "h": 9
+      },
+      "flags": {}
+    },
+    {
+      "name": "mitglied_email",
+      "type": "text",
+      "page": 1,
+      "rect": {
+        "x": 300,
+        "y": 197,
+        "w": 265,
+        "h": 9
+      },
+      "flags": {}
+    },
+    {
+      "name": "mitglied_anschrift_mehrzeilig",
+      "type": "multiline",
+      "page": 1,
+      "rect": {
+        "x": 33,
+        "y": 223,
+        "w": 529,
+        "h": 25
+      },
+      "flags": {
+        "multiline": true
+      }
+    },
+    {
+      "name": "zweite_partei_bezeichnung",
+      "type": "text",
+      "page": 1,
+      "rect": {
+        "x": 30,
+        "y": 290,
+        "w": 535,
+        "h": 9
+      },
+      "flags": {}
+    },
+    {
+      "name": "zweite_partei_name",
+      "type": "text",
+      "page": 1,
+      "rect": {
+        "x": 30,
+        "y": 315,
+        "w": 174,
+        "h": 9
+      },
+      "flags": {}
+    },
+    {
+      "name": "zweite_partei_vorname",
+      "type": "text",
+      "page": 1,
+      "rect": {
+        "x": 210,
+        "y": 315,
+        "w": 174,
+        "h": 9
+      },
+      "flags": {}
+    },
+    {
+      "name": "zweite_partei_geburtsdatum",
+      "type": "text",
+      "page": 1,
+      "rect": {
+        "x": 390,
+        "y": 315,
+        "w": 175,
+        "h": 9
+      },
+      "flags": {}
+    },
+    {
+      "name": "zweite_partei_telefon",
+      "type": "text",
+      "page": 1,
+      "rect": {
+        "x": 30,
+        "y": 340,
+        "w": 129,
+        "h": 9
+      },
+      "flags": {}
+    },
+    {
+      "name": "zweite_partei_mobil",
+      "type": "text",
+      "page": 1,
+      "rect": {
+        "x": 165,
+        "y": 340,
+        "w": 129,
+        "h": 9
+      },
+      "flags": {}
+    },
+    {
+      "name": "zweite_partei_email",
+      "type": "text",
+      "page": 1,
+      "rect": {
+        "x": 300,
+        "y": 340,
+        "w": 265,
+        "h": 9
+      },
+      "flags": {}
+    },
+    {
+      "name": "zweite_partei_anschrift_mehrzeilig",
+      "type": "multiline",
+      "page": 1,
+      "rect": {
+        "x": 33,
+        "y": 366,
+        "w": 529,
+        "h": 16
+      },
+      "flags": {
+        "multiline": true
+      }
+    },
+    {
+      "name": "mitgliedsbeitrag_jaehrlich",
+      "type": "text",
+      "page": 1,
+      "rect": {
+        "x": 30,
+        "y": 424,
+        "w": 129,
+        "h": 9
+      },
+      "flags": {}
+    },
+    {
+      "name": "mitgliedsbeitrag_anteilig",
+      "type": "text",
+      "page": 1,
+      "rect": {
+        "x": 165,
+        "y": 424,
+        "w": 129,
+        "h": 9
+      },
+      "flags": {}
+    },
+    {
+      "name": "beitragsmonate",
+      "type": "text",
+      "page": 1,
+      "rect": {
+        "x": 300,
+        "y": 424,
+        "w": 129,
+        "h": 9
+      },
+      "flags": {}
+    },
+    {
+      "name": "aufnahmegebuehr",
+      "type": "text",
+      "page": 1,
+      "rect": {
+        "x": 435,
+        "y": 424,
+        "w": 130,
+        "h": 9
+      },
+      "flags": {}
+    },
+    {
+      "name": "vereinsunterlagen_nachweis",
+      "type": "multiline",
+      "page": 1,
+      "rect": {
+        "x": 30,
+        "y": 529,
+        "w": 535,
+        "h": 22
+      },
+      "flags": {
+        "multiline": true
+      }
+    },
+    {
+      "name": "unterschrift_ort",
+      "type": "text",
+      "page": 1,
+      "rect": {
+        "x": 30,
+        "y": 606,
+        "w": 258,
+        "h": 9
+      },
+      "flags": {}
+    },
+    {
+      "name": "unterschrift_datum",
+      "type": "text",
+      "page": 1,
+      "rect": {
+        "x": 294,
+        "y": 606,
+        "w": 271,
+        "h": 9
+      },
+      "flags": {}
+    },
+    {
+      "name": "unterschrift_antragsteller_antrag",
+      "type": "signature",
+      "page": 1,
+      "rect": {
+        "x": 27,
+        "y": 622,
+        "w": 174,
+        "h": 24
+      },
+      "flags": {}
+    },
+    {
+      "name": "unterschrift_zweite_partei_antrag",
+      "type": "signature",
+      "page": 1,
+      "rect": {
+        "x": 211,
+        "y": 622,
+        "w": 174,
+        "h": 24
+      },
+      "flags": {}
+    },
+    {
+      "name": "unterschrift_zweite_partei_bezeichnung",
+      "type": "text",
+      "page": 1,
+      "rect": {
+        "x": 211,
+        "y": 651,
+        "w": 174,
+        "h": 8
+      },
+      "flags": {}
+    },
+    {
+      "name": "mitglied_einwilligung_info_mail",
+      "type": "checkbox",
+      "page": 2,
+      "rect": {
+        "x": 30,
+        "y": 479,
+        "w": 8,
+        "h": 8
+      },
+      "flags": {}
+    },
+    {
+      "name": "mitglied_einwilligung_rechnung_mail",
+      "type": "checkbox",
+      "page": 2,
+      "rect": {
+        "x": 30,
+        "y": 493,
+        "w": 8,
+        "h": 8
+      },
+      "flags": {}
+    },
+    {
+      "name": "mitglied_einwilligung_whatsapp",
+      "type": "checkbox",
+      "page": 2,
+      "rect": {
+        "x": 30,
+        "y": 507,
+        "w": 8,
+        "h": 8
+      },
+      "flags": {}
+    },
+    {
+      "name": "unterschrift_antragsteller_datenschutz",
+      "type": "signature",
+      "page": 2,
+      "rect": {
+        "x": 30,
+        "y": 533,
+        "w": 255,
+        "h": 20
+      },
+      "flags": {}
+    },
+    {
+      "name": "mitglied_datenschutz_unterschrift_bezeichnung",
+      "type": "text",
+      "page": 2,
+      "rect": {
+        "x": 298,
+        "y": 533,
+        "w": 270,
+        "h": 9
+      },
+      "flags": {}
+    },
+    {
+      "name": "zweite_partei_einwilligung_info_mail",
+      "type": "checkbox",
+      "page": 2,
+      "rect": {
+        "x": 30,
+        "y": 604,
+        "w": 8,
+        "h": 8
+      },
+      "flags": {}
+    },
+    {
+      "name": "zweite_partei_einwilligung_rechnung_mail",
+      "type": "checkbox",
+      "page": 2,
+      "rect": {
+        "x": 30,
+        "y": 618,
+        "w": 8,
+        "h": 8
+      },
+      "flags": {}
+    },
+    {
+      "name": "zweite_partei_einwilligung_whatsapp",
+      "type": "checkbox",
+      "page": 2,
+      "rect": {
+        "x": 30,
+        "y": 632,
+        "w": 8,
+        "h": 8
+      },
+      "flags": {}
+    },
+    {
+      "name": "unterschrift_zweite_partei_datenschutz",
+      "type": "signature",
+      "page": 2,
+      "rect": {
+        "x": 30,
+        "y": 658,
+        "w": 255,
+        "h": 20
+      },
+      "flags": {}
+    },
+    {
+      "name": "zweite_partei_datenschutz_unterschrift_bezeichnung",
+      "type": "text",
+      "page": 2,
+      "rect": {
+        "x": 298,
+        "y": 658,
+        "w": 270,
+        "h": 9
+      },
+      "flags": {}
+    },
+    {
+      "name": "unterschrift_vorstand_1",
+      "type": "signature",
+      "page": 2,
+      "rect": {
+        "x": 40,
+        "y": 592,
+        "w": 240,
+        "h": 30
+      },
+      "flags": {}
+    },
+    {
+      "name": "vereinsunterzeichner_1",
+      "type": "multiline",
+      "page": 2,
+      "rect": {
+        "x": 315,
+        "y": 582,
+        "w": 240,
+        "h": 42
+      },
+      "flags": {
+        "multiline": true
+      }
+    },
+    {
+      "name": "unterschrift_vorstand_2",
+      "type": "signature",
+      "page": 2,
+      "rect": {
+        "x": 40,
+        "y": 652,
+        "w": 240,
+        "h": 30
+      },
+      "flags": {}
+    },
+    {
+      "name": "vereinsunterzeichner_2",
+      "type": "multiline",
+      "page": 2,
+      "rect": {
+        "x": 315,
+        "y": 642,
+        "w": 240,
+        "h": 42
+      },
+      "flags": {
+        "multiline": true
+      }
+    }
+  ],
+  "field_spec_version": "mitgliedsantrag-field-spec/v4"
+}

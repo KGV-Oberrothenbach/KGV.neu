@@ -9,28 +9,27 @@ async function loadFlowService() {
   return import(`data:text/javascript;base64,${Buffer.from(outputText).toString("base64")}`);
 }
 
-test("membership application signatures follow the MAUI order and require every signature", async () => {
-  const { buildMembershipApplicationSignatureSteps, canFinalizeMembershipApplication, canStartMembershipApplicationSignatures, hasCompletedMembershipApplicationSignatures } = await loadFlowService();
-  const alone = buildMembershipApplicationSignatureSteps({ isMinor: false, includeSecondaryMember: false });
-  const withSecondary = buildMembershipApplicationSignatureSteps({ isMinor: false, includeSecondaryMember: true });
-  const minor = buildMembershipApplicationSignatureSteps({ isMinor: true, includeSecondaryMember: false });
-
-  assert.deepEqual(alone.map((step) => step.key), ["applicationMember", "privacyMember", "board"]);
-  assert.deepEqual(withSecondary.map((step) => step.key), ["applicationMember", "privacyMember", "applicationSecondParty", "privacySecondParty", "board"]);
-  assert.deepEqual(minor.map((step) => step.key), withSecondary.map((step) => step.key));
-  assert.match(minor[2].label, /Gesetzlicher Vertreter/);
-  assert.deepEqual(minor.map((step) => step.order), [1, 2, 3, 4, 5]);
-  assert.throws(() => buildMembershipApplicationSignatureSteps({ isMinor: true, includeSecondaryMember: true }), /minderjähriges Mitglied/);
-  assert.equal(hasCompletedMembershipApplicationSignatures(alone, { applicationMember: "a", board: "b" }), false);
-  assert.equal(hasCompletedMembershipApplicationSignatures(alone, { applicationMember: "a", board: "b", privacyMember: "c" }), true);
-  assert.equal(canStartMembershipApplicationSignatures("edit"), false);
-  assert.equal(canStartMembershipApplicationSignatures("preview"), true);
-  assert.equal(canFinalizeMembershipApplication("preview", alone, { applicationMember: "a", board: "b", privacyMember: "c" }), false);
-  assert.equal(canFinalizeMembershipApplication("signatures", alone, { applicationMember: "a", board: "b", privacyMember: "c" }), true);
+test("membership application builds idempotent persistent positions with mutually exclusive second-party alternatives", async () => {
+  const { buildMembershipApplicationPersistentSlots } = await loadFlowService();
+  const alone = buildMembershipApplicationPersistentSlots({ isMinor: false, includeSecondaryMember: false, memberId: 1 });
+  const withSecondary = buildMembershipApplicationPersistentSlots({ isMinor: false, includeSecondaryMember: true, memberId: 1, secondaryMemberId: 2 });
+  const minor = buildMembershipApplicationPersistentSlots({ isMinor: true, includeSecondaryMember: false, memberId: 1, representativeMemberId: 3 });
+  assert.deepEqual(alone.map(slot => slot.key), ["member.application", "member.privacy", "vorstand_1", "vorstand_2"]);
+  assert.deepEqual(withSecondary.map(slot => slot.key), ["member.application", "member.privacy", "nebenmitglied.antrag", "nebenmitglied.datenschutz", "vorstand_1", "vorstand_2"]);
+  assert.deepEqual(minor.map(slot => slot.key), ["member.application", "member.privacy", "gesetzliche_vertretung.antrag", "gesetzliche_vertretung.datenschutz", "vorstand_1", "vorstand_2"]);
+  assert.throws(() => buildMembershipApplicationPersistentSlots({ isMinor: true, includeSecondaryMember: true, memberId: 1 }), /minderjähriges Mitglied/);
 });
 
-test("the current signer receives a fresh signature pad while completed signatures remain in flow state", async () => {
+test("web flow uses persisted single positions, structured board selection and no client signature payload", async () => {
   const flow = await readFile(new URL("../../features/contracts/MembershipApplicationFlow.tsx", import.meta.url), "utf8");
-  assert.match(flow, /<SignaturePad key=\{currentSignatureStep\.key\}/);
-  assert.match(flow, /setSignatures\(\(current\) => \(\{ \.\.\.current, \[currentSignatureStep\.key\]: value \}\)\)/);
+  assert.match(flow, /ensurePreparedContractSignaturePosition/);
+  assert.match(flow, /listPreparedContractSignatures/);
+  assert.match(flow, /uploadPreparedContractSignature/);
+  assert.match(flow, /savePreparedContractSignature/);
+  assert.match(flow, /PreparedContractSignatorySelector/);
+  assert.match(flow, /excludeMemberId=\{boardSignerAlreadyUsed\}/);
+  assert.match(flow, /kommunikationsvorgang_id: resumeContext\.id/);
+  assert.doesNotMatch(flow, /signatureIndex|advanceSignature|setSignatures\(|signature_application_member/);
+  assert.match(flow, /Speichern und Weiter/);
+  assert.match(flow, />Abbrechen</);
 });

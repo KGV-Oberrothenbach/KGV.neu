@@ -3,6 +3,8 @@ namespace KGV.Core.Models;
 public sealed class MembershipApplicationFinalizeRequest
 {
     public required MitgliedsantragDokumentRequest Application { get; init; }
+    /// <summary>Persistent MA-v4 workflow identity; no signature image data is sent when set.</summary>
+    public long KommunikationsvorgangId { get; init; }
     public long SourceKommunikationsvorgangId { get; init; }
     public int SourceRevision { get; init; }
     public decimal AdmissionFee { get; init; }

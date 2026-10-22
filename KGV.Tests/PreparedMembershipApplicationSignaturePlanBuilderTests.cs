@@ -35,6 +35,15 @@ public sealed class PreparedMembershipApplicationSignaturePlanBuilderTests
     public void Minor_with_secondary_is_rejected()
         => Assert.Throws<PreparedContractValidationException>(() => Build(includeSecondary: true, representative: new LegalRepresentativeDraft { Mode = "manual", Vorname = "Erika", Nachname = "Muster" }));
 
+    [Fact]
+    public void Persistent_plan_has_two_independent_board_slots_and_keeps_privacy_separate()
+    {
+        var plan = PreparedMembershipApplicationSignaturePlanBuilder.BuildPersistent(new PreparedMembershipApplicationDraft { MemberId = 7 });
+        Assert.Equal(new[] { MembershipApplicationSignatureKeys.MemberApplication, MembershipApplicationSignatureKeys.MemberPrivacy, PreparedContractBoardSignatureKeys.Board1, PreparedContractBoardSignatureKeys.Board2 }, plan.Select(x => x.Key));
+        Assert.All(plan, x => Assert.True(x.Required));
+        Assert.Equal(new short[] { 10, 20, 30, 40 }, plan.Select(x => x.SortOrder));
+    }
+
     private static IReadOnlyList<SignatureStep> Build(bool includeSecondary = false, LegalRepresentativeDraft? representative = null)
         => PreparedMembershipApplicationSignaturePlanBuilder.Build(new PreparedMembershipApplicationDraft { MemberId = 7, IncludeSecondaryMember = includeSecondary, Representative = representative });
 

@@ -93,6 +93,22 @@ public sealed record LeaseContractDraft
     [JsonPropertyName("attachment3")] public bool Attachment3 { get; init; }
     [JsonPropertyName("attachment4")] public bool Attachment4 { get; init; }
     [JsonPropertyName("clubSignatory")] public string ClubSignatory { get; init; } = "";
+    [JsonPropertyName("clubSignatorySelection")] public PreparedContractSignatorySelection? ClubSignatorySelection { get; init; }
+}
+
+/// <summary>Frozen authorization basis selected for a prepared contract; the final signature still validates it server-side.</summary>
+public sealed record PreparedContractSignatorySelection
+{
+    [JsonPropertyName("mitglied_id")] public long MitgliedId { get; init; }
+    [JsonPropertyName("unterzeichner_name")] public string UnterzeichnerName { get; init; } = "";
+    [JsonPropertyName("berechtigungsart")] public string Berechtigungsart { get; init; } = "";
+    [JsonPropertyName("vereinsfunktion_id")] public long VereinsfunktionId { get; init; }
+    [JsonPropertyName("vereinsfunktion_bezeichnung")] public string VereinsfunktionBezeichnung { get; init; } = "";
+    [JsonPropertyName("vereinsfunktion_besetzung_id")] public long VereinsfunktionBesetzungId { get; init; }
+    [JsonPropertyName("vertretung_id")] public long? VertretungId { get; init; }
+    [JsonPropertyName("vertretene_vereinsfunktion_id")] public long? VertreteneVereinsfunktionId { get; init; }
+    [JsonPropertyName("vertretene_funktion_bezeichnung")] public string? VertreteneFunktionBezeichnung { get; init; }
+    [JsonPropertyName("vertretene_besetzung_id")] public long? VertreteneBesetzungId { get; init; }
 }
 
 public sealed record PreparedLeaseContractDraft
@@ -102,6 +118,18 @@ public sealed record PreparedLeaseContractDraft
     [JsonPropertyName("memberId")] public int MemberId { get; init; }
     [JsonPropertyName("draft")] public LeaseContractDraft Draft { get; init; } = new();
     [JsonPropertyName("vereinsunterlagen_nachweis")] public IReadOnlyList<VereinsunterlagenNachweisSnapshotItem>? VereinsunterlagenNachweis { get; init; }
+}
+
+/// <summary>Frozen, assignment-bound input for a regular maintenance contract.</summary>
+public sealed record PreparedMaintenanceContractDraft
+{
+    [JsonPropertyName("schema_version")] public string SchemaVersion { get; init; } = PreparedContractConstants.SchemaVersion;
+    [JsonPropertyName("document_type")] public string DocumentType { get; init; } = PreparedContractConstants.MaintenanceContract;
+    [JsonPropertyName("memberId")] public int MemberId { get; init; }
+    [JsonPropertyName("wartungsvertrag_zuordnung_id")] public long WartungsvertragZuordnungId { get; init; }
+    [JsonPropertyName("wartungsvertrag_id")] public long WartungsvertragId { get; init; }
+    [JsonPropertyName("gueltig_ab")] public string GueltigAb { get; init; } = "";
+    [JsonPropertyName("gueltig_bis")] public string? GueltigBis { get; init; }
 }
 
 public sealed class PreparedContractValidationException : Exception

@@ -40,11 +40,13 @@ type ContractGenerationOptions = {
   companion_name?: string;
   photos?: string[];
   source_document_id?: number;
+  kommunikationsvorgang_id?: number;
+  source_revision?: number;
   club_documents_snapshot?: string;
 };
 
 export type ContractGenerationRequest =
-  | (ContractGenerationOptions & { action: "preview" | "finalize"; type: "mitgliedsantrag" | "mitgliedsvertrag" | "pachtvertrag" | "parzellenprotokoll"; member_id: number; start_date: string })
+  | (ContractGenerationOptions & { action: "preview" | "finalize"; type: "mitgliedsantrag" | "mitgliedsvertrag" | "pachtvertrag" | "wartungsvertrag" | "parzellenprotokoll"; member_id: number; start_date: string })
   | (ContractGenerationOptions & { action: "sign-existing"; source_document_id: number; signature_member: string });
 
 export async function generateContract(club: ClubContext, session: BrowserSession, request: ContractGenerationRequest): Promise<{ previewUrl?: string; documentId?: number; message?: string }> {

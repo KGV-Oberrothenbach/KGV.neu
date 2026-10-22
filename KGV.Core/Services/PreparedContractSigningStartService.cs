@@ -6,10 +6,12 @@ namespace KGV.Core.Services;
 public sealed class PreparedContractSigningStartService
 {
     private readonly IPreparedContractRepository _repository;
+    private readonly IPreparedContractSignatureService? _signatures;
 
-    public PreparedContractSigningStartService(IPreparedContractRepository repository)
+    public PreparedContractSigningStartService(IPreparedContractRepository repository, IPreparedContractSignatureService? signatures = null)
     {
         _repository = repository ?? throw new ArgumentNullException(nameof(repository));
+        _signatures = signatures;
     }
 
     public async Task<KommunikationsvorgangDto> StartAsync(KommunikationsvorgangDto contract, CancellationToken cancellationToken = default)
@@ -22,6 +24,13 @@ public sealed class PreparedContractSigningStartService
         return started;
     }
 
+    public async Task<IReadOnlyList<PreparedContractSignatureDto>> StartAndEnsurePositionsAsync(KommunikationsvorgangDto contract, IReadOnlyList<PreparedContractSignatureSlot> slots, CancellationToken cancellationToken = default)
+    {
+        if (_signatures is null) throw new InvalidOperationException("Der persistente Signaturservice ist nicht registriert.");
+        var started = await StartAsync(contract, cancellationToken);
+        return await _signatures.EnsurePositionsAsync(started, slots, cancellationToken);
+    }
+
     private static void ValidateStartable(KommunikationsvorgangDto contract)
     {
         if (contract.Id <= 0) throw new PreparedContractValidationException("Der Vertragsvorgang hat keine gültige ID.");
@@ -29,8 +38,8 @@ public sealed class PreparedContractSigningStartService
         if (contract.Status != PreparedContractConstants.Prepared) throw new PreparedContractValidationException("Der Vertragsvorgang ist nicht mehr vorbereitbar für die Signatur.");
         if (contract.SignaturRevision is not null) throw new PreparedContractValidationException("Der Vertragsvorgang hat bereits eine eingefrorene Signaturrevision.");
         if (contract.SignaturGestartetAm is not null) throw new PreparedContractValidationException("Die Signatur wurde bereits gestartet.");
-        if (contract.Dokumenttyp is not PreparedContractConstants.MembershipApplication and not PreparedContractConstants.LeaseContract)
-            throw new PreparedContractValidationException("Der Dokumenttyp wird für den Signaturstart nicht unterstützt.");
+        if (contract.Vorgangstyp != PreparedContractConstants.ContractSignatureProcess)
+            throw new PreparedContractValidationException("Der Vorgang ist kein Vertrags-Signaturvorgang.");
     }
 
     private static void ValidateStarted(KommunikationsvorgangDto expected, KommunikationsvorgangDto started)

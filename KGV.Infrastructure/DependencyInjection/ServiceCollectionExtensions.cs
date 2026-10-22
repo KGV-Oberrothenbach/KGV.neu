@@ -37,6 +37,9 @@ namespace KGV.Infrastructure.DependencyInjection
                     sp.GetService<ILogger<AuthService>>()));
 
             services.AddSingleton<IPreparedContractRepository, PreparedContractRepository>();
+            services.AddSingleton<IPreparedContractSignatureRepository, PreparedContractSignatureRepository>();
+            services.AddSingleton<IPreparedContractSignatureStorage, SupabasePreparedContractSignatureStorage>();
+            services.AddSingleton<IPreparedContractSignatureService, PreparedContractSignatureService>();
             services.AddSingleton<PreparedMembershipApplicationResumeService>();
             services.AddSingleton<PreparedLeaseContractResumeService>();
             services.AddSingleton<PreparedContractSigningStartService>();

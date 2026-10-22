@@ -5,28 +5,34 @@ const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers
 const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
 const createRequestId = () => crypto.randomUUID();
 const errorResponse = (status: number, errorCode: string, message: string, requestId: string) => json(status, { success: false, error_code: errorCode, message, request_id: requestId });
-type ContractType = "mitgliedsantrag" | "mitgliedsvertrag" | "pachtvertrag" | "parzellenprotokoll";
+type ContractType = "mitgliedsantrag" | "mitgliedsvertrag" | "pachtvertrag" | "wartungsvertrag" | "parzellenprotokoll";
 type LegalRepresentativeRequest = { mode: "existing" | "manual"; member_id?: number; vorname?: string; nachname?: string; adresse_abweichend?: boolean; adresse?: string; plz?: string; ort?: string };
-type RequestBody = { action?: "preview" | "finalize" | "sign-existing"; type?: ContractType; member_id?: number; parcel_id?: number; start_date?: string; member_fee?: number; admission_fee?: number; representative?: LegalRepresentativeRequest; signature_application_member?: string; signature_privacy_member?: string; signature_application_representative?: string; signature_privacy_representative?: string; signature_application_secondary?: string; signature_privacy_secondary?: string; signature_member?: string; signature_secondary?: string; signature_board?: string; signature_board2?: string; has_previous_contract?: boolean; previous_contract_date?: string; include_secondary_member?: boolean; secondary_member_id?: number; effective_date?: string; handover_date?: string; additional_agreements?: string; club_signatory?: string; club_documents_snapshot?: string; protocol_id?: number; protocol_type?: string; protocol_reason?: string; protocol_condition?: string; protocol_agreement?: string; board2_id?: number; companion_name?: string; photos?: string[]; source_document_id?: number; source_kommunikationsvorgang_id?: number; source_revision?: number };
+type RequestBody = { action?: "preview" | "finalize" | "sign-existing"; type?: ContractType; member_id?: number; kommunikationsvorgang_id?: number; parcel_id?: number; start_date?: string; member_fee?: number; admission_fee?: number; representative?: LegalRepresentativeRequest; signature_application_member?: string; signature_privacy_member?: string; signature_application_representative?: string; signature_privacy_representative?: string; signature_application_secondary?: string; signature_privacy_secondary?: string; signature_member?: string; signature_secondary?: string; signature_board?: string; signature_board2?: string; has_previous_contract?: boolean; previous_contract_date?: string; include_secondary_member?: boolean; secondary_member_id?: number; effective_date?: string; handover_date?: string; additional_agreements?: string; club_signatory?: string; club_documents_snapshot?: string; protocol_id?: number; protocol_type?: string; protocol_reason?: string; protocol_condition?: string; protocol_agreement?: string; board2_id?: number; companion_name?: string; photos?: string[]; source_document_id?: number; source_kommunikationsvorgang_id?: number; source_revision?: number };
 type ClubConfigurationSnapshot = { vereinName: string; kurzname: string; registerangabe: string; strasse: string; plz: string; ort: string; standardEmail: string; standardTelefon: string; website: string; kontoinhaber: string; bankname: string; iban: string; bic: string; verwendungszweckMitgliedsantrag: string; verwendungszweckPachtvertrag: string; dokumentOrt: string; standardHinweistext: string; datenschutzText: string; datenschutzVersion: string; datenschutzStand: string };
 type FieldSpec = { page: number; type: string; name: string; rect: { x: number; y: number; w: number; h: number } };
 type PdfTemplateCatalogRecord = { template_key: string; version: string; storage_bucket: string; storage_path: string; content_type: string; checksum: string; field_spec_path: string; field_spec_checksum: string; field_spec_version: string; renderer_version: string; status: string; aktiv: boolean; created_at: string };
-type LoadedPdfTemplate = { pdfBytes: Uint8Array; fields: FieldSpec[] };
-type PdfTemplateDescriptor = { templateKey: string; expectedFieldSpecVersion: string; expectedRendererVersion: string; requiredFields: readonly string[]; displayName: string };
+type LoadedPdfTemplate = { pdfBytes: Uint8Array; fields: FieldSpec[]; fieldSpecVersion: string };
+type PdfTemplateDescriptor = { templateKey: string; expectedFieldSpecVersions: readonly string[]; expectedRendererVersion: string; requiredFieldsByVersion: Record<string, readonly string[]>; displayName: string };
+type PreparedSignaturePosition = { signatur_schluessel: string; status: string; storage_bucket: string | null; storage_path: string | null; signatur_sha256: string | null; unterzeichner_name_snapshot: string | null; vereinsfunktion_bezeichnung_snapshot: string | null; vertretung_id: number | null; vertretene_funktion_bezeichnung_snapshot: string | null };
 
 const membershipApplicationTemplateKey = "mitgliedsantrag";
-const membershipApplicationFieldSpecVersion = "mitgliedsantrag-field-spec/v2";
+const membershipApplicationFieldSpecV2 = "mitgliedsantrag-field-spec/v2";
+const membershipApplicationFieldSpecV4 = "mitgliedsantrag-field-spec/v4";
 // The v1 field spec is expressed in renderer-neutral top-left coordinates. The
 // published MAUI/PdfSharpCore version is therefore the approved source contract
 // for the pdf-lib renderer as well; a different version is rejected explicitly.
 const membershipApplicationRendererVersion = "top-left/v1";
-const membershipApplicationRequiredFields = ["ausstellungsdatum", "dokument_ort", "mitglied_name", "mitglied_vorname", "mitglied_geburtsdatum", "mitglied_aufnahme_ab", "mitglied_telefon", "mitglied_mobil", "mitglied_email", "mitglied_anschrift_mehrzeilig", "zweite_partei_bezeichnung", "zweite_partei_name", "zweite_partei_vorname", "zweite_partei_geburtsdatum", "zweite_partei_telefon", "zweite_partei_mobil", "zweite_partei_email", "zweite_partei_anschrift_mehrzeilig", "mitgliedsbeitrag_jaehrlich", "mitgliedsbeitrag_anteilig", "beitragsmonate", "aufnahmegebuehr", "vereinsunterlagen_nachweis", "unterschrift_ort", "unterschrift_datum", "unterschrift_antragsteller", "unterschrift_zweite_partei", "unterschrift_zweite_partei_bezeichnung", "unterschrift_verein", "vereins_unterzeichner", "mitglied_einwilligung_info_mail", "mitglied_einwilligung_rechnung_mail", "mitglied_einwilligung_whatsapp", "mitglied_datenschutz_unterschrift", "mitglied_datenschutz_unterschrift_bezeichnung", "zweite_partei_einwilligung_info_mail", "zweite_partei_einwilligung_rechnung_mail", "zweite_partei_einwilligung_whatsapp", "zweite_partei_datenschutz_unterschrift", "zweite_partei_datenschutz_unterschrift_bezeichnung"];
+const membershipApplicationRequiredFieldsV2 = ["ausstellungsdatum", "dokument_ort", "mitglied_name", "mitglied_vorname", "mitglied_geburtsdatum", "mitglied_aufnahme_ab", "mitglied_telefon", "mitglied_mobil", "mitglied_email", "mitglied_anschrift_mehrzeilig", "zweite_partei_bezeichnung", "zweite_partei_name", "zweite_partei_vorname", "zweite_partei_geburtsdatum", "zweite_partei_telefon", "zweite_partei_mobil", "zweite_partei_email", "zweite_partei_anschrift_mehrzeilig", "mitgliedsbeitrag_jaehrlich", "mitgliedsbeitrag_anteilig", "beitragsmonate", "aufnahmegebuehr", "vereinsunterlagen_nachweis", "unterschrift_ort", "unterschrift_datum", "unterschrift_antragsteller", "unterschrift_zweite_partei", "unterschrift_zweite_partei_bezeichnung", "unterschrift_verein", "vereins_unterzeichner", "mitglied_einwilligung_info_mail", "mitglied_einwilligung_rechnung_mail", "mitglied_einwilligung_whatsapp", "mitglied_datenschutz_unterschrift", "mitglied_datenschutz_unterschrift_bezeichnung", "zweite_partei_einwilligung_info_mail", "zweite_partei_einwilligung_rechnung_mail", "zweite_partei_einwilligung_whatsapp", "zweite_partei_datenschutz_unterschrift", "zweite_partei_datenschutz_unterschrift_bezeichnung"];
+const membershipApplicationRequiredFieldsV4 = ["unterschrift_antragsteller_antrag", "unterschrift_antragsteller_datenschutz", "unterschrift_zweite_partei_antrag", "unterschrift_zweite_partei_datenschutz", "unterschrift_vorstand_1", "unterschrift_vorstand_2", "vereinsunterzeichner_1", "vereinsunterzeichner_2"];
 const leaseTemplateKey = "pachtvertrag";
-const leaseFieldSpecVersion = "pachtvertrag-field-spec/v3";
+const leaseFieldSpecV3 = "pachtvertrag-field-spec/v3";
+const leaseFieldSpecV4 = "pachtvertrag-field-spec/v4";
 const leaseRendererVersion = "top-left/v1";
 const leaseRequiredFields = ["paechter_name", "mitgliedsnummer", "paechter_geburtsdatum", "paechter_anschrift", "paechter_kontakt", "zweite_partei_bezeichnung", "zweite_partei_name", "zweite_partei_mitgliedsnummer", "zweite_partei_geburtsdatum", "zweite_partei_anschrift", "zweite_partei_kontakt", "parzelle_nr", "lage_anlage", "flaeche_qm", "vertragsbeginn", "uebergabe_datum", "probephase_bis", "pachtzins_jahr", "pacht_pro_qm", "faelligkeit", "altvertrag_hinweis", "vereinsunterlagen_nachweis", "weitere_vereinbarungen", "ort_datum", "paechter_druckname", "unterschrift_paechter", "unterschrift_vorstand", "unterschrift_zweite_partei", "vereins_unterzeichner"];
-const membershipApplicationTemplate: PdfTemplateDescriptor = { templateKey: membershipApplicationTemplateKey, expectedFieldSpecVersion: membershipApplicationFieldSpecVersion, expectedRendererVersion: membershipApplicationRendererVersion, requiredFields: membershipApplicationRequiredFields, displayName: "Mitgliedsantrag" };
-const leaseTemplate: PdfTemplateDescriptor = { templateKey: leaseTemplateKey, expectedFieldSpecVersion: leaseFieldSpecVersion, expectedRendererVersion: leaseRendererVersion, requiredFields: leaseRequiredFields, displayName: "Pachtvertrag" };
+const leaseRequiredFieldsV4 = ["unterschrift_paechter_1", "unterschrift_paechter_2", "unterschrift_vorstand_1", "unterschrift_vorstand_2", "vereinsunterzeichner_1", "vereinsunterzeichner_2"];
+const membershipApplicationTemplate: PdfTemplateDescriptor = { templateKey: membershipApplicationTemplateKey, expectedFieldSpecVersions: [membershipApplicationFieldSpecV2, membershipApplicationFieldSpecV4], expectedRendererVersion: membershipApplicationRendererVersion, requiredFieldsByVersion: { [membershipApplicationFieldSpecV2]: membershipApplicationRequiredFieldsV2, [membershipApplicationFieldSpecV4]: membershipApplicationRequiredFieldsV4 }, displayName: "Mitgliedsantrag" };
+const leaseTemplate: PdfTemplateDescriptor = { templateKey: leaseTemplateKey, expectedFieldSpecVersions: [leaseFieldSpecV3, leaseFieldSpecV4], expectedRendererVersion: leaseRendererVersion, requiredFieldsByVersion: { [leaseFieldSpecV3]: leaseRequiredFields, [leaseFieldSpecV4]: leaseRequiredFieldsV4 }, displayName: "Pachtvertrag" };
+const maintenanceTemplate: PdfTemplateDescriptor = { templateKey: "wartungsvertrag", expectedFieldSpecVersions: ["wartungsvertrag-field-spec/v1"], expectedRendererVersion: "top-left/v1", requiredFieldsByVersion: { "wartungsvertrag-field-spec/v1": ["unterschrift_mitglied", "unterschrift_vorstand_1", "unterschrift_vorstand_2", "vereinsunterzeichner_1", "vereinsunterzeichner_2"] }, displayName: "Wartungsvertrag" };
 
 function formatDate(value?: string | null) { if (!value) return ""; const date = new Date(`${value.slice(0, 10)}T12:00:00Z`); return Number.isNaN(date.valueOf()) ? "" : new Intl.DateTimeFormat("de-DE", { timeZone: "UTC" }).format(date); }
 function money(value: number) { return new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(value); }
@@ -71,7 +77,7 @@ async function loadPublishedPdfTemplate(auth: Awaited<ReturnType<typeof authenti
   if (error) throw templateFailure(descriptor, "catalog-load", `Der PDF-Template-Katalog konnte nicht geladen werden: ${error.message}`);
   const catalog = data as PdfTemplateCatalogRecord | null;
   if (!catalog) throw templateFailure(descriptor, "catalog-load", "Keine aktive veröffentlichte Version ist hinterlegt.");
-  if (catalog.content_type !== "application/pdf" || catalog.field_spec_version !== descriptor.expectedFieldSpecVersion || catalog.renderer_version !== descriptor.expectedRendererVersion) throw templateFailure(descriptor, "compatibility-check", `Die veröffentlichte ${descriptor.displayName}-Vorlage ist nicht mit dem unterstützten Renderer kompatibel.`);
+  if (catalog.content_type !== "application/pdf" || !descriptor.expectedFieldSpecVersions.includes(catalog.field_spec_version) || catalog.renderer_version !== descriptor.expectedRendererVersion) throw templateFailure(descriptor, "compatibility-check", `Die veröffentlichte ${descriptor.displayName}-Vorlage ist nicht mit dem unterstützten Renderer kompatibel.`);
   const [templateResult, fieldSpecResult] = await Promise.all([auth.admin.storage.from(catalog.storage_bucket).download(catalog.storage_path), auth.admin.storage.from(catalog.storage_bucket).download(catalog.field_spec_path)]);
   if (templateResult.error || !templateResult.data) throw templateFailure(descriptor, "pdf-download", `Die ${descriptor.displayName}-Vorlage konnte nicht aus dem privaten Template-Bucket geladen werden: ${templateResult.error?.message ?? "keine Daten"}`);
   if (fieldSpecResult.error || !fieldSpecResult.data) throw templateFailure(descriptor, "field-spec-download", `Die ${descriptor.displayName}-Feldspezifikation konnte nicht aus dem privaten Template-Bucket geladen werden: ${fieldSpecResult.error?.message ?? "keine Daten"}`);
@@ -80,8 +86,107 @@ async function loadPublishedPdfTemplate(auth: Awaited<ReturnType<typeof authenti
   let parsed: { settings?: { coordinateOrigin?: string }; fields?: unknown };
   try { parsed = JSON.parse(new TextDecoder().decode(fieldSpecBytes)) as { settings?: { coordinateOrigin?: string }; fields?: unknown }; } catch { throw templateFailure(descriptor, "field-spec-parse", "Die Feldspezifikation ist kein gültiges JSON."); }
   const fields = parseFieldSpec(parsed); if (!fields) throw templateFailure(descriptor, "field-spec-parse", "Die Feldspezifikation ist grundlegend ungültig.");
-  if (descriptor.requiredFields.some((name) => !fields.some((field) => field.name === name))) throw templateFailure(descriptor, "compatibility-check", `Die ${descriptor.displayName}-Feldspezifikation enthält nicht alle erforderlichen Felder.`);
-  return { pdfBytes, fields };
+  if ((descriptor.requiredFieldsByVersion[catalog.field_spec_version] ?? []).some((name) => !fields.some((field) => field.name === name))) throw templateFailure(descriptor, "compatibility-check", `Die ${descriptor.displayName}-Feldspezifikation enthält nicht alle erforderlichen Felder.`);
+  return { pdfBytes, fields, fieldSpecVersion: catalog.field_spec_version };
+}
+
+const membershipV4SignatureFields: Record<string, string> = {
+  "member.application": "unterschrift_antragsteller_antrag",
+  "member.privacy": "unterschrift_antragsteller_datenschutz",
+  "gesetzliche_vertretung.antrag": "unterschrift_zweite_partei_antrag",
+  "gesetzliche_vertretung.datenschutz": "unterschrift_zweite_partei_datenschutz",
+  "nebenmitglied.antrag": "unterschrift_zweite_partei_antrag",
+  "nebenmitglied.datenschutz": "unterschrift_zweite_partei_datenschutz",
+  vorstand_1: "unterschrift_vorstand_1",
+  vorstand_2: "unterschrift_vorstand_2",
+};
+const membershipV4RequiredKeys = ["member.application", "member.privacy", "vorstand_1", "vorstand_2"];
+const representativeKeys = ["gesetzliche_vertretung.antrag", "gesetzliche_vertretung.datenschutz"];
+const secondaryKeys = ["nebenmitglied.antrag", "nebenmitglied.datenschutz"];
+const leaseV4SignatureFields: Record<string, string> = { "lease.member": "unterschrift_paechter_1", "lease.second_party": "unterschrift_paechter_2", vorstand_1: "unterschrift_vorstand_1", vorstand_2: "unterschrift_vorstand_2" };
+const maintenanceSignatureFields: Record<string, string> = { mitglied: "unterschrift_mitglied", vorstand_1: "unterschrift_vorstand_1", vorstand_2: "unterschrift_vorstand_2" };
+
+function snapshotBoardSigner(position: PreparedSignaturePosition) {
+  const name = safe(position.unterzeichner_name_snapshot); const functionName = safe(position.vereinsfunktion_bezeichnung_snapshot);
+  if (!name || !functionName) throw new Error("Der gespeicherte Vorstandssnapshot ist unvollständig.");
+  const represented = safe(position.vertretene_funktion_bezeichnung_snapshot);
+  return [name, functionName, position.vertretung_id !== null && represented ? `in Vertretung für ${represented}` : ""].filter(Boolean).join("\n");
+}
+
+async function loadPersistentMaintenanceSignatures(auth: Awaited<ReturnType<typeof authenticate>>, kommunikationsvorgangId: number) {
+  const { data: vorgang, error: vorgangError } = await auth.admin.from("kommunikationsvorgang").select("id,vorgangstyp,dokumenttyp,status,mitglied_id,wartungsvertrag_zuordnung_id,signatur_revision").eq("id", kommunikationsvorgangId).maybeSingle();
+  if (vorgangError || !vorgang || vorgang.vorgangstyp !== "vertrag_signatur" || vorgang.dokumenttyp !== "wartungsvertrag" || !Number.isSafeInteger(vorgang.signatur_revision) || !Number.isSafeInteger(vorgang.wartungsvertrag_zuordnung_id) || !["zur_signatur", "letzte_pruefung"].includes(vorgang.status)) throw new Error("Der Wartungsvertrags-Signaturvorgang ist ungültig.");
+  const revision = Number(vorgang.signatur_revision);
+  const { data: complete, error: completeError } = await auth.admin.rpc("prepared_contract_signaturen_vollstaendig", { p_kommunikationsvorgang_id: kommunikationsvorgangId, p_signatur_revision: revision });
+  if (completeError || complete !== true) throw new Error("Alle drei persistenten Wartungsvertragsunterschriften müssen vorliegen.");
+  const { data: assignment, error: assignmentError } = await auth.admin.from("wartungsvertrag_zuordnungen").select("id,hauptmitglied_id").eq("id", vorgang.wartungsvertrag_zuordnung_id).maybeSingle();
+  if (assignmentError || !assignment || Number(assignment.hauptmitglied_id) !== Number(vorgang.mitglied_id)) throw new Error("Die Wartungsvertragszuordnung passt nicht zum Hauptmitglied.");
+  const { data: rows, error: rowsError } = await auth.admin.from("prepared_contract_signatur").select("signatur_schluessel,status,mitglied_id,storage_bucket,storage_path,signatur_sha256,unterzeichner_name_snapshot,vereinsfunktion_bezeichnung_snapshot,vertretung_id,vertretene_funktion_bezeichnung_snapshot").eq("kommunikationsvorgang_id", kommunikationsvorgangId).eq("signatur_revision", revision).eq("status", "unterschrieben");
+  if (rowsError) throw rowsError;
+  const positions = new Map((rows ?? []).map((row) => [row.signatur_schluessel, row as PreparedSignaturePosition & { mitglied_id: number | null }]));
+  if (["mitglied", "vorstand_1", "vorstand_2"].some((key) => !positions.has(key)) || Number(positions.get("mitglied")!.mitglied_id) !== Number(assignment.hauptmitglied_id)) throw new Error("Die persistenten Wartungsvertragssignaturen sind unvollständig oder falsch zugeordnet.");
+  const signatures: Record<string, string> = {};
+  for (const [key, field] of Object.entries(maintenanceSignatureFields)) { const p = positions.get(key)!; if (!p.storage_bucket || !p.storage_path || !p.signatur_sha256) throw new Error("Signatur-Storage-Metadaten fehlen."); const { data, error } = await auth.admin.storage.from(p.storage_bucket).download(p.storage_path); if (error || !data) throw new Error("Signaturdatei konnte nicht aus privatem Storage geladen werden."); const bytes = new Uint8Array(await data.arrayBuffer()); if (!bytes.length || await sha256(bytes) !== p.signatur_sha256) throw new Error("Signaturdatei ist beschädigt oder ihr Hash stimmt nicht."); signatures[field] = pngDataUrl(bytes); }
+  return { vorgang, revision, assignmentId: Number(assignment.id), signatures, board1Snapshot: snapshotBoardSigner(positions.get("vorstand_1")!), board2Snapshot: snapshotBoardSigner(positions.get("vorstand_2")!) };
+}
+
+function pngDataUrl(bytes: Uint8Array) {
+  let binary = "";
+  for (let offset = 0; offset < bytes.length; offset += 0x8000) binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
+  return `data:image/png;base64,${btoa(binary)}`;
+}
+
+async function loadPersistentMembershipV4Signatures(auth: Awaited<ReturnType<typeof authenticate>>, kommunikationsvorgangId: number, memberId: number) {
+  const { data: vorgang, error: vorgangError } = await auth.admin.from("kommunikationsvorgang").select("id,vorgangstyp,dokumenttyp,mitglied_id,revision,signatur_revision,final_dokument_id").eq("id", kommunikationsvorgangId).maybeSingle();
+  if (vorgangError || !vorgang || vorgang.vorgangstyp !== "vertrag_signatur" || vorgang.dokumenttyp !== "mitgliedsantrag" || Number(vorgang.mitglied_id) !== memberId || !Number.isSafeInteger(vorgang.signatur_revision)) throw new Error("Der Mitgliedsantrags-Signaturvorgang ist ungültig oder gehört nicht zum Mitglied.");
+  const revision = Number(vorgang.signatur_revision);
+  const { data: complete, error: completeError } = await auth.admin.rpc("prepared_contract_signaturen_vollstaendig", { p_kommunikationsvorgang_id: kommunikationsvorgangId, p_signatur_revision: revision });
+  if (completeError) throw new Error(`Vollständigkeit der persistenten Signaturen konnte nicht geprüft werden: ${completeError.message}`);
+  if (complete !== true) throw new Error("Alle Pflichtsignaturen des Mitgliedsantrags müssen vor der Finalisierung vorliegen.");
+  const { data, error } = await auth.admin.from("prepared_contract_signatur").select("signatur_schluessel,status,storage_bucket,storage_path,signatur_sha256,unterzeichner_name_snapshot,vereinsfunktion_bezeichnung_snapshot,vertretung_id,vertretene_funktion_bezeichnung_snapshot").eq("kommunikationsvorgang_id", kommunikationsvorgangId).eq("signatur_revision", revision).eq("status", "unterschrieben");
+  if (error) throw new Error(`Persistente Signaturen konnten nicht geladen werden: ${error.message}`);
+  const positions = new Map((data ?? []).map((item) => [item.signatur_schluessel, item as PreparedSignaturePosition]));
+  if (membershipV4RequiredKeys.some((key) => !positions.has(key))) throw new Error("Für die MA-v4-Finalisierung fehlen erforderliche persistente Signaturen.");
+  const hasRepresentative = representativeKeys.some((key) => positions.has(key)); const hasSecondary = secondaryKeys.some((key) => positions.has(key));
+  if (hasRepresentative && hasSecondary) throw new Error("Gesetzliche Vertretung und Nebenmitglied dürfen nicht gleichzeitig unterschrieben sein.");
+  if (hasRepresentative && representativeKeys.some((key) => !positions.has(key))) throw new Error("Die Signaturen der gesetzlichen Vertretung sind unvollständig.");
+  if (hasSecondary && secondaryKeys.some((key) => !positions.has(key))) throw new Error("Die Signaturen des Nebenmitglieds sind unvollständig.");
+  const signatures: Record<string, string> = {};
+  for (const [key, field] of Object.entries(membershipV4SignatureFields)) {
+    const position = positions.get(key); if (!position) continue;
+    if (safe(position.storage_bucket) !== "prepared-contract-signatures" || !safe(position.storage_path) || !/^[0-9a-f]{64}$/i.test(safe(position.signatur_sha256))) throw new Error(`Persistente Signatur '${key}' enthält keine gültige Storage-Referenz.`);
+    const { data: object, error: storageError } = await auth.admin.storage.from(position.storage_bucket!).download(position.storage_path!);
+    if (storageError || !object) throw new Error(`Signaturdatei '${key}' konnte nicht aus dem privaten Storage gelesen werden.`);
+    const bytes = new Uint8Array(await object.arrayBuffer());
+    if (await sha256(bytes) !== safe(position.signatur_sha256).toLowerCase()) throw new Error(`Integritätsfehler: Die Signaturdatei '${key}' stimmt nicht mit ihrem SHA-256-Hash überein.`);
+    signatures[field] = pngDataUrl(bytes);
+  }
+  const secondPersonKey = hasRepresentative ? representativeKeys[0] : hasSecondary ? secondaryKeys[0] : null;
+  return { kommunikationsvorgangId, revision, signatures, board1Snapshot: snapshotBoardSigner(positions.get("vorstand_1")!), board2Snapshot: snapshotBoardSigner(positions.get("vorstand_2")!), secondPersonSnapshot: secondPersonKey ? safe(positions.get(secondPersonKey)?.unterzeichner_name_snapshot) : "", hasRepresentative, hasSecondary };
+}
+
+async function loadPersistentLeaseV4Signatures(auth: Awaited<ReturnType<typeof authenticate>>, kommunikationsvorgangId: number, memberId: number, parcelId: number) {
+  const { data: vorgang, error: vorgangError } = await auth.admin.from("kommunikationsvorgang").select("id,vorgangstyp,dokumenttyp,mitglied_id,parzelle_id,revision,signatur_revision").eq("id", kommunikationsvorgangId).maybeSingle();
+  if (vorgangError || !vorgang || vorgang.vorgangstyp !== "vertrag_signatur" || vorgang.dokumenttyp !== "pachtvertrag" || Number(vorgang.mitglied_id) !== memberId || Number(vorgang.parzelle_id) !== parcelId || !Number.isSafeInteger(vorgang.signatur_revision)) throw new Error("Der Pachtvertrags-Signaturvorgang ist ungültig.");
+  const revision = Number(vorgang.signatur_revision);
+  const { data: complete, error: completeError } = await auth.admin.rpc("prepared_contract_signaturen_vollstaendig", { p_kommunikationsvorgang_id: kommunikationsvorgangId, p_signatur_revision: revision });
+  if (completeError) throw new Error(`Vollständigkeit der persistenten Signaturen konnte nicht geprüft werden: ${completeError.message}`);
+  if (complete !== true) throw new Error("Alle Pflichtsignaturen des Pachtvertrags müssen vor der Finalisierung vorliegen.");
+  const { data, error } = await auth.admin.from("prepared_contract_signatur").select("signatur_schluessel,status,storage_bucket,storage_path,signatur_sha256,unterzeichner_name_snapshot,vereinsfunktion_bezeichnung_snapshot,vertretung_id,vertretene_funktion_bezeichnung_snapshot").eq("kommunikationsvorgang_id", kommunikationsvorgangId).eq("signatur_revision", revision).eq("status", "unterschrieben");
+  if (error) throw new Error(`Persistente Signaturen konnten nicht geladen werden: ${error.message}`);
+  const positions = new Map((data ?? []).map((item) => [item.signatur_schluessel, item as PreparedSignaturePosition]));
+  for (const key of ["lease.member", "vorstand_1", "vorstand_2"]) if (!positions.has(key)) throw new Error("Für die PV-v4-Finalisierung fehlen erforderliche persistente Signaturen.");
+  const signatures: Record<string, string> = {};
+  for (const [key, field] of Object.entries(leaseV4SignatureFields)) {
+    const position = positions.get(key); if (!position) continue;
+    if (safe(position.storage_bucket) !== "prepared-contract-signatures" || !safe(position.storage_path) || !/^[0-9a-f]{64}$/i.test(safe(position.signatur_sha256))) throw new Error(`Persistente Signatur '${key}' enthält keine gültige Storage-Referenz.`);
+    const { data: object, error: storageError } = await auth.admin.storage.from(position.storage_bucket!).download(position.storage_path!);
+    if (storageError || !object) throw new Error(`Signaturdatei '${key}' konnte nicht aus dem privaten Storage gelesen werden.`);
+    const bytes = new Uint8Array(await object.arrayBuffer());
+    if (await sha256(bytes) !== safe(position.signatur_sha256).toLowerCase()) throw new Error(`Integritätsfehler: Die Signaturdatei '${key}' stimmt nicht mit ihrem SHA-256-Hash überein.`);
+    signatures[field] = pngDataUrl(bytes);
+  }
+  return { revision, signatures, board1Snapshot: snapshotBoardSigner(positions.get("vorstand_1")!), board2Snapshot: snapshotBoardSigner(positions.get("vorstand_2")!), hasSecondParty: positions.has("lease.second_party") };
 }
 
 function drawSecondPrivatePartyLabels(pdf: PDFDocument, role: "none" | "secondary" | "representative", font: PDFFont) {
@@ -155,13 +260,13 @@ async function buildParcelProtocol(member: Record<string, unknown>, parcel: Reco
   return await pdf.save();
 }
 
-async function uploadContractDocument(auth: Awaited<ReturnType<typeof authenticate>>, pdf: Uint8Array, owner: { kind: "mitglied" | "parzelle"; id: number }, title: string, fileName: string, provenance?: { sourceKommunikationsvorgangId: number; sourceRevision: number }) {
+async function uploadContractDocument(auth: Awaited<ReturnType<typeof authenticate>>, pdf: Uint8Array, owner: { kind: "mitglied" | "parzelle"; id: number }, title: string, fileName: string, provenance?: { sourceKommunikationsvorgangId: number; sourceRevision: number; sourceWartungsvertragZuordnungId?: number }) {
   const form = new FormData(); form.set("file", new File([pdf], fileName, { type: "application/pdf" })); form.set("owner_kind", owner.kind); form.set("owner_id", String(owner.id)); form.set("titel", title);
   const uploadResponse = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/kgv-upload-document`, { method: "POST", headers: { Authorization: auth.authorization, apikey: Deno.env.get("SUPABASE_ANON_KEY") ?? "" }, body: form });
   const upload = await uploadResponse.json(); if (!uploadResponse.ok || !Number.isSafeInteger(upload.document_id)) throw new Error(upload.message ?? "Dokument-Upload fehlgeschlagen.");
   const documentId = upload.document_id as number;
   if (provenance) {
-    const { error } = await auth.admin.from("dokument").update({ source_kommunikationsvorgang_id: provenance.sourceKommunikationsvorgangId, source_revision: provenance.sourceRevision }).eq("id", documentId);
+    const { error } = await auth.admin.from("dokument").update({ source_kommunikationsvorgang_id: provenance.sourceKommunikationsvorgangId, source_revision: provenance.sourceRevision, ...(provenance.sourceWartungsvertragZuordnungId ? { source_wartungsvertrag_zuordnung_id: provenance.sourceWartungsvertragZuordnungId } : {}) }).eq("id", documentId);
     if (error) throw new Error(`Dokument-Provenienz konnte nicht gespeichert werden: ${error.message}`);
   }
   return documentId;
@@ -172,21 +277,26 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return errorResponse(405, "BAD_REQUEST", "Methode nicht erlaubt.", requestId);
   try {
-    const auth = await authenticate(req); const body = await req.json() as RequestBody; if(body.action === "sign-existing") return await signExisting(auth,body); const type = body.type; const memberId = Number(body.member_id); const action = body.action ?? "preview";
-    if (!type || !Number.isSafeInteger(memberId) || memberId <= 0) return errorResponse(400, "BAD_REQUEST", "Dokumenttyp und Mitglied sind erforderlich.", requestId);
-    const sourceKommunikationsvorgangId = Number(body.source_kommunikationsvorgang_id); const sourceRevision = Number(body.source_revision);
-    if (action === "finalize" && type === "mitgliedsantrag") {
-      if (!Number.isSafeInteger(sourceKommunikationsvorgangId) || sourceKommunikationsvorgangId <= 0 || !Number.isSafeInteger(sourceRevision) || sourceRevision < 1) return errorResponse(400, "BAD_REQUEST", "Kommunikationsvorgang und Revision sind für die Finalisierung erforderlich.", requestId);
-      const { data: existing, error: existingError } = await auth.admin.from("dokument").select("id").eq("source_kommunikationsvorgang_id", sourceKommunikationsvorgangId).eq("source_revision", sourceRevision).is("archiviert_at", null).maybeSingle();
-      if (existingError) throw existingError;
-      if (existing) return json(200, { success: true, document_id: existing.id, message: "Vorhandenes finales Dokument wurde wiederverwendet." });
+    const auth = await authenticate(req); const body = await req.json() as RequestBody; if(body.action === "sign-existing") return await signExisting(auth,body); const type = body.type; let memberId = Number(body.member_id); const action = body.action ?? "preview";
+    const sourceKommunikationsvorgangId = Number(body.kommunikationsvorgang_id ?? body.source_kommunikationsvorgang_id); let sourceRevision = Number(body.source_revision);
+    if (!type) return errorResponse(400, "BAD_REQUEST", "Dokumenttyp ist erforderlich.", requestId);
+    if (action === "finalize" && type === "mitgliedsantrag" && (!Number.isSafeInteger(sourceKommunikationsvorgangId) || sourceKommunikationsvorgangId <= 0)) return errorResponse(400, "BAD_REQUEST", "Kommunikationsvorgang ist für die Finalisierung erforderlich.", requestId);
+    if (type === "wartungsvertrag" && action !== "finalize") return errorResponse(400, "BAD_REQUEST", "Wartungsverträge werden ausschließlich aus dem persistenten Signaturvorgang finalisiert.", requestId);
+    if (type === "wartungsvertrag" && (!Number.isSafeInteger(sourceKommunikationsvorgangId) || sourceKommunikationsvorgangId <= 0)) return errorResponse(400, "BAD_REQUEST", "Kommunikationsvorgang ist für die Wartungsvertragsfinalisierung erforderlich.", requestId);
+    if (action === "finalize" && type === "mitgliedsantrag" && (!Number.isSafeInteger(memberId) || memberId <= 0)) {
+      const { data: vorgang, error } = await auth.admin.from("kommunikationsvorgang").select("mitglied_id").eq("id", sourceKommunikationsvorgangId).maybeSingle();
+      if (error || !vorgang || !Number.isSafeInteger(vorgang.mitglied_id)) return errorResponse(400, "BAD_REQUEST", "Der Kommunikationsvorgang enthält kein gültiges Mitglied.", requestId);
+      memberId = Number(vorgang.mitglied_id);
     }
+    const maintenancePersistent = type === "wartungsvertrag" ? await loadPersistentMaintenanceSignatures(auth, sourceKommunikationsvorgangId) : null;
+    if (maintenancePersistent) { memberId = Number(maintenancePersistent.vorgang.mitglied_id); sourceRevision = maintenancePersistent.revision; }
+    if (!Number.isSafeInteger(memberId) || memberId <= 0) return errorResponse(400, "BAD_REQUEST", "Mitglied ist erforderlich.", requestId);
     const { data: member, error: memberError } = await auth.admin.from("mitglied").select("*").eq("id", memberId).single(); if (memberError || !member) throw new Error("Mitglied wurde nicht gefunden.");
-    const { data: config } = await auth.admin.from("vereinskonfiguration").select("*").eq("aktiv", true).order("updated_at", { ascending: false }).limit(1).maybeSingle(); const configurationSnapshot = type === "mitgliedsantrag" || type === "pachtvertrag" ? snapshotFromConfiguration(config) : null;
+    const { data: config } = await auth.admin.from("vereinskonfiguration").select("*").eq("aktiv", true).order("updated_at", { ascending: false }).limit(1).maybeSingle(); const configurationSnapshot = type === "mitgliedsantrag" || type === "pachtvertrag" || type === "wartungsvertrag" ? snapshotFromConfiguration(config) : null;
     const startDate = body.start_date?.slice(0, 10) || (member.mitglied_seit as string | null)?.slice(0, 10) || new Date().toISOString().slice(0, 10);
     const signatures = { member: body.signature_member, secondary: body.signature_secondary, board: body.signature_board, board2: body.signature_board2 };
-    if (action === "finalize" && type !== "mitgliedsantrag" && (!signatures.member || !signatures.board)) return errorResponse(400, "BAD_REQUEST", "Unterschrift des Mitglieds und des Vereins sind erforderlich.", requestId);
-    let pdf: Uint8Array; let title: string; let owner: { kind: "mitglied" | "parzelle"; id: number }; let protocolIdToComplete: number | null = null;
+    if (action === "finalize" && type !== "mitgliedsantrag" && type !== "pachtvertrag" && type !== "wartungsvertrag" && (!signatures.member || !signatures.board)) return errorResponse(400, "BAD_REQUEST", "Unterschrift des Mitglieds und des Vereins sind erforderlich.", requestId);
+    let pdf: Uint8Array; let title: string; let owner: { kind: "mitglied" | "parzelle"; id: number }; let protocolIdToComplete: number | null = null; let maintenanceAssignmentId: number | null = null;
     if (type === "mitgliedsantrag") {
       if (member.hauptmitglied_id !== null && member.hauptmitglied_id !== undefined) throw new Error("Für Nebenmitglieder kann kein eigener Mitgliedsantrag erstellt werden.");
       const { data: applicationDocuments, error: applicationDocumentsError } = await auth.admin.from("dokument").select("titel,dateiname").eq("mitglied_id", memberId).is("archiviert_at", null);
@@ -201,15 +311,26 @@ Deno.serve(async (req) => {
         if (error || !data || Number(data.hauptmitglied_id) !== memberId) throw new Error("Das ausgewählte Nebenmitglied ist nicht mehr dem Antragsteller zugeordnet.");
         secondaryMember = data;
       }
-      if (action === "finalize") {
-        const requiredSignatures = [body.signature_application_member, body.signature_board, body.signature_privacy_member, ...(minor ? [body.signature_application_representative, body.signature_privacy_representative] : []), ...(secondaryMember ? [body.signature_application_secondary, body.signature_privacy_secondary] : [])];
-        if (requiredSignatures.some((signature) => !fromDataUrl(signature))) return json(400, { message: "Alle erforderlichen Signaturen zum Mitgliedsantrag fehlen." });
-      }
-      if (minor) { validateRepresentative(body.representative); if (body.representative!.mode === "existing") { const { data } = await auth.admin.from("mitglied").select("*").eq("id", body.representative!.member_id!).single(); if (!data || data.id === member.id) throw new Error("Gesetzlicher Vertreter konnte nicht geladen werden."); representative = data; } else { representative = { vorname: safe(body.representative!.vorname), name: safe(body.representative!.nachname), adresse: body.representative!.adresse_abweichend ? safe(body.representative!.adresse) : safe(member.adresse), plz: body.representative!.adresse_abweichend ? safe(body.representative!.plz) : safe(member.plz), ort: body.representative!.adresse_abweichend ? safe(body.representative!.ort) : safe(member.ort) }; } }
+      const template = await loadPublishedPdfTemplate(auth, membershipApplicationTemplate);
+      const requiredSignatures = [body.signature_application_member, body.signature_board, body.signature_privacy_member, ...(minor ? [body.signature_application_representative, body.signature_privacy_representative] : []), ...(secondaryMember ? [body.signature_application_secondary, body.signature_privacy_secondary] : [])];
+      if (minor && template.fieldSpecVersion !== membershipApplicationFieldSpecV4) { validateRepresentative(body.representative); if (body.representative!.mode === "existing") { const { data } = await auth.admin.from("mitglied").select("*").eq("id", body.representative!.member_id!).single(); if (!data || data.id === member.id) throw new Error("Gesetzlicher Vertreter konnte nicht geladen werden."); representative = data; } else { representative = { vorname: safe(body.representative!.vorname), name: safe(body.representative!.nachname), adresse: body.representative!.adresse_abweichend ? safe(body.representative!.adresse) : safe(member.adresse), plz: body.representative!.adresse_abweichend ? safe(body.representative!.plz) : safe(member.plz), ort: body.representative!.adresse_abweichend ? safe(body.representative!.ort) : safe(member.ort) }; } }
       const secondPrivateParty = representative ?? secondaryMember;
       const values: Record<string, string> = { ausstellungsdatum: formatDate(new Date().toISOString()), dokument_ort: configurationSnapshot!.dokumentOrt, mitglied_name: safe(member.name), mitglied_vorname: safe(member.vorname), mitglied_geburtsdatum: formatDate(member.geburtsdatum), mitglied_aufnahme_ab: formatDate(startDate), mitglied_telefon: safe(member.telefon), mitglied_mobil: safe(member.handy), mitglied_email: safe(member.email), mitglied_anschrift_mehrzeilig: `${safe(member.adresse)}\n${safe(member.plz)} ${safe(member.ort)}`.trim(), zweite_partei_bezeichnung: secondPrivateParty ? (representative ? "Gesetzliche Vertretung minderjähriger Antragsteller/in" : "Nebenmitglied") : "", zweite_partei_name: safe(secondPrivateParty?.name), zweite_partei_vorname: safe(secondPrivateParty?.vorname), zweite_partei_geburtsdatum: formatDate(secondPrivateParty?.geburtsdatum), zweite_partei_telefon: safe(secondPrivateParty?.telefon), zweite_partei_mobil: safe(secondPrivateParty?.handy), zweite_partei_email: safe(secondPrivateParty?.email), zweite_partei_anschrift_mehrzeilig: secondPrivateParty ? `${safe(secondPrivateParty.adresse)}\n${safe(secondPrivateParty.plz)} ${safe(secondPrivateParty.ort)}`.trim() : "", mitgliedsbeitrag_jaehrlich: money(fee), mitgliedsbeitrag_anteilig: money(Math.round(fee * months / 12 * 100) / 100), beitragsmonate: String(months), aufnahmegebuehr: money(admission), vereinsunterlagen_nachweis: safe(body.club_documents_snapshot), unterschrift_ort: configurationSnapshot!.dokumentOrt, unterschrift_datum: formatDate(new Date().toISOString()), unterschrift_zweite_partei_bezeichnung: representative ? "Unterschrift gesetzliche Vertretung" : secondaryMember ? "Unterschrift Nebenmitglied" : "", mitglied_einwilligung_whatsapp: member.whatsapp_einwilligung ? "true" : "", mitglied_einwilligung_rechnung_mail: member.email_rechnung_einwilligung ? "true" : "", mitglied_einwilligung_info_mail: member.email_info_einwilligung ? "true" : "" };
-      const template = await loadPublishedPdfTemplate(auth, membershipApplicationTemplate);
-      pdf = await drawPdfTemplate(template.pdfBytes, template.fields, values, { unterschrift_antragsteller: body.signature_application_member, unterschrift_zweite_partei: representative ? body.signature_application_representative : body.signature_application_secondary, unterschrift_verein: body.signature_board, mitglied_datenschutz_unterschrift: body.signature_privacy_member, zweite_partei_datenschutz_unterschrift: representative ? body.signature_privacy_representative : body.signature_privacy_secondary }, secondaryMember ? "secondary" : representative ? "representative" : "none"); title = `Mitgliedsantrag (${action === "finalize" ? "Signiert" : "Unsigniert"})`; owner = { kind: "mitglied", id: memberId };
+      if (action === "finalize" && template.fieldSpecVersion === membershipApplicationFieldSpecV4) {
+        const persistent = await loadPersistentMembershipV4Signatures(auth, sourceKommunikationsvorgangId, memberId);
+        sourceRevision = persistent.revision;
+        const { data: existing, error: existingError } = await auth.admin.from("dokument").select("id").eq("source_kommunikationsvorgang_id", sourceKommunikationsvorgangId).eq("source_revision", sourceRevision).is("archiviert_at", null).maybeSingle();
+        if (existingError) throw existingError;
+        if (existing) return json(200, { success: true, document_id: existing.id, message: "Vorhandenes finales Dokument wurde wiederverwendet." });
+        if (persistent.hasRepresentative) { values.zweite_partei_bezeichnung = "Gesetzliche Vertretung minderjähriger Antragsteller/in"; values.zweite_partei_name = persistent.secondPersonSnapshot; values.unterschrift_zweite_partei_bezeichnung = "Unterschrift gesetzliche Vertretung"; }
+        if (persistent.hasSecondary) { values.zweite_partei_bezeichnung = "Nebenmitglied"; values.zweite_partei_name = persistent.secondPersonSnapshot; values.unterschrift_zweite_partei_bezeichnung = "Unterschrift Nebenmitglied"; }
+        values.vereinsunterzeichner_1 = persistent.board1Snapshot; values.vereinsunterzeichner_2 = persistent.board2Snapshot;
+        pdf = await drawPdfTemplate(template.pdfBytes, template.fields, values, persistent.signatures, persistent.hasSecondary ? "secondary" : persistent.hasRepresentative ? "representative" : "none");
+      } else {
+        if (action === "finalize" && requiredSignatures.some((signature) => !fromDataUrl(signature))) return json(400, { message: "Alle erforderlichen Signaturen zum Mitgliedsantrag fehlen." });
+        pdf = await drawPdfTemplate(template.pdfBytes, template.fields, values, { unterschrift_antragsteller: body.signature_application_member, unterschrift_zweite_partei: representative ? body.signature_application_representative : body.signature_application_secondary, unterschrift_verein: body.signature_board, mitglied_datenschutz_unterschrift: body.signature_privacy_member, zweite_partei_datenschutz_unterschrift: representative ? body.signature_privacy_representative : body.signature_privacy_secondary }, secondaryMember ? "secondary" : representative ? "representative" : "none");
+      }
+      title = `Mitgliedsantrag (${action === "finalize" ? "Signiert" : "Unsigniert"})`; owner = { kind: "mitglied", id: memberId };
     } else if (type === "parzellenprotokoll") {
       const parcelId = Number(body.parcel_id); const protocolId = Number(body.protocol_id); const board2Id = Number(body.board2_id);
       if (![parcelId, protocolId, board2Id].every((value) => Number.isSafeInteger(value) && value > 0)) return json(400, { message: "Parzelle, Protokollentwurf und zweiter Vorstand sind erforderlich." });
@@ -220,7 +341,6 @@ Deno.serve(async (req) => {
       pdf = await buildParcelProtocol(member, parcel, board1, board2, body, signatures); title = `${body.protocol_type === "rueckgabe" ? "Rückgabe" : body.protocol_type === "begehung" ? "Begehung" : "Übernahme"}protokoll Garten ${safe(parcel.garten_nr)}`; owner = { kind: "mitglied", id: memberId }; protocolIdToComplete = protocolId;
     } else if (type === "pachtvertrag") {
       const parcelId = Number(body.parcel_id); if (!Number.isSafeInteger(parcelId) || parcelId <= 0) return json(400, { message: "Für den Pachtvertrag ist eine Parzelle erforderlich." });
-      if (action === "finalize" && (!signatures.member || !signatures.board)) return json(400, { message: "Die Unterschriften von Pächter/in und Vorstand / Verpächter sind erforderlich." });
       if (member.hauptmitglied_id !== null && member.hauptmitglied_id !== undefined) throw new Error("Pachtvertrag kann nur aus dem Hauptmitglied-Kontext erzeugt werden.");
       const [{ data: applicationDocuments }, { data: activeRelationships }, { data: parcel, error: parcelError }, { data: assignment }, { data: season }] = await Promise.all([
         auth.admin.from("dokument").select("titel,dateiname").eq("mitglied_id", memberId).is("archiviert_at", null),
@@ -240,17 +360,70 @@ Deno.serve(async (req) => {
       let representative: Record<string, unknown> | null = null;
       if (isMinorAt(member, startDate)) { const { data: relations } = await auth.admin.from("mitglied_gesetzlicher_vertreter").select("id,vertreter_mitglied_id,gueltig_ab,gueltig_bis").eq("minderjaehriges_mitglied_id", memberId); const relation = resolveActiveLegalRepresentativeRelation((relations ?? []) as LegalRepresentativeRelation[], startDate); if (!relation) throw new Error("Für dieses minderjährige Mitglied ist im signierten Mitgliedsantrag kein gesetzlicher Vertreter hinterlegt."); const { data } = await auth.admin.from("mitglied").select("*").eq("id", relation.vertreter_mitglied_id).maybeSingle(); if (!data) throw new Error("Für dieses minderjährige Mitglied ist im signierten Mitgliedsantrag kein gesetzlicher Vertreter hinterlegt."); representative = data; }
       if (typeof body.has_previous_contract !== "boolean") throw new Error("Bitte entscheiden Sie, ob ein Altvertrag vorliegt."); if (body.has_previous_contract && !isLocalIsoDate(body.previous_contract_date)) throw new Error("Bitte ein gültiges Datum des Altvertrags angeben.");
-      let secondary: Record<string, unknown> | null = null; if (!representative && body.include_secondary_member === true) { const secondaryId = Number(body.secondary_member_id); if (!Number.isSafeInteger(secondaryId) || secondaryId <= 0) throw new Error("Für Pächter 2 fehlt das eingefrorene Nebenmitglied."); const { data, error } = await auth.admin.from("mitglied").select("*").eq("id", secondaryId).eq("hauptmitglied_id", memberId).maybeSingle(); if (error || !data) throw new Error("Das eingefrorene Nebenmitglied ist nicht mehr dem Hauptmitglied zugeordnet."); secondary = data; } const party2 = representative ?? secondary; if (action === "finalize" && party2 && !signatures.secondary) return json(400, { message: "Unterschrift der zweiten Vertragspartei ist erforderlich." }); const annual = Math.round(area * rate * 100) / 100;
+      let secondary: Record<string, unknown> | null = null; if (!representative && body.include_secondary_member === true) { const secondaryId = Number(body.secondary_member_id); if (!Number.isSafeInteger(secondaryId) || secondaryId <= 0) throw new Error("Für Pächter 2 fehlt das eingefrorene Nebenmitglied."); const { data, error } = await auth.admin.from("mitglied").select("*").eq("id", secondaryId).eq("hauptmitglied_id", memberId).maybeSingle(); if (error || !data) throw new Error("Das eingefrorene Nebenmitglied ist nicht mehr dem Hauptmitglied zugeordnet."); secondary = data; } const party2 = representative ?? secondary; const annual = Math.round(area * rate * 100) / 100;
       const address = (person: Record<string, unknown> | null | undefined) => [safe(person?.adresse), [safe(person?.plz), safe(person?.ort)].filter(Boolean).join(" ")].filter(Boolean).join(", ");
       const contact = (person: Record<string, unknown> | null | undefined) => [safe(person?.telefon), safe(person?.handy), safe(person?.email)].filter(Boolean).join(" · ");
       const fullName = (person: Record<string, unknown> | null | undefined) => [safe(person?.vorname), safe(person?.name)].filter(Boolean).join(" ");
       const probephaseBis = `${String(new Date(`${startDate}T12:00:00Z`).getUTCFullYear() + 1)}-12-31`; const previousNotice = body.has_previous_contract && isLocalIsoDate(body.previous_contract_date) ? `Dieser Pachtvertrag ersetzt die bisherige Vertragsurkunde vom ${formatDate(body.previous_contract_date)}. Das bestehende Pachtverhältnis und dessen ursprünglicher Beginn bleiben hiervon unberührt.` : "";
       const values: Record<string, string> = { paechter_name: fullName(member), mitgliedsnummer: String(member.id), paechter_geburtsdatum: formatDate(member.geburtsdatum), paechter_anschrift: address(member), paechter_kontakt: contact(member), zweite_partei_bezeichnung: party2 ? (representative ? "Gesetzliche/r Vertreter/in" : "Mitpächter/in") : "", zweite_partei_name: fullName(party2), zweite_partei_mitgliedsnummer: party2?.id ? String(party2.id) : "", zweite_partei_geburtsdatum: formatDate(party2?.geburtsdatum), zweite_partei_anschrift: address(party2), zweite_partei_kontakt: contact(party2), parzelle_nr: safe(parcel.garten_nr) || `#${parcel.id}`, lage_anlage: safe(parcel.Anlage), flaeche_qm: String(area).replace(".", ","), vertragsbeginn: formatDate(startDate), uebergabe_datum: isLocalIsoDate(body.handover_date) ? formatDate(body.handover_date) : formatDate(startDate), probephase_bis: formatDate(probephaseBis), pachtzins_jahr: money(annual), pacht_pro_qm: `${new Intl.NumberFormat("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(rate)} €/m²`, faelligkeit: formatDate(season.pacht_faellig_am), altvertrag_hinweis: previousNotice, vereinsunterlagen_nachweis: safe(body.club_documents_snapshot), weitere_vereinbarungen: safe(body.additional_agreements), ort_datum: [configurationSnapshot!.dokumentOrt, formatDate(new Date().toISOString())].filter(Boolean).join(", "), paechter_druckname: fullName(member), vereins_unterzeichner: safe(body.club_signatory) };
-      const template = await loadPublishedPdfTemplate(auth, leaseTemplate); pdf = await drawPdfTemplate(template.pdfBytes, template.fields, values, { unterschrift_paechter: action === "finalize" ? signatures.member : undefined, unterschrift_zweite_partei: action === "finalize" && party2 ? signatures.secondary : undefined, unterschrift_vorstand: action === "finalize" ? signatures.board : undefined }, party2 ? (representative ? "representative" : "secondary") : "none"); title = `Pachtvertrag (${action === "finalize" ? "Signiert" : "Unsigniert"})`; owner = { kind: "parzelle", id: parcelId };
+      const template = await loadPublishedPdfTemplate(auth, leaseTemplate);
+      if (action === "finalize" && template.fieldSpecVersion === leaseFieldSpecV4) {
+        if (!Number.isSafeInteger(sourceKommunikationsvorgangId) || sourceKommunikationsvorgangId <= 0) return errorResponse(400, "BAD_REQUEST", "Kommunikationsvorgang ist für die PV-v4-Finalisierung erforderlich.", requestId);
+        const persistent = await loadPersistentLeaseV4Signatures(auth, sourceKommunikationsvorgangId, memberId, parcelId); sourceRevision = persistent.revision;
+        const { data: existing, error: existingError } = await auth.admin.from("dokument").select("id").eq("source_kommunikationsvorgang_id", sourceKommunikationsvorgangId).eq("source_revision", sourceRevision).is("archiviert_at", null).maybeSingle();
+        if (existingError) throw existingError; if (existing) return json(200, { success: true, document_id: existing.id, message: "Vorhandenes finales Dokument wurde wiederverwendet." });
+        if (persistent.hasSecondParty !== Boolean(party2)) throw new Error("Die persistierten Signaturen passen nicht zu den eingefrorenen Vertragsparteien.");
+        values.vereinsunterzeichner_1 = persistent.board1Snapshot; values.vereinsunterzeichner_2 = persistent.board2Snapshot;
+        pdf = await drawPdfTemplate(template.pdfBytes, template.fields, values, persistent.signatures, party2 ? (representative ? "representative" : "secondary") : "none");
+      } else {
+        if (action === "finalize" && (!signatures.member || !signatures.board || (party2 && !signatures.secondary))) return json(400, { message: "Die erforderlichen Pachtvertragsunterschriften fehlen." });
+        pdf = await drawPdfTemplate(template.pdfBytes, template.fields, values, { unterschrift_paechter: action === "finalize" ? signatures.member : undefined, unterschrift_zweite_partei: action === "finalize" && party2 ? signatures.secondary : undefined, unterschrift_vorstand: action === "finalize" ? signatures.board : undefined }, party2 ? (representative ? "representative" : "secondary") : "none");
+      }
+      title = `Pachtvertrag (${action === "finalize" ? "Signiert" : "Unsigniert"})`; owner = { kind: "parzelle", id: parcelId };
+    } else if (type === "wartungsvertrag") {
+      if (!maintenancePersistent) throw new Error("Die persistenten Wartungsvertragssignaturen konnten nicht geladen werden.");
+      const { data: assignment, error: assignmentError } = await auth.admin.from("wartungsvertrag_zuordnungen").select("id,wartungsvertrag_id,hauptmitglied_id,gueltig_ab,gueltig_bis,bemerkung").eq("id", maintenancePersistent.assignmentId).maybeSingle();
+      if (assignmentError || !assignment || Number(assignment.hauptmitglied_id) !== memberId) throw new Error("Die Wartungsvertragszuordnung ist nicht mehr gültig.");
+      const [{ data: maintenance, error: maintenanceError }, { data: occupation }] = await Promise.all([
+        auth.admin.from("wartungsvertraege").select("id,titel,beschreibung,bereich,befreit_von_pflichtstunden,bemerkung").eq("id", assignment.wartungsvertrag_id).maybeSingle(),
+        auth.admin.from("parzellen_belegung").select("parzelle_id").eq("mitglied_id", memberId).lte("von_datum", assignment.gueltig_ab).or(`bis_datum.is.null,bis_datum.gte.${assignment.gueltig_ab}`).order("von_datum", { ascending: false }).limit(1).maybeSingle(),
+      ]);
+      if (maintenanceError || !maintenance) throw new Error("Der Wartungsvertrag wurde nicht gefunden.");
+      const { data: parcel } = occupation?.parzelle_id ? await auth.admin.from("parzelle").select("id,garten_nr").eq("id", occupation.parzelle_id).maybeSingle() : { data: null };
+      const { data: existing, error: existingError } = await auth.admin.from("dokument").select("id").eq("source_kommunikationsvorgang_id", sourceKommunikationsvorgangId).eq("source_revision", sourceRevision).eq("source_wartungsvertrag_zuordnung_id", assignment.id).is("archiviert_at", null).maybeSingle();
+      if (existingError) throw existingError;
+      if (existing) {
+        const { data: repairedVorgang, error: repairError } = await auth.admin.from("kommunikationsvorgang").update({ final_dokument_id: existing.id, status: "erledigt" }).eq("id", sourceKommunikationsvorgangId).eq("signatur_revision", sourceRevision).in("status", ["zur_signatur", "letzte_pruefung", "erledigt"]).select("id").maybeSingle();
+        if (repairError || !repairedVorgang) throw new Error(`Vorhandenes Wartungsvertragsdokument konnte nicht am Signaturvorgang hinterlegt werden: ${repairError?.message ?? "Vorgang wurde zwischenzeitlich geändert."}`);
+        return json(200, { success: true, document_id: existing.id, message: "Vorhandenes finales Wartungsvertragsdokument wurde wiederverwendet." });
+      }
+      const values: Record<string, string> = {
+        mitglied_name: [safe(member.vorname), safe(member.name)].filter(Boolean).join(" "),
+        mitgliedsnummer: String(member.id),
+        parzelle_nummer: safe(parcel?.garten_nr) || "-",
+        wartungsvertrag_titel: safe(maintenance.titel),
+        wartungsvertrag_bereich: safe(maintenance.bereich),
+        saisonjahr: assignment.gueltig_ab.slice(0, 4),
+        wartungsvertrag_beschreibung: safe(maintenance.beschreibung),
+        arbeitsstundenwirkung: maintenance.befreit_von_pflichtstunden ? "Befreiung von Pflichtstunden" : "Keine Befreiung von Pflichtstunden",
+        wartungsvertrag_bemerkung: safe(assignment.bemerkung) || safe(maintenance.bemerkung),
+        ort_datum: [configurationSnapshot!.dokumentOrt, formatDate(new Date().toISOString())].filter(Boolean).join(", "),
+        vereinsunterzeichner_1: maintenancePersistent.board1Snapshot,
+        vereinsunterzeichner_2: maintenancePersistent.board2Snapshot,
+      };
+      const template = await loadPublishedPdfTemplate(auth, maintenanceTemplate);
+      pdf = await drawPdfTemplate(template.pdfBytes, template.fields, values, maintenancePersistent.signatures, "none");
+      title = "Wartungsvertrag (signiert)"; owner = { kind: "mitglied", id: memberId }; maintenanceAssignmentId = Number(assignment.id);
     } else { pdf = await buildSimpleContract(member, startDate, signatures); title = `Mitgliedsvertrag (${action === "finalize" ? "Signiert" : "Unsigniert"})`; owner = { kind: "mitglied", id: memberId }; }
     const memberSegment = `${filenamePart(safe(member.name) || "Mitglied")}_${filenamePart(safe(member.vorname) || "OhneVorname")}`;
     const fileName = `${memberSegment}-${memberId}-${startDate}-${type}-${action === "finalize" ? "signiert" : "unsigniert"}.pdf`;
     if (action === "preview") return new Response(pdf, { headers: { ...cors, "Content-Type": "application/pdf", "Content-Disposition": `inline; filename="${fileName}"`, "Cache-Control": "private, no-store" } });
-    const documentId = await uploadContractDocument(auth, pdf, owner, title, fileName, action === "finalize" && type === "mitgliedsantrag" ? { sourceKommunikationsvorgangId, sourceRevision } : undefined); if (protocolIdToComplete) { const { error } = await auth.admin.from("parzellen_protokoll").update({ status: "abgeschlossen", dokument_id: documentId, abgeschlossen_am: new Date().toISOString(), abgeschlossen_von: auth.userId, updated_at: new Date().toISOString() }).eq("id", protocolIdToComplete); if (error) throw error; } return json(200, { success: true, document_id: documentId, message: protocolIdToComplete ? "Das signierte Protokoll wurde als Mitgliedsdokument abgelegt." : "Signiertes Vertragsdokument wurde sicher abgelegt." });
+    const documentId = await uploadContractDocument(auth, pdf, owner, title, fileName, action === "finalize" && (type === "mitgliedsantrag" || type === "pachtvertrag" || type === "wartungsvertrag") && Number.isSafeInteger(sourceKommunikationsvorgangId) && sourceKommunikationsvorgangId > 0 ? { sourceKommunikationsvorgangId, sourceRevision, ...(maintenanceAssignmentId ? { sourceWartungsvertragZuordnungId: maintenanceAssignmentId } : {}) } : undefined);
+    if (maintenanceAssignmentId) {
+      const { data: updatedVorgang, error } = await auth.admin.from("kommunikationsvorgang").update({ final_dokument_id: documentId, status: "erledigt" }).eq("id", sourceKommunikationsvorgangId).eq("signatur_revision", sourceRevision).in("status", ["zur_signatur", "letzte_pruefung"]).select("id").maybeSingle();
+      if (error || !updatedVorgang) throw new Error(`Wartungsvertrags-Finaldokument konnte nicht am Signaturvorgang hinterlegt werden: ${error?.message ?? "Vorgang wurde zwischenzeitlich geändert."}`);
+    }
+    if (protocolIdToComplete) { const { error } = await auth.admin.from("parzellen_protokoll").update({ status: "abgeschlossen", dokument_id: documentId, abgeschlossen_am: new Date().toISOString(), abgeschlossen_von: auth.userId, updated_at: new Date().toISOString() }).eq("id", protocolIdToComplete); if (error) throw error; }
+    return json(200, { success: true, document_id: documentId, message: protocolIdToComplete ? "Das signierte Protokoll wurde als Mitgliedsdokument abgelegt." : "Signiertes Vertragsdokument wurde sicher abgelegt." });
   } catch (error) { const message = error instanceof Error ? error.message.replace(/^AUTH:/, "") : "Vertragsdokument konnte nicht erzeugt werden."; const status = message.startsWith("Anmeldung") || message.startsWith("Nur Admin") ? 403 : 500; return errorResponse(status, status === 403 ? "FORBIDDEN" : "INTERNAL_ERROR", message, requestId); }
 });

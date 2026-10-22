@@ -13,7 +13,7 @@ public static class PreparedContractDraftParser
         if (ContainsSignatureData(value)) throw Invalid("Der gespeicherte Vertragsentwurf darf keine Signaturdaten enthalten.");
         var version = GetString(value, "schema_version");
         var type = GetString(value, "document_type");
-        if (version != PreparedContractConstants.SchemaVersion || (type != PreparedContractConstants.MembershipApplication && type != PreparedContractConstants.LeaseContract))
+        if (version != PreparedContractConstants.SchemaVersion || (type != PreparedContractConstants.MembershipApplication && type != PreparedContractConstants.LeaseContract && type != PreparedContractConstants.MaintenanceContract))
             throw Invalid("Die Version des gespeicherten Vertragsentwurfs wird nicht unterstützt.");
         if (!HasNumber(value, "memberId")) throw Invalid("Der gespeicherte Vertragsentwurf enthält kein Mitglied.");
         if (type == PreparedContractConstants.MembershipApplication)
@@ -23,6 +23,12 @@ public static class PreparedContractDraftParser
             if (membership.Representative is not null && membership.IncludeSecondaryMember)
                 throw Invalid("Ein minderjähriges Mitglied kann kein Nebenmitglied im Mitgliedsantrag haben.");
             return membership;
+        }
+        if (type == PreparedContractConstants.MaintenanceContract)
+        {
+            if (!HasNumber(value, "wartungsvertrag_zuordnung_id") || !HasNumber(value, "wartungsvertrag_id") || !HasString(value, "gueltig_ab") || !HasStringOrNull(value, "gueltig_bis"))
+                throw Invalid("Der gespeicherte Wartungsvertrag ist unvollständig.");
+            return JsonSerializer.Deserialize<PreparedMaintenanceContractDraft>(value.GetRawText(), Options)!;
         }
         if (!value.TryGetProperty("draft", out var lease) || lease.ValueKind != JsonValueKind.Object || !HasStringOrNull(lease, "previousContractDate") ||
             !HasString(lease, "startDate") || !HasNumber(lease, "parcelId") || !HasBoolean(lease, "hasPreviousContract") || !HasBoolean(lease, "includeSecondaryMember") ||

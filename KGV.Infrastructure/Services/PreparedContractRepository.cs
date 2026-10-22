@@ -37,7 +37,7 @@ public sealed class PreparedContractRepository : IPreparedContractRepository
     public async Task<IReadOnlyList<KommunikationsvorgangDto>> ListActiveAsync(CancellationToken cancellationToken = default)
     {
         var items = await SendAsync(HttpMethod.Get,
-            $"kommunikationsvorgang?vorgangstyp=eq.{PreparedContractConstants.ContractSignatureProcess}&dokumenttyp=in.({PreparedContractConstants.MembershipApplication},{PreparedContractConstants.LeaseContract})&status=in.({PreparedContractConstants.Prepared},{PreparedContractConstants.ReadyForSignature},{PreparedContractConstants.FinalReview})&select=*",
+            $"kommunikationsvorgang?vorgangstyp=eq.{PreparedContractConstants.ContractSignatureProcess}&dokumenttyp=in.({PreparedContractConstants.MembershipApplication},{PreparedContractConstants.LeaseContract},{PreparedContractConstants.MaintenanceContract})&status=in.({PreparedContractConstants.Prepared},{PreparedContractConstants.ReadyForSignature},{PreparedContractConstants.FinalReview})&select=*",
             null,
             cancellationToken);
         foreach (var item in items)
@@ -169,7 +169,8 @@ public sealed class PreparedContractRepository : IPreparedContractRepository
         var parsed = PreparedContractDraftParser.Parse(draft);
         if (documentType == PreparedContractConstants.MembershipApplication && (parsed is not PreparedMembershipApplicationDraft ma || ma.MemberId != memberId || parcelId is not null)) throw new PreparedContractValidationException("Mitgliedsantrag und Vorgang stimmen nicht überein.");
         if (documentType == PreparedContractConstants.LeaseContract && (parsed is not PreparedLeaseContractDraft pv || pv.MemberId != memberId || pv.Draft.ParcelId != parcelId)) throw new PreparedContractValidationException("Pachtvertrag und Vorgang stimmen nicht überein.");
-        if (documentType is not PreparedContractConstants.MembershipApplication and not PreparedContractConstants.LeaseContract) throw new PreparedContractValidationException("Der Dokumenttyp wird nicht unterstützt.");
+        if (documentType == PreparedContractConstants.MaintenanceContract && (parsed is not PreparedMaintenanceContractDraft wv || wv.MemberId != memberId || parcelId is not null)) throw new PreparedContractValidationException("Wartungsvertrag und Vorgang stimmen nicht überein.");
+        if (documentType is not PreparedContractConstants.MembershipApplication and not PreparedContractConstants.LeaseContract and not PreparedContractConstants.MaintenanceContract) throw new PreparedContractValidationException("Der Dokumenttyp wird nicht unterstützt.");
     }
     private Guid CurrentUserId() => Guid.TryParse(_auth.CurrentUserId, out var id) ? id : throw new PreparedContractConflictException("Es ist kein angemeldeter Benutzer vorhanden.");
     private async Task<List<KommunikationsvorgangDto>> PatchAsync(string query, object body, CancellationToken ct) => await SendAsync(HttpMethod.Patch, query, JsonSerializer.SerializeToElement(body), ct);

@@ -8,6 +8,14 @@ public sealed record PreparedMembershipSignatureUiContext(
     string? SecondaryDisplayName = null,
     string? RepresentativeDisplayName = null);
 
+/// <summary>Immutable identity of the one persistent position currently being captured.</summary>
+public sealed record MauiPreparedSignaturePosition(
+    long KommunikationsvorgangId,
+    int SignaturRevision,
+    string SignaturSchluessel,
+    string Anzeige,
+    PreparedContractAuthorizedSignatoryDto? Vereinsunterzeichner = null);
+
 public sealed class MauiPreparedSignatureCapture : IPreparedSignatureCapture
 {
     private readonly Page _hostPage;
@@ -65,6 +73,18 @@ public sealed class MauiPreparedSignatureCapture : IPreparedSignatureCapture
             if (discard)
                 return null;
         }
+    }
+
+    /// <summary>Captures exactly one persistent contract-signature position. The caller owns saving and navigation.</summary>
+    public Task<DigitalSignatureCapture?> CaptureSingleAsync(MauiPreparedSignaturePosition position, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(position);
+        if (position.KommunikationsvorgangId <= 0 || position.SignaturRevision <= 0 || string.IsNullOrWhiteSpace(position.SignaturSchluessel) || string.IsNullOrWhiteSpace(position.Anzeige))
+            throw new ArgumentException("Die persistente Signaturposition ist unvollständig.", nameof(position));
+        if (position.SignaturSchluessel is PreparedContractBoardSignatureKeys.Board1 or PreparedContractBoardSignatureKeys.Board2 && position.Vereinsunterzeichner is null)
+            throw new ArgumentException("Für eine Vereinsposition fehlt der berechtigte Vereinsunterzeichner.", nameof(position));
+        cancellationToken.ThrowIfCancellationRequested();
+        return SignatureFlowHelper.CaptureSignatureAsync(_hostPage.Navigation, _sourceDocument, position.Anzeige, isLastSignature: true, forceLandscape: false);
     }
 
     private string TitleFor(SignatureStep step) => step.PersonType switch

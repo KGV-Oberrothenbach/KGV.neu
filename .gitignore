@@ -382,3 +382,5 @@ output/
 
 # TypeScript incremental build cache
 *.tsbuildinfo
+
+tmp/
