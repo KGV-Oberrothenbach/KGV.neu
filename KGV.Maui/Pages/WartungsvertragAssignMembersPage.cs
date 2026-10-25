@@ -387,7 +387,14 @@ public sealed class WartungsvertragAssignMembersPage : ContentPage, IQueryAttrib
     private static string BuildDisplayName(MitgliedRecord member)
     {
         var displayName = $"{member.Vorname} {member.Name}".Trim();
-        displayName = string.IsNullOrWhiteSpace(displayName) ? member.Email ?? $"Mitglied #{member.Id}" : displayName;
+        displayName = string.IsNullOrWhiteSpace(displayName) ? member.Email?.Trim() ?? string.Empty : displayName;
+        if (member.Mitgliedsnummer > 0)
+            displayName = string.IsNullOrWhiteSpace(displayName)
+                ? $"Mgl.-Nr. {member.Mitgliedsnummer}"
+                : $"{displayName} · Mgl.-Nr. {member.Mitgliedsnummer}";
+        else if (string.IsNullOrWhiteSpace(displayName))
+            displayName = "Mitglied";
+
         return member.HauptmitgliedId is > 0
             ? $"{displayName} (Nebenmitglied)"
             : $"{displayName} (Hauptmitglied)";

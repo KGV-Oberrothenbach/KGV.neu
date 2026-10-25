@@ -478,7 +478,7 @@ public sealed class MemberParzellenDetailPage : ContentPage
 
         if (_parzellenContextState.ContextMitgliedId is not > 0)
         {
-            await DisplayAlertAsync("Pachtvertrag", "Für den aktuellen Mitgliedskontext fehlt die Mitglieds-ID.", "OK");
+            await DisplayAlertAsync("Pachtvertrag", "Für den aktuellen Mitgliedskontext fehlt die Mitgliedsreferenz.", "OK");
             return;
         }
 

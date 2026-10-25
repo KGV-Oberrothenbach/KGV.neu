@@ -90,6 +90,8 @@ Ersetzt den Arbeitsstunden-Fallback und die sichtbaren technischen Kontextfehler
 
 ### NB-2A-M4 – Parzellen, Pachtvertrag und Wartungsverträge
 
+Status: **erledigt**.
+
 Dateien (voraussichtlich 5–6): `MemberGardenAssignPage.cs`, `MemberGardensPage.cs`, `MemberParzellenDetailPage.cs`, `PachtvertragDialogPage.cs`, `MemberWartungsvertraegePage.cs`, `WartungsvertragAssignMembersPage.cs`.
 
 Vereinheitlicht Titel, Pachtvertragsparteien, Vertragszuordnung und technische Kontextfehlermeldungen. Technische IDs in Vertragsrequests und Navigation bleiben unverändert.

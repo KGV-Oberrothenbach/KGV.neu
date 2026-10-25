@@ -163,9 +163,7 @@ public sealed class MemberGardensPage : ContentPage
 
             var contextMember = MapMember(member);
             _memberContextState.SetSelectedMember(contextMember);
-            _headlineLabel.Text = string.IsNullOrWhiteSpace(contextMember.DisplayName)
-                ? $"Gärten von Mitglied #{contextMember.Id}"
-                : $"Gärten von {contextMember.DisplayName}";
+            _headlineLabel.Text = $"Gärten von {BuildMemberDisplayName(member)}";
 
             await LoadAssignmentsAsync(contextMember.Id);
             UpdateAssignGardenButtonVisibility(contextMember.Id);
@@ -284,11 +282,23 @@ public sealed class MemberGardensPage : ContentPage
 
     private static string FormatDate(DateTime? value) => value?.ToString("dd.MM.yyyy") ?? "-";
 
+    private static string BuildMemberDisplayName(MitgliedRecord member)
+    {
+        var displayName = $"{member.Vorname} {member.Name}".Trim();
+        if (member.Mitgliedsnummer > 0)
+            return string.IsNullOrWhiteSpace(displayName)
+                ? $"Mgl.-Nr. {member.Mitgliedsnummer}"
+                : $"{displayName} · Mgl.-Nr. {member.Mitgliedsnummer}";
+
+        return string.IsNullOrWhiteSpace(displayName) ? "Mitglied" : displayName;
+    }
+
     private static MemberDTO MapMember(MitgliedRecord rec)
     {
         return new MemberDTO
         {
             Id = rec.Id,
+            Mitgliedsnummer = rec.Mitgliedsnummer,
             Vorname = rec.Vorname ?? string.Empty,
             Nachname = rec.Name ?? string.Empty,
             Email = rec.Email ?? string.Empty,

@@ -190,7 +190,7 @@ public sealed class PachtvertragDialogPage : ContentPage
 
     private static VerticalStackLayout CreateField(string title, View content) => new() { Spacing = 6, Children = { new Label { Text = title, FontAttributes = FontAttributes.Bold }, content } };
     private static HorizontalStackLayout CreateCheckBoxRow(CheckBox checkBox, string text) => new() { Spacing = 10, Children = { checkBox, new Label { Text = text, VerticalOptions = LayoutOptions.Center, LineBreakMode = LineBreakMode.WordWrap } } };
-    private static string BuildMemberDisplayName(MitgliedRecord member) { var name = string.Join(" ", new[] { member.Vorname, member.Name }.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x!.Trim())); return string.IsNullOrWhiteSpace(name) ? $"Mitglied #{member.Id}" : $"{name} · #{member.Id}"; }
+    private static string BuildMemberDisplayName(MitgliedRecord member) { var name = string.Join(" ", new[] { member.Vorname, member.Name }.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x!.Trim())); if (member.Mitgliedsnummer > 0) return string.IsNullOrWhiteSpace(name) ? $"Mgl.-Nr. {member.Mitgliedsnummer}" : $"{name} · Mgl.-Nr. {member.Mitgliedsnummer}"; return string.IsNullOrWhiteSpace(name) ? "Mitglied" : name; }
     private static string BuildParzelleDisplayName(ParzelleRecord parzelle) { var gartenNr = string.IsNullOrWhiteSpace(parzelle.GartenNr) ? $"#{parzelle.Id}" : parzelle.GartenNr.Trim(); var anlage = string.IsNullOrWhiteSpace(parzelle.Anlage) ? null : parzelle.Anlage.Trim(); return string.IsNullOrWhiteSpace(anlage) ? $"Garten {gartenNr}" : $"Garten {gartenNr} ({anlage})"; }
 }
 

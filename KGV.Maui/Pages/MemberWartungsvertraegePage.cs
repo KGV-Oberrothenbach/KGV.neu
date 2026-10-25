@@ -206,9 +206,7 @@ public sealed class MemberWartungsvertraegePage : ContentPage
             }
 
             var member = await _supabaseService.GetMitgliedByIdAsync(selectedMember.Id);
-            var displayName = member == null
-                ? $"Mitglied #{selectedMember.Id}"
-                : BuildDisplayName(member.Vorname, member.Name, selectedMember.Id);
+            var displayName = BuildMemberDisplayName(member);
             _headlineLabel.Text = $"Wartungsverträge von {displayName}";
 
             var items = await _supabaseService.GetWartungsvertraegeForMitgliedAsync(selectedMember.Id);
@@ -574,10 +572,18 @@ public sealed class MemberWartungsvertraegePage : ContentPage
         };
     }
 
-    private static string BuildDisplayName(string? vorname, string? nachname, int fallbackId)
+    private static string BuildMemberDisplayName(MitgliedRecord? member)
     {
-        var displayName = $"{vorname} {nachname}".Trim();
-        return string.IsNullOrWhiteSpace(displayName) ? $"Mitglied #{fallbackId}" : displayName;
+        if (member == null)
+            return "Mitglied nicht verfügbar";
+
+        var displayName = $"{member.Vorname} {member.Name}".Trim();
+        if (member.Mitgliedsnummer > 0)
+            return string.IsNullOrWhiteSpace(displayName)
+                ? $"Mgl.-Nr. {member.Mitgliedsnummer}"
+                : $"{displayName} · Mgl.-Nr. {member.Mitgliedsnummer}";
+
+        return string.IsNullOrWhiteSpace(displayName) ? "Mitglied" : displayName;
     }
 
     private static string FormatProofStatus(string status) => status switch

@@ -133,9 +133,7 @@ public sealed class MemberGardenAssignPage : ContentPage
                 return;
             }
 
-            _headlineLabel.Text = string.IsNullOrWhiteSpace(selectedMember.DisplayName)
-                ? $"Parzelle zuordnen für Mitglied #{selectedMember.Id}"
-                : $"Parzelle zuordnen für {selectedMember.DisplayName}";
+            _headlineLabel.Text = $"Parzelle zuordnen für {BuildMemberDisplayName(_memberRecord)}";
             _hintLabel.Text = "Die Zuweisung verwendet den bestehenden Produktivpfad. Nach erfolgreicher Zuweisung kann direkt ein Pachtvertrag erzeugt werden.";
 
             var parzellen = await _supabaseService.GetAllParzellenAsync();
@@ -292,6 +290,17 @@ public sealed class MemberGardenAssignPage : ContentPage
         var gartenNr = string.IsNullOrWhiteSpace(parzelle.GartenNr) ? $"#{parzelle.Id}" : parzelle.GartenNr.Trim();
         var anlage = string.IsNullOrWhiteSpace(parzelle.Anlage) ? "-" : parzelle.Anlage.Trim();
         return $"Garten {gartenNr} ({anlage})";
+    }
+
+    private static string BuildMemberDisplayName(MitgliedRecord member)
+    {
+        var displayName = $"{member.Vorname} {member.Name}".Trim();
+        if (member.Mitgliedsnummer > 0)
+            return string.IsNullOrWhiteSpace(displayName)
+                ? $"Mgl.-Nr. {member.Mitgliedsnummer}"
+                : $"{displayName} · Mgl.-Nr. {member.Mitgliedsnummer}";
+
+        return string.IsNullOrWhiteSpace(displayName) ? "Mitglied" : displayName;
     }
 
     private static string GetGartenNrSortKey(string? gartenNr)
