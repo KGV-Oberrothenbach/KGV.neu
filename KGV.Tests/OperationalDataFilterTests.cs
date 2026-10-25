@@ -57,6 +57,14 @@ public sealed class OperationalDataFilterTests
     }
 
     [Fact]
+    public void IsOperationalMember_ReturnsFalse_ForPendingApplicant()
+    {
+        var member = new MitgliedRecord { Id = 5, IsDemo = false, AufnahmeStatus = "antrag_offen" };
+
+        Assert.False(OperationalDataFilter.IsOperationalMember(member));
+    }
+
+    [Fact]
     public void IsOperationalAppUser_ReturnsFalse_WhenDisplayNameContainsPlayStoreMarker()
     {
         var result = OperationalDataFilter.IsOperationalAppUser(

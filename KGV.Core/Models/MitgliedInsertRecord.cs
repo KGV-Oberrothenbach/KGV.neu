@@ -59,4 +59,7 @@ public sealed class MitgliedInsertRecord : BaseModel
 
     [Column("aktiv")]
     public bool Aktiv { get; set; } = true;
+
+    [Column("aufnahme_status")]
+    public string AufnahmeStatus { get; set; } = "aufgenommen";
 }

@@ -204,7 +204,24 @@ public sealed class WartungsvertragEditorPage : ContentPage, IQueryAttributable
                 return;
 
             long savedId;
+            var grundlegendeAenderung = false;
             if (_wartungsvertragId.HasValue)
+            {
+                var choice = await DisplayActionSheetAsync(
+                    "Enthält die Änderung grundlegende Vertragsänderungen?",
+                    "Abbrechen",
+                    null,
+                    "Nein – bestehende Definition aktualisieren",
+                    "Ja – neue Vertragsfassung anlegen");
+                if (choice is null or "Abbrechen")
+                {
+                    _statusLabel.Text = "Speichern abgebrochen.";
+                    return;
+                }
+                grundlegendeAenderung = choice.StartsWith("Ja", StringComparison.Ordinal);
+            }
+
+            if (_wartungsvertragId.HasValue && !grundlegendeAenderung)
             {
                 record.Id = _wartungsvertragId.Value;
                 var success = await _supabaseService.UpdateWartungsvertragAsync(record);
@@ -226,6 +243,8 @@ public sealed class WartungsvertragEditorPage : ContentPage, IQueryAttributable
                 }
 
                 savedId = created.Id;
+                if (grundlegendeAenderung)
+                    _statusLabel.Text = "Neue Vertragsfassung angelegt. Neue Zuordnungen benötigen einen neuen unterschriebenen Erstvertrag.";
             }
 
             await ReturnAfterSaveAsync(savedId);

@@ -25,11 +25,11 @@ public sealed class PreparedLeaseContractVereinsunterlagenService
 
         if (PreparedContractDraftParser.Parse(contract.EntwurfDaten) is not PreparedLeaseContractDraft draft || draft.MemberId != contract.MitgliedId)
             throw new PreparedContractValidationException("Der gespeicherte Pachtvertragsentwurf passt nicht zum Vertragsvorgang.");
-        if (!VereinsunterlagenNachweisHelper.IsComplete(draft.VereinsunterlagenNachweis))
+        if (!VereinsunterlagenNachweisHelper.IsComplete(draft.VereinsunterlagenNachweis, PreparedContractConstants.LeaseContract))
             throw new PreparedContractValidationException("Der vorbereitete Pachtvertrag enthält noch keinen Vereinsunterlagen-Snapshot. Bitte erstellen Sie zuerst eine neue Vorschau.");
 
-        var currentSnapshot = await _vereinsunterlagenService.CreateCurrentSnapshotAsync(contract.MitgliedId, cancellationToken);
-        if (VereinsunterlagenNachweisHelper.Equivalent(draft.VereinsunterlagenNachweis, currentSnapshot))
+        var currentSnapshot = await _vereinsunterlagenService.CreateCurrentSnapshotAsync(contract.MitgliedId, PreparedContractConstants.LeaseContract, cancellationToken);
+        if (VereinsunterlagenNachweisHelper.Equivalent(draft.VereinsunterlagenNachweis, currentSnapshot, PreparedContractConstants.LeaseContract))
             return;
 
         await _repository.UpdateDraftAsync(

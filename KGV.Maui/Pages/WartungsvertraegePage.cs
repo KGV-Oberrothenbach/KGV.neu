@@ -37,6 +37,8 @@ public sealed class WartungsvertraegePage : ContentPage
         _refreshButton.Clicked += async (_, _) => await LoadAsync();
         _newButton = new Button { Text = "Neu", IsVisible = false };
         _newButton.Clicked += async (_, _) => await Shell.Current.GoToAsync(nameof(WartungsvertragEditorPage));
+        var expiringButton = new Button { Text = "Auslaufende Wartungsverträge" };
+        expiringButton.Clicked += async (_, _) => await Shell.Current.GoToAsync(nameof(AuslaufendeWartungsvertraegePage));
 
         _itemsView = new CollectionView
         {
@@ -107,7 +109,7 @@ public sealed class WartungsvertraegePage : ContentPage
                     new HorizontalStackLayout
                     {
                         Spacing = 8,
-                        Children = { _refreshButton, _newButton }
+                        Children = { _refreshButton, _newButton, expiringButton }
                     },
                     _countLabel,
                     _statusLabel,

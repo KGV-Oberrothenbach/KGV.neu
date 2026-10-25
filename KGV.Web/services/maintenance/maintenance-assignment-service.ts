@@ -1,6 +1,7 @@
 import type { ClubContext } from "../../models/auth/club";
 import { type BrowserSession } from "../../lib/supabase-auth";
 import { type MaintenanceAssignment } from "../../models/maintenance/maintenance-assignment";
+import type { HistoricalMaintenanceAssignment } from "../../models/documents/document-type";
 import { type MaintenanceContract } from "../../models/maintenance/maintenance-contract";
 import { getMember } from "../members/member-service";
 import { listCurrentGardenNumbersByMemberId } from "../parcels/parcel-service";
@@ -12,7 +13,7 @@ import { ensureMaintenanceDocumentWorkflow, type MaintenanceDocumentWorkflowRow 
 export { classifyMaintenanceAssignments } from "./maintenance-assignment-time-model.js";
 
 function fromRow(row: MaintenanceAssignmentRow): MaintenanceAssignment {
-  return { id: row.id, maintenanceContractId: row.wartungsvertrag_id, principalMemberId: row.hauptmitglied_id, validFrom: row.gueltig_ab, validUntil: row.gueltig_bis, note: row.bemerkung };
+  return { id: row.id, maintenanceContractId: row.wartungsvertrag_id, principalMemberId: row.hauptmitglied_id, validFrom: row.gueltig_ab, validUntil: row.gueltig_bis, note: row.bemerkung, predecessorAssignmentId: row.vorgaenger_zuordnung_id ?? null };
 }
 
 export type ClassifiedMaintenanceAssignments = { active: MaintenanceAssignment[]; future: MaintenanceAssignment[]; history: MaintenanceAssignment[] };
@@ -75,6 +76,22 @@ export async function loadMemberMaintenanceContracts(club: ClubContext, session:
   return { member, principalMember, principalMemberId, assignments: classifyMaintenanceAssignments(assignments, maintenanceReferenceDate(), contracts), contracts, documentWorkflows: [] as MaintenanceDocumentWorkflowRow[] };
 }
 
+export async function loadHistoricalDocumentMaintenanceAssignments(club: ClubContext, session: BrowserSession, selectedMemberId: number): Promise<{ principalMemberId: number; assignments: HistoricalMaintenanceAssignment[] }> {
+  const principalMemberId = await resolveMaintenancePrincipalMember(club, session, selectedMemberId);
+  const [assignments, contracts] = await Promise.all([loadMaintenanceAssignments(club, session, principalMemberId), loadMaintenanceContracts(club, session)]);
+  const contractById = new Map(contracts.map((contract) => [contract.id, contract]));
+  return {
+    principalMemberId,
+    assignments: assignments.map((assignment) => ({
+      id: assignment.id,
+      bezeichnung: contractById.get(assignment.maintenanceContractId)?.title ?? `Wartungsvertrag #${assignment.maintenanceContractId}`,
+      gueltigAb: assignment.validFrom,
+      gueltigBis: assignment.validUntil,
+      hauptmitgliedId: assignment.principalMemberId,
+    })).sort((left, right) => right.gueltigAb.localeCompare(left.gueltigAb) || right.id - left.id),
+  };
+}
+
 export async function loadAssignableMaintenanceContractsForMember(club: ClubContext, session: BrowserSession, selectedMemberId: number, validFrom: string): Promise<MaintenanceContractCandidate[]> {
   const principalMemberId = await resolveMaintenancePrincipalMember(club, session, selectedMemberId);
   const [contracts, assignments] = await Promise.all([loadMaintenanceContracts(club, session), loadMaintenanceAssignments(club, session)]);
@@ -95,7 +112,7 @@ export async function createMaintenanceAssignmentForContract(club: ClubContext, 
   const assignments = rows.map(fromRow);
   if (assignments.some((item) => item.principalMemberId === principalMemberId && maintenanceAssignmentIntervalsOverlap(item.validFrom, item.validUntil, input.validFrom, input.validUntil))) throw new Error("Das Mitglied besitzt diesen Wartungsvertrag im gewählten Zeitraum bereits.");
   if (calculatePeakMaintenanceOccupancy(assignments, { validFrom: input.validFrom, validUntil: input.validUntil }) > contract.maxActiveAssignments) throw new Error("Im gewählten Zeitraum ist das Kontingent des Wartungsvertrags ausgeschöpft.");
-  const created = await createMaintenanceAssignment(club, session, { wartungsvertrag_id: input.maintenanceContractId, hauptmitglied_id: principalMemberId, gueltig_ab: input.validFrom, gueltig_bis: input.validUntil, bemerkung: input.note?.trim() || null });
+  const created = await createMaintenanceAssignment(club, session, { wartungsvertrag_id: input.maintenanceContractId, hauptmitglied_id: principalMemberId, vertragspartei_mitglied_id: input.selectedMemberId, gueltig_ab: input.validFrom, gueltig_bis: input.validUntil, bemerkung: input.note?.trim() || null });
   const row = created[0];
   if (!row) throw new Error("Wartungsvertragszuordnung konnte nicht gespeichert werden.");
   try {
@@ -141,7 +158,7 @@ export async function assignMembersToMaintenanceContract(club: ClubContext, sess
   for (let index = 0; index < principalMemberIds.length; index += 1) {
     const principal = principalMemberIds[index]; const targetId = selectedMemberIds[index];
     try {
-      const inserted = await createMaintenanceAssignment(club, session, { wartungsvertrag_id: input.maintenanceContractId, hauptmitglied_id: principal, gueltig_ab: input.validFrom, gueltig_bis: null, bemerkung: input.note?.trim() || null });
+      const inserted = await createMaintenanceAssignment(club, session, { wartungsvertrag_id: input.maintenanceContractId, hauptmitglied_id: principal, vertragspartei_mitglied_id: targetId, gueltig_ab: input.validFrom, gueltig_bis: null, bemerkung: input.note?.trim() || null });
       if (!inserted[0]) throw new Error("Wartungsvertragszuordnung konnte nicht gespeichert werden.");
       created.push(fromRow(inserted[0]));
     } catch (cause) {
@@ -167,7 +184,7 @@ export async function assignMaintenanceContractsToMember(club: ClubContext, sess
   const created: MaintenanceAssignment[] = []; const failures: { targetId: number; message: string }[] = [];
   for (const contract of contracts as MaintenanceContract[]) {
     try {
-      const rows = await createMaintenanceAssignment(club, session, { wartungsvertrag_id: contract.id, hauptmitglied_id: principalMemberId, gueltig_ab: input.validFrom, gueltig_bis: null, bemerkung: input.note?.trim() || null });
+      const rows = await createMaintenanceAssignment(club, session, { wartungsvertrag_id: contract.id, hauptmitglied_id: principalMemberId, vertragspartei_mitglied_id: input.selectedMemberId, gueltig_ab: input.validFrom, gueltig_bis: null, bemerkung: input.note?.trim() || null });
       if (!rows[0]) throw new Error("Wartungsvertragszuordnung konnte nicht gespeichert werden.");
       created.push(fromRow(rows[0]));
     } catch (cause) {

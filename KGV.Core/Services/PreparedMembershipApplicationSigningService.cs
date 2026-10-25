@@ -90,10 +90,10 @@ public sealed class PreparedMembershipApplicationSigningService
     private async Task RevalidateVereinsunterlagenBeforeStartAsync(KommunikationsvorgangDto contract, CancellationToken cancellationToken)
     {
         var draft = ParseDraft(contract);
-        if (!VereinsunterlagenNachweisHelper.IsComplete(draft.VereinsunterlagenNachweis)) throw new PreparedContractValidationException("Der vorbereitete Mitgliedsantrag enthält noch keinen Vereinsunterlagen-Snapshot. Bitte erstellen Sie zuerst eine neue Vorschau.");
+        if (!VereinsunterlagenNachweisHelper.IsComplete(draft.VereinsunterlagenNachweis, PreparedContractConstants.MembershipApplication)) throw new PreparedContractValidationException("Der vorbereitete Mitgliedsantrag enthält noch keinen Satzungsnachweis. Bitte erstellen Sie zuerst eine neue Vorschau.");
         if (_vereinsunterlagenService is null) throw new InvalidOperationException("Der Vereinsunterlagenservice ist für den Signaturstart nicht registriert.");
-        var current = await _vereinsunterlagenService.CreateCurrentSnapshotAsync(contract.MitgliedId, cancellationToken);
-        if (VereinsunterlagenNachweisHelper.Equivalent(draft.VereinsunterlagenNachweis, current)) return;
+        var current = await _vereinsunterlagenService.CreateCurrentSnapshotAsync(contract.MitgliedId, PreparedContractConstants.MembershipApplication, cancellationToken);
+        if (VereinsunterlagenNachweisHelper.Equivalent(draft.VereinsunterlagenNachweis, current, PreparedContractConstants.MembershipApplication)) return;
         await _repository.UpdateDraftAsync(contract.Id, contract.Revision, PreparedContractDraftParser.Serialize(draft with { VereinsunterlagenNachweis = current }), cancellationToken);
         throw new PreparedContractValidationException("Die Pflichtunterlagen haben sich seit der Vorschau geändert. Der aktualisierte Entwurf wurde gespeichert; bitte erstellen Sie eine neue Vorschau.");
     }

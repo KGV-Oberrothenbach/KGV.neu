@@ -16,6 +16,8 @@ internal static class ShellRouteRegistrar
         Routing.RegisterRoute(nameof(MemberDetailPage), typeof(MemberDetailPage));
         Routing.RegisterRoute(nameof(WartungsvertraegePage), typeof(WartungsvertraegePage));
         Routing.RegisterRoute(nameof(MemberWartungsvertraegePage), typeof(MemberWartungsvertraegePage));
+        Routing.RegisterRoute(nameof(WartungsvertragFortfuehrungPage), typeof(WartungsvertragFortfuehrungPage));
+        Routing.RegisterRoute(nameof(AuslaufendeWartungsvertraegePage), typeof(AuslaufendeWartungsvertraegePage));
         Routing.RegisterRoute(nameof(WartungsvertragDetailPage), typeof(WartungsvertragDetailPage));
         Routing.RegisterRoute(nameof(WartungsvertragEditorPage), typeof(WartungsvertragEditorPage));
         Routing.RegisterRoute(nameof(WartungsvertragAssignMembersPage), typeof(WartungsvertragAssignMembersPage));

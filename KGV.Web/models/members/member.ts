@@ -4,6 +4,7 @@ export type Member = {
   name: string | null;
   email: string | null;
   aktiv: boolean;
+  aufnahme_status?: "antrag_offen" | "aufgenommen" | "abgelehnt";
   hauptmitglied_id: number | null;
   auth_user_id?: string | null;
   geburtsdatum: string | null;

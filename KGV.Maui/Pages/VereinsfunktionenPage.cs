@@ -68,7 +68,7 @@ public sealed class VereinsfunktionenPage : ContentPage
             _details.Children.Add(Row(MemberName(x.MitgliedId) + " · " + Date(x.GueltigAb) + " – " + Date(x.GueltigBis) + " · " + AssignmentState(x), "Bearbeiten / beenden", () => EditAssignmentAsync(x)));
         _details.Children.Add(new Label { Text = "Verwendungszwecke", FontAttributes = FontAttributes.Bold });
         foreach (var x in _uses.Where(x => x.VereinsfunktionId == _selected.Id))
-            _details.Children.Add(Row(x.Verwendungszweck == "impressum" ? "Impressum · " + x.ImpressumGruppeBezeichnung : x.Verwendungszweck, "Bearbeiten", () => EditUseAsync(x)));
+            _details.Children.Add(UseRow(x));
         _details.Children.Add(new Label { Text = "Vertretungen", FontAttributes = FontAttributes.Bold });
         _details.Children.Add(Buttons(("Neue Vertretung", NewRepresentationAsync)));
         foreach (var x in _representations.Where(IsRepresentationForSelected))
@@ -111,9 +111,23 @@ public sealed class VereinsfunktionenPage : ContentPage
     }
 
     private async Task NewUseAsync() { if (_selected != null) await EditUseAsync(new VereinsfunktionVerwendungRecord { VereinsfunktionId = _selected.Id }); }
+    private async Task DeleteUseAsync(VereinsfunktionVerwendungRecord record)
+    {
+        var confirmed = await DisplayAlert("Verwendungszweck entfernen", $"{record.Verwendungszweck} wirklich entfernen?", "Entfernen", "Abbrechen");
+        if (!confirmed) return;
+        try
+        {
+            await _service.DeleteVereinsfunktionVerwendungAsync(record.Id);
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlert("Entfernen nicht möglich", ErrorText(ex), "OK");
+        }
+    }
     private async Task EditUseAsync(VereinsfunktionVerwendungRecord record)
     {
-        var purpose = new Picker { ItemsSource = new List<string> { "impressum", "vertragsunterzeichnung" }, SelectedItem = record.Verwendungszweck }; var group = new Entry { Text = record.ImpressumGruppe }; var label = new Entry { Text = record.ImpressumGruppeBezeichnung }; var groupOrder = new Entry { Text = record.ImpressumGruppenSortOrder.ToString(), Keyboard = Keyboard.Numeric }; var order = new Entry { Text = record.SortOrder.ToString(), Keyboard = Keyboard.Numeric }; var primary = new Switch { IsToggled = record.ImpressumIstHauptkontakt }; var address = new Switch { IsToggled = record.ImpressumZeigeLadungsfaehigeAnschrift };
+        var purpose = new Picker { ItemsSource = new List<string> { "impressum", "vertragsunterzeichnung", "mitgliedsaufnahme_abstimmung", "mitgliedsaufnahme_entscheidung", "wartungsvertrag_entscheidung" }, SelectedItem = record.Verwendungszweck }; var group = new Entry { Text = record.ImpressumGruppe }; var label = new Entry { Text = record.ImpressumGruppeBezeichnung }; var groupOrder = new Entry { Text = record.ImpressumGruppenSortOrder.ToString(), Keyboard = Keyboard.Numeric }; var order = new Entry { Text = record.SortOrder.ToString(), Keyboard = Keyboard.Numeric }; var primary = new Switch { IsToggled = record.ImpressumIstHauptkontakt }; var address = new Switch { IsToggled = record.ImpressumZeigeLadungsfaehigeAnschrift };
         await EditPage("Verwendungszweck", new[] { Field("Verwendungszweck", purpose), Field("Funktionssortierung", order), Field("Gruppenschlüssel (Impressum)", group), Field("Gruppenbezeichnung (Impressum)", label), Field("Gruppensortierung", groupOrder), Field("Hauptkontakt", primary), Field("Ladungsfähige Anschrift", address) }, async () =>
         {
             if (purpose.SelectedItem is not string value || !short.TryParse(order.Text, out var sort) || !short.TryParse(groupOrder.Text, out var groupSort)) throw new InvalidOperationException("Bitte Verwendungszweck und Sortierungen prüfen.");
@@ -129,6 +143,13 @@ public sealed class VereinsfunktionenPage : ContentPage
 
     private HorizontalStackLayout Buttons(params (string text, Func<Task> action)[] values) { var row = new HorizontalStackLayout { Spacing = 8 }; foreach (var value in values) { var b = new Button { Text = value.text }; b.Clicked += async (_, _) => await value.action(); row.Children.Add(b); } return row; }
     private View Row(string text, string action, Func<Task> callback) { var button = new Button { Text = action }; button.Clicked += async (_, _) => await callback(); return new HorizontalStackLayout { Spacing = 8, Children = { new Label { Text = text, HorizontalOptions = LayoutOptions.Fill, LineBreakMode = LineBreakMode.WordWrap }, button } }; }
+    private View UseRow(VereinsfunktionVerwendungRecord record)
+    {
+        var edit = new Button { Text = "Bearbeiten" }; edit.Clicked += async (_, _) => await EditUseAsync(record);
+        var remove = new Button { Text = "Entfernen" }; remove.Clicked += async (_, _) => await DeleteUseAsync(record);
+        var text = record.Verwendungszweck == "impressum" ? "Impressum · " + record.ImpressumGruppeBezeichnung : record.Verwendungszweck;
+        return new HorizontalStackLayout { Spacing = 8, Children = { new Label { Text = text, HorizontalOptions = LayoutOptions.Fill, LineBreakMode = LineBreakMode.WordWrap }, edit, remove } };
+    }
     private static View Field(string label, View input) => new VerticalStackLayout { Spacing = 2, Children = { new Label { Text = label }, input } };
     private Picker AssignmentPicker(long id) { var values = _assignments.Select(x => new Choice(x.Id, AssignmentName(x.Id))).ToList(); var picker = new Picker { ItemsSource = values, ItemDisplayBinding = new Binding(nameof(Choice.Label)) }; picker.SelectedItem = values.FirstOrDefault(x => x.Id == id); return picker; }
     private string MemberName(long id) => _members.TryGetValue(id, out var m) ? (m.Vorname + " " + m.Name + (string.IsNullOrWhiteSpace(m.Email) ? "" : " · " + m.Email)) : "Unbekanntes Mitglied";
@@ -137,7 +158,7 @@ public sealed class VereinsfunktionenPage : ContentPage
     private static string Date(DateTime? value) => value?.ToString("dd.MM.yyyy") ?? "offen";
     private static string AssignmentState(VereinsfunktionBesetzungRecord item) => item.GueltigAb.Date > DateTime.Today ? "zukünftig" : item.GueltigBis is { } until && until.Date < DateTime.Today ? "historisch" : "aktuell";
     private static string Key(string value) => string.Concat(value.ToLowerInvariant().Select(c => char.IsLetterOrDigit(c) ? c : '_')).Trim('_');
-    private static string ErrorText(Exception error) { var text = error.Message; if (text.Contains("eigene Besetzung", StringComparison.OrdinalIgnoreCase)) return "Eine Person kann nicht ihre eigene Besetzung vertreten."; if (text.Contains("Vertretungszeitraum", StringComparison.OrdinalIgnoreCase)) return "Der Vertretungszeitraum muss innerhalb beider Besetzungen liegen."; if (text.Contains("Einzelbesetzung", StringComparison.OrdinalIgnoreCase)) return "Bei Einzelbesetzung dürfen sich Zeiträume nicht überschneiden."; if (text.Contains("Vertretung", StringComparison.OrdinalIgnoreCase)) return "Diese Änderung würde eine bestehende Vertretung ungültig machen."; return "Die Änderung konnte nicht gespeichert werden. " + text; }
+    private static string ErrorText(Exception error) { var text = error.Message; if (text.Contains("eigene Besetzung", StringComparison.OrdinalIgnoreCase)) return "Eine Person kann nicht ihre eigene Besetzung vertreten."; if (text.Contains("Vertretungszeitraum", StringComparison.OrdinalIgnoreCase)) return "Der Vertretungszeitraum muss innerhalb beider Besetzungen liegen."; if (text.Contains("Einzelbesetzung", StringComparison.OrdinalIgnoreCase)) return "Bei Einzelbesetzung dürfen sich Zeiträume nicht überschneiden."; if (text.Contains("historisch", StringComparison.OrdinalIgnoreCase) || text.Contains("Besetzung beenden und eine neue anlegen", StringComparison.OrdinalIgnoreCase)) return "Funktion, Mitglied und Beginn einer Besetzung bleiben unveränderlich. Bitte die Besetzung beenden und neu anlegen."; if (text.Contains("Schlüssel", StringComparison.OrdinalIgnoreCase) && text.Contains("unveränderlich", StringComparison.OrdinalIgnoreCase)) return "Der technische Schlüssel bleibt nach der Neuanlage unveränderlich."; if (text.Contains("duplicate", StringComparison.OrdinalIgnoreCase) || text.Contains("unique", StringComparison.OrdinalIgnoreCase)) return "Diese Verwendung ist für die Funktion bereits hinterlegt."; if (text.Contains("Vertretung", StringComparison.OrdinalIgnoreCase)) return "Diese Änderung würde eine bestehende Vertretung ungültig machen."; return "Die Änderung konnte nicht gespeichert werden. " + text; }
     private sealed record Choice(long Id, string Label);
     private sealed class BoolTextConverter : IValueConverter { public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) => value is true ? "Aktiv" : "Inaktiv"; public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => false; }
 }

@@ -16,6 +16,9 @@ public sealed class WartungsvertragZuordnungRecord : BaseModel
     [Column("wartungsvertrag_id")]
     public long WartungsvertragId { get; set; }
 
+    [Column("vorgaenger_zuordnung_id")]
+    public long? VorgangerZuordnungId { get; set; }
+
     [Column("hauptmitglied_id")]
     public long HauptmitgliedId { get; set; }
 

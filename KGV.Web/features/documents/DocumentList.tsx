@@ -20,9 +20,10 @@ type DocumentListProps = {
   compact?: boolean;
   accessContext: DocumentAccessContext;
   beforeList?: (reload: () => Promise<void>) => ReactNode;
+  onDocumentsChanged?: () => Promise<void> | void;
 };
 
-export function DocumentList({ session, owner, compact = false, accessContext, beforeList }: DocumentListProps) {
+export function DocumentList({ session, owner, compact = false, accessContext, beforeList, onDocumentsChanged }: DocumentListProps) {
   const club = useSelectedClub();
   const [items, setItems] = useState<Document[]>([]);
   const [error, setError] = useState("");
@@ -101,6 +102,7 @@ export function DocumentList({ session, owner, compact = false, accessContext, b
       setFile(null);
       setTitle("");
       await load();
+      await onDocumentsChanged?.();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Das Dokument konnte nicht gespeichert werden.");
     } finally {
@@ -115,6 +117,7 @@ export function DocumentList({ session, owner, compact = false, accessContext, b
     try {
       await archiveDocument(club, session, documentToArchive.id, reason, password);
       await load();
+      await onDocumentsChanged?.();
       setDocumentToArchive(null);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Das Dokument konnte nicht archiviert werden.");

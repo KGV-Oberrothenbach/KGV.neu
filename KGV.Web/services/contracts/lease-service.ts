@@ -4,7 +4,8 @@ import { resolveDocumentOpenUrl } from "../documents/document-open-service";
 import { type Member } from "../../models/members/member";
 import { listLeaseContractDocuments, listLegalRepresentativeRelations, listMembershipApplicationDocuments, type LeaseContractDocument } from "../../repositories/contracts/contract-repository";
 import { getSecondaryMemberByMainMemberId } from "../../repositories/members/member-repository";
-import { getActiveLeaseRelationshipStatus, type ActiveLeaseRelationshipStatus } from "../../repositories/contracts/lease-relationship-repository";
+import { getActiveLeaseRelationshipStatus, listMemberLeaseRelationships, type ActiveLeaseRelationshipStatus } from "../../repositories/contracts/lease-relationship-repository";
+import type { HistoricalLeaseRelationship } from "../../models/documents/document-type";
 import { getLeaseParcel, listLeaseParcels, listLeaseParcelsForMember, type LeaseParcel } from "../../repositories/parcels/parcel-repository";
 import { getSeasons } from "../seasons/season-service";
 import type { Season } from "../../models/seasons/season";
@@ -34,6 +35,27 @@ export function prepareLeaseContractRequest(data: LeaseContractData, draft: Leas
 export async function listEligibleLeaseParcels(club: ClubContext, session: BrowserSession, memberId: number, startDate: string) {
   const assignments = await listLeaseParcelsForMember(club, session, memberId);
   return listLeaseParcels(club, session, [...new Set(assignments.filter((item) => isAssignmentActiveAt(item, startDate)).map((item) => item.parzelle_id))]);
+}
+
+export async function loadMemberLeaseRelationships(club: ClubContext, session: BrowserSession, memberId: number): Promise<HistoricalLeaseRelationship[]> {
+  const { participations, relationships, parcels } = await listMemberLeaseRelationships(club, session, memberId);
+  const relationshipById = new Map(relationships.map((item) => [item.id, item]));
+  const parcelById = new Map(parcels.map((item) => [item.id, item]));
+  return participations.flatMap((participation) => {
+    const relationship = relationshipById.get(participation.pachtverhaeltnis_id);
+    if (!relationship) return [];
+    const parcel = parcelById.get(relationship.parzelle_id);
+    return [{
+      pachtverhaeltnisId: relationship.id,
+      gartenNr: parcel?.garten_nr ?? null,
+      anlage: parcel?.Anlage ?? null,
+      rolle: participation.rolle,
+      gueltigAb: participation.gueltig_ab,
+      gueltigBis: participation.gueltig_bis,
+      urspruenglicherPachtbeginn: relationship.urspruenglicher_pachtbeginn,
+      beendetAm: relationship.beendet_am,
+    }];
+  }).sort((left, right) => right.gueltigAb.localeCompare(left.gueltigAb) || right.pachtverhaeltnisId - left.pachtverhaeltnisId);
 }
 
 export async function loadLeaseContractData(club: ClubContext, session: BrowserSession, memberId: number, parcelId: number, startDate: string): Promise<LeaseContractData> {

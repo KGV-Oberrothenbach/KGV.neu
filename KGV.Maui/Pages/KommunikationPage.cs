@@ -74,6 +74,7 @@ public sealed class KommunikationPage : ContentPage
             {
                 new Label { Text = "Vorgänge", FontSize = 24, FontAttributes = FontAttributes.Bold },
                 new Label { Text = "Vorbereitete Vertrags- und Prüfvorgänge", TextColor = Colors.Gray },
+                CreateBoardReviewButton(),
                 new FlexLayout { Direction = FlexDirection.Row, Wrap = FlexWrap.Wrap, Children = { mine, unassigned, all } },
                 _statusLabel,
                 _emptyLabel,
@@ -92,6 +93,13 @@ public sealed class KommunikationPage : ContentPage
     {
         var button = new Button { Text = text };
         button.Clicked += async (_, _) => { _filter = filter; await LoadAsync(); };
+        return button;
+    }
+
+    private Button CreateBoardReviewButton()
+    {
+        var button = new Button { Text = "Vorstand · Mitgliedsanträge", HorizontalOptions = LayoutOptions.Start };
+        button.Clicked += async (_, _) => await Navigation.PushAsync(new MembershipBoardReviewPage(_supabaseService, _userContext));
         return button;
     }
 
@@ -253,9 +261,8 @@ public sealed class KommunikationPage : ContentPage
     private async Task<PreparedContractAuthorizedSignatoryDto?> SelectClubSignatoryAsync(PreparedMembershipApplicationSignatureState state, PreparedContractSignatureDto position)
     {
         if (position.UnterzeichnerTyp != "vereinsunterzeichner") return null;
-        var excluded = state.Positions.FirstOrDefault(other => other.SignaturSchluessel != position.SignaturSchluessel && other.SignaturSchluessel is "vorstand_1" or "vorstand_2" && other.Status == PreparedContractSignatureStatuses.Signed)?.MitgliedId;
-        var date = DateOnly.Parse(state.Draft.StartDate, System.Globalization.CultureInfo.InvariantCulture);
-        var options = (await _preparedSignatures.GetAuthorizedClubSignatoriesAsync(date)).Where(option => option.MitgliedId != excluded).ToArray();
+        var excluded = state.Positions.FirstOrDefault(other => other.SignaturSchluessel != position.SignaturSchluessel && (other.SignaturSchluessel is "vorstand_1" or "vorstand_2") && other.Status == PreparedContractSignatureStatuses.Signed)?.MitgliedId;
+        var options = (await _preparedSignatures.GetAuthorizedClubSignatoriesAsync(state.Contract.Id, state.Contract.SignaturRevision!.Value)).Where(option => option.MitgliedId != excluded).ToArray();
         if (options.Length == 0) { await DisplayAlertAsync("Vereinsunterzeichner", "Es ist kein berechtigter Vereinsunterzeichner verfügbar.", "OK"); return null; }
         var labels = options.Select(ClubSignatoryText).ToArray(); var selected = await DisplayActionSheetAsync("Vereinsunterzeichner auswählen", "Abbrechen", null, labels);
         return options.FirstOrDefault(option => ClubSignatoryText(option) == selected);
@@ -296,7 +303,7 @@ public sealed class KommunikationPage : ContentPage
         }
     }
     private async Task<PreparedContractAuthorizedSignatoryDto?> SelectMaintenanceClubSignatoryAsync(PreparedMaintenanceContractSignatureState state, PreparedContractSignatureDto position)
-    { var excluded = state.Positions.FirstOrDefault(other => other.SignaturSchluessel != position.SignaturSchluessel && other.SignaturSchluessel is "vorstand_1" or "vorstand_2" && other.Status == PreparedContractSignatureStatuses.Signed)?.MitgliedId; var options = (await _preparedSignatures.GetAuthorizedClubSignatoriesAsync(DateOnly.FromDateTime(DateTime.Today))).Where(option => option.MitgliedId != excluded).ToArray(); if (options.Length == 0) { await DisplayAlertAsync("Vereinsunterzeichner", "Es ist kein berechtigter Vereinsunterzeichner verfügbar.", "OK"); return null; } var selected = await DisplayActionSheetAsync("Vereinsunterzeichner auswählen", "Abbrechen", null, options.Select(ClubSignatoryText).ToArray()); return options.FirstOrDefault(option => ClubSignatoryText(option) == selected); }
+    { var excluded = state.Positions.FirstOrDefault(other => other.SignaturSchluessel != position.SignaturSchluessel && (other.SignaturSchluessel is "vorstand_1" or "vorstand_2") && other.Status == PreparedContractSignatureStatuses.Signed)?.MitgliedId; var options = (await _preparedSignatures.GetAuthorizedClubSignatoriesAsync(state.Contract.Id, state.Contract.SignaturRevision!.Value)).Where(option => option.MitgliedId != excluded).ToArray(); if (options.Length == 0) { await DisplayAlertAsync("Vereinsunterzeichner", "Es ist kein berechtigter Vereinsunterzeichner verfügbar.", "OK"); return null; } var selected = await DisplayActionSheetAsync("Vereinsunterzeichner auswählen", "Abbrechen", null, options.Select(ClubSignatoryText).ToArray()); return options.FirstOrDefault(option => ClubSignatoryText(option) == selected); }
     private static string MaintenancePositionLabel(PreparedContractSignatureDto position) => position.SignaturSchluessel switch { "mitglied" => "Mitglied", "vorstand_1" => "Vereinsunterzeichner 1", "vorstand_2" => "Vereinsunterzeichner 2", _ => position.SignaturSchluessel };
     private static string MaintenancePositionText(PreparedContractSignatureDto position) => $"{(position.Status == PreparedContractSignatureStatuses.Signed ? "✓" : "○")} {MaintenancePositionLabel(position)}{(string.IsNullOrWhiteSpace(position.UnterzeichnerNameSnapshot) ? "" : $" – {position.UnterzeichnerNameSnapshot}")}{(string.IsNullOrWhiteSpace(position.VereinsfunktionBezeichnungSnapshot) ? "" : $" · {position.VereinsfunktionBezeichnungSnapshot}")}{(position.VertretungId is null ? "" : $" · Vertretung für {position.VertreteneFunktionBezeichnungSnapshot}")}{(position.UnterzeichnetAm is null ? "" : $" · {position.UnterzeichnetAm.Value.LocalDateTime:g}")}";
 
@@ -344,9 +351,8 @@ public sealed class KommunikationPage : ContentPage
     private async Task<PreparedContractAuthorizedSignatoryDto?> SelectLeaseClubSignatoryAsync(PreparedLeaseContractSignatureState state, PreparedContractSignatureDto position)
     {
         if (position.UnterzeichnerTyp != "vereinsunterzeichner") return null;
-        var excluded = state.Positions.FirstOrDefault(other => other.SignaturSchluessel != position.SignaturSchluessel && other.SignaturSchluessel is "vorstand_1" or "vorstand_2" && other.Status == PreparedContractSignatureStatuses.Signed)?.MitgliedId;
-        var date = DateOnly.Parse(state.Draft.Draft.StartDate, System.Globalization.CultureInfo.InvariantCulture);
-        var options = (await _preparedSignatures.GetAuthorizedClubSignatoriesAsync(date)).Where(option => option.MitgliedId != excluded).ToArray();
+        var excluded = state.Positions.FirstOrDefault(other => other.SignaturSchluessel != position.SignaturSchluessel && (other.SignaturSchluessel is "vorstand_1" or "vorstand_2") && other.Status == PreparedContractSignatureStatuses.Signed)?.MitgliedId;
+        var options = (await _preparedSignatures.GetAuthorizedClubSignatoriesAsync(state.Contract.Id, state.Contract.SignaturRevision!.Value)).Where(option => option.MitgliedId != excluded).ToArray();
         if (options.Length == 0) { await DisplayAlertAsync("Vereinsunterzeichner", "Es ist kein berechtigter Vereinsunterzeichner verfügbar.", "OK"); return null; }
         var labels = options.Select(ClubSignatoryText).ToArray(); var selected = await DisplayActionSheetAsync("Vereinsunterzeichner auswählen", "Abbrechen", null, labels);
         return options.FirstOrDefault(option => ClubSignatoryText(option) == selected);

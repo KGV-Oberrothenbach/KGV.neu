@@ -64,12 +64,13 @@ public sealed class PreparedContractSignatureRepository : IPreparedContractSigna
         return Single(rows, "Die Signatur konnte nicht persistent gespeichert werden.");
     }
 
-    public async Task<IReadOnlyList<PreparedContractAuthorizedSignatoryDto>> ListAuthorizedClubSignatoriesAsync(DateOnly stichtag, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<PreparedContractAuthorizedSignatoryDto>> ListAuthorizedClubSignatoriesAsync(long kommunikationsvorgangId, int signaturRevision, CancellationToken cancellationToken = default)
     {
         var token = await TokenAsync();
         using var client = _httpClientFactory();
-        using var request = CreateRequest(HttpMethod.Post, "rpc/vereinsfunktion_vertragsunterzeichner", token);
-        request.Content = new StringContent(JsonSerializer.Serialize(new { p_stichtag = stichtag.ToString("yyyy-MM-dd") }), Encoding.UTF8, "application/json");
+        ValidateIds(kommunikationsvorgangId, signaturRevision);
+        using var request = CreateRequest(HttpMethod.Post, "rpc/prepared_contract_snapshot_unterzeichner", token);
+        request.Content = new StringContent(JsonSerializer.Serialize(new { p_kommunikationsvorgang_id = kommunikationsvorgangId, p_signatur_revision = signaturRevision }), Encoding.UTF8, "application/json");
         using var response = await client.SendAsync(request, cancellationToken);
         var content = await response.Content.ReadAsStringAsync(cancellationToken);
         EnsureSuccess(response, "Die Vertragsunterzeichner konnten nicht geladen werden.");

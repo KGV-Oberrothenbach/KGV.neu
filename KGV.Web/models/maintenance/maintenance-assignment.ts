@@ -5,6 +5,7 @@ export type MaintenanceAssignment = {
   validFrom: string;
   validUntil: string | null;
   note: string | null;
+  predecessorAssignmentId?: number | null;
 };
 
 export type MaintenanceAssignmentDraft = Omit<MaintenanceAssignment, "id">;

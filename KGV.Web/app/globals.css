@@ -2,6 +2,11 @@
 @import "tw-animate-css";
 @import "../vendor/shadcn-tailwind-4.13.0.css";
 
+.document-proof-status { display: flex; align-items: center; flex-wrap: wrap; gap: .45rem; margin: .65rem 0; }
+.proof-status.unterschrieben { background: #e2f1d8; color: #305a27; }
+.proof-status.nur_unsigniert { background: #fff0cb; color: #76530a; }
+.proof-status.kein_nachweis { background: #e8ece7; color: #475147; }
+
 @utility scrollbar-thin {
   scrollbar-width: thin;
 }

@@ -625,6 +625,19 @@ async function mayReadDocument(auth: AuthenticatedDocumentUser & { supabaseAdmin
   if (await isDocumentInDemoScope(auth, document as DriveDocumentRecord) !== auth.isDemoAccount)
     return null;
 
+  // This RPC owns the same narrowly scoped rule as the document SELECT policy.
+  // It is evaluated before the legacy role/owner checks because the service-role
+  // client used here deliberately bypasses RLS.
+  const { data: boardAccess, error: boardAccessError } = await auth.supabaseAdmin
+    .rpc("can_access_mitgliedsaufnahme_vorstand_document", {
+      p_auth_user_id: auth.userId,
+      p_dokument_id: documentId,
+    });
+  if (boardAccessError)
+    throw new Error(`Vorstands-Dokumentberechtigung konnte nicht geprüft werden: ${boardAccessError.message}`);
+  if (boardAccess === true)
+    return document as DriveDocumentRecord;
+
   const isManager = auth.role === "admin" || auth.role === "vorstand";
   if (isManager)
     return document as DriveDocumentRecord;

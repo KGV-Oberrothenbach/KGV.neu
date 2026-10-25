@@ -31,7 +31,7 @@ export type MemberEditPermissions = {
   canEditAllMembers: boolean;
 };
 
-export type MemberStammdatenInput = Pick<Member, "vorname" | "name" | "email" | "geburtsdatum" | "arbeitsstunden_altersregel_typ" | "adresse" | "plz" | "ort" | "telefon" | "handy" | "whatsapp_einwilligung" | "email_rechnung_einwilligung" | "email_info_einwilligung" | "mitglied_seit" | "bemerkung">;
+export type MemberStammdatenInput = Pick<Member, "vorname" | "name" | "email" | "geburtsdatum" | "arbeitsstunden_altersregel_typ" | "adresse" | "plz" | "ort" | "telefon" | "handy" | "whatsapp_einwilligung" | "email_rechnung_einwilligung" | "email_info_einwilligung" | "mitglied_seit" | "bemerkung"> & { alsAntragsteller?: boolean };
 
 export type MemberCreatePermissions = { canCreateMember: boolean };
 
@@ -82,10 +82,11 @@ export async function createMainMember(club: ClubContext, session: BrowserSessio
     whatsapp_einwilligung: Boolean(input.whatsapp_einwilligung),
     email_rechnung_einwilligung: Boolean(input.email_rechnung_einwilligung),
     email_info_einwilligung: Boolean(input.email_info_einwilligung),
-    mitglied_seit: input.mitglied_seit || null,
+    aufnahme_status: input.alsAntragsteller ? "antrag_offen" : "aufgenommen",
+    mitglied_seit: input.alsAntragsteller ? null : input.mitglied_seit || null,
     mitglied_ende: null,
     bemerkung: input.bemerkung?.trim() || null,
-    aktiv: true,
+    aktiv: !input.alsAntragsteller,
   });
   if (!created[0]) throw new Error("Mitglied konnte nicht angelegt werden.");
   return created[0];

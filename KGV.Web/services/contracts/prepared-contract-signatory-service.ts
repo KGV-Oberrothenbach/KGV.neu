@@ -9,6 +9,6 @@ export const preparedContractSignatoryLabel = (value: PreparedContractAuthorized
   return `${value.unterzeichner_name} · ${value.vereinsfunktion_bezeichnung}${representation}`;
 };
 
-export async function loadPreparedContractSignatories(club: ClubContext, session: BrowserSession, date: string) {
-  return listPreparedContractAuthorizedSignatories(club, session, date);
+export async function loadPreparedContractSignatories(club: ClubContext, session: BrowserSession, contractId: number, revision: number) {
+  return listPreparedContractAuthorizedSignatories(club, session, contractId, revision);
 }

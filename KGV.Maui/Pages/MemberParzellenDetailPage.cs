@@ -26,6 +26,9 @@ public sealed class MemberParzellenDetailPage : ContentPage
     private readonly UserContextState _userContextState;
     private readonly Label _contextErrorLabel;
     private readonly Label _pachtvertragDiagnoseLabel;
+    private readonly Label _pachtvertragNachweisLabel;
+    private readonly Button _openPachtvertragNachweisButton;
+    private long? _pachtvertragNachweisDokumentId;
     private readonly Button _pachtvertragButton;
     private readonly Button _openPachtvertragButton;
     private readonly Button _discardPachtvertragButton;
@@ -104,6 +107,9 @@ public sealed class MemberParzellenDetailPage : ContentPage
         _discardPachtvertragButton.Clicked += async (_, _) => await DiscardUnsigniertesPachtvertragAsync();
 
         _pachtvertragDiagnoseLabel = new Label { TextColor = Colors.DarkOrange, LineBreakMode = LineBreakMode.WordWrap, FontSize = 12 };
+        _pachtvertragNachweisLabel = new Label { TextColor = Colors.DarkSlateBlue, LineBreakMode = LineBreakMode.WordWrap, FontSize = 12 };
+        _openPachtvertragNachweisButton = new Button { Text = "Nachweisdokument öffnen", IsVisible = false };
+        _openPachtvertragNachweisButton.Clicked += async (_, _) => await OpenRelationalPachtvertragAsync();
 
         _viewModel.PropertyChanged += (_, _) => UpdatePachtvertragButtons();
 
@@ -133,6 +139,8 @@ public sealed class MemberParzellenDetailPage : ContentPage
         var pachtDiagnoseContainer = new VerticalStackLayout { Spacing = 2 };
         pachtDiagnoseContainer.Children.Add(pachtButtonsLayout);
         pachtDiagnoseContainer.Children.Add(_pachtvertragDiagnoseLabel);
+        pachtDiagnoseContainer.Children.Add(_pachtvertragNachweisLabel);
+        pachtDiagnoseContainer.Children.Add(_openPachtvertragNachweisButton);
 
         detailContainer.Children.Add(new Border
         {
@@ -332,12 +340,14 @@ public sealed class MemberParzellenDetailPage : ContentPage
                 await _viewModel.InitializeAsync();
                 _initialized = true;
                 await RefreshMitgliedsantragStatusAsync();
+                await RefreshPachtvertragNachweisAsync();
                 return;
             }
 
             await _viewModel.ApplyRequestedContextAsync();
             await _viewModel.RefreshSelectedDetailAsync();
             await RefreshMitgliedsantragStatusAsync();
+            await RefreshPachtvertragNachweisAsync();
         }
         catch (Exception ex)
         {
@@ -348,6 +358,50 @@ public sealed class MemberParzellenDetailPage : ContentPage
             _appearingInProgress = false;
         }
     }
+
+    private async Task RefreshPachtvertragNachweisAsync()
+    {
+        _pachtvertragNachweisLabel.Text = string.Empty;
+        _pachtvertragNachweisDokumentId = null;
+        _openPachtvertragNachweisButton.IsVisible = false;
+        var detail = _viewModel.SelectedDetail;
+        if (detail == null || _parzellenContextState.ContextMitgliedId is not > 0)
+            return;
+        try
+        {
+            var relation = (await _supabaseService.GetPachtbeziehungenForMitgliedAsync(_parzellenContextState.ContextMitgliedId.Value))
+                .Where(x => x.ParzelleId == detail.ParzelleId)
+                .OrderByDescending(x => x.GueltigBis == null)
+                .ThenByDescending(x => x.GueltigAb)
+                .FirstOrDefault();
+            if (relation == null) return;
+            var status = await _supabaseService.GetPachtvertragNachweisstatusAsync(relation.PachtverhaeltnisId);
+            _pachtvertragNachweisLabel.Text = status == null
+                ? "Pachtvertrag-Status konnte nicht geladen werden."
+                : $"Pachtvertrag: {FormatProofStatus(status.Status)}{(status.RelevantesDatum.HasValue ? $" · Vertragsdatum {status.RelevantesDatum.Value:dd.MM.yyyy}" : string.Empty)}";
+            _pachtvertragNachweisDokumentId = status?.DokumentId;
+            _openPachtvertragNachweisButton.IsVisible = _pachtvertragNachweisDokumentId is > 0;
+        }
+        catch { _pachtvertragNachweisLabel.Text = "Pachtvertrag-Status konnte nicht geladen werden."; }
+    }
+
+    private async Task OpenRelationalPachtvertragAsync()
+    {
+        if (_pachtvertragNachweisDokumentId is not > 0) return;
+        var document = await _supabaseService.GetDokumentByIdAsync(_pachtvertragNachweisDokumentId.Value);
+        if (document == null) { await DisplayAlertAsync("Pachtvertrag", "Nachweisdokument konnte nicht geladen werden.", "OK"); return; }
+        var content = await _supabaseService.DownloadDokumentContentAsync(document);
+        if (content is not { Length: > 0 }) { await DisplayAlertAsync("Pachtvertrag", "Nachweisdokument konnte nicht geladen werden.", "OK"); return; }
+        await Navigation.PushAsync(new PdfViewerPage(document.Title, content));
+    }
+
+    private static string FormatProofStatus(string status) => status switch
+    {
+        "unterschrieben" => "unterschrieben vorhanden",
+        "nur_unsigniert" => "nur nicht unterzeichneter Nachweis vorhanden",
+        "kein_nachweis" => "kein Nachweis vorhanden",
+        _ => "Status konnte nicht geladen werden"
+    };
 
     private async Task OpenAblesungAsync(string medium)
     {

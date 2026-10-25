@@ -4,6 +4,9 @@ import type { BrowserSession } from "../../lib/supabase-auth";
 
 type LeaseRelationshipRow = { id: number };
 type LeaseContractVersionRow = { id: number };
+export type MemberLeaseParticipationRow = { pachtverhaeltnis_id: number; rolle: "hauptpaechter" | "mitpaechter"; gueltig_ab: string; gueltig_bis: string | null };
+export type MemberLeaseRelationshipRow = { id: number; parzelle_id: number; urspruenglicher_pachtbeginn: string | null; beendet_am: string | null };
+export type LeaseRelationshipParcelRow = { id: number; garten_nr: string | null; Anlage: string | null };
 export type ActiveLeaseRelationshipStatus = { relationshipId: number | null; contractVersionCount: number };
 
 export async function getActiveLeaseRelationshipStatus(club: ClubContext, session: BrowserSession, parcelId: number): Promise<ActiveLeaseRelationshipStatus> {
@@ -12,4 +15,27 @@ export async function getActiveLeaseRelationshipStatus(club: ClubContext, sessio
   if (active.length === 0) return { relationshipId: null, contractVersionCount: 0 };
   const versions = await readSupabaseRest<LeaseContractVersionRow>({ club, session }, "pachtvertragsfassung", { select: "id", pachtverhaeltnis_id: `eq.${active[0].id}`, limit: "2" });
   return { relationshipId: active[0].id, contractVersionCount: versions.length };
+}
+
+export async function listMemberLeaseRelationships(club: ClubContext, session: BrowserSession, memberId: number) {
+  const participations = await readSupabaseRest<MemberLeaseParticipationRow>({ club, session }, "pachtverhaeltnis_beteiligung", {
+    select: "pachtverhaeltnis_id,rolle,gueltig_ab,gueltig_bis",
+    mitglied_id: `eq.${memberId}`,
+    order: "gueltig_ab.desc",
+    limit: "1000",
+  });
+  const relationshipIds = [...new Set(participations.map((item) => item.pachtverhaeltnis_id))];
+  if (relationshipIds.length === 0) return { participations, relationships: [] as MemberLeaseRelationshipRow[], parcels: [] as LeaseRelationshipParcelRow[] };
+  const relationships = await readSupabaseRest<MemberLeaseRelationshipRow>({ club, session }, "pachtverhaeltnis", {
+    select: "id,parzelle_id,urspruenglicher_pachtbeginn,beendet_am",
+    id: `in.(${relationshipIds.join(",")})`,
+    limit: "1000",
+  });
+  const parcelIds = [...new Set(relationships.map((item) => item.parzelle_id))];
+  const parcels = parcelIds.length === 0 ? [] : await readSupabaseRest<LeaseRelationshipParcelRow>({ club, session }, "parzelle", {
+    select: "id,garten_nr,Anlage",
+    id: `in.(${parcelIds.join(",")})`,
+    limit: "1000",
+  });
+  return { participations, relationships, parcels };
 }

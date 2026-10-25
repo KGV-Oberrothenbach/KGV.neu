@@ -26,7 +26,6 @@ namespace KGV.Infrastructure.Services
     {
         private const string DokumentUploadFunctionName = "kgv-upload-document";
         private const string GenerateExportPdfFunctionName = "kgv-generate-export-pdf";
-        private const string MitgliedRegelwerkeVersandFunctionName = "kgv-send-membership-documents";
         private const string MitgliedVereinsunterlagenVersandFunctionName = "kgv-send-club-documents";
         private const string AllowUserMeterReadingSubmissionsSettingKey = "allow_user_meter_reading_submissions";
         private const string MeterReadingPhotoRequiredSettingKey = "meter_reading_photo_required";
@@ -1035,7 +1034,8 @@ namespace KGV.Infrastructure.Services
                     ArbeitsstundenAltersregelTyp = dto.IstHauptmitglied ? dto.ArbeitsstundenAltersregelTyp : "keine",
                     MitgliedSeit = dto.MitgliedSeit,
                     MitgliedEnde = dto.MitgliedEnde,
-                    Aktiv = dto.Aktiv
+                    Aktiv = dto.Aktiv,
+                    AufnahmeStatus = "aufgenommen"
                 };
 
                 await client.From<MitgliedInsertRecord>().Insert(insertRecord);
@@ -1057,53 +1057,11 @@ namespace KGV.Infrastructure.Services
             },
             null);
 
-        public Task<MitgliedRegelwerkeVersandResult> SendMitgliedRegelwerkeAsync(int mitgliedId) => ExecuteAsync(
-            "SendMitgliedRegelwerkeAsync",
-            async () =>
-            {
-                if (mitgliedId <= 0)
-                    return MitgliedRegelwerkeVersandResult.Fail("Bitte zuerst ein gültiges Mitglied auswählen.", "REGELWERKE_VERSAND_MEMBER_INVALID");
-
-                if (string.IsNullOrWhiteSpace(_supabaseUrl) || string.IsNullOrWhiteSpace(_publishableKey))
-                    return MitgliedRegelwerkeVersandResult.Fail("Der Dokumentenversand ist noch nicht konfiguriert.", "REGELWERKE_VERSAND_CONFIG_MISSING");
-
-                var accessToken = await _authService.GetAccessTokenAsync();
-                if (string.IsNullOrWhiteSpace(accessToken))
-                    return MitgliedRegelwerkeVersandResult.Fail("Die aktuelle Anmeldung ist abgelaufen. Bitte erneut anmelden.", "REGELWERKE_VERSAND_AUTH_MISSING");
-
-                var endpoint = new Uri(
-                    new Uri(_supabaseUrl.TrimEnd('/') + "/"),
-                    $"functions/v1/{MitgliedRegelwerkeVersandFunctionName}");
-                using var request = new HttpRequestMessage(HttpMethod.Post, endpoint)
-                {
-                    Content = new StringContent(
-                        JsonSerializer.Serialize(new { mitglied_id = mitgliedId }),
-                        Encoding.UTF8,
-                        "application/json")
-                };
-                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-                request.Headers.Add("apikey", _publishableKey);
-                request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-
-                using var response = await _documentUploadHttpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
-                var rawBody = await response.Content.ReadAsStringAsync();
-                var edgeResponse = DeserializeMitgliedRegelwerkeVersandResponse(rawBody);
-
-                if (!response.IsSuccessStatusCode || edgeResponse?.Success != true || !edgeResponse.VersandtAm.HasValue)
-                {
-                    _logger?.LogWarning(
-                        "SendMitgliedRegelwerkeAsync rejected. MitgliedId={MitgliedId}, Status={StatusCode}, DiagnosticCode={DiagnosticCode}",
-                        mitgliedId,
-                        (int)response.StatusCode,
-                        edgeResponse?.DiagnosticCode);
-                    return MitgliedRegelwerkeVersandResult.Fail(
-                        edgeResponse?.Message ?? "Der Versand der Vereinsregelwerke konnte nicht bestätigt werden.",
-                        edgeResponse?.DiagnosticCode ?? $"REGELWERKE_VERSAND_HTTP_{(int)response.StatusCode}");
-                }
-
-                return MitgliedRegelwerkeVersandResult.Ok(edgeResponse.VersandtAm.Value, edgeResponse.Message);
-            },
-            MitgliedRegelwerkeVersandResult.Fail("Der Versand der Vereinsregelwerke konnte nicht bestätigt werden.", "REGELWERKE_VERSAND_EXCEPTION"));
+        [Obsolete("Der nicht vorhandene Endpunkt kgv-send-membership-documents wurde stillgelegt. Bitte SendMitgliedVereinsunterlagenDigitalAsync verwenden.")]
+        public Task<MitgliedRegelwerkeVersandResult> SendMitgliedRegelwerkeAsync(int mitgliedId) =>
+            Task.FromResult(MitgliedRegelwerkeVersandResult.Fail(
+                "Der frühere Regelwerkversand wurde stillgelegt. Bitte den Versand der Vereinsunterlagen verwenden.",
+                "REGELWERKE_VERSAND_DECOMMISSIONED"));
 
         public Task<bool> UpdateMitgliedAsync(MemberDTO dto, string userId) => ExecuteAsync(
             "UpdateMitgliedAsync",
@@ -3530,6 +3488,145 @@ namespace KGV.Infrastructure.Services
             },
             new List<DocumentInfo>());
 
+        public Task<DocumentInfo?> GetDokumentByIdAsync(long dokumentId) => ExecuteAsync<DocumentInfo?>(
+            "GetDokumentByIdAsync",
+            async () => dokumentId > 0 ? await LoadDokumentInfoByIdAsync(dokumentId) : null,
+            null);
+
+        public Task<List<DokumenttypItem>> GetAktiveDokumenttypenAsync() => ExecuteAsync(
+            "GetAktiveDokumenttypenAsync",
+            async () =>
+            {
+                var client = await EnsureClientAsync();
+                var types = (await client.From<DokumenttypRecord>().Where(x => x.Aktiv).Get())?.Models ?? [];
+                var effects = (await client.From<DokumenttypWirkungRecord>().Get())?.Models ?? [];
+                var byType = effects.GroupBy(x => x.DokumenttypId).ToDictionary(x => x.Key, x => (IReadOnlyList<string>)x.Select(item => item.Wirkung).Distinct(StringComparer.Ordinal).ToList());
+                return types.OrderBy(x => x.Sortierung).ThenBy(x => x.Bezeichnung, StringComparer.CurrentCultureIgnoreCase)
+                    .Select(x => new DokumenttypItem(x.Id, x.Bezeichnung, x.Aktiv, x.Sortierung, byType.GetValueOrDefault(x.Id, Array.Empty<string>())))
+                    .ToList();
+            }, new List<DokumenttypItem>());
+
+        public Task<List<HistorischePachtbeziehung>> GetPachtbeziehungenForMitgliedAsync(int mitgliedId) => ExecuteAsync(
+            "GetPachtbeziehungenForMitgliedAsync",
+            async () =>
+            {
+                if (mitgliedId <= 0) return new List<HistorischePachtbeziehung>();
+                var client = await EnsureClientAsync();
+                var participations = (await client.From<PachtverhaeltnisBeteiligungRecord>().Where(x => x.MitgliedId == mitgliedId).Get())?.Models ?? [];
+                var relationIds = participations.Select(x => x.PachtverhaeltnisId).Distinct().ToHashSet();
+                if (relationIds.Count == 0) return new List<HistorischePachtbeziehung>();
+                var relations = ((await client.From<PachtverhaeltnisRecord>().Get())?.Models ?? []).Where(x => relationIds.Contains(x.Id)).ToDictionary(x => x.Id);
+                var parcels = (await GetAllParzellenAsync()).ToDictionary(x => (long)x.Id);
+                return participations.Where(x => relations.ContainsKey(x.PachtverhaeltnisId)).Select(x =>
+                {
+                    var relation = relations[x.PachtverhaeltnisId];
+                    parcels.TryGetValue(relation.ParzelleId, out var parcel);
+                    return new HistorischePachtbeziehung(relation.Id, relation.ParzelleId, parcel?.GartenNr ?? relation.ParzelleId.ToString(), parcel?.Anlage ?? string.Empty, x.Rolle, x.GueltigAb, x.GueltigBis, relation.UrspruenglicherPachtbeginn, relation.BeendetAm);
+                }).OrderByDescending(x => x.GueltigAb).ToList();
+            }, new List<HistorischePachtbeziehung>());
+
+        public async Task<List<HistorischeWartungsvertragZuordnung>> GetHistorischeWartungsvertragZuordnungenForMitgliedAsync(int mitgliedId)
+        {
+            if (mitgliedId <= 0) return [];
+            var mainMemberId = await ResolveHomeMitgliedIdAsync(mitgliedId);
+            // Historische Wartungsnachweise gehören zum Hauptmitglied. Für ein
+            // Nebenmitglied darf der Altimport weder eine Zuordnung anbieten noch
+            // das Dokument implizit auf das Hauptmitglied umhängen; die RPC würde
+            // diese Kombination ebenfalls ablehnen.
+            if (mainMemberId != mitgliedId) return [];
+            var assignments = await GetWartungsvertraegeForMitgliedAsync(mitgliedId);
+            return assignments.Select(x => new HistorischeWartungsvertragZuordnung(x.ZuordnungId, x.Id, x.Titel, mainMemberId, x.GueltigAb, x.GueltigBis)).ToList();
+        }
+
+        public async Task<HistorischesDokumentRegistrierungResult> RegisterHistorischesDokumentAsync(HistorischesDokumentRegistrierungRequest request)
+        {
+            var client = await EnsureClientAsync();
+            var rows = await client.Rpc<List<HistorischesDokumentRegistrierungResult>>("register_historisches_dokument", new
+            {
+                p_dokument_id = request.DokumentId, p_dokumenttyp_id = request.DokumenttypId, p_dokumentdatum = request.Dokumentdatum.ToString("yyyy-MM-dd"),
+                p_unterzeichnet = request.Unterzeichnet, p_pachtverhaeltnis_id = request.PachtverhaeltnisId, p_wartungsvertrag_zuordnung_id = request.WartungsvertragZuordnungId
+            });
+            return rows?.SingleOrDefault() ?? throw new InvalidOperationException("Die fachliche Dokumentzuordnung wurde nicht bestätigt.");
+        }
+
+        public async Task<DokumentNachweisstatus?> GetMitgliedsantragNachweisstatusAsync(int mitgliedId)
+        {
+            if (mitgliedId <= 0) return null;
+            var client = await EnsureClientAsync();
+            var row = (await client.From<MitgliedsantragNachweisstatusRecord>().Where(x => x.MitgliedId == mitgliedId).Get())?.Models?.SingleOrDefault();
+            return row == null ? null : new DokumentNachweisstatus(row.Nachweisstatus, row.Dokumentdatum, row.DokumentId);
+        }
+
+        public async Task<DokumentNachweisstatus?> GetPachtvertragNachweisstatusAsync(long pachtverhaeltnisId)
+        {
+            if (pachtverhaeltnisId <= 0) return null;
+            var client = await EnsureClientAsync();
+            var row = (await client.From<PachtvertragNachweisstatusRecord>().Where(x => x.PachtverhaeltnisId == pachtverhaeltnisId).Get())?.Models?.SingleOrDefault();
+            return row == null ? null : new DokumentNachweisstatus(row.Nachweisstatus, row.Vertragsdatum, row.DokumentId, row.PachtvertragsfassungId);
+        }
+
+        public async Task<DokumentNachweisstatus?> GetWartungsvertragNachweisstatusAsync(long wartungsvertragZuordnungId)
+        {
+            if (wartungsvertragZuordnungId <= 0) return null;
+            var client = await EnsureClientAsync();
+            var row = (await client.From<WartungsvertragNachweisstatusRecord>().Where(x => x.WartungsvertragZuordnungId == wartungsvertragZuordnungId).Get())?.Models?.SingleOrDefault();
+            return row == null ? null : new DokumentNachweisstatus(row.Nachweisstatus, row.Dokumentdatum, row.DokumentId);
+        }
+
+        public Task<List<MembershipBoardReviewRecord>> GetMembershipBoardReviewsAsync() => ExecuteAsync(
+            "GetMembershipBoardReviewsAsync",
+            async () => (await (await EnsureClientAsync()).From<MembershipBoardReviewRecord>().Get())?.Models?
+                .OrderByDescending(x => x.GestartetAm).ToList() ?? [], []);
+
+        public Task<MembershipBoardReviewDetail?> GetMembershipBoardReviewDetailAsync(long reviewId) => ExecuteAsync<MembershipBoardReviewDetail?>(
+            "GetMembershipBoardReviewDetailAsync",
+            async () =>
+            {
+                if (reviewId <= 0) return null;
+                var client = await EnsureClientAsync();
+                var review = (await client.From<MembershipBoardReviewRecord>().Where(x => x.BearbeitungId == reviewId).Get())?.Models?.SingleOrDefault();
+                if (review is null) return null;
+                var people = (await client.From<MembershipBoardSnapshotPersonRecord>().Where(x => x.VorstandsbearbeitungId == reviewId).Get())?.Models ?? [];
+                var personIds = people.Select(x => x.Id).ToHashSet();
+                var sources = (await client.From<MembershipBoardAuthorizationSourceRecord>().Get())?.Models?
+                    .Where(x => personIds.Contains(x.SnapshotPersonId)).GroupBy(x => x.SnapshotPersonId)
+                    .ToDictionary(x => x.Key, x => (IReadOnlyList<string>)x.Select(FormatBoardAuthorizationSource).Distinct().ToList())
+                    ?? new Dictionary<long, IReadOnlyList<string>>();
+                var votes = (await client.From<MembershipBoardVoteRecord>().Get())?.Models?
+                    .Where(x => personIds.Contains(x.SnapshotPersonId)).GroupBy(x => x.SnapshotPersonId)
+                    .ToDictionary(x => x.Key, x => x.OrderByDescending(v => v.Version).First())
+                    ?? new Dictionary<long, MembershipBoardVoteRecord>();
+                return new MembershipBoardReviewDetail(review, people.OrderBy(x => x.NameSnapshot).Select(person =>
+                {
+                    votes.TryGetValue(person.Id, out var vote);
+                    return new MembershipBoardVote(person.Id, person.MitgliedId, person.NameSnapshot, vote?.Stimme, vote?.NeinBegruendung, vote?.AbgegebenAm, sources.GetValueOrDefault(person.Id, []));
+                }).ToList());
+            }, null);
+
+        public async Task VoteMembershipBoardReviewAsync(long reviewId, string vote, string? noReason)
+        {
+            if (reviewId <= 0 || vote is not ("ja" or "nein")) throw new ArgumentException("Ungültige Stimmabgabe.");
+            await (await EnsureClientAsync()).Rpc<long>("stimme_mitgliedsaufnahme_ab", new { p_bearbeitung_id = reviewId, p_stimme = vote, p_nein_begruendung = vote == "nein" ? string.IsNullOrWhiteSpace(noReason) ? null : noReason.Trim() : null });
+        }
+
+        public async Task<bool> CanDecideMembershipBoardReviewAsync()
+            => await (await EnsureClientAsync()).Rpc<bool>("kann_mitgliedsaufnahme_entscheiden", new { });
+
+        public async Task DecideMembershipBoardReviewAsync(long reviewId, string result, string path, DateOnly? meetingDate, string? reason, DateOnly? admissionDate)
+        {
+            if (reviewId <= 0) throw new ArgumentOutOfRangeException(nameof(reviewId));
+            await (await EnsureClientAsync()).Rpc("entscheide_mitgliedsaufnahme", new
+            {
+                p_bearbeitung_id = reviewId, p_ergebnis = result, p_weg = path,
+                p_sitzungsdatum = meetingDate?.ToString("yyyy-MM-dd"), p_begruendung = string.IsNullOrWhiteSpace(reason) ? null : reason.Trim(),
+                p_aufnahmedatum = admissionDate?.ToString("yyyy-MM-dd")
+            });
+        }
+
+        private static string FormatBoardAuthorizationSource(MembershipBoardAuthorizationSourceRecord source)
+            => source.Berechtigungsart == "vertretung" && !string.IsNullOrWhiteSpace(source.VertreteneFunktionsbezeichnungSnapshot)
+                ? $"Vertretung für {source.VertreteneFunktionsbezeichnungSnapshot}" : source.FunktionsbezeichnungSnapshot;
+
         public async Task<LoadedDocument> LoadDokumentByIdAsync(long documentId)
         {
             if (documentId <= 0)
@@ -4475,56 +4572,7 @@ namespace KGV.Infrastructure.Services
             var uploadResult = await UploadDokumentToDriveAsync(request, normalizedTitle);
             if (!uploadResult.Success)
                 return uploadResult;
-
-            try
-            {
-                var client = await EnsureClientAsync();
-                var now = DateTime.UtcNow;
-                var insertRecord = new DokumentInsertRecord
-                {
-                    MitgliedId = request.MitgliedId > 0 ? request.MitgliedId : null,
-                    ParzelleId = request.ParzelleId > 0 ? request.ParzelleId : null,
-                    StoragePath = uploadResult.Document?.StoragePath ?? string.Empty,
-                    Titel = normalizedTitle,
-                    Dateiname = uploadResult.Document?.Dateiname,
-                    MimeType = uploadResult.Document?.MimeType,
-                    SizeBytes = uploadResult.Document?.Size,
-                    DriveFileId = uploadResult.Document?.DriveFileId,
-                    CreatedBy = ResolveCurrentAuthUserId(),
-                    CreatedAt = now,
-                    UpdatedAt = now
-                };
-
-                await client.From<DokumentInsertRecord>().Insert(insertRecord);
-
-                var createdDocument = await ReloadInsertedDokumentAsync(client, insertRecord)
-                    ?? new DocumentInfo
-                    {
-                        Title = normalizedTitle,
-                        Name = normalizedTitle,
-                        Bucket = insertRecord.Bucket,
-                        StoragePath = insertRecord.StoragePath,
-                        Dateiname = insertRecord.Dateiname ?? string.Empty,
-                        MimeType = insertRecord.MimeType ?? string.Empty,
-                        Size = insertRecord.SizeBytes,
-                        DriveFileId = insertRecord.DriveFileId ?? string.Empty,
-                        CreatedBy = insertRecord.CreatedBy,
-                        CreatedAt = insertRecord.CreatedAt,
-                        UpdatedAt = insertRecord.UpdatedAt
-                    };
-
-                return DokumentUploadResult.Ok(createdDocument, uploadResult.RequestId);
-            }
-            catch (PostgrestException ex)
-            {
-                LogPostgrestFailure("CreateDokumentAsync", ex);
-                return DokumentUploadResult.Fail("Dokumentmetadaten konnten nach dem Upload nicht gespeichert werden.", "POSTGREST", uploadResult.RequestId);
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogError(ex, "CreateDokumentAsync failed after upload.");
-                return DokumentUploadResult.Fail("Dokument konnte aktuell nicht gespeichert werden.", "UNEXPECTED", uploadResult.RequestId);
-            }
+            return uploadResult;
         }
 
         public async Task<DokumentDeleteResult> DeleteDokumentAsync(DocumentInfo? document)
@@ -5302,6 +5350,70 @@ namespace KGV.Infrastructure.Services
                 _logger?.LogError(ex, "EnsureWartungsvertragDokumentWorkflowAsync failed for assignment {AssignmentId}.", wartungsvertragZuordnungId);
                 throw;
             }
+        }
+
+        public Task<List<WartungsvertragFortfuehrungDetail>> GetAuslaufendeWartungsvertragZuordnungenAsync() => ExecuteAsync(
+            "GetAuslaufendeWartungsvertragZuordnungenAsync",
+            async () => await (await EnsureClientAsync()).Rpc<List<WartungsvertragFortfuehrungDetail>>(
+                "get_auslaufende_wartungsvertrag_zuordnungen", new { }) ?? new List<WartungsvertragFortfuehrungDetail>(),
+            new List<WartungsvertragFortfuehrungDetail>());
+
+        public Task<WartungsvertragFortfuehrungDetail?> GetWartungsvertragFortfuehrungDetailAsync(long vorgaengerZuordnungId) => ExecuteAsync<WartungsvertragFortfuehrungDetail?>(
+            "GetWartungsvertragFortfuehrungDetailAsync",
+            async () =>
+            {
+                if (vorgaengerZuordnungId <= 0) return null;
+                var rows = await (await EnsureClientAsync()).Rpc<List<WartungsvertragFortfuehrungDetail>>(
+                    "get_wartungsvertrag_folgeentscheidung_detail", new { p_vorgaenger_zuordnung_id = vorgaengerZuordnungId });
+                return rows?.FirstOrDefault();
+            }, null);
+
+        public async Task<WartungsvertragVerlaengerungResult> VerlaengereWartungsvertragAsync(long vorgaengerZuordnungId, DateTime neuesGueltigBis, DateTime vorstandsbeschlussdatum, string? bemerkung)
+        {
+            var rows = await (await EnsureClientAsync()).Rpc<List<WartungsvertragVerlaengerungResult>>("verlaengere_wartungsvertrag", new
+            {
+                p_vorgaenger_zuordnung_id = vorgaengerZuordnungId,
+                p_neues_gueltig_bis = neuesGueltigBis.ToString("yyyy-MM-dd"),
+                p_vorstandsbeschlussdatum = vorstandsbeschlussdatum.ToString("yyyy-MM-dd"),
+                p_bemerkung = string.IsNullOrWhiteSpace(bemerkung) ? null : bemerkung.Trim()
+            });
+            return rows?.FirstOrDefault() ?? throw new InvalidOperationException("Die Verlängerungsentscheidung wurde nicht bestätigt.");
+        }
+
+        public async Task NichtverlaengerungEntscheidenAsync(long vorgaengerZuordnungId, string initiator, DateTime entscheidungsdatum, DateTime? vorstandsbeschlussdatum, string? begruendung)
+        {
+            await (await EnsureClientAsync()).Rpc<long>("entscheide_wartungsvertrag_nichtverlaengerung", new
+            {
+                p_vorgaenger_zuordnung_id = vorgaengerZuordnungId,
+                p_initiator = initiator,
+                p_entscheidungsdatum = entscheidungsdatum.ToString("yyyy-MM-dd"),
+                p_vorstandsbeschlussdatum = vorstandsbeschlussdatum?.ToString("yyyy-MM-dd"),
+                p_begruendung = string.IsNullOrWhiteSpace(begruendung) ? null : begruendung.Trim()
+            });
+        }
+
+        public async Task NichtverlaengerungZuruecknehmenAsync(long folgeentscheidungId, string? ruecknahmebegruendung)
+        {
+            await (await EnsureClientAsync()).Rpc<long>("nehme_wartungsvertrag_nichtverlaengerung_zurueck", new
+            {
+                p_folgeentscheidung_id = folgeentscheidungId,
+                p_ruecknahmebegruendung = string.IsNullOrWhiteSpace(ruecknahmebegruendung) ? null : ruecknahmebegruendung.Trim()
+            });
+        }
+
+        public async Task DokumenterzeugungWartungsvertragVerlaengerungWiederholenAsync(long hauptmitgliedId, long kommunikationsvorgangId)
+        {
+            if (hauptmitgliedId <= 0 || kommunikationsvorgangId <= 0)
+                throw new ArgumentOutOfRangeException(nameof(kommunikationsvorgangId));
+            var token = await _authService.GetAccessTokenAsync();
+            if (string.IsNullOrWhiteSpace(token)) throw new InvalidOperationException("Für die Dokumenterzeugung ist eine gültige Anmeldung erforderlich.");
+            using var request = new HttpRequestMessage(HttpMethod.Post, $"{_supabaseUrl.TrimEnd('/')}/functions/v1/kgv-generate-contract");
+            request.Headers.Add("apikey", _publishableKey);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            request.Content = new StringContent(JsonSerializer.Serialize(new { action = "finalize", type = "wartungsvertrag_verlaengerung", member_id = hauptmitgliedId, start_date = "", kommunikationsvorgang_id = kommunikationsvorgangId }), Encoding.UTF8, "application/json");
+            using var response = await _documentUploadHttpClient.SendAsync(request);
+            if (!response.IsSuccessStatusCode)
+                throw new InvalidOperationException($"Dokumenterzeugung fehlgeschlagen ({(int)response.StatusCode}).");
         }
 
         public Task<HomeOverviewDTO> GetHomeOverviewAsync(UserRole role, int? mitgliedId) => ExecuteAsync(
@@ -8248,6 +8360,7 @@ namespace KGV.Infrastructure.Services
                 }
 
                 if (uploadResponse == null
+                    || uploadResponse.DocumentId is not > 0
                     || string.IsNullOrWhiteSpace(uploadResponse.DriveFileId)
                     || string.IsNullOrWhiteSpace(uploadResponse.StoragePath)
                     || string.IsNullOrWhiteSpace(uploadResponse.Dateiname))
@@ -8268,6 +8381,7 @@ namespace KGV.Infrastructure.Services
                 return DokumentUploadResult.Ok(
                     new DocumentInfo
                     {
+                        Id = uploadResponse.DocumentId.Value,
                         Title = normalizedTitle,
                         Name = normalizedTitle,
                         StoragePath = uploadResponse.StoragePath.Trim(),
@@ -8396,6 +8510,9 @@ namespace KGV.Infrastructure.Services
 
             [JsonPropertyName("drive_file_id")]
             public string? DriveFileId { get; set; }
+
+            [JsonPropertyName("document_id")]
+            public long? DocumentId { get; set; }
 
             [JsonPropertyName("fileId")]
             public string? DriveFileIdAlias

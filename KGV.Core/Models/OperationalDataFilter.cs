@@ -10,7 +10,8 @@ namespace KGV.Core.Models
                 return false;
         // New behavior: rely solely on explicit DB flag is_demo.
         // Treat nullable/absent as NOT demo (i.e., visible) - property is non-nullable bool in models.
-        return !member.IsDemo;
+        return !member.IsDemo
+            && string.Equals(member.AufnahmeStatus, "aufgenommen", StringComparison.Ordinal);
         }
 
         public static bool IsOperationalAppUser(MitgliedRecord? member, string? displayName, string? email)

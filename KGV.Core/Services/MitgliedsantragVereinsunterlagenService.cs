@@ -11,11 +11,11 @@ public sealed class MitgliedsantragVereinsunterlagenService
     public MitgliedsantragVereinsunterlagenService(ISupabaseService supabaseService)
         => _supabaseService = supabaseService ?? throw new ArgumentNullException(nameof(supabaseService));
 
-    public async Task<IReadOnlyList<VereinsunterlagenNachweisSnapshotItem>> CreateCurrentSnapshotAsync(long mitgliedId, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<VereinsunterlagenNachweisSnapshotItem>> CreateCurrentSnapshotAsync(long mitgliedId, string documentType, CancellationToken cancellationToken = default)
     {
         if (mitgliedId <= 0) throw new PreparedContractValidationException("Für den Mitgliedsantrag fehlt ein gültiges Mitglied.");
         cancellationToken.ThrowIfCancellationRequested();
         var status = await _supabaseService.GetMitgliedVereinsdokumentStatusAsync(mitgliedId, DateOnly.FromDateTime(DateTime.Today));
-        return VereinsunterlagenNachweisHelper.CreateSnapshot(status);
+        return VereinsunterlagenNachweisHelper.CreateSnapshot(status, documentType);
     }
 }

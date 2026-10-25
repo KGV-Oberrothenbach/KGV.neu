@@ -215,6 +215,15 @@ public sealed class MemberWartungsvertraegePage : ContentPage
             foreach (var item in items)
             {
                 var listItem = new MemberContractListItem(item, _canManage);
+                try
+                {
+                    var proof = await _supabaseService.GetWartungsvertragNachweisstatusAsync(item.ZuordnungId);
+                    listItem.NachweisText = proof == null
+                        ? "Nachweisstatus konnte nicht geladen werden."
+                        : $"Nachweis: {FormatProofStatus(proof.Status)}{(proof.RelevantesDatum.HasValue ? $" · Dokumentdatum {proof.RelevantesDatum.Value:dd.MM.yyyy}" : string.Empty)}";
+                    listItem.NachweisDokumentId = proof?.DokumentId;
+                }
+                catch { listItem.NachweisText = "Nachweisstatus konnte nicht geladen werden."; }
                 switch (item.Zeitstatus)
                 {
                     case WartungsvertragZeitstatus.Aktuell:
@@ -437,6 +446,17 @@ public sealed class MemberWartungsvertraegePage : ContentPage
                 var documentWorkflow = new Label { FontSize = 12, TextColor = Colors.DarkSlateBlue, LineBreakMode = LineBreakMode.WordWrap };
                 documentWorkflow.SetBinding(Label.TextProperty, nameof(MemberContractListItem.DokumentWorkflowText));
 
+                var proof = new Label { FontSize = 12, TextColor = Colors.DarkSlateBlue, LineBreakMode = LineBreakMode.WordWrap };
+                proof.SetBinding(Label.TextProperty, nameof(MemberContractListItem.NachweisText));
+
+                var proofButton = new Button { Text = "Nachweisdokument öffnen", FontSize = 12, HorizontalOptions = LayoutOptions.Start };
+                proofButton.SetBinding(IsVisibleProperty, nameof(MemberContractListItem.CanOpenNachweis));
+                proofButton.Clicked += async (sender, _) =>
+                {
+                    if (sender is Button button && button.BindingContext is MemberContractListItem item)
+                        await OpenNachweisAsync(item);
+                };
+
                 var documentButton = new Button { Text = "Dokumentworkflow prüfen / vorbereiten", FontSize = 12, HorizontalOptions = LayoutOptions.Start };
                 documentButton.SetBinding(IsVisibleProperty, nameof(MemberContractListItem.CanPrepareDocument));
                 documentButton.Clicked += async (sender, _) =>
@@ -453,6 +473,14 @@ public sealed class MemberWartungsvertraegePage : ContentPage
                         await EndAssignmentAsync(item);
                 };
 
+                var continuationButton = new Button { Text = "Folgeentscheidung / Vertragskette", FontSize = 12, HorizontalOptions = LayoutOptions.Start };
+                continuationButton.SetBinding(IsVisibleProperty, nameof(MemberContractListItem.CanOpenContinuation));
+                continuationButton.Clicked += async (sender, _) =>
+                {
+                    if (sender is Button { BindingContext: MemberContractListItem item })
+                        await Shell.Current.GoToAsync($"{nameof(WartungsvertragFortfuehrungPage)}?zuordnungId={item.ZuordnungId}");
+                };
+
                 return new Border
                 {
                     Stroke = Colors.LightGray,
@@ -461,7 +489,7 @@ public sealed class MemberWartungsvertraegePage : ContentPage
                     Content = new VerticalStackLayout
                     {
                         Spacing = 4,
-                        Children = { title, description, validity, status, effect, documentWorkflow, documentButton, endButton }
+                        Children = { title, description, validity, status, effect, documentWorkflow, proof, proofButton, continuationButton, documentButton, endButton }
                     }
                 };
             })
@@ -505,6 +533,16 @@ public sealed class MemberWartungsvertraegePage : ContentPage
         }
     }
 
+    private async Task OpenNachweisAsync(MemberContractListItem item)
+    {
+        if (item.NachweisDokumentId is not > 0) return;
+        var document = await _supabaseService.GetDokumentByIdAsync(item.NachweisDokumentId.Value);
+        if (document == null) { _statusLabel.Text = "Nachweisdokument konnte nicht geladen werden."; return; }
+        var content = await _supabaseService.DownloadDokumentContentAsync(document);
+        if (content is not { Length: > 0 }) { _statusLabel.Text = "Nachweisdokument konnte nicht geladen werden."; return; }
+        await Navigation.PushAsync(new PdfViewerPage(document.Title, content));
+    }
+
     private static VerticalStackLayout CreateAssignmentSection(string title, CollectionView itemsView)
     {
         return new VerticalStackLayout
@@ -542,9 +580,20 @@ public sealed class MemberWartungsvertraegePage : ContentPage
         return string.IsNullOrWhiteSpace(displayName) ? $"Mitglied #{fallbackId}" : displayName;
     }
 
+    private static string FormatProofStatus(string status) => status switch
+    {
+        "unterschrieben" => "unterschrieben vorhanden",
+        "nur_unsigniert" => "nur nicht unterzeichneter Nachweis vorhanden",
+        "kein_nachweis" => "kein Nachweis vorhanden",
+        _ => "Status konnte nicht geladen werden"
+    };
+
     private sealed class MemberContractListItem : INotifyPropertyChanged
     {
         private string _dokumentWorkflowText = "Dokumentworkflow noch nicht geprüft.";
+        private string _nachweisText = string.Empty;
+        private long? _nachweisDokumentId;
+        private readonly DateTime? _gueltigBis;
 
         public MemberContractListItem(MemberWartungsvertragItem source, bool canManage)
         {
@@ -555,6 +604,7 @@ public sealed class MemberWartungsvertraegePage : ContentPage
             GueltigkeitText = source.GueltigkeitText;
             StatusText = source.StatusText;
             ArbeitsstundenwirkungText = source.ArbeitsstundenwirkungText;
+            _gueltigBis = source.GueltigBis;
             CanEnd = canManage && source.Zeitstatus == WartungsvertragZeitstatus.Aktuell && source.ZuordnungId > 0;
             CanPrepareDocument = canManage && source.ZuordnungId > 0;
         }
@@ -568,6 +618,8 @@ public sealed class MemberWartungsvertraegePage : ContentPage
         public string ArbeitsstundenwirkungText { get; }
         public bool CanEnd { get; }
         public bool CanPrepareDocument { get; }
+        // The detail page obtains all action visibility from WV-3 backend flags.
+        public bool CanOpenContinuation => ZuordnungId > 0 && _gueltigBis.HasValue;
         public string DokumentWorkflowText
         {
             get => _dokumentWorkflowText;
@@ -579,6 +631,30 @@ public sealed class MemberWartungsvertraegePage : ContentPage
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(DokumentWorkflowText)));
             }
         }
+
+        public string NachweisText
+        {
+            get => _nachweisText;
+            set
+            {
+                if (_nachweisText == value) return;
+                _nachweisText = value;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(NachweisText)));
+            }
+        }
+
+        public long? NachweisDokumentId
+        {
+            get => _nachweisDokumentId;
+            set
+            {
+                if (_nachweisDokumentId == value) return;
+                _nachweisDokumentId = value;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(NachweisDokumentId)));
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CanOpenNachweis)));
+            }
+        }
+        public bool CanOpenNachweis => NachweisDokumentId is > 0;
 
         public event PropertyChangedEventHandler? PropertyChanged;
     }

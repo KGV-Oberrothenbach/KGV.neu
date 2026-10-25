@@ -59,7 +59,7 @@ async function loadParcelProtocolData(club: ClubContext, session: BrowserSession
   return Promise.all([
     readSupabaseRest<Parcel>({ club, session }, "parzelle", { select: "id,garten_nr,Anlage,flaeche_qm,hat_strom,hat_wasser,rfid_strom,rfid_wasser,aktiv", limit: "1000" }),
     readSupabaseRest<Assignment>({ club, session }, "parzellen_belegung", { select: "id,parzelle_id,mitglied_id,von_datum,bis_datum,beendigungsgrund", limit: "3000" }),
-    readSupabaseRest<Member>({ club, session }, "mitglied", { select: "id,vorname,name,email,aktiv,hauptmitglied_id,role", aktiv: "eq.true", order: "name.asc", limit: "2000" }),
+    readSupabaseRest<Member>({ club, session }, "mitglied", { select: "id,vorname,name,email,aktiv,hauptmitglied_id,role", aktiv: "eq.true", aufnahme_status: "eq.aufgenommen", order: "name.asc", limit: "2000" }),
     readSupabaseRest<Meter>({ club, session }, "zaehler", { select: "id,parzelle_id,medium,zaehlernummer,eingebaut_am,ausgebaut_am,eichfaellig_am,status", limit: "3000" }),
     readSupabaseRest<Reading>({ club, session }, "zaehler_ablesung", { select: "id,zaehler_id,stand,ablesedatum,art,freigegeben,pruefstatus,foto_pfad,foto_drive_file_id,foto_dateiname", order: "ablesedatum.desc", limit: "5000" }),
     readSupabaseRest<Protocol>({ club, session }, "parzellen_protokoll", { select: "id,parzelle_id,mitglied_id,protokoll_typ,protokoll_datum,status,vorstand_mitglied_id,vorstand2_mitglied_id,begleitperson_mitglied_id,begleitperson_name,anlass,zustand_bemerkung,vereinbarung,dokument_id", mitglied_id: `eq.${memberId}`, order: "protokoll_datum.desc", limit: "100" }),

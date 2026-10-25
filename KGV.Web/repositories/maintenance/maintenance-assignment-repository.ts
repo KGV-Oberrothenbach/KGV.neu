@@ -7,15 +7,17 @@ export type MaintenanceAssignmentRow = {
   id: number;
   wartungsvertrag_id: number;
   hauptmitglied_id: number;
+  vertragspartei_mitglied_id: number | null;
   gueltig_ab: string;
   gueltig_bis: string | null;
   bemerkung: string | null;
+  vorgaenger_zuordnung_id?: number | null;
 };
 
 export type MaintenanceAssignmentWriteRow = Omit<MaintenanceAssignmentRow, "id">;
 export type MaintenanceAssignmentMemberRow = { id: number; vorname: string | null; name: string | null; aktiv: boolean; is_demo: boolean; hauptmitglied_id: number | null };
 
-const select = "id,wartungsvertrag_id,hauptmitglied_id,gueltig_ab,gueltig_bis,bemerkung";
+const select = "id,wartungsvertrag_id,hauptmitglied_id,vertragspartei_mitglied_id,gueltig_ab,gueltig_bis,bemerkung,vorgaenger_zuordnung_id";
 
 export const listMaintenanceAssignments = (club: ClubContext, session: BrowserSession, principalMemberId?: number) =>
   readSupabaseRest<MaintenanceAssignmentRow>({ club, session }, "wartungsvertrag_zuordnungen", { select, ...(principalMemberId ? { hauptmitglied_id: `eq.${principalMemberId}` } : {}), order: "gueltig_ab.desc", limit: "2000" });
@@ -31,7 +33,7 @@ export const resolveMaintenanceAssignmentPrincipalMember = async (club: ClubCont
 };
 
 export const listMaintenanceAssignmentMembers = (club: ClubContext, session: BrowserSession) =>
-  readSupabaseRest<MaintenanceAssignmentMemberRow>({ club, session }, "mitglied", { select: "id,vorname,name,aktiv,is_demo,hauptmitglied_id", aktiv: "eq.true", is_demo: "eq.false", order: "name.asc,vorname.asc", limit: "1000" });
+  readSupabaseRest<MaintenanceAssignmentMemberRow>({ club, session }, "mitglied", { select: "id,vorname,name,aktiv,is_demo,hauptmitglied_id", aktiv: "eq.true", aufnahme_status: "eq.aufgenommen", is_demo: "eq.false", order: "name.asc,vorname.asc", limit: "1000" });
 
 export const resolveMaintenanceAssignmentMembers = (club: ClubContext, session: BrowserSession, selectedMemberIds: number[]) =>
   selectedMemberIds.length

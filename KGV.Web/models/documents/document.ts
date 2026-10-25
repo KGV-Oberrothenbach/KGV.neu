@@ -19,9 +19,12 @@ export type Document = {
   archiviert_at: string | null;
   archiviert_by: string | null;
   archiviert_begruendung: string | null;
+  dokumenttyp_id: number | null;
+  dokumentdatum: string | null;
+  unterzeichnet: boolean | null;
 };
 
-export const documentSelect = "id,mitglied_id,parzelle_id,bucket,storage_path,drive_file_id,titel,dateiname,mime_type,size_bytes,created_at,updated_at,created_by,archiviert_at,archiviert_by,archiviert_begruendung";
+export const documentSelect = "id,mitglied_id,parzelle_id,bucket,storage_path,drive_file_id,titel,dateiname,mime_type,size_bytes,created_at,updated_at,created_by,archiviert_at,archiviert_by,archiviert_begruendung,dokumenttyp_id,dokumentdatum,unterzeichnet";
 
 export function memberDocumentOwner(id: number): DocumentOwner {
   return createDocumentOwner("member", id);

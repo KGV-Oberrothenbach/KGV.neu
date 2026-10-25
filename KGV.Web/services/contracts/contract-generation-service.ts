@@ -46,7 +46,7 @@ type ContractGenerationOptions = {
 };
 
 export type ContractGenerationRequest =
-  | (ContractGenerationOptions & { action: "preview" | "finalize"; type: "mitgliedsantrag" | "mitgliedsvertrag" | "pachtvertrag" | "wartungsvertrag" | "parzellenprotokoll"; member_id: number; start_date: string })
+  | (ContractGenerationOptions & { action: "preview" | "finalize"; type: "mitgliedsantrag" | "mitgliedsvertrag" | "pachtvertrag" | "wartungsvertrag" | "wartungsvertrag_verlaengerung" | "parzellenprotokoll"; member_id: number; start_date: string })
   | (ContractGenerationOptions & { action: "sign-existing"; source_document_id: number; signature_member: string });
 
 export async function generateContract(club: ClubContext, session: BrowserSession, request: ContractGenerationRequest): Promise<{ previewUrl?: string; documentId?: number; message?: string }> {

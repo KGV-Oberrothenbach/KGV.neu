@@ -24,8 +24,8 @@ public sealed class PreparedContractSignatureService : IPreparedContractSignatur
     public Task<IReadOnlyList<PreparedContractSignatureDto>> GetSignaturesAsync(KommunikationsvorgangDto contract, CancellationToken cancellationToken = default)
     { ValidateStarted(contract); return _signatures.ListAsync(contract.Id, contract.SignaturRevision!.Value, cancellationToken); }
 
-    public Task<IReadOnlyList<PreparedContractAuthorizedSignatoryDto>> GetAuthorizedClubSignatoriesAsync(DateOnly stichtag, CancellationToken cancellationToken = default)
-        => _signatures.ListAuthorizedClubSignatoriesAsync(stichtag, cancellationToken);
+    public Task<IReadOnlyList<PreparedContractAuthorizedSignatoryDto>> GetAuthorizedClubSignatoriesAsync(long kommunikationsvorgangId, int signaturRevision, CancellationToken cancellationToken = default)
+        => _signatures.ListAuthorizedClubSignatoriesAsync(kommunikationsvorgangId, signaturRevision, cancellationToken);
 
     public async Task<PreparedContractSignatureDto> SaveSignatureAsync(PreparedContractSignatureSaveRequest request, CancellationToken cancellationToken = default)
     {

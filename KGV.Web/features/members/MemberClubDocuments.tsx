@@ -7,6 +7,7 @@ import type { Member } from "../../models/members/member";
 import type { MemberClubDocumentDeliveryHistoryItem, MemberClubDocumentStatus, MemberClubDocumentStatusItem } from "../../models/club-documents/member-club-document-status";
 import { recordMemberClubDocumentsPaper, sendMemberClubDocumentsDigital } from "../../services/club-documents/member-club-document-delivery-service";
 import { getMemberClubDocumentDeliveryHistory, getMemberClubDocumentStatus } from "../../services/club-documents/member-club-document-status-service";
+import type { MemberClubDocumentType } from "../../services/contracts/member-club-document-snapshot-service";
 
 const dateOnly = () => new Date().toISOString().slice(0, 10);
 const localNow = () => { const now = new Date(); now.setMinutes(now.getMinutes() - now.getTimezoneOffset()); return now.toISOString().slice(0, 16); };
@@ -24,7 +25,7 @@ function deliveryError(cause: unknown) {
   return error instanceof Error ? error.message : "Die Bereitstellung konnte nicht abgeschlossen werden.";
 }
 
-export function MemberClubDocuments({ session, member, onStatusUpdated }: { session: BrowserSession; member: Member; onStatusUpdated?: (status: MemberClubDocumentStatus) => void }) {
+export function MemberClubDocuments({ session, member, onStatusUpdated, requiredDocumentTypes }: { session: BrowserSession; member: Member; onStatusUpdated?: (status: MemberClubDocumentStatus) => void; requiredDocumentTypes?: readonly MemberClubDocumentType[] }) {
   const club = useSelectedClub();
   const [status, setStatus] = useState<MemberClubDocumentStatus | null>(null);
   const [history, setHistory] = useState<MemberClubDocumentDeliveryHistoryItem[]>([]);
@@ -40,7 +41,8 @@ export function MemberClubDocuments({ session, member, onStatusUpdated }: { sess
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [club, session, member.id]);
-  const missing = useMemo(() => status?.documents.filter((item) => item.status === "fehlt" && item.vereinsdokument_fassung_id !== null) ?? [], [status]);
+  const scopedDocuments = useMemo(() => status?.documents.filter((item) => !requiredDocumentTypes || requiredDocumentTypes.includes(item.dokumenttyp_code as MemberClubDocumentType)) ?? [], [status, requiredDocumentTypes]);
+  const missing = useMemo(() => scopedDocuments.filter((item) => item.status === "fehlt" && item.vereinsdokument_fassung_id !== null), [scopedDocuments]);
   const selected = missing.filter((item) => selectedIds.includes(item.vereinsdokument_fassung_id!));
   const toggle = (id: number) => setSelectedIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
   const close = () => { setDialog(null); setPaperConfirmed(false); };

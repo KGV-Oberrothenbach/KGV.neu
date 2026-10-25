@@ -13,6 +13,12 @@ public sealed class WartungsvertragDokumentWorkflowRecord : BaseModel
     [Column("wartungsvertrag_zuordnung_id")]
     public long WartungsvertragZuordnungId { get; set; }
 
+    [Column("workflow_art")]
+    public string WorkflowArt { get; set; } = "erstvertrag";
+
+    [Column("folgeentscheidung_id")]
+    public long? FolgeentscheidungId { get; set; }
+
     [Column("kommunikationsvorgang_id")]
     public long? KommunikationsvorgangId { get; set; }
 

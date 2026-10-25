@@ -139,7 +139,9 @@ public sealed class ImpressumPage : ContentPage
         var configuration = info.Vereinskonfiguration;
         _vereinsnameLabel.Text = string.IsNullOrWhiteSpace(configuration?.Vereinsname) ? "Aktuell nicht hinterlegt" : configuration.Vereinsname.Trim();
         _registerLabel.Text = string.IsNullOrWhiteSpace(configuration?.Registerangabe) ? "Aktuell nicht hinterlegt" : configuration.Registerangabe.Trim();
-        _verantwortlichNameLabel.Text = info.Verantwortliche.Count == 0 ? "Aktuell nicht hinterlegt." : string.Join("\n", info.Verantwortliche.Select(x => x.DisplayName));
+        _verantwortlichNameLabel.Text = info.Verantwortliche.Count == 0
+            ? "Aktuell nicht hinterlegt."
+            : string.Join("\n", info.Verantwortliche.Select(x => $"{(string.IsNullOrWhiteSpace(x.Funktion) ? "Funktion" : x.Funktion)}\n{x.DisplayName}{(x.HasHandy ? $"\n{x.DisplayHandyText}" : string.Empty)}"));
         _verantwortlichAdresseLabel.Text = string.Join("\n", info.Verantwortliche.Where(x => x.ShowAdresse).Select(x => x.Adresse));
         _emailLabel.Text = string.IsNullOrWhiteSpace(configuration?.StandardEmail) ? "Aktuell nicht hinterlegt" : $"E-Mail: {configuration.StandardEmail.Trim()}";
     }

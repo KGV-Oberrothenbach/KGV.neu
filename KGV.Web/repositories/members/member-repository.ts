@@ -19,7 +19,7 @@ export const getMemberWorkspaceInfo = (club: ClubContext, session: BrowserSessio
   limit: "1",
 }).then((members) => members[0] ?? null);
 
-const memberStammdatenSelect = "id,vorname,name,email,aktiv,hauptmitglied_id,auth_user_id,geburtsdatum,arbeitsstunden_altersregel_typ,adresse,plz,ort,telefon,handy,whatsapp_einwilligung,email_rechnung_einwilligung,email_info_einwilligung,mitglied_seit,mitglied_ende,bemerkung";
+const memberStammdatenSelect = "id,vorname,name,email,aktiv,aufnahme_status,hauptmitglied_id,auth_user_id,geburtsdatum,arbeitsstunden_altersregel_typ,adresse,plz,ort,telefon,handy,whatsapp_einwilligung,email_rechnung_einwilligung,email_info_einwilligung,mitglied_seit,mitglied_ende,bemerkung";
 
 export const getMemberById = (club: ClubContext, session: BrowserSession, memberId: number) => readSupabaseRest<Member>({ club, session }, "mitglied", {
   select: memberStammdatenSelect,

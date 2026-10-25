@@ -30,9 +30,10 @@ namespace KGV.Core.Interfaces
         Task<MitgliedRecord?> GetMitgliedByIdAsync(int mitgliedId);
         Task<MitgliedRecord?> CreateMitgliedAsync(MemberDTO dto);
         /// <summary>
-        /// Versendet Satzung, Kleingartenordnung und Beitragsordnung und dokumentiert
-        /// den erfolgreichen Versand serverseitig beim Mitglied.
+        /// Veraltet: der frühere Edge-Endpunkt existiert nicht mehr. Für
+        /// Vereinsunterlagen ist SendMitgliedVereinsunterlagenDigitalAsync zu verwenden.
         /// </summary>
+        [Obsolete("Der frühere Versand-Endpunkt wurde stillgelegt; SendMitgliedVereinsunterlagenDigitalAsync verwenden.")]
         Task<MitgliedRegelwerkeVersandResult> SendMitgliedRegelwerkeAsync(int mitgliedId);
         Task<bool> UpdateMitgliedAsync(MemberDTO dto, string userId);
         Task<MembershipEndResult> EndMembershipAsync(int mainMemberId, MembershipEndDecision? secondaryDecision);
@@ -152,6 +153,19 @@ namespace KGV.Core.Interfaces
         // =========================
         Task<List<DocumentInfo>> GetMitgliedDokumenteAsync(int mitgliedId);
         Task<List<DocumentInfo>> GetParzelleDokumenteAsync(int parzelleId);
+        Task<DocumentInfo?> GetDokumentByIdAsync(long dokumentId);
+        Task<List<DokumenttypItem>> GetAktiveDokumenttypenAsync();
+        Task<List<HistorischePachtbeziehung>> GetPachtbeziehungenForMitgliedAsync(int mitgliedId);
+        Task<List<HistorischeWartungsvertragZuordnung>> GetHistorischeWartungsvertragZuordnungenForMitgliedAsync(int mitgliedId);
+        Task<HistorischesDokumentRegistrierungResult> RegisterHistorischesDokumentAsync(HistorischesDokumentRegistrierungRequest request);
+        Task<DokumentNachweisstatus?> GetMitgliedsantragNachweisstatusAsync(int mitgliedId);
+        Task<DokumentNachweisstatus?> GetPachtvertragNachweisstatusAsync(long pachtverhaeltnisId);
+        Task<DokumentNachweisstatus?> GetWartungsvertragNachweisstatusAsync(long wartungsvertragZuordnungId);
+        Task<List<MembershipBoardReviewRecord>> GetMembershipBoardReviewsAsync();
+        Task<MembershipBoardReviewDetail?> GetMembershipBoardReviewDetailAsync(long reviewId);
+        Task VoteMembershipBoardReviewAsync(long reviewId, string vote, string? noReason);
+        Task<bool> CanDecideMembershipBoardReviewAsync();
+        Task DecideMembershipBoardReviewAsync(long reviewId, string result, string path, DateOnly? meetingDate, string? reason, DateOnly? admissionDate);
         /// <summary>
         /// Prüft, ob für die angegebene Parzelle bereits eine signierte Pachtvertragsfassung vorliegt.
         /// </summary>
@@ -205,6 +219,12 @@ namespace KGV.Core.Interfaces
         Task<bool> EndWartungsvertragZuordnungAsync(long wartungsvertragZuordnungId, DateTime gueltigBis);
         Task<WartungsvertragDokumentWorkflowRecord?> GetWartungsvertragDokumentWorkflowAsync(long wartungsvertragZuordnungId);
         Task<WartungsvertragDokumentWorkflowRecord> EnsureWartungsvertragDokumentWorkflowAsync(long wartungsvertragZuordnungId);
+        Task<List<WartungsvertragFortfuehrungDetail>> GetAuslaufendeWartungsvertragZuordnungenAsync();
+        Task<WartungsvertragFortfuehrungDetail?> GetWartungsvertragFortfuehrungDetailAsync(long vorgaengerZuordnungId);
+        Task<WartungsvertragVerlaengerungResult> VerlaengereWartungsvertragAsync(long vorgaengerZuordnungId, DateTime neuesGueltigBis, DateTime vorstandsbeschlussdatum, string? bemerkung);
+        Task NichtverlaengerungEntscheidenAsync(long vorgaengerZuordnungId, string initiator, DateTime entscheidungsdatum, DateTime? vorstandsbeschlussdatum, string? begruendung);
+        Task NichtverlaengerungZuruecknehmenAsync(long folgeentscheidungId, string? ruecknahmebegruendung);
+        Task DokumenterzeugungWartungsvertragVerlaengerungWiederholenAsync(long hauptmitgliedId, long kommunikationsvorgangId);
 
         Task<HomeOverviewDTO> GetHomeOverviewAsync(KGV.Core.Security.UserRole role, int? mitgliedId);
 

@@ -5,6 +5,7 @@ using KGV.Maui.Platforms.Android.Services;
 using KGV.Maui.Services.Diagnostics;
 using KGV.Maui.Services;
 using KGV.Maui.Services.PendingPhotos;
+using KGV.Maui.Services.Documents;
 using KGV.Maui.Settings;
 using KGV.Maui.State;
 using KGV.Maui.ViewModels;
@@ -124,6 +125,7 @@ public static class MauiProgram
         services.AddSingleton<PendingPhotoService>();
         services.AddSingleton<PendingPhotoSyncService>();
         services.AddSingleton<PendingPhotoMenuState>();
+        services.AddSingleton<HistoricalDocumentRegistrationQueue>();
         services.AddSingleton<BiometricSessionStore>();
         services.AddSingleton<IClientInstanceIdProvider, ClientInstanceIdProvider>();
         services.AddSingleton<IBiometricAuthenticationService, AndroidBiometricAuthenticationService>();
@@ -154,6 +156,7 @@ public static class MauiProgram
         services.AddTransient<ExportViewModel>();
         services.AddTransient<ImpressumPage>();
         services.AddTransient<KommunikationPage>();
+        services.AddTransient<MembershipBoardReviewPage>();
         services.AddSingleton<MemberSearchRefreshState>();
         services.AddTransient<MemberSearchViewModel>();
         services.AddTransient<MemberSearchPage>();
@@ -165,6 +168,8 @@ public static class MauiProgram
         services.AddTransient<VereinsfunktionenPage>();
         services.AddTransient<WartungsvertraegePage>();
         services.AddTransient<MemberWartungsvertraegePage>();
+        services.AddTransient<WartungsvertragFortfuehrungPage>();
+        services.AddTransient<AuslaufendeWartungsvertraegePage>();
         services.AddTransient<WartungsvertragDetailPage>();
         services.AddTransient<WartungsvertragEditorPage>();
         services.AddTransient<WartungsvertragAssignMembersPage>();

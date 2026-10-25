@@ -28,12 +28,16 @@ public class DokumentePage : ContentPage, IQueryAttributable
     private readonly MemberContextState _memberContextState;
     private readonly ParzellenContextState _parzellenContextState;
     private readonly UserContextState _userContextState;
+    private readonly HistoricalDocumentRegistrationQueue _historicalRegistrationQueue;
     private readonly ObservableCollection<DocumentInfo> _documents = new();
     private readonly Label _headlineLabel;
     private readonly Label _contextLabel;
     private readonly Label _hintLabel;
     private readonly Label _uploadSectionTitleLabel;
     private readonly Label _statusLabel;
+    private readonly Label _proofStatusLabel;
+    private readonly Button _proofOpenButton;
+    private readonly Button _historicalImportButton;
     private readonly Label _emptyLabel;
     private readonly Entry _titelEntry;
     private readonly Label _selectedFileLabel;
@@ -51,12 +55,13 @@ public class DokumentePage : ContentPage, IQueryAttributable
     private string _selectedFileName = string.Empty;
     private string _selectedFileContentType = "application/octet-stream";
 
-    public DokumentePage(ISupabaseService supabaseService, MemberContextState memberContextState, ParzellenContextState parzellenContextState, UserContextState userContextState)
+    public DokumentePage(ISupabaseService supabaseService, MemberContextState memberContextState, ParzellenContextState parzellenContextState, UserContextState userContextState, HistoricalDocumentRegistrationQueue historicalRegistrationQueue)
     {
         _supabaseService = supabaseService;
         _memberContextState = memberContextState;
         _parzellenContextState = parzellenContextState;
         _userContextState = userContextState;
+        _historicalRegistrationQueue = historicalRegistrationQueue;
 
         Title = "Dokumente";
 
@@ -65,6 +70,11 @@ public class DokumentePage : ContentPage, IQueryAttributable
         _hintLabel = new Label { TextColor = Colors.Gray, LineBreakMode = LineBreakMode.WordWrap };
         _uploadSectionTitleLabel = new Label { FontAttributes = FontAttributes.Bold };
         _statusLabel = new Label { TextColor = Colors.DarkSlateBlue, LineBreakMode = LineBreakMode.WordWrap };
+        _proofStatusLabel = new Label { TextColor = Colors.DarkSlateBlue, LineBreakMode = LineBreakMode.WordWrap };
+        _proofOpenButton = new Button { Text = "Nachweisdokument öffnen", IsVisible = false };
+        _proofOpenButton.Clicked += async (_, _) => await OpenProofDocumentAsync();
+        _historicalImportButton = new Button { Text = "Neues Dokument / Scan" };
+        _historicalImportButton.Clicked += async (_, _) => await OpenHistoricalImportAsync();
         _emptyLabel = new Label { Text = "Keine Mitgliedsdokumente gefunden.", TextColor = Colors.Gray, IsVisible = false };
         _titelEntry = new Entry { Placeholder = "Dokumenttitel" };
         _titelEntry.TextChanged += (_, _) => UpdateUiState();
@@ -246,7 +256,10 @@ public class DokumentePage : ContentPage, IQueryAttributable
                     _headlineLabel,
                     _contextLabel,
                     _hintLabel,
+                    _proofStatusLabel,
+                    _proofOpenButton,
                     _uploadSection,
+                    _historicalImportButton,
                     _refreshButton,
                     _activityIndicator,
                     _statusLabel,
@@ -435,6 +448,7 @@ public class DokumentePage : ContentPage, IQueryAttributable
             }
 
             await ReloadDocumentsAsync(context);
+            await ReloadProofStatusAsync(context);
         }
         catch (Exception ex)
         {
@@ -706,6 +720,7 @@ public class DokumentePage : ContentPage, IQueryAttributable
         try
         {
             await ReloadDocumentsAsync(context);
+            await ReloadProofStatusAsync(context);
             return true;
         }
         catch (Exception ex)
@@ -714,6 +729,48 @@ public class DokumentePage : ContentPage, IQueryAttributable
             return false;
         }
     }
+
+    private async Task OpenHistoricalImportAsync()
+    {
+        var context = await ResolveContextAsync();
+        if (!CanManageDocuments || !context.IsValid || context.Scope != DokumentOwnerScope.Mitglied || context.OwnerId is not > 0)
+        {
+            SetStatus("Der Altimport ist nur im Mitgliedskontext mit Dokumentberechtigung verfügbar.", success: false);
+            return;
+        }
+        var importPage = new HistoricalDocumentImportPage(_supabaseService, _historicalRegistrationQueue, context.OwnerId.Value);
+        importPage.RegistrationCompleted += LoadAsync;
+        await Navigation.PushAsync(importPage);
+    }
+
+    private async Task ReloadProofStatusAsync(DokumentPageContext context)
+    {
+        _proofOpenButton.IsVisible = false;
+        _proofOpenButton.CommandParameter = null;
+        if (context.Scope != DokumentOwnerScope.Mitglied || context.OwnerId is not > 0) { _proofStatusLabel.Text = string.Empty; return; }
+        try
+        {
+            var status = await _supabaseService.GetMitgliedsantragNachweisstatusAsync(context.OwnerId.Value);
+            _proofStatusLabel.Text = status == null ? "Mitgliedsantrag-Status konnte nicht geladen werden." : $"Mitgliedsantrag: {FormatProofStatus(status.Status)}{(status.RelevantesDatum.HasValue ? $" · Dokumentdatum {status.RelevantesDatum.Value:dd.MM.yyyy}" : string.Empty)}";
+            if (status?.DokumentId is > 0)
+            {
+                _proofOpenButton.CommandParameter = status.DokumentId.Value;
+                _proofOpenButton.IsVisible = true;
+            }
+        }
+        catch { _proofStatusLabel.Text = "Mitgliedsantrag-Status konnte nicht geladen werden."; }
+    }
+
+    private async Task OpenProofDocumentAsync()
+    {
+        if (_proofOpenButton.CommandParameter is not long dokumentId || dokumentId <= 0)
+            return;
+        var document = await _supabaseService.GetDokumentByIdAsync(dokumentId);
+        if (document == null) { SetStatus("Nachweisdokument konnte nicht geladen werden.", success: false); return; }
+        await OpenDocumentAsync(document);
+    }
+
+    private static string FormatProofStatus(string status) => status switch { "unterschrieben" => "unterschrieben vorhanden", "nur_unsigniert" => "nur nicht unterzeichneter Nachweis vorhanden", "kein_nachweis" => "kein Nachweis vorhanden", _ => "Status konnte nicht geladen werden" };
 
     private async Task<string?> PromptArchivePasswordAsync()
     {
@@ -855,6 +912,8 @@ public class DokumentePage : ContentPage, IQueryAttributable
             && !string.IsNullOrWhiteSpace(_selectedFileName);
 
         _uploadSection.IsVisible = canManageDocuments && canReadDocuments;
+        _historicalImportButton.IsVisible = canManageDocuments && canReadDocuments && _requestedScope == DokumentOwnerScope.Mitglied;
+        _historicalImportButton.IsEnabled = !_isBusy && canManageDocuments && canReadDocuments && hasContext && _requestedScope == DokumentOwnerScope.Mitglied;
         _titelEntry.IsEnabled = !_isBusy && hasContext && canManageDocuments && canReadDocuments;
         _pickFileButton.IsEnabled = !_isBusy && hasContext && canManageDocuments && canReadDocuments;
         _uploadButton.IsEnabled = canUpload;

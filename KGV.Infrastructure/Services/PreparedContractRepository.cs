@@ -87,7 +87,7 @@ public sealed class PreparedContractRepository : IPreparedContractRepository
 
     public async Task<KommunikationsvorgangDto> StartSignatureAsync(long id, int expectedRevision, CancellationToken cancellationToken = default)
     {
-        var updated = Single(await PatchAsync($"kommunikationsvorgang?id=eq.{id}&revision=eq.{expectedRevision}&status=eq.{PreparedContractConstants.Prepared}&signatur_gestartet_am=is.null&signatur_revision=is.null&zugewiesen_an=eq.{CurrentUserId()}", new { status = PreparedContractConstants.ReadyForSignature, signatur_gestartet_am = DateTimeOffset.UtcNow }, cancellationToken), "Die Signatur kann nicht gestartet werden.");
+        var updated = Single(await SendAsync(HttpMethod.Post, "rpc/start_prepared_contract_signature", JsonSerializer.SerializeToElement(new { p_kommunikationsvorgang_id = id, p_expected_revision = expectedRevision, p_assigned_to = CurrentUserId() }), cancellationToken), "Die Signatur kann nicht mit einem Berechtigungssnapshot gestartet werden.");
         var loaded = await LoadRequiredAsync(updated.Id, cancellationToken);
         if (loaded.Status != PreparedContractConstants.ReadyForSignature || loaded.SignaturRevision != loaded.Revision || loaded.SignaturGestartetAm is null) throw new PreparedContractConflictException("Der Server hat den Signaturstart nicht bestätigt.");
         return loaded;
@@ -133,10 +133,10 @@ public sealed class PreparedContractRepository : IPreparedContractRepository
             request.Headers.Add("apikey", _clientFactory.Key); request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
             request.Content = new StringContent(JsonSerializer.Serialize(new { kommunikationsvorgang_id = id, expected_revision = current.Revision }), Encoding.UTF8, "application/json");
             using var response = await client.SendAsync(request, cancellationToken);
-            if (!response.IsSuccessStatusCode) throw new PreparedContractConflictException("Der Mitgliedsantrag kann nicht abgeschlossen werden.");
-            var completedByServer = await LoadRequiredAsync(id, cancellationToken);
-            if (completedByServer.Status != PreparedContractConstants.Completed) throw new PreparedContractConflictException("Der Server hat den Mitgliedsantragsabschluss nicht bestätigt.");
-            return completedByServer;
+            if (!response.IsSuccessStatusCode) throw new PreparedContractConflictException("Die Vorstandsbearbeitung des Mitgliedsantrags konnte nicht gestartet werden.");
+            var pendingBoardReview = await LoadRequiredAsync(id, cancellationToken);
+            if (pendingBoardReview.Status != PreparedContractConstants.FinalReview) throw new PreparedContractConflictException("Der Server hat den Mitgliedsantrag nicht für die Vorstandsbearbeitung vorgemerkt.");
+            return pendingBoardReview;
         }
         var completed = Single(await PatchAsync($"kommunikationsvorgang?id=eq.{id}&status=eq.{PreparedContractConstants.FinalReview}&revision=eq.{current.Revision}&signatur_revision=eq.{current.Revision}&final_dokument_id=eq.{current.FinalDokumentId}&zugewiesen_an=eq.{CurrentUserId()}", new { status = PreparedContractConstants.Completed }, cancellationToken), "Der Vertragsvorgang kann nicht abgeschlossen werden.");
         if (completed.Id != id || completed.Status != PreparedContractConstants.Completed || completed.Revision != current.Revision || completed.FinalDokumentId != current.FinalDokumentId)

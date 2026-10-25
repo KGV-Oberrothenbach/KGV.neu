@@ -24,6 +24,7 @@ export type NavigationCapabilities = {
   canPerformYearEndClosing: boolean;
   canManageClubConfiguration: boolean;
   canManageClubDocuments: boolean;
+  canReadDocumentTypes: boolean;
   canManageClubFunctions: boolean;
   canSearchMembers: boolean;
 };
@@ -70,6 +71,7 @@ export function buildNavigation(capabilities: NavigationCapabilities): Workspace
       ...(capabilities.canPerformYearEndClosing ? [navigationConfig.groups.administration.items.annualClosing] : []),
       ...(capabilities.canManageClubConfiguration ? [navigationConfig.groups.administration.items.club] : []),
       ...(capabilities.canManageClubDocuments ? [navigationConfig.groups.administration.items.clubDocuments] : []),
+      ...(capabilities.canReadDocumentTypes ? [navigationConfig.groups.administration.items.documentTypes] : []),
       ...(capabilities.canManageClubFunctions ? [navigationConfig.groups.administration.items.clubFunctions] : []),
     ] },
     { ...navigationConfig.groups.members, target: capabilities.canSearchMembers ? navigationConfig.groups.members.target : undefined, items: memberItems },

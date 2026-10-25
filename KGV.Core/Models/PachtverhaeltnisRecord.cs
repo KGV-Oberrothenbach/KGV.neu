@@ -9,6 +9,7 @@ public sealed class PachtverhaeltnisRecord : BaseModel
     [PrimaryKey("id", false)] [Column("id")] public long Id { get; set; }
     [Column("parzelle_id")] public long ParzelleId { get; set; }
     [Column("beendet_am")] public DateTime? BeendetAm { get; set; }
+    [Column("urspruenglicher_pachtbeginn")] public DateTime? UrspruenglicherPachtbeginn { get; set; }
 }
 
 [Table("pachtvertragsfassung")]

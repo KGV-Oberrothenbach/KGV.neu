@@ -86,6 +86,9 @@ namespace KGV.Core.Models
         [Column("aktiv")]
         public bool Aktiv { get; set; }
 
+        [Column("aufnahme_status")]
+        public string AufnahmeStatus { get; set; } = "aufgenommen";
+
         [Column("hauptmitglied_id")]
         public int? HauptmitgliedId { get; set; }
 

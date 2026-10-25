@@ -1,0 +1,10 @@
+{
+  "schema_version": "kgv-pdf-field-spec/v1",
+  "coordinate_system": "top-left-points",
+  "settings": { "coordinateOrigin": "topLeft" },
+  "fields": [
+    { "name": "exporttitel", "type": "text", "page": 1, "rect": { "x": 34, "y": 100, "w": 450, "h": 20 } },
+    { "name": "stand", "type": "text", "page": 1, "rect": { "x": 34, "y": 122, "w": 200, "h": 14 } },
+    { "name": "exporttabelle", "type": "multiline", "page": 1, "rect": { "x": 34, "y": 151, "w": 773, "h": 380 } }
+  ]
+}

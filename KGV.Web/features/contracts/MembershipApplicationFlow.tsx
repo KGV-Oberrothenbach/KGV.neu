@@ -82,11 +82,11 @@ export function MembershipApplicationFlow({ session, memberId, onSaved, onPrepar
     return () => { active = false; };
   }, [club, session, preparedContractId, memberId, data, resumeMode]);
 
-  const request = (action: "preview" | "finalize", snapshot = clubDocumentSnapshot) => ({ action, type: "mitgliedsantrag" as const, member_id: memberId, start_date: startDate, member_fee: Number(fee.replace(",", ".")), admission_fee: data?.admissionFee, club_documents_snapshot: snapshot ? formatMemberClubDocumentSnapshotForPdf(snapshot) : undefined, ...(action === "finalize" && resumeContext ? { kommunikationsvorgang_id: resumeContext.id } : {}), representative: minor ? { mode: draft.mode, member_id: draft.memberId ?? undefined, vorname: draft.vorname, nachname: draft.nachname, adresse_abweichend: draft.adresseAbweichend, adresse: draft.adresse, plz: draft.plz, ort: draft.ort } : undefined, include_secondary_member: !minor && includeSecondaryMember });
+  const request = (action: "preview" | "finalize", snapshot = clubDocumentSnapshot) => ({ action, type: "mitgliedsantrag" as const, member_id: memberId, start_date: startDate, member_fee: Number(fee.replace(",", ".")), admission_fee: data?.admissionFee, club_documents_snapshot: snapshot ? formatMemberClubDocumentSnapshotForPdf(snapshot, "mitgliedsantrag") : undefined, ...(action === "finalize" && resumeContext ? { kommunikationsvorgang_id: resumeContext.id } : {}), representative: minor ? { mode: draft.mode, member_id: draft.memberId ?? undefined, vorname: draft.vorname, nachname: draft.nachname, adresse_abweichend: draft.adresseAbweichend, adresse: draft.adresse, plz: draft.plz, ort: draft.ort } : undefined, include_secondary_member: !minor && includeSecondaryMember });
   const validate = () => { if (minor) validateLegalRepresentative(draft); };
   const preparedDraft = (snapshot = clubDocumentSnapshot): PreparedMembershipApplicationDraft => ({ schema_version: preparedContractSchemaVersion, document_type: "mitgliedsantrag", memberId, startDate, memberFee: Number(fee.replace(",", ".")), representative: minor ? draft : null, includeSecondaryMember: !minor && includeSecondaryMember, vereinsunterlagen_nachweis: snapshot });
   const loadCurrentClubDocumentStatus = async () => { const now = new Date(); const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`; return getMemberClubDocumentStatus(club, session, memberId, today); };
-  const refreshClubDocumentSnapshot = async () => { const snapshot = createMemberClubDocumentSnapshot(await loadCurrentClubDocumentStatus()); setClubDocumentSnapshot(snapshot); return snapshot; };
+  const refreshClubDocumentSnapshot = async () => { const snapshot = createMemberClubDocumentSnapshot(await loadCurrentClubDocumentStatus(), "mitgliedsantrag"); setClubDocumentSnapshot(snapshot); return snapshot; };
   const savePrepared = async (snapshot = clubDocumentSnapshot) => {
     if (!resumeContext) return null;
     const updated = await savePreparedContractIfChanged(club, session, session.user.id, resumeContext, preparedDraft(snapshot));
@@ -116,7 +116,7 @@ export function MembershipApplicationFlow({ session, memberId, onSaved, onPrepar
     if (position.status === "unterschrieben") return;
     setActivePositionKey(position.signatur_schluessel); setSignatureDrawing(""); setSelectedSignatory(null);
     if (position.unterzeichner_typ !== "vereinsunterzeichner") return;
-    try { setSignatoriesLoading(true); setSignatories(await loadPreparedContractSignatories(club, session, startDate)); }
+    try { if (!resumeContext || resumeContext.signatur_revision === null) throw new Error("Der Berechtigungssnapshot fehlt."); setSignatoriesLoading(true); setSignatories(await loadPreparedContractSignatories(club, session, resumeContext.id, resumeContext.signatur_revision)); }
     catch (error) { setMessage(error instanceof Error ? error.message : "Vertragsunterzeichner konnten nicht geladen werden."); }
     finally { setSignatoriesLoading(false); }
   };
@@ -124,9 +124,9 @@ export function MembershipApplicationFlow({ session, memberId, onSaved, onPrepar
     try {
       validate(); setBusy(true); setMessage("");
       let context = resumeContext;
-      if (!context || !isCompleteMemberClubDocumentSnapshot((context.entwurf_daten as PreparedMembershipApplicationDraft).vereinsunterlagen_nachweis)) throw new Error("Der vorbereitete Mitgliedsantrag enthält noch keinen Vereinsunterlagen-Snapshot. Bitte erstellen Sie zuerst eine neue Vorschau.");
+      if (!context || !isCompleteMemberClubDocumentSnapshot((context.entwurf_daten as PreparedMembershipApplicationDraft).vereinsunterlagen_nachweis, "mitgliedsantrag")) throw new Error("Der vorbereitete Mitgliedsantrag enthält noch keinen Satzungsnachweis. Bitte erstellen Sie zuerst eine neue Vorschau.");
       const currentSnapshot = await refreshClubDocumentSnapshot();
-      if (!memberClubDocumentSnapshotsEqual((context.entwurf_daten as PreparedMembershipApplicationDraft).vereinsunterlagen_nachweis, currentSnapshot)) { await savePrepared(currentSnapshot); throw new Error("Die Pflichtunterlagen haben sich seit der Vorschau geändert. Der aktualisierte Entwurf wurde gespeichert; bitte erstellen Sie eine neue Vorschau."); }
+      if (!memberClubDocumentSnapshotsEqual((context.entwurf_daten as PreparedMembershipApplicationDraft).vereinsunterlagen_nachweis, currentSnapshot, "mitgliedsantrag")) { await savePrepared(currentSnapshot); throw new Error("Die Satzung hat sich seit der Vorschau geändert. Der aktualisierte Entwurf wurde gespeichert; bitte erstellen Sie eine neue Vorschau."); }
       if (context?.status === "vorbereitet") context = await savePrepared() ?? context;
       if (!context) throw new Error("Die Signatur kann nur aus der Vorgangszentrale gestartet werden.");
       const started = context.status === "zur_signatur" ? context : await startPreparedContractSigning(club, session, context, session.user.id);
@@ -149,7 +149,7 @@ export function MembershipApplicationFlow({ session, memberId, onSaved, onPrepar
   const discard = async () => { if (!resumeContext || !window.confirm("Vorgang wirklich verwerfen? Alle bisherigen Eingaben und Unterschriften dieses Vorgangs gehen verloren. Bereits versendete Vereinsunterlagen bleiben erhalten.")) return; try { setBusy(true); await discardPreparedContractWorkflow(club, session, resumeContext); await onSaved(); onCancel?.(); } catch (error) { setMessage(error instanceof Error ? error.message : "Der Vorgang konnte nicht verworfen werden."); } finally { setBusy(false); } };
 
   const preview = async () => {
-    try { validate(); setBusy(true); setMessage(""); const status = await loadCurrentClubDocumentStatus(); let snapshot: MemberClubDocumentSnapshotItem[]; try { snapshot = createMemberClubDocumentSnapshot(status); } catch (error) { setStep("documents"); setMessage(error instanceof Error ? error.message : "Die Pflichtunterlagen sind unvollständig."); return; } setClubDocumentSnapshot(snapshot); if (resumeContext) await savePrepared(snapshot); else await parkPreparedContract(club, session, session.user.id, preparedDraft(snapshot)); const result = await generateContract(club, session, request("preview", snapshot)); if (result.previewUrl) window.open(result.previewUrl, "_blank", "noopener,noreferrer"); setStep("preview"); }
+    try { validate(); setBusy(true); setMessage(""); const status = await loadCurrentClubDocumentStatus(); let snapshot: MemberClubDocumentSnapshotItem[]; try { snapshot = createMemberClubDocumentSnapshot(status, "mitgliedsantrag"); } catch (error) { setStep("documents"); setMessage(error instanceof Error ? error.message : "Der Satzungsnachweis ist unvollständig."); return; } setClubDocumentSnapshot(snapshot); if (resumeContext) await savePrepared(snapshot); else await parkPreparedContract(club, session, session.user.id, preparedDraft(snapshot)); const result = await generateContract(club, session, request("preview", snapshot)); if (result.previewUrl) window.open(result.previewUrl, "_blank", "noopener,noreferrer"); setStep("preview"); }
     catch (error) { setMessage(error instanceof Error ? error.message : "Vorschau konnte nicht erstellt werden."); }
     finally { setBusy(false); }
   };
@@ -185,7 +185,7 @@ export function MembershipApplicationFlow({ session, memberId, onSaved, onPrepar
       if (next) await openPosition(next);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Die Signatur konnte nicht gespeichert werden.");
-      if (position.unterzeichner_typ === "vereinsunterzeichner") { try { setSignatories(await loadPreparedContractSignatories(club, session, startDate)); } catch { /* Originalfehler bleibt sichtbar. */ } }
+      if (position.unterzeichner_typ === "vereinsunterzeichner" && resumeContext?.signatur_revision !== null) { try { setSignatories(await loadPreparedContractSignatories(club, session, resumeContext.id, resumeContext.signatur_revision)); } catch { /* Originalfehler bleibt sichtbar. */ } }
     } finally { setBusy(false); }
   };
 
@@ -211,7 +211,7 @@ export function MembershipApplicationFlow({ session, memberId, onSaved, onPrepar
       </fieldset>
       <div className="editor-actions"><button disabled={busy || data.status !== "none" || !contribution} onClick={preview}>Vorschau</button></div>
     </>}
-    {step === "documents" && <><p className="notice">Die Vorschau bleibt gesperrt, bis alle aktuellen Pflichtunterlagen bereitgestellt sind.</p><MemberClubDocuments session={session} member={data.member} onStatusUpdated={(status) => { if (status.complete) { setMessage("Pflichtunterlagen sind vollständig. Bitte erstellen Sie jetzt die Vorschau."); setStep("edit"); } }} /><div className="editor-actions"><button className="secondary-action" onClick={() => setStep("edit")}>Zurück zum Mitgliedsantrag</button></div></>}
+    {step === "documents" && <><p className="notice">Die Vorschau bleibt gesperrt, bis die Satzung digital gebunden oder als Papierübergabe dokumentiert ist.</p><MemberClubDocuments session={session} member={data.member} requiredDocumentTypes={["satzung"]} onStatusUpdated={(status) => { try { createMemberClubDocumentSnapshot(status, "mitgliedsantrag"); setMessage("Satzungsnachweis vollständig. Bitte erstellen Sie jetzt die Vorschau."); setStep("edit"); } catch { /* andere Vereinsunterlagen sind für den Mitgliedsantrag nicht relevant */ } }} /><div className="editor-actions"><button className="secondary-action" onClick={() => setStep("edit")}>Zurück zum Mitgliedsantrag</button></div></>}
     {step === "preview" && <><ContractPreview onBack={() => setStep("edit")} onPark={() => void park()} parkLabel={resumeContext ? "Änderungen speichern" : "Zur Signatur vorbereiten"} {...(preparedContractId ? { onContinue: () => { void beginSignatures(); } } : {})} />{resumeContext && <div className="editor-actions"><button className="secondary-action" disabled={busy} onClick={() => void discard()}>Verwerfen</button></div>}</>}
     {step === "signatures" && <section className="signature-grid">
       <p className="detail-hint wide">{positionsLoading ? "Signaturpositionen werden geladen …" : `${signatureProgress.requiredSigned} von ${signatureProgress.requiredTotal} Pflichtunterschriften`}</p>

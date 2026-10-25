@@ -37,7 +37,7 @@ export function normalizeAndValidateMaintenanceContract(draft: MaintenanceContra
   return { payload: { titel: title, beschreibung: draft.description?.trim() || null, bereich: draft.area?.trim() || null, max_aktive_zuordnungen: draft.maxActiveAssignments, befreit_von_pflichtstunden: draft.exemptsFromDutyHours, arbeitsstunden_gutschrift: credit, aktiv: draft.active, bemerkung: draft.note?.trim() || null, is_demo: false } };
 }
 
-export async function saveMaintenanceContract(club: ClubContext, session: BrowserSession, id: number | null, draft: MaintenanceContractDraft): Promise<MaintenanceContract> {
+export async function saveMaintenanceContract(club: ClubContext, session: BrowserSession, id: number | null, draft: MaintenanceContractDraft, fundamentalChange = false): Promise<MaintenanceContract> {
   const result = normalizeAndValidateMaintenanceContract(draft);
   if (!result.payload) throw new Error(result.error);
   if (id !== null) {
@@ -47,7 +47,9 @@ export async function saveMaintenanceContract(club: ClubContext, session: Browse
     const occupiedToday = activeAssignments.filter((assignment) => assignment.gueltig_ab <= localDate && (!assignment.gueltig_bis || assignment.gueltig_bis >= localDate)).length;
     if (result.payload.max_aktive_zuordnungen < occupiedToday) throw new Error("Das Kontingent kann nicht unter die aktuell belegten Plätze reduziert werden.");
   }
-  const rows = id === null ? await createMaintenanceContract(club, session, result.payload) : await updateMaintenanceContract(club, session, id, result.payload);
+  // A material amendment must never rewrite the meaning of historical assignments.
+  // It intentionally creates a new definition; the former definition remains intact.
+  const rows = id === null || fundamentalChange ? await createMaintenanceContract(club, session, result.payload) : await updateMaintenanceContract(club, session, id, result.payload);
   const row = rows[0];
   if (!row) throw new Error("Wartungsvertrag konnte nicht gespeichert werden.");
   return fromRow(row);
