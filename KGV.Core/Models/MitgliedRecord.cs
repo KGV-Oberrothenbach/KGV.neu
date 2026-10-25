@@ -11,6 +11,9 @@ namespace KGV.Core.Models
         [Column("id")]
         public int Id { get; set; }
 
+        [Column("mitgliedsnummer")]
+        public long Mitgliedsnummer { get; set; }
+
         [Column("email")]
         public string? Email { get; set; }
 
