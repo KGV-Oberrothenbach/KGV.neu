@@ -3,6 +3,7 @@ using KGV.Core.Models;
 using KGV.Core.Security;
 using KGV.Maui.State;
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
@@ -20,6 +21,7 @@ public sealed class UserManagementViewModel : INotifyPropertyChanged
     private string _selectedRole = UserRoles.User;
     private string _statusMessage = string.Empty;
     private bool _isBusy;
+    private readonly Dictionary<int, MitgliedRecord> _membersById = new();
 
     public UserManagementViewModel(IAuthService authService, ISupabaseService supabaseService, MemberContextState memberContextState, UserContextState userContextState)
     {
@@ -40,12 +42,11 @@ public sealed class UserManagementViewModel : INotifyPropertyChanged
     public bool IsBoundToMember => BoundMember?.Id > 0;
     public string BoundMemberDisplayName => BoundMember == null
         ? string.Empty
-        : string.IsNullOrWhiteSpace(BoundMember.DisplayName)
-            ? $"Mitglied #{BoundMember.Id}"
-            : BoundMember.DisplayName;
+        : FormatMemberDisplay(BoundMember);
     public string BoundMemberInfo => BoundMember == null
         ? "Es wurde kein Mitglied ausgewählt."
-        : $"Ausgewähltes Mitglied: {BoundMemberDisplayName} (ID: {BoundMember.Id})";
+        : $"Ausgewähltes Mitglied: {BoundMemberDisplayName}";
+    public string SelectedUserMemberDisplay => FormatSelectedUserMember(SelectedUser);
 
     public string Title => "Benutzerverwaltung";
     public string Description => IsBoundToMember
@@ -109,6 +110,7 @@ public sealed class UserManagementViewModel : INotifyPropertyChanged
             OnPropertyChanged(nameof(CanEditRole));
             OnPropertyChanged(nameof(CanRemoveUser));
             OnPropertyChanged(nameof(EmailChangeHint));
+            OnPropertyChanged(nameof(SelectedUserMemberDisplay));
             _ = LoadSelectedRoleAsync(value);
         }
     }
@@ -393,7 +395,16 @@ public sealed class UserManagementViewModel : INotifyPropertyChanged
 
         try
         {
-            var users = await _authService.GetAppUsersAsync();
+            var usersTask = _authService.GetAppUsersAsync();
+            var membersTask = _supabaseService.GetMitgliederAsync();
+            await Task.WhenAll(usersTask, membersTask);
+
+            var users = await usersTask;
+            var members = await membersTask;
+            _membersById.Clear();
+            foreach (var member in members)
+                _membersById[member.Id] = member;
+
             var filteredUsers = users;
             if (IsBoundToMember)
                 filteredUsers = users.FindAll(x => x.MitgliedId == BoundMember!.Id);
@@ -460,6 +471,34 @@ public sealed class UserManagementViewModel : INotifyPropertyChanged
         };
     }
 
+    private static string FormatMemberDisplay(MemberDTO member)
+    {
+        var displayName = member.DisplayName?.Trim() ?? string.Empty;
+        if (member.Mitgliedsnummer > 0)
+            return string.IsNullOrWhiteSpace(displayName)
+                ? $"Mgl.-Nr. {member.Mitgliedsnummer}"
+                : $"{displayName} · Mgl.-Nr. {member.Mitgliedsnummer}";
+
+        return string.IsNullOrWhiteSpace(displayName) ? "Mitglied ausgewählt" : displayName;
+    }
+
+    private string FormatSelectedUserMember(AppUserDTO? user)
+    {
+        if (user?.MitgliedId is not > 0)
+            return "Kein Mitglied verknüpft";
+
+        if (!_membersById.TryGetValue(user.MitgliedId.Value, out var member))
+            return "Verknüpftes Mitglied nicht verfügbar";
+
+        var displayName = $"{member.Vorname} {member.Name}".Trim();
+        if (member.Mitgliedsnummer > 0)
+            return string.IsNullOrWhiteSpace(displayName)
+                ? $"Mgl.-Nr. {member.Mitgliedsnummer}"
+                : $"{displayName} · Mgl.-Nr. {member.Mitgliedsnummer}";
+
+        return string.IsNullOrWhiteSpace(displayName) ? "Verknüpftes Mitglied" : displayName;
+    }
+
     private async Task LoadSelectedRoleAsync(AppUserDTO? user)
     {
         var target = IsBoundToMember ? TargetUser : user;
@@ -505,6 +544,7 @@ public sealed class UserManagementViewModel : INotifyPropertyChanged
         return new MemberDTO
         {
             Id = rec.Id,
+            Mitgliedsnummer = rec.Mitgliedsnummer,
             Vorname = rec.Vorname ?? string.Empty,
             Nachname = rec.Name ?? string.Empty,
             Email = rec.Email ?? string.Empty,

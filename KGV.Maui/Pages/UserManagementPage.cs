@@ -69,7 +69,7 @@ public sealed class UserManagementPage : ContentPage
         selectedSection.Children.Add(CreateValueLabel("Name", "SelectedUser.DisplayName"));
         selectedSection.Children.Add(CreateValueLabel("E-Mail", "SelectedUser.Email"));
         selectedSection.Children.Add(CreateValueLabel("Rolle", "SelectedUser.Role"));
-        selectedSection.Children.Add(CreateValueLabel("Mitglied", "SelectedUser.MitgliedId"));
+        selectedSection.Children.Add(CreateValueLabel("Mitglied", nameof(UserManagementViewModel.SelectedUserMemberDisplay)));
 
         var rolePicker = new Picker { Title = "Rolle wählen" };
         rolePicker.SetBinding(Picker.ItemsSourceProperty, nameof(UserManagementViewModel.Roles));

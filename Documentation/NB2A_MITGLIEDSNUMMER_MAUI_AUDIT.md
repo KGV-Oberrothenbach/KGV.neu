@@ -66,9 +66,11 @@ Für die spätere Anzeige sind folgende bereits vorhandene Core-/Infrastructure-
 
 ### NB-2A-M1 – Mitgliedskontext und Benutzerverwaltung
 
+Status: **erledigt**.
+
 Dateien (voraussichtlich 4–6): `MemberDTO`/zugehörige Mapping-Stellen, `AdminMenuPage.cs`, `UserManagementViewModel.cs`, `UserManagementPage.cs`, gegebenenfalls die App-User-Projektion.
 
-Ersetzt die direkt sichtbaren IDs im globalen Mitgliedskontext und in der Benutzerverwaltung. Zuerst ist die Nummer im `SelectedMember`-Pfad sowie die fachliche Auflösung für `AppUserDTO.MitgliedId` festzulegen.
+Ersetzt die direkt sichtbaren IDs im globalen Mitgliedskontext und in der Benutzerverwaltung. `MemberDTO` trägt die kanonische Nummer, einschließlich Clone/MemberContext. Die Benutzerverwaltung löst `AppUserDTO.MitgliedId` durch eine einmal je Ladevorgang geladene Mitgliederliste mit Lookup auf; es gibt keine Einzelabfragen je App-User und `AppUserDTO` bleibt die technische Zuordnung.
 
 ### NB-2A-M2 – Mitgliedsstammdaten, Nebenmitglied und Mitgliedsantrag
 

@@ -57,6 +57,13 @@ namespace KGV.Core.Models
             set => SetField(ref _id, value, nameof(Id));
         }
 
+        private long _mitgliedsnummer;
+        public long Mitgliedsnummer
+        {
+            get => _mitgliedsnummer;
+            set => SetField(ref _mitgliedsnummer, value, nameof(Mitgliedsnummer));
+        }
+
         private string _vorname = "";
         public string Vorname
         {
@@ -242,6 +249,7 @@ namespace KGV.Core.Models
             try
             {
                 Id = other.Id;
+                Mitgliedsnummer = other.Mitgliedsnummer;
                 Vorname = other.Vorname;
                 Nachname = other.Nachname;
                 Geburtsdatum = other.Geburtsdatum;
@@ -281,6 +289,7 @@ namespace KGV.Core.Models
 
             return
                 Id == other.Id &&
+                Mitgliedsnummer == other.Mitgliedsnummer &&
                 string.Equals(Vorname ?? "", other.Vorname ?? "", StringComparison.Ordinal) &&
                 string.Equals(Nachname ?? "", other.Nachname ?? "", StringComparison.Ordinal) &&
                 Geburtsdatum == other.Geburtsdatum &&

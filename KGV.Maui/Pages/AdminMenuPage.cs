@@ -208,7 +208,7 @@ public sealed class AdminMenuPage : ContentPage
         var hasSelectedMember = selectedMember?.Id > 0;
 
         _memberInfoLabel.Text = hasSelectedMember
-            ? $"Ausgewähltes Mitglied: {selectedMember!.DisplayName} (ID: {selectedMember.Id})"
+            ? $"Ausgewähltes Mitglied: {FormatMemberDisplay(selectedMember!)}"
             : "Es wurde aktuell kein Mitglied ausgewählt.";
 
         _hintLabel.Text = !canManageRoleManagement
@@ -231,6 +231,17 @@ public sealed class AdminMenuPage : ContentPage
         _meterReadingSubmissionsSwitch.IsToggled = _allowUserMeterReadingSubmissions;
         _meterReadingSubmissionsSwitch.IsEnabled = canManageMeterReadingSubmissions;
         UpdateMeterReadingSettingState();
+    }
+
+    private static string FormatMemberDisplay(MemberDTO member)
+    {
+        var displayName = member.DisplayName?.Trim() ?? string.Empty;
+        if (member.Mitgliedsnummer > 0)
+            return string.IsNullOrWhiteSpace(displayName)
+                ? $"Mgl.-Nr. {member.Mitgliedsnummer}"
+                : $"{displayName} · Mgl.-Nr. {member.Mitgliedsnummer}";
+
+        return string.IsNullOrWhiteSpace(displayName) ? "Mitglied ausgewählt" : displayName;
     }
 
     private async Task LoadPermissionSettingsAsync(MemberDTO? selectedMember, bool hasSelectedMember)
