@@ -139,9 +139,11 @@ function WorkspaceContent({ session, email, club, context, onLogout, onChangeClu
   const canReadStammdaten = has(Permission.showStammdaten) || has(Permission.readStammdaten) || has(Permission.writeStammdaten);
   const ownContext = context.mitgliedId !== null && has(Permission.seeOwnData);
   const selectedMemberId = workspaceContext.mitgliedId ?? (ownContext ? context.mitgliedId : null);
+  const selectedMemberName = selectedMember ? [selectedMember.vorname, selectedMember.name].filter(Boolean).join(" ") : "";
+  const selectedMemberNumber = selectedMember?.mitgliedsnummer;
   const selectedMemberLabel = selectedMember
-    ? [selectedMember.vorname, selectedMember.name].filter(Boolean).join(" ") || `Mitglied #${selectedMember.id}`
-    : selectedMemberId ? `Mitglied #${selectedMemberId}` : "nicht gewählt";
+    ? selectedMemberName ? `${selectedMemberName} · Mgl.-Nr. ${selectedMemberNumber ?? "–"}` : `Mgl.-Nr. ${selectedMemberNumber ?? "–"}`
+    : selectedMemberId ? "Mgl.-Nr. –" : "nicht gewählt";
   const selectedParcelId = workspaceContext.parzelleId;
   const selectedSeason = seasons.find((item) => item.id === workspaceContext.saisonId) ?? null;
   const season = selectedSeason?.jahr ?? workspaceContext.saisonJahr ?? new Date().getFullYear();
@@ -290,7 +292,7 @@ function WorkspaceContent({ session, email, club, context, onLogout, onChangeClu
           {effectiveActiveId === "mitglied-admin" && selectedMemberId && <UserRightsAdministration key={`${club.vereinId}:${session.user.id}:${selectedMemberId}`} session={session} fixedMemberId={selectedMemberId} />}
           {effectiveActiveId === "mitglied-gaerten" && selectedMemberId && <MemberGardensWorkspace key={`${club.vereinId}:${selectedMemberId}`} session={session} memberId={selectedMemberId} selectedParcelId={selectedParcelId} onSelect={selectParcel} canAssign={has(Permission.createMember)} canCreateLeaseContract={has(Permission.manageDocuments)} />}
           {effectiveActiveId === "mitglied-protokolle" && selectedMemberId && <ParcelProtocolsWorkspace session={session} memberId={selectedMemberId} currentBoardMemberId={context.mitgliedId} />}
-          {effectiveActiveId === "mitglied-stammdaten" && (selectedMemberId || creatingMember) && <MemberStammdaten session={session} memberId={creatingMember ? null : selectedMemberId} canEdit={creatingMember || has(Permission.editAllMembers) || (selectedMemberId === context.mitgliedId && has(Permission.seeOwnData))} canCreate={creatingMember} canManageSecondary={has(Permission.editAllMembers)} canManageDocuments={has(Permission.manageDocuments)} canManageClubDocuments={context.role === "admin" || context.role === "vorstand"} editPermissions={{ actorMemberId: context.mitgliedId, canEditOwnMember: has(Permission.seeOwnData), canEditAllMembers: has(Permission.editAllMembers) }} createPermissions={{ canCreateMember: has(Permission.createMember) }} onSaved={(member) => { setSelectedMember({ id: member.id, vorname: member.vorname, name: member.name }); selectMember(member.id); setActiveId("mitglied-stammdaten"); }} onCancel={() => { setCreatingMember(false); setActiveId("mitglieder"); }} />}
+          {effectiveActiveId === "mitglied-stammdaten" && (selectedMemberId || creatingMember) && <MemberStammdaten session={session} memberId={creatingMember ? null : selectedMemberId} canEdit={creatingMember || has(Permission.editAllMembers) || (selectedMemberId === context.mitgliedId && has(Permission.seeOwnData))} canCreate={creatingMember} canManageSecondary={has(Permission.editAllMembers)} canManageDocuments={has(Permission.manageDocuments)} canManageClubDocuments={context.role === "admin" || context.role === "vorstand"} editPermissions={{ actorMemberId: context.mitgliedId, canEditOwnMember: has(Permission.seeOwnData), canEditAllMembers: has(Permission.editAllMembers) }} createPermissions={{ canCreateMember: has(Permission.createMember) }} onSaved={(member) => { setSelectedMember({ id: member.id, mitgliedsnummer: member.mitgliedsnummer, vorname: member.vorname, name: member.name }); selectMember(member.id); setActiveId("mitglied-stammdaten"); }} onCancel={() => { setCreatingMember(false); setActiveId("mitglieder"); }} />}
         </article>
       </section>
     </main>

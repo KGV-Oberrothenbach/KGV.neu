@@ -44,8 +44,13 @@ export function MembershipEnd({ session, mainMember, canManageMembership, onSave
   }
 
   function confirmationText() {
-    const mainName = [mainMember.vorname, mainMember.name].filter(Boolean).join(" ") || `Mitglied #${mainMember.id}`;
-    const secondaryName = secondary ? ([secondary.vorname, secondary.name].filter(Boolean).join(" ") || `Mitglied #${secondary.id}`) : "";
+    const memberLabel = (member: Member) => {
+      const name = [member.vorname, member.name].filter(Boolean).join(" ");
+      const number = `Mgl.-Nr. ${member.mitgliedsnummer ?? "–"}`;
+      return name ? `${name} · ${number}` : number;
+    };
+    const mainName = memberLabel(mainMember);
+    const secondaryName = secondary ? memberLabel(secondary) : "";
     if (!secondary) return `Soll die Mitgliedschaft von ${mainName} zum heutigen Vereinsdatum beendet werden?`;
     if (decision === "end_secondary") return `Sollen die Mitgliedschaften von ${mainName} und ${secondaryName} zum heutigen Vereinsdatum beendet werden?`;
     return `Soll die Mitgliedschaft von ${mainName} beendet und ${secondaryName} als Hauptmitglied weitergeführt werden?`;

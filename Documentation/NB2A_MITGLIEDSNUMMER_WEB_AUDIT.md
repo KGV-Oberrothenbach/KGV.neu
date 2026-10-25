@@ -52,11 +52,14 @@ Kategorie **A**. Diese Verwendungen sind keine fachlichen Ausgaben und sollen im
 ## Unklare Treffer
 
 1. **Datenverfügbarkeit in projektspezifischen Abfragen:** `mitgliedsnummer` ist im Webmodell optional. Vor jedem Block muss geprüft werden, welche der verwendeten Spezialabfragen/Projektionen die Nummer bereits liefern und welche sie ergänzen müssen. Die Anzeige darf nicht still auf die technische ID zurückfallen.
-2. **Darstellungsstandard bei fehlendem Namen:** Für reine Fallbacks ist fachlich festzulegen, ob exakt `Mitgliedsnummer <n>`, `Mitglied Nr. <n>` oder eine kombinierte Anzeige verwendet wird. Die technische ID darf dabei nicht Teil des sichtbaren Texts sein.
+
+Der Darstellungsstandard ist festgelegt: `Mgl.-Nr. <nummer>`; bei vorhandenem Namen `<Name> · Mgl.-Nr. <nummer>`.
 
 ## Implementierungsblöcke
 
 ### NB-2A-W1 – Mitgliedsstammdaten und Mitgliedskontext
+
+Status: **erledigt** (Commit folgt diesem Arbeitsblock).
 
 Dateien:
 
