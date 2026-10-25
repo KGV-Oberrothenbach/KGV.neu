@@ -23,6 +23,7 @@ export type ParcelOverviewAssignment = ParcelAssignment & { id: number; beendigu
 export type ParcelOccupancy = ParcelAssignment & { id: number };
 export type ParcelOverviewMember = {
   id: number;
+  mitgliedsnummer: number | null;
   vorname: string | null;
   name: string | null;
   email: string | null;
@@ -127,7 +128,7 @@ export const updateParcelAssignmentEnd = (club: ClubContext, session: BrowserSes
   writeWithBrowserEditLock<ParcelOverviewAssignment>({ club, session }, "parzellen_belegung", "PATCH", data, { id: `eq.${assignmentId}` });
 
 export const listParcelOverviewMembers = (club: ClubContext, session: BrowserSession) => readSupabaseRest<ParcelOverviewMember>({ club, session }, "mitglied", {
-  select: "id,vorname,name,email,aktiv,hauptmitglied_id,role",
+  select: "id,mitgliedsnummer,vorname,name,email,aktiv,hauptmitglied_id,role",
   order: "name.asc,vorname.asc",
   limit: "2000",
 });

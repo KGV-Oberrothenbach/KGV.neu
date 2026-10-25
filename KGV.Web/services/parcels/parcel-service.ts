@@ -120,7 +120,8 @@ export function formatParcelTenantName(member?: ParcelOverviewMember | null) {
   const lastName = member.name?.trim() ?? "";
   const firstName = member.vorname?.trim() ?? "";
   const fullName = [lastName, firstName].filter(Boolean).join(", ");
-  return fullName || member.email?.trim() || `Mitglied #${member.id}`;
+  const memberNumber = `Mgl.-Nr. ${member.mitgliedsnummer ?? "–"}`;
+  return fullName ? `${fullName} · ${memberNumber}` : memberNumber;
 }
 
 export async function listParcelOverview(club: ClubContext, session: BrowserSession): Promise<ParcelOverview> {

@@ -72,6 +72,8 @@ Stellt die Nummer im Stammdatenbereich, im ausgewählten Workspace-Kontext und i
 
 ### NB-2A-W2 – Parzellen und Rechteverwaltung
 
+Status: **erledigt** (Commit folgt diesem Arbeitsblock).
+
 Dateien:
 
 - `KGV.Web/app/parcel-workspaces.tsx`
