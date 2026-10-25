@@ -8,6 +8,7 @@ namespace KGV.Core.Models
         public int Id { get; set; }
 
         public int MitgliedId { get; set; }
+        public long Mitgliedsnummer { get; set; }
         public string Vorname { get; set; } = string.Empty;
         public string Nachname { get; set; } = string.Empty;
 

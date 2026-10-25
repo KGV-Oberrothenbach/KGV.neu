@@ -2982,6 +2982,7 @@ namespace KGV.Infrastructure.Services
                     {
                         Id = record.Id,
                         MitgliedId = record.MitgliedId,
+                        Mitgliedsnummer = mitglied?.Mitgliedsnummer ?? 0,
                         Vorname = mitglied?.Vorname ?? string.Empty,
                         Nachname = mitglied?.Name ?? string.Empty,
                         Datum = record.Datum,
@@ -3092,6 +3093,7 @@ namespace KGV.Infrastructure.Services
                     {
                         Id = record.Id,
                         MitgliedId = record.MitgliedId,
+                        Mitgliedsnummer = mitglied?.Mitgliedsnummer ?? 0,
                         Vorname = mitglied?.Vorname ?? string.Empty,
                         Nachname = mitglied?.Name ?? string.Empty,
                         Datum = record.Datum,

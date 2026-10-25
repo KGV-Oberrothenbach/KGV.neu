@@ -47,7 +47,7 @@ Kategorie **A**. Die umfangreichen Verwendungen von `Id`, `MemberId` und `Mitgli
 ## Unklare Treffer
 
 1. **Name-only-Labels:** Mehrere Listen (etwa Arbeitseinsatz-Teilnehmer, Vereinsfunktionen, Parzellen und Kommunikation) zeigen derzeit nur Namen bzw. E-Mail, aber keine technische ID. Vor der Umsetzung ist fachlich zu entscheiden, ob der verbindliche Standard auch dort die Mitgliedsnummer zusätzlich verlangt. Dieser Audit-Block erfasst nur sichtbare technische IDs bzw. deren Fallbacks.
-2. **Arbeitsstunden-Prüfung:** `ArbeitsstundeDTO` führt Name und `MitgliedId`, jedoch keine Mitgliedsnummer. Vor M3 muss entschieden werden, ob die bestehende Übersichtsdatenprojektion die Nummer ergänzt oder die Page eine gebündelte Mitgliederauflösung erhält. Pro Eintrag ist kein N+1-Lookup vorzusehen.
+2. **Arbeitsstunden-Prüfung (geklärt):** `ArbeitsstundeDTO` enthält die Mitgliedsnummer. Die bestehenden Übersichtsprojektionen in `SupabaseService` liefern sie aus ihren bereits einmal geladenen Mitgliederlisten; die Page führt keinen Lookup aus und es entsteht kein N+1.
 3. **Benutzerverwaltung:** `AppUserDTO.MitgliedId` ist ein sichtbares Direktbinding. Vor M1 ist festzulegen, ob die Mitgliedsnummer als Feld einer Benutzer-Projektion geliefert oder über eine einmalige Mitgliederliste aufgelöst wird.
 
 ## MAUI-Abhängigkeiten außerhalb KGV.Maui
@@ -82,9 +82,11 @@ Vereinheitlicht Köpfe, Haupt-/Nebenmitglied-Bezüge, Umwandlungsdialog und Vert
 
 ### NB-2A-M3 – Arbeitsstunden und Kontextfehler
 
+Status: **erledigt**.
+
 Dateien (voraussichtlich 3–5): `ArbeitsstundenReviewDetailPage.cs`, `MyArbeitsstundenPage.cs`, ggf. `ArbeitsstundeDTO` und die zugehörige Übersichtsdatenprojektion.
 
-Ersetzt den Arbeitsstunden-Fallback und die sichtbaren technischen Kontextfehler. Die Prüfungsübersicht erhält eine einmalige, testbare fachliche Mitgliedsauflösung.
+Ersetzt den Arbeitsstunden-Fallback und die sichtbaren technischen Kontextfehler. `ArbeitsstundeDTO.Mitgliedsnummer` wird in den bestehenden Übersichtsprojektionen aus dem geladenen Mitglied geliefert; ein zusätzlicher Page-Lookup findet nicht statt.
 
 ### NB-2A-M4 – Parzellen, Pachtvertrag und Wartungsverträge
 

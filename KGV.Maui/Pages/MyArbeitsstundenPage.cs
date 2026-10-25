@@ -170,7 +170,7 @@ public sealed class MyArbeitsstundenPage : ContentPage
             var contextMemberId = GetContextMemberId();
             if (!contextMemberId.HasValue)
             {
-                _status.Text = "MitgliedId fehlt.";
+                _status.Text = "Mitgliedskontext fehlt.";
                 return;
             }
 

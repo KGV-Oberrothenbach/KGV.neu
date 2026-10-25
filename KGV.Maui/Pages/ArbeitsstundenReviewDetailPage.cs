@@ -707,7 +707,7 @@ public sealed class ArbeitsstundenReviewDetailPage : ContentPage
             return true;
         }
 
-        _statusLabel.Text = "Genehmiger-MitgliedId fehlt.";
+        _statusLabel.Text = "Genehmiger-Kontext fehlt.";
         return false;
     }
 
@@ -724,7 +724,12 @@ public sealed class ArbeitsstundenReviewDetailPage : ContentPage
     private static string BuildMemberDisplay(ArbeitsstundeDTO entry)
     {
         var display = $"{entry.Nachname} {entry.Vorname}".Trim();
-        return string.IsNullOrWhiteSpace(display) ? $"Mitglied {entry.MitgliedId}" : display;
+        if (entry.Mitgliedsnummer > 0)
+            return string.IsNullOrWhiteSpace(display)
+                ? $"Mgl.-Nr. {entry.Mitgliedsnummer}"
+                : $"{display} · Mgl.-Nr. {entry.Mitgliedsnummer}";
+
+        return string.IsNullOrWhiteSpace(display) ? "Mitglied nicht verfügbar" : display;
     }
 
     private static string BuildForeignLockMessage(ArbeitsstundenReviewLockResult result)
