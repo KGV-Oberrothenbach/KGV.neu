@@ -136,6 +136,7 @@ public sealed class KommunikationPage : ContentPage
         }
     }
 
+
     private async Task OpenAsync(SignatureListItem item)
     {
         if (!item.IsMine)
@@ -424,7 +425,19 @@ public sealed class KommunikationPage : ContentPage
         SignatureFilter.Unassigned => contract.ZugewiesenAn is null,
         _ => true
     };
-    private static string MemberName(int id, IReadOnlyDictionary<int, MitgliedRecord> members) => members.TryGetValue(id, out var member) ? $"{member.Vorname} {member.Name}".Trim() : "Mitglied unbekannt";
+    private static string MemberName(int id, IReadOnlyDictionary<int, MitgliedRecord> members)
+    {
+        if (!members.TryGetValue(id, out var member))
+            return "Mitglied unbekannt";
+
+        var name = $"{member.Vorname} {member.Name}".Trim();
+        if (member.Mitgliedsnummer <= 0)
+            return "Mitgliedsnummer nicht verfügbar";
+
+        return string.IsNullOrWhiteSpace(name)
+            ? $"Mgl.-Nr. {member.Mitgliedsnummer}"
+            : $"{name} · Mgl.-Nr. {member.Mitgliedsnummer}";
+    }
     private static string? GardenNumber(int? id, IReadOnlyDictionary<int, ParzelleRecord> parcels) => id is { } parcelId && parcels.TryGetValue(parcelId, out var parcel) ? parcel.GartenNr : null;
     private Guid CurrentUserId() => Guid.TryParse(_authService.CurrentUserId, out var userId) && userId != Guid.Empty
         ? userId
@@ -444,4 +457,3 @@ public sealed class KommunikationPage : ContentPage
         public string Assignment => IsMine ? "Mir zugewiesen" : IsUnassigned ? "Unzugeordnet" : "Anderem Bearbeiter zugewiesen";
     }
 }
-

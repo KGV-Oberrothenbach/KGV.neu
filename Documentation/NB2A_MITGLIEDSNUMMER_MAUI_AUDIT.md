@@ -1,6 +1,6 @@
 # NB-2A Mitgliedsnummer – MAUI-Audit
 
-Stand: Audit auf Commit `08a76d6958e0466ad4687d75bb8f3c29d2a1ff17`. Gegenstand ist ausschließlich die Bestandsaufnahme für `KGV.Maui`; es wurden keine Anzeigen, Modelle, Services oder Abfragen geändert.
+Ursprünglicher Auditstand: Commit `08a76d6958e0466ad4687d75bb8f3c29d2a1ff17`. Die damalige Bestandsaufnahme für `KGV.Maui` änderte keine Anzeigen, Modelle, Services oder Abfragen; die Umsetzung wird in den folgenden NB-2A-Blöcken dokumentiert.
 
 ## Ausgangslage
 
@@ -10,7 +10,13 @@ Stand: Audit auf Commit `08a76d6958e0466ad4687d75bb8f3c29d2a1ff17`. Gegenstand i
 - Mit Namen: `<Name> · Mgl.-Nr. <nummer>`.
 - Die technische `mitglied.id` bleibt für FK, API-/RPC-Parameter, Navigation, Berechtigungen, State/Context, Auswahlwerte und Diagnose intern bestehen.
 
-## User-facing Treffer
+## Geklärte Darstellungsentscheidung
+
+Für interne fachliche Mitgliedsreferenzen gilt generell `<Name> · Mgl.-Nr. <nummer>`. Fehlt der Name, wird `Mgl.-Nr. <nummer>` angezeigt. Die Mitgliedsnummer gilt auch dann als fachliche Kennung, wenn zuvor nur Name oder E-Mail sichtbar waren.
+
+Die Regel gilt, wenn eine Person in der internen Vereinssoftware als Mitglied ausgewählt, verwaltet, angezeigt oder zugeordnet wird. Öffentliche/reine Funktionsdarstellungen wie das Impressum, reine Kontaktangaben und Personen, die ausdrücklich als rechtliche Vertrags- oder Funktionsunterzeichner dargestellt werden, werden nicht pauschal umgestellt.
+
+## User-facing Treffer (ursprünglicher Audit-Iststand)
 
 Alle folgenden Treffer sind Kategorie **B**. Die technische ID ist direkt sichtbar oder kann als sichtbarer Fallback erscheinen. Bei Umsetzungen darf kein Fallback auf die technische ID bestehen bleiben.
 
@@ -44,11 +50,11 @@ Kategorie **A**. Die umfangreichen Verwendungen von `Id`, `MemberId` und `Mitgli
 - **Berechtigung und Kontext:** `PermissionChecks`, der eigene Mitgliedskontext, Rollenauflösung sowie Gleichheitsprüfungen bleiben ID-basiert.
 - **Diagnose und Infrastruktur:** `AppFileLog`, `Debug.WriteLine`, `Console.WriteLine`, lokale Warteschlangen, Dateinamen, Cache-/Storage-Schlüssel sowie Support-IDs bleiben technische Diagnosewerte. Sie sind keine normalen Benutzeroberflächen.
 
-## Unklare Treffer
+## Ehemals offene Punkte
 
-1. **Name-only-Labels:** Mehrere Listen (etwa Arbeitseinsatz-Teilnehmer, Vereinsfunktionen, Parzellen und Kommunikation) zeigen derzeit nur Namen bzw. E-Mail, aber keine technische ID. Vor der Umsetzung ist fachlich zu entscheiden, ob der verbindliche Standard auch dort die Mitgliedsnummer zusätzlich verlangt. Dieser Audit-Block erfasst nur sichtbare technische IDs bzw. deren Fallbacks.
-2. **Arbeitsstunden-Prüfung (geklärt):** `ArbeitsstundeDTO` enthält die Mitgliedsnummer. Die bestehenden Übersichtsprojektionen in `SupabaseService` liefern sie aus ihren bereits einmal geladenen Mitgliederlisten; die Page führt keinen Lookup aus und es entsteht kein N+1.
-3. **Benutzerverwaltung:** `AppUserDTO.MitgliedId` ist ein sichtbares Direktbinding. Vor M1 ist festzulegen, ob die Mitgliedsnummer als Feld einer Benutzer-Projektion geliefert oder über eine einmalige Mitgliederliste aufgelöst wird.
+- **Name-only-Labels:** Die fachliche Entscheidung ist mit dem oben dokumentierten Standard geklärt; die Umsetzung erfolgt blockweise. M5A deckt Mitgliedssuche, Teilnehmer, Vereinsfunktionen, Kommunikation und zwei unmittelbar passende MAUI-Mitgliedsansichten ab. Ein gezielter Resttreffer im Arbeitsbereich Ablesungsfreigabe bleibt für M5B vorgemerkt.
+- **Arbeitsstunden-Prüfung:** geklärt und in M3 umgesetzt. `ArbeitsstundeDTO` enthält die Mitgliedsnummer. Bestehende Übersichtsprojektionen liefern sie aus bereits geladenen Mitgliederlisten; kein Einzelabruf je Zeile.
+- **Benutzerverwaltung:** geklärt und in M1 umgesetzt. Die Benutzerverwaltung löst die technische Mitgliedszuordnung über eine einmal je Ladevorgang geladene Mitgliederliste auf; `AppUserDTO` behält die technische Zuordnung.
 
 ## MAUI-Abhängigkeiten außerhalb KGV.Maui
 
@@ -57,9 +63,9 @@ Für die spätere Anzeige sind folgende bereits vorhandene Core-/Infrastructure-
 | Datei | warum relevant | späterer Bearbeitungsblock |
 |---|---|---|
 | `KGV.Core/Models/MitgliedRecord.cs` | Hat die kanonische, DB-gemappte Property `Mitgliedsnummer`; die regulären `GetMitgliederAsync`-/`GetMitgliedByIdAsync`-Abfragen laden sie bereits. | M1–M4 verwenden, keine Neuberechnung. |
-| `KGV.Core/Models/MemberDTO.cs` | Enthält `Id` und `DisplayName`, aber keine Mitgliedsnummer; `SelectedMember` und mehrere MAUI-Mapper verlieren die Information. | M1; Core-Änderung separat prüfen. |
+| `KGV.Core/Models/MemberDTO.cs` | Enthält die kanonische Mitgliedsnummer zusätzlich zu `Id` und `DisplayName`; `SelectedMember` und MAUI-Mapper bewahren sie. | M1–M5A verwenden; keine Neuberechnung. |
 | `KGV.Core/Models/AppUserDTO.cs` | Die sichtbare Benutzerverwaltung enthält nur `MitgliedId`, keine fachliche Mitgliedsprojektion. | M1; Projektion/Lookup festlegen. |
-| `KGV.Core/Models/ArbeitsstundeDTO.cs` | Für den sichtbaren Arbeitsstunden-Fallback sind `MitgliedId` und Namen vorhanden, nicht die Mitgliedsnummer. | M3; Übersichtsdatenprojektion ergänzen oder Lookup bündeln. |
+| `KGV.Core/Models/ArbeitsstundeDTO.cs` | Enthält `MitgliedId`, Namen und Mitgliedsnummer für fachliche Anzeigen. | M3 umgesetzt; Projektion nutzt die vorhandene Sammelliste. |
 | `KGV.Infrastructure/Services/SupabaseService.cs` | `GetMitgliederAsync`, `GetMitgliedByIdAsync` und `GetMitgliedByAuthUserIdAsync` laden `MitgliedRecord` vollständig; keine explizite Select-Projektion verhindert die Nummer. | M1–M4 nur prüfen, falls ein Spezialpfad abweicht. |
 
 ## Implementierungsblöcke
@@ -94,12 +100,20 @@ Status: **erledigt**.
 
 Dateien (voraussichtlich 5–6): `MemberGardenAssignPage.cs`, `MemberGardensPage.cs`, `MemberParzellenDetailPage.cs`, `PachtvertragDialogPage.cs`, `MemberWartungsvertraegePage.cs`, `WartungsvertragAssignMembersPage.cs`.
 
-Vereinheitlicht Titel, Pachtvertragsparteien, Vertragszuordnung und technische Kontextfehlermeldungen. Technische IDs in Vertragsrequests und Navigation bleiben unverändert.
+Vereinheitlicht Titel, Pachtvertragsparteien, Vertragszuordnung und technische Kontextfehlermeldungen. Service-seitige Wartungsvertragszuordnungen projizieren ebenfalls das kanonische Mitgliedslabel und keinen ID-Fallback. Technische IDs in Vertragsrequests und Navigation bleiben unverändert.
 
-### NB-2A-M5 – Mitgliedssuche und abschließende Regression
+### NB-2A-M5A – Mitgliedssuche und einheitliche Mitgliedslabels
 
-Dateien (voraussichtlich 3–4): `MemberSearchViewModel.cs`, die betroffenen Mapper/Result-Items sowie vorhandene MAUI-Contract-Tests oder ergänzende fokussierte Tests.
+Status: **erledigt**.
 
-Ersetzt den Such-Fallback durch die Mitgliedsnummer und prüft, dass alle in M1–M4 angefassten Labels den gemeinsamen Darstellungsstandard verwenden.
+Die Suche zeigt `<Name> · Mgl.-Nr. <nummer>` und ohne Namen `Mgl.-Nr. <nummer>`; die E-Mail bleibt ergänzender Untertitel. Teilnehmer-Picker/-listen in `ArbeitseinsatzTeilnehmerPage` und `HomeSectionDetailPage`, Vereinsfunktionsauswahl und Besetzungen, interne Kommunikationsvorgänge, die digitale Mitgliedsdokument-Versandbestätigung in `MemberDetailPage` und individuelle Rechnungszuordnungen verwenden den Standard. Technische Auswahl-/FK-IDs bleiben unverändert; beide Teilnehmer-Servicepfade projizieren Labels aus je einer gebündelten Mitgliederliste, ohne Einzelabruf je Teilnehmer. Die Abschlussprüfung korrigierte außerdem noch fehlende Labels in Home-Teilnehmerdetails, der digitalen Dokumentversand-Bestätigung und service-seitigen Wartungsvertragszuordnungen.
+
+Die öffentliche Impressumsdarstellung und Signatur-/Unterzeichnerdarstellungen wurden nicht pauschal geändert. Regressionen sichern Labels, IDs, Statuswerte und die vorhandenen Sammelabfragen ab.
+
+### NB-2A-M5B – abschließende MAUI-Regression
+
+Status: **offen – nicht begonnen**.
+
+Vollständige abschließende MAUI-Regression und Resttrefferprüfung. Bei der gezielten M5A-Resttreffersuche wurde `AblesungenFreigabePage` gefunden: `AblesungReviewItem.MitgliedDisplay` zeigt weiterhin die aus der bestehenden Projektion stammende Name-only-Anzeige. Die Änderung benötigt eine Nummernprojektion über `SupabaseService` sowie das zugehörige Modell und bleibt daher für den vollständigen Abschlussblock M5B vorgemerkt. Vertrags-/Funktionsunterzeichner in `ParzellenProtokollePage` bleiben aufgrund der fachlichen Ausnahme unverändert.
 
 Jeder Block ist unabhängig implementierbar, auf seinen Fachbereich begrenzt, separat testbar und soll mit einem eigenen Commit und Push abgeschlossen werden. PDF-/Dokumentgeneratoren, Exporte, Datenbankmigrationen und KGV.Web sind ausdrücklich nicht Teil dieser Blöcke.

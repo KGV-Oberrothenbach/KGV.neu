@@ -116,9 +116,10 @@ public sealed class JahresabschlussRechnungEditorPage : ContentPage
         if (parzelle != null) { _zielParzelle = parzelle; _zielMitglied = null; _ziel.Text = $"Ziel: Garten {parzelle.DisplayName}"; return; }
         var matches = (await _supabase.GetMitgliederAsync()).Where(x => ($"{x.Vorname} {x.Name}").Contains(query, StringComparison.OrdinalIgnoreCase)).Take(8).ToList();
         if (matches.Count == 0) { _status.Text = "Kein Garten und kein Mitglied gefunden."; return; }
-        var choices = matches.Select(x => $"{x.Vorname} {x.Name}").ToArray(); var choice = await DisplayActionSheetAsync("Mitglied auswählen", "Abbrechen", null, choices);
-        var selected = matches.FirstOrDefault(x => $"{x.Vorname} {x.Name}" == choice); if (selected == null) return;
-        _zielMitglied = selected; _zielParzelle = null; _ziel.Text = $"Ziel: Mitglied {selected.Vorname} {selected.Name}";
+        var choices = matches.Select(member => new { Member = member, Label = FormatMemberReferenceLabel(member) }).ToList();
+        var choice = await DisplayActionSheetAsync("Mitglied auswählen", "Abbrechen", null, choices.Select(x => x.Label).ToArray());
+        var selected = choices.FirstOrDefault(x => x.Label == choice)?.Member; if (selected == null) return;
+        _zielMitglied = selected; _zielParzelle = null; _ziel.Text = $"Ziel: {FormatMemberReferenceLabel(selected)}";
     }
 
     private async Task LoadZuordnungenAsync()
@@ -130,6 +131,16 @@ public sealed class JahresabschlussRechnungEditorPage : ContentPage
     }
 
     private void UpdateTargetHint() => _zielSuche.IsVisible = (_umlageart.SelectedItem as UmlageartRecord)?.Kuerzel == "EINZEL";
+    private static string FormatMemberReferenceLabel(MitgliedRecord member)
+    {
+        var name = $"{member.Vorname} {member.Name}".Trim();
+        if (member.Mitgliedsnummer <= 0)
+            return "Mitgliedsnummer nicht verfügbar";
+
+        return string.IsNullOrWhiteSpace(name)
+            ? $"Mgl.-Nr. {member.Mitgliedsnummer}"
+            : $"{name} · Mgl.-Nr. {member.Mitgliedsnummer}";
+    }
     private static bool TryParseAmount(string? value, out decimal result) => decimal.TryParse(value, NumberStyles.Number, CultureInfo.CurrentCulture, out result) || decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out result);
     private static string? EmptyToNull(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 

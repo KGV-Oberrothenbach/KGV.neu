@@ -276,9 +276,8 @@ public class MemberSearchViewModel : INotifyPropertyChanged
 
     private static MemberSearchResultItem MapToMemberResult(MitgliedRecord member)
     {
-        var displayName = $"{member.Vorname} {member.Name}".Trim();
-        if (string.IsNullOrWhiteSpace(displayName))
-            displayName = member.Email ?? $"Mitglied {member.Id}";
+        var name = $"{member.Vorname} {member.Name}".Trim();
+        var displayName = FormatMemberReferenceLabel(name, member.Mitgliedsnummer);
 
         var gartenNummernText = string.Empty;
 
@@ -311,6 +310,7 @@ public class MemberSearchViewModel : INotifyPropertyChanged
         return new MemberDTO
         {
             Id = member.Id,
+            Mitgliedsnummer = member.Mitgliedsnummer,
             Vorname = member.Vorname ?? string.Empty,
             Nachname = member.Name ?? string.Empty,
             Email = member.Email ?? string.Empty,
@@ -328,6 +328,16 @@ public class MemberSearchViewModel : INotifyPropertyChanged
                 ? new List<GartenDTO>(gaerten)
                 : new List<GartenDTO>()
         };
+    }
+
+    private static string FormatMemberReferenceLabel(string name, long membershipNumber)
+    {
+        if (membershipNumber <= 0)
+            return "Mitgliedsnummer nicht verfügbar";
+
+        return string.IsNullOrWhiteSpace(name)
+            ? $"Mgl.-Nr. {membershipNumber}"
+            : $"{name} · Mgl.-Nr. {membershipNumber}";
     }
 
     private static MemberSearchResultItem MapToParzelleResult(ParzelleRecord parzelle)

@@ -537,12 +537,12 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         var name = string.Join(' ', new[] { member?.Vorname, member?.Name }
             .Where(value => !string.IsNullOrWhiteSpace(value))
             .Select(value => value!.Trim()));
-        if (member.Mitgliedsnummer > 0)
-            return string.IsNullOrWhiteSpace(name)
-                ? $"Mgl.-Nr. {member.Mitgliedsnummer}"
-                : $"{name} · Mgl.-Nr. {member.Mitgliedsnummer}";
+        if (member.Mitgliedsnummer <= 0)
+            return "Mitgliedsnummer nicht verfügbar";
 
-        return string.IsNullOrWhiteSpace(name) ? "Mitglied" : name;
+        return string.IsNullOrWhiteSpace(name)
+            ? $"Mgl.-Nr. {member.Mitgliedsnummer}"
+            : $"{name} · Mgl.-Nr. {member.Mitgliedsnummer}";
     }
 
     private string BuildMitgliedsantragDiagnoseText(MemberDTO? member)
@@ -885,7 +885,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
             if (action == "Digital senden")
             {
                 if (string.IsNullOrWhiteSpace(_memberRecord?.Email)) { await DisplayAlertAsync("Digital senden", "Für dieses Mitglied ist keine E-Mail-Adresse hinterlegt. Eine Adresse des gesetzlichen Vertreters wird nicht automatisch verwendet.", "OK"); return null; }
-                if (!await DisplayAlertAsync("Digital senden", $"Mitglied: {_memberRecord!.Vorname} {_memberRecord.Name}\nE-Mail: {_memberRecord.Email}\n\n{list}", "Senden", "Abbrechen")) return null;
+                if (!await DisplayAlertAsync("Digital senden", $"Mitglied: {FormatMemberDisplayName(_memberRecord)}\nE-Mail: {_memberRecord!.Email}\n\n{list}", "Senden", "Abbrechen")) return null;
                 var result = await _supabaseService.SendMitgliedVereinsunterlagenDigitalAsync(mitgliedId, missing.Select(item => item.VereinsdokumentFassungId!.Value).ToList());
                 if (!result.Success) { await DisplayAlertAsync("Digital senden", DeliveryMessage(result), "OK"); return null; }
             }

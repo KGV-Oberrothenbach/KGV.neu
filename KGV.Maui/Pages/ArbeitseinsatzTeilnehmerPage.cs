@@ -83,7 +83,7 @@ public sealed class ArbeitseinsatzTeilnehmerPage : ContentPage, IQueryAttributab
             _members = (await _supabaseService.GetMitgliederAsync())
                 .Where(x => x.Aktiv && (!registrationByMemberId.TryGetValue(x.Id, out var registration) || registration.Status == "abgesagt"))
                 .OrderBy(x => x.Name).ThenBy(x => x.Vorname).ToList();
-            _memberPicker.ItemsSource = _members.Select(x => $"{x.Name}, {x.Vorname}").ToList();
+            _memberPicker.ItemsSource = _members.Select(FormatMemberReferenceLabel).ToList();
             _memberPicker.IsEnabled = CanRegister;
             _registerButton.IsEnabled = CanRegister;
             _items.Children.Clear();
@@ -179,4 +179,14 @@ public sealed class ArbeitseinsatzTeilnehmerPage : ContentPage, IQueryAttributab
     private string RegistrationBlockedMessage => !_assignmentActive ? "Der Arbeitseinsatz ist abgesagt." : _started ? "Der Arbeitseinsatz hat bereits begonnen." : "Die Teilnehmerbegrenzung ist erreicht.";
     private static int StatusRank(string status) => status switch { "angemeldet" => 0, "teilgenommen" => 1, "nicht_erschienen" => 2, "abgesagt" => 3, _ => 4 };
     private static string StatusLabel(string status) => status switch { "angemeldet" => "Angemeldet", "teilgenommen" => "Teilgenommen", "nicht_erschienen" => "Nicht erschienen", "abgesagt" => "Abgesagt", _ => status };
+    private static string FormatMemberReferenceLabel(MitgliedRecord member)
+    {
+        var name = $"{member.Vorname} {member.Name}".Trim();
+        if (member.Mitgliedsnummer <= 0)
+            return "Mitgliedsnummer nicht verfügbar";
+
+        return string.IsNullOrWhiteSpace(name)
+            ? $"Mgl.-Nr. {member.Mitgliedsnummer}"
+            : $"{name} · Mgl.-Nr. {member.Mitgliedsnummer}";
+    }
 }

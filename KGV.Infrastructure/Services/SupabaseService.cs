@@ -5539,8 +5539,8 @@ namespace KGV.Infrastructure.Services
                     {
                         MitgliedId = x.MitgliedId,
                         DisplayName = memberById.TryGetValue(x.MitgliedId, out var member)
-                            ? (FormatMemberName(member) ?? $"Mitglied #{x.MitgliedId}")
-                            : $"Mitglied #{x.MitgliedId}",
+                            ? FormatMemberReferenceLabel(member)
+                            : "Mitglied unbekannt",
                         StatusText = $"Angemeldet am {x.AngemeldetAm:dd.MM.yyyy HH:mm}"
                     })
                     .ToList();
@@ -5565,14 +5565,25 @@ namespace KGV.Infrastructure.Services
                         RegistrationId = x.Id,
                         MitgliedId = x.MitgliedId,
                         DisplayName = membersById.TryGetValue(x.MitgliedId, out var member)
-                            ? (FormatMemberName(member) ?? $"Mitglied #{x.MitgliedId}")
-                            : $"Mitglied #{x.MitgliedId}",
+                            ? FormatMemberReferenceLabel(member)
+                            : "Mitglied unbekannt",
                         Status = x.Status,
                         AngemeldetAm = x.AngemeldetAm
                     })
                     .ToList();
             },
             new List<WorkAssignmentManagementParticipantItem>());
+
+        private static string FormatMemberReferenceLabel(MitgliedRecord member)
+        {
+            var name = $"{member.Vorname} {member.Name}".Trim();
+            if (member.Mitgliedsnummer <= 0)
+                return "Mitgliedsnummer nicht verfügbar";
+
+            return string.IsNullOrWhiteSpace(name)
+                ? $"Mgl.-Nr. {member.Mitgliedsnummer}"
+                : $"{name} · Mgl.-Nr. {member.Mitgliedsnummer}";
+        }
 
         public Task<List<HomeAppointmentItem>> GetStartseiteTermineAsync() => ExecuteAsync(
             "GetStartseiteTermineAsync",
@@ -7201,7 +7212,7 @@ namespace KGV.Infrastructure.Services
             foreach (var memberId in mitgliedIds)
             {
                 bundle.MembersById.TryGetValue(memberId, out var member);
-                var memberName = BuildWartungsvertragMemberDisplayName(member, memberId);
+                var memberName = BuildWartungsvertragMemberDisplayName(member);
                 var normalizedId = member == null ? 0 : await ResolveHomeMitgliedIdAsync(memberId);
                 if (normalizedId <= 0)
                 {
@@ -7251,7 +7262,7 @@ namespace KGV.Infrastructure.Services
             var client = await EnsureClientAsync();
             var bundle = await LoadWartungsvertragBundleAsync();
             bundle.MembersById.TryGetValue(mitgliedId, out var member);
-            var memberName = BuildWartungsvertragMemberDisplayName(member, mitgliedId);
+            var memberName = BuildWartungsvertragMemberDisplayName(member);
             var normalizedId = member == null ? 0 : await ResolveHomeMitgliedIdAsync(mitgliedId);
             var items = new List<WartungsvertragAssignmentSaveItem>();
             foreach (var contractId in contractIds)
@@ -7552,7 +7563,7 @@ namespace KGV.Infrastructure.Services
             return new WartungsvertragAssignedMemberItem
             {
                 MitgliedId = zuordnung.HauptmitgliedId is > 0 and <= int.MaxValue ? (int)zuordnung.HauptmitgliedId : 0,
-                DisplayName = BuildWartungsvertragMemberDisplayName(member, zuordnung.HauptmitgliedId),
+                DisplayName = BuildWartungsvertragMemberDisplayName(member),
                 GartenNummern = bundle.GardenNumbersByMemberId.TryGetValue(zuordnung.HauptmitgliedId, out var gardens)
                     ? gardens
                     : string.Empty,
@@ -7565,9 +7576,9 @@ namespace KGV.Infrastructure.Services
             };
         }
 
-        private static string BuildWartungsvertragMemberDisplayName(MitgliedRecord? member, long fallbackMemberId)
+        private static string BuildWartungsvertragMemberDisplayName(MitgliedRecord? member)
         {
-            return FormatMemberName(member) ?? $"Mitglied #{fallbackMemberId}";
+            return member == null ? "Mitglied unbekannt" : FormatMemberReferenceLabel(member);
         }
 
         private static string BuildWartungsvertragKurzbeschreibung(WartungsvertragRecord contract)

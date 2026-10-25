@@ -152,7 +152,19 @@ public sealed class VereinsfunktionenPage : ContentPage
     }
     private static View Field(string label, View input) => new VerticalStackLayout { Spacing = 2, Children = { new Label { Text = label }, input } };
     private Picker AssignmentPicker(long id) { var values = _assignments.Select(x => new Choice(x.Id, AssignmentName(x.Id))).ToList(); var picker = new Picker { ItemsSource = values, ItemDisplayBinding = new Binding(nameof(Choice.Label)) }; picker.SelectedItem = values.FirstOrDefault(x => x.Id == id); return picker; }
-    private string MemberName(long id) => _members.TryGetValue(id, out var m) ? (m.Vorname + " " + m.Name + (string.IsNullOrWhiteSpace(m.Email) ? "" : " · " + m.Email)) : "Unbekanntes Mitglied";
+    private string MemberName(long id)
+    {
+        if (!_members.TryGetValue(id, out var member))
+            return "Unbekanntes Mitglied";
+
+        var name = $"{member.Vorname} {member.Name}".Trim();
+        if (member.Mitgliedsnummer <= 0)
+            return "Mitgliedsnummer nicht verfügbar";
+
+        return string.IsNullOrWhiteSpace(name)
+            ? $"Mgl.-Nr. {member.Mitgliedsnummer}"
+            : $"{name} · Mgl.-Nr. {member.Mitgliedsnummer}";
+    }
     private string AssignmentName(long id) { var item = _assignments.FirstOrDefault(x => x.Id == id); return item == null ? "Unbekannte Besetzung" : (_functions.FirstOrDefault(x => x.Id == item.VereinsfunktionId)?.Bezeichnung ?? "Funktion") + ": " + MemberName(item.MitgliedId); }
     private bool IsRepresentationForSelected(VereinsfunktionVertretungRecord representation) => _selected != null && _assignments.Any(x => x.VereinsfunktionId == _selected.Id && (x.Id == representation.VertreteneBesetzungId || x.Id == representation.VertreterBesetzungId));
     private static string Date(DateTime? value) => value?.ToString("dd.MM.yyyy") ?? "offen";

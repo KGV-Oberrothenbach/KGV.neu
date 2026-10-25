@@ -7,13 +7,17 @@ const pageFiles = [
   "MemberGardensPage.cs",
   "MemberParzellenDetailPage.cs",
   "PachtvertragDialogPage.cs",
+  "WartungsvertragDetailPage.cs",
   "MemberWartungsvertraegePage.cs",
   "WartungsvertragAssignMembersPage.cs",
 ];
 
 test("M4 displays canonical membership numbers across parcel and contract pages", async () => {
-  const sources = await Promise.all(pageFiles.map(file => readFile(new URL(`./${file}`, import.meta.url), "utf8")));
-  const [assign, gardens, parcelDetail, lease, maintenance, assignment] = sources;
+  const sources = await Promise.all([
+    ...pageFiles.map(file => readFile(new URL(`./${file}`, import.meta.url), "utf8")),
+    readFile(new URL("../../KGV.Infrastructure/Services/SupabaseService.cs", import.meta.url), "utf8"),
+  ]);
+  const [assign, gardens, parcelDetail, lease, maintenanceDetail, maintenance, assignment, service] = sources;
 
   for (const source of sources) {
     assert.doesNotMatch(source, /Mitglied #/);
@@ -24,9 +28,11 @@ test("M4 displays canonical membership numbers across parcel and contract pages"
   assert.match(gardens, /Mitgliedsnummer = rec\.Mitgliedsnummer/);
   assert.doesNotMatch(parcelDetail, /Mitglieds-ID/);
   assert.match(lease, /Mgl\.-Nr\. \{member\.Mitgliedsnummer\}/);
+  assert.match(maintenanceDetail, /nameof\(WartungsvertragAssignedMemberItem\.DisplayName\)/);
   assert.match(maintenance, /Wartungsverträge von \{displayName\}/);
   assert.match(maintenance, /Mgl\.-Nr\. \{member\.Mitgliedsnummer\}/);
   assert.match(assignment, /Mgl\.-Nr\. \{member\.Mitgliedsnummer\}/);
+  assert.match(service, /private static string BuildWartungsvertragMemberDisplayName\(MitgliedRecord\? member\)\s*\{\s*return member == null \? "Mitglied unbekannt" : FormatMemberReferenceLabel\(member\);/);
 });
 
 test("M4 keeps technical identifiers for contracts and selection values", async () => {
