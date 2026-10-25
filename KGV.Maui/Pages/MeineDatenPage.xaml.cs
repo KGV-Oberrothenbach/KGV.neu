@@ -359,9 +359,7 @@ public class MeineDatenPage : ContentPage
             _currentMemberHasAuthUser = member.AuthUserId.HasValue;
             _memberContextState.SetSelectedMember(contextMember);
 
-            _headlineLabel.Text = string.IsNullOrWhiteSpace(contextMember.DisplayName)
-                ? $"Mitglied #{contextMember.Id}"
-                : contextMember.DisplayName;
+            _headlineLabel.Text = BuildMemberDisplayName(member);
 
             PopulateDisplayFields(contextMember);
             PopulateEditFields(contextMember);
@@ -744,7 +742,7 @@ public class MeineDatenPage : ContentPage
             var hauptmitglied = await _supabaseService.GetMitgliedByIdAsync(member.HauptmitgliedId.Value);
             var hauptmitgliedName = hauptmitglied == null
                 ? "Hauptmitglied"
-                : BuildDisplayName(hauptmitglied.Vorname, hauptmitglied.Name);
+                : BuildMemberDisplayName(hauptmitglied);
 
             UpdateNebenmitgliedSection(
                 $"Nebenmitglied · Zugeordnet zu Hauptmitglied: {hauptmitgliedName}",
@@ -762,7 +760,7 @@ public class MeineDatenPage : ContentPage
         }
 
         UpdateNebenmitgliedSection(
-            $"Hauptmitglied · Verknüpftes Nebenmitglied: {BuildDisplayName(nebenmitglied.Vorname, nebenmitglied.Name)}",
+            $"Hauptmitglied · Verknüpftes Nebenmitglied: {BuildMemberDisplayName(nebenmitglied)}",
             MapMember(nebenmitglied),
             "Nebenmitglied öffnen",
             true);
@@ -1085,10 +1083,15 @@ public class MeineDatenPage : ContentPage
         };
     }
 
-    private static string BuildDisplayName(string? vorname, string? nachname)
+    private static string BuildMemberDisplayName(MitgliedRecord member)
     {
-        var displayName = $"{vorname} {nachname}".Trim();
-        return string.IsNullOrWhiteSpace(displayName) ? "Nebenmitglied" : displayName;
+        var displayName = $"{member.Vorname} {member.Name}".Trim();
+        if (member.Mitgliedsnummer > 0)
+            return string.IsNullOrWhiteSpace(displayName)
+                ? $"Mgl.-Nr. {member.Mitgliedsnummer}"
+                : $"{displayName} · Mgl.-Nr. {member.Mitgliedsnummer}";
+
+        return string.IsNullOrWhiteSpace(displayName) ? "Mitglied" : displayName;
     }
 
     private static MemberDTO MapMember(MitgliedRecord rec)
@@ -1096,6 +1099,7 @@ public class MeineDatenPage : ContentPage
         return new MemberDTO
         {
             Id = rec.Id,
+            Mitgliedsnummer = rec.Mitgliedsnummer,
             Vorname = rec.Vorname ?? string.Empty,
             Nachname = rec.Name ?? string.Empty,
             Email = rec.Email ?? string.Empty,

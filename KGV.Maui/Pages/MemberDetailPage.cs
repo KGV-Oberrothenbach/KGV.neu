@@ -299,9 +299,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
             _memberContextState.SetSelectedMember(memberDto);
             _hasLinkedAppUser = member.AuthUserId.HasValue || await HasLinkedAppUserAsync(member.Id);
 
-            _headlineLabel.Text = string.IsNullOrWhiteSpace(memberDto.DisplayName)
-                ? $"Mitglied #{memberDto.Id}"
-                : memberDto.DisplayName;
+            _headlineLabel.Text = FormatMemberDisplayName(member);
 
             _nachnameEntry.Text = memberDto.Nachname;
             _vornameEntry.Text = memberDto.Vorname;
@@ -454,7 +452,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         }
 
         var hauptmitglied = await _supabaseService.GetMitgliedByIdAsync(member.HauptmitgliedId.Value);
-        var hauptmitgliedName = FormatMemberDisplayName(hauptmitglied, $"Mitglied #{member.HauptmitgliedId.Value}");
+        var hauptmitgliedName = FormatMemberDisplayName(hauptmitglied);
         _mitgliedschaftStatusLabel.Text = $"Nebenmitglied von {hauptmitgliedName}";
         _mitgliedschaftStatusLabel.IsVisible = true;
         _zuHauptmitgliedMachenButton.IsVisible = true;
@@ -467,8 +465,8 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
 
         var nebenmitglied = _memberRecord;
         var hauptmitglied = await _supabaseService.GetMitgliedByIdAsync(nebenmitglied.HauptmitgliedId.Value);
-        var nebenmitgliedName = FormatMemberDisplayName(nebenmitglied, $"Mitglied #{nebenmitglied.Id}");
-        var hauptmitgliedName = FormatMemberDisplayName(hauptmitglied, $"Mitglied #{nebenmitglied.HauptmitgliedId.Value}");
+        var nebenmitgliedName = FormatMemberDisplayName(nebenmitglied);
+        var hauptmitgliedName = FormatMemberDisplayName(hauptmitglied);
         var confirmed = await DisplayAlertAsync(
             "Zu Hauptmitglied machen",
             $"{nebenmitgliedName} wird zu einem eigenständigen Hauptmitglied.\nDie Zuordnung zu {hauptmitgliedName} wird aufgehoben.\nDas bisherige Hauptmitglied bleibt unverändert bestehen.\n\nFortfahren?",
@@ -531,12 +529,20 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         };
     }
 
-    private static string FormatMemberDisplayName(MitgliedRecord? member, string fallback)
+    private static string FormatMemberDisplayName(MitgliedRecord? member)
     {
+        if (member == null)
+            return "Mitglied nicht verfügbar";
+
         var name = string.Join(' ', new[] { member?.Vorname, member?.Name }
             .Where(value => !string.IsNullOrWhiteSpace(value))
             .Select(value => value!.Trim()));
-        return string.IsNullOrWhiteSpace(name) ? fallback : name;
+        if (member.Mitgliedsnummer > 0)
+            return string.IsNullOrWhiteSpace(name)
+                ? $"Mgl.-Nr. {member.Mitgliedsnummer}"
+                : $"{name} · Mgl.-Nr. {member.Mitgliedsnummer}";
+
+        return string.IsNullOrWhiteSpace(name) ? "Mitglied" : name;
     }
 
     private string BuildMitgliedsantragDiagnoseText(MemberDTO? member)
@@ -1122,9 +1128,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         var memberDto = MapMember(created);
         _memberContextState.SetSelectedMember(memberDto);
 
-        _headlineLabel.Text = string.IsNullOrWhiteSpace(memberDto.DisplayName)
-            ? $"Mitglied #{memberDto.Id}"
-            : memberDto.DisplayName;
+        _headlineLabel.Text = FormatMemberDisplayName(created);
 
         _nachnameEntry.Text = memberDto.Nachname;
         _vornameEntry.Text = memberDto.Vorname;
@@ -1159,7 +1163,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         return new AppUserDTO
         {
             MitgliedId = member.Id,
-            DisplayName = string.IsNullOrWhiteSpace(displayName) ? $"Mitglied #{member.Id}" : displayName,
+            DisplayName = FormatMemberDisplayName(member),
             Email = member.Email ?? string.Empty,
             Role = UserRoles.User,
             Aktiv = true
@@ -1171,6 +1175,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         return new MemberDTO
         {
             Id = rec.Id,
+            Mitgliedsnummer = rec.Mitgliedsnummer,
             Vorname = rec.Vorname ?? string.Empty,
             Nachname = rec.Name ?? string.Empty,
             Geburtsdatum = rec.Geburtsdatum,

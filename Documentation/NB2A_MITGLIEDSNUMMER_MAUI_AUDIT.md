@@ -74,6 +74,8 @@ Ersetzt die direkt sichtbaren IDs im globalen Mitgliedskontext und in der Benutz
 
 ### NB-2A-M2 – Mitgliedsstammdaten, Nebenmitglied und Mitgliedsantrag
 
+Status: **erledigt**.
+
 Dateien (voraussichtlich 5–6): `MemberDetailPage.cs`, `MeineDatenPage.xaml.cs`, `NebenmitgliedPage.cs`, `MitgliedsantragDialogPage.cs` und die dafür genutzten MAUI-Mapper.
 
 Vereinheitlicht Köpfe, Haupt-/Nebenmitglied-Bezüge, Umwandlungsdialog und Vertreterpicker. Die geladenen `MitgliedRecord`-Objekte liefern die Nummer bereits.

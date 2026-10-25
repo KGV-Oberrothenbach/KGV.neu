@@ -324,7 +324,7 @@ public sealed class NebenmitgliedPage : ContentPage, IQueryAttributable
         _newButton.IsVisible = false;
         _saveButton.IsEnabled = true;
         _saveButton.Text = "Nebenmitglied anlegen";
-        _nameLabel.Text = $"Nebenmitglied für {BuildDisplayName(hauptmitglied.Vorname, hauptmitglied.Name, hauptmitglied.Id)}";
+        _nameLabel.Text = $"Nebenmitglied für {BuildMemberDisplayName(hauptmitglied)}";
         _hintLabel.Text = "Nach erfolgreicher Hauptmitglied-Neuanlage kann direkt ein Nebenmitglied angelegt werden. Die Adresse des Hauptmitglieds kann dabei als Vorbelegung übernommen werden.";
         _vornameEntry.Text = string.Empty;
         _nachnameEntry.Text = hauptmitglied.Name ?? string.Empty;
@@ -413,10 +413,15 @@ public sealed class NebenmitgliedPage : ContentPage, IQueryAttributable
         }
     }
 
-    private static string BuildDisplayName(string? vorname, string? nachname, int fallbackId)
+    private static string BuildMemberDisplayName(MitgliedRecord member)
     {
-        var displayName = $"{vorname} {nachname}".Trim();
-        return string.IsNullOrWhiteSpace(displayName) ? $"Mitglied #{fallbackId}" : displayName;
+        var displayName = $"{member.Vorname} {member.Name}".Trim();
+        if (member.Mitgliedsnummer > 0)
+            return string.IsNullOrWhiteSpace(displayName)
+                ? $"Mgl.-Nr. {member.Mitgliedsnummer}"
+                : $"{displayName} · Mgl.-Nr. {member.Mitgliedsnummer}";
+
+        return string.IsNullOrWhiteSpace(displayName) ? "Mitglied" : displayName;
     }
 
     private void EnterCreateMode()

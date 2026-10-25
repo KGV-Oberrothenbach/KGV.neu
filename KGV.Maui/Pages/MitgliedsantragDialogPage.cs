@@ -60,11 +60,7 @@ public sealed class MitgliedsantragDialogPage : ContentPage
         if (activeVertreter != null && activeVertreter.Id > 0 && _mitgliedOptionen.All(x => x.MitgliedId != activeVertreter.Id))
             _mitgliedOptionen.Insert(0, new MitgliedOption(activeVertreter));
 
-        var displayName = string.Join(' ', new[] { member.Vorname, member.Name }
-            .Where(x => !string.IsNullOrWhiteSpace(x))
-            .Select(x => x!.Trim()));
-        if (string.IsNullOrWhiteSpace(displayName))
-            displayName = $"Mitglied #{member.Id}";
+        var displayName = FormatMemberDisplayName(member);
 
         Title = "Mitgliedsantrag";
         BackgroundColor = Colors.White;
@@ -419,6 +415,19 @@ public sealed class MitgliedsantragDialogPage : ContentPage
     private static string FormatCurrency(decimal value)
         => MitgliedsantragBeitragHelper.NormalizeBeitrag(value).ToString("0.00 €", DeCulture);
 
+    private static string FormatMemberDisplayName(MitgliedRecord member)
+    {
+        var name = string.Join(" ", new[] { member.Vorname, member.Name }
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x!.Trim()));
+        if (member.Mitgliedsnummer > 0)
+            return string.IsNullOrWhiteSpace(name)
+                ? $"Mgl.-Nr. {member.Mitgliedsnummer}"
+                : $"{name} · Mgl.-Nr. {member.Mitgliedsnummer}";
+
+        return string.IsNullOrWhiteSpace(name) ? "Mitglied" : name;
+    }
+
     private sealed class MitgliedOption
     {
         private readonly MitgliedRecord _member;
@@ -426,10 +435,7 @@ public sealed class MitgliedsantragDialogPage : ContentPage
         public MitgliedOption(MitgliedRecord member)
         {
             _member = member;
-            var name = string.Join(" ", new[] { member.Vorname, member.Name }
-                .Where(x => !string.IsNullOrWhiteSpace(x))
-                .Select(x => x!.Trim()));
-            DisplayName = string.IsNullOrWhiteSpace(name) ? $"Mitglied #{member.Id}" : $"{name} · #{member.Id}";
+            DisplayName = FormatMemberDisplayName(member);
         }
 
         public int MitgliedId => _member.Id;
