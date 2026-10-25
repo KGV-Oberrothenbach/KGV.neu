@@ -16,7 +16,7 @@ export function filterMemberSearchResults(members: MemberSearchResult[], options
 
   return members
     .filter((member) => options.includeInactive || member.aktiv)
-    .filter((member) => !normalizedQuery || [member.name, member.vorname, member.email, String(member.id), member.gartenNummern.join(" ")]
+    .filter((member) => !normalizedQuery || [member.name, member.vorname, member.email, String(member.mitgliedsnummer), member.gartenNummern.join(" ")]
       .filter(Boolean)
       .join(" ")
       .toLocaleLowerCase("de")

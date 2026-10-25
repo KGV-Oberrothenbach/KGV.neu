@@ -1,5 +1,6 @@
 export type Member = {
   id: number;
+  mitgliedsnummer?: number;
   vorname: string | null;
   name: string | null;
   email: string | null;
@@ -22,8 +23,8 @@ export type Member = {
   bemerkung: string | null;
 };
 
-export type MemberWorkspaceInfo = Pick<Member, "id" | "vorname" | "name">;
+export type MemberWorkspaceInfo = Pick<Member, "id" | "mitgliedsnummer" | "vorname" | "name">;
 
-export type MemberSearchResult = Pick<Member, "id" | "name" | "vorname" | "email" | "aktiv"> & {
+export type MemberSearchResult = Pick<Member, "id" | "mitgliedsnummer" | "name" | "vorname" | "email" | "aktiv"> & {
   gartenNummern: string[];
 };

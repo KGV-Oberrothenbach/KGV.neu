@@ -4,22 +4,22 @@ import { callSupabaseRpc } from "../../lib/supabase/rpc-client";
 import type { ClubContext } from "../../models/auth/club";
 import { type BrowserSession } from "../../lib/supabase-auth";
 import { type Member, type MemberSearchResult, type MemberWorkspaceInfo } from "../../models/members/member";
-export type MemberName = { id: number; vorname: string | null; name: string | null };
-export const listMemberNames = (club: ClubContext, session: BrowserSession, ids: number[]) => ids.length ? readSupabaseRest<MemberName>({ club, session }, "mitglied", { select: "id,vorname,name", id: `in.(${ids.join(",")})`, limit: "500" }) : Promise.resolve([] as MemberName[]);
+export type MemberName = { id: number; mitgliedsnummer: number; vorname: string | null; name: string | null };
+export const listMemberNames = (club: ClubContext, session: BrowserSession, ids: number[]) => ids.length ? readSupabaseRest<MemberName>({ club, session }, "mitglied", { select: "id,mitgliedsnummer,vorname,name", id: `in.(${ids.join(",")})`, limit: "500" }) : Promise.resolve([] as MemberName[]);
 
 export const listMembersForSearch = (club: ClubContext, session: BrowserSession) => readSupabaseRest<Omit<MemberSearchResult, "gartenNummern">>({ club, session }, "mitglied", {
-  select: "id,name,vorname,email,aktiv",
+  select: "id,mitgliedsnummer,name,vorname,email,aktiv",
   order: "name.asc,vorname.asc",
   limit: "1000",
 });
 
 export const getMemberWorkspaceInfo = (club: ClubContext, session: BrowserSession, memberId: number) => readSupabaseRest<MemberWorkspaceInfo>({ club, session }, "mitglied", {
-  select: "id,vorname,name",
+  select: "id,mitgliedsnummer,vorname,name",
   id: `eq.${memberId}`,
   limit: "1",
 }).then((members) => members[0] ?? null);
 
-const memberStammdatenSelect = "id,vorname,name,email,aktiv,aufnahme_status,hauptmitglied_id,auth_user_id,geburtsdatum,arbeitsstunden_altersregel_typ,adresse,plz,ort,telefon,handy,whatsapp_einwilligung,email_rechnung_einwilligung,email_info_einwilligung,mitglied_seit,mitglied_ende,bemerkung";
+const memberStammdatenSelect = "id,mitgliedsnummer,vorname,name,email,aktiv,aufnahme_status,hauptmitglied_id,auth_user_id,geburtsdatum,arbeitsstunden_altersregel_typ,adresse,plz,ort,telefon,handy,whatsapp_einwilligung,email_rechnung_einwilligung,email_info_einwilligung,mitglied_seit,mitglied_ende,bemerkung";
 
 export const getMemberById = (club: ClubContext, session: BrowserSession, memberId: number) => readSupabaseRest<Member>({ club, session }, "mitglied", {
   select: memberStammdatenSelect,
