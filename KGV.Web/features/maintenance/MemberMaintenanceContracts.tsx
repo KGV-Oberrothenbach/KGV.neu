@@ -52,8 +52,13 @@ export function MemberMaintenanceContracts({ session, memberId, canManage }: { s
   if (!data) return <section className="data-workspace"><p>{message || "Wartungsverträge werden geladen…"}</p></section>;
   const assignments = data.assignments;
   const contracts = new Map(data.contracts.map((contract) => [contract.id, contract]));
-  const memberName = [data.member.vorname, data.member.name].filter(Boolean).join(" ") || `Mitglied #${memberId}`;
-  const principalName = data.principalMember ? [data.principalMember.vorname, data.principalMember.name].filter(Boolean).join(" ") : `Mitglied #${data.principalMemberId}`;
+  const memberLabel = (member: { vorname: string | null; name: string | null; mitgliedsnummer: number | null }) => {
+    const name = [member.vorname, member.name].filter(Boolean).join(" ");
+    const number = `Mgl.-Nr. ${member.mitgliedsnummer ?? "–"}`;
+    return name ? `${name} · ${number}` : number;
+  };
+  const memberName = memberLabel(data.member);
+  const principalName = data.principalMember ? memberLabel(data.principalMember) : "Mgl.-Nr. –";
   const workflowByAssignment = new Map(data.documentWorkflows.map((workflow) => [workflow.wartungsvertrag_zuordnung_id, workflow]));
 
   const prepareDocumentWorkflow = async (assignmentId: number) => {

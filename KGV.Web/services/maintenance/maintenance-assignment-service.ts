@@ -43,8 +43,10 @@ function principalMemberId(member: Pick<MaintenanceAssignmentMemberRow, "id" | "
   return member.hauptmitglied_id ?? member.id;
 }
 
-function displayName(member: Pick<MaintenanceAssignmentMemberRow, "id" | "name" | "vorname">) {
-  return [member.vorname, member.name].filter(Boolean).join(" ") || `Mitglied #${member.id}`;
+function displayName(member: Pick<MaintenanceAssignmentMemberRow, "mitgliedsnummer" | "name" | "vorname">) {
+  const name = [member.vorname, member.name].filter(Boolean).join(" ");
+  const number = `Mgl.-Nr. ${member.mitgliedsnummer ?? "–"}`;
+  return name ? `${name} · ${number}` : number;
 }
 
 export async function loadMaintenanceMemberCandidates(club: ClubContext, session: BrowserSession, maintenanceContractId: number, validFrom: string): Promise<{ candidates: MaintenanceMemberCandidate[]; availableCapacity: number }> {

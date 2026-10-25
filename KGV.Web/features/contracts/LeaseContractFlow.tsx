@@ -19,8 +19,12 @@ import { getActiveLeaseRelationshipStatus } from "../../repositories/contracts/l
 const name = (m: {
     vorname: string | null;
     name: string | null;
-    id: number;
-}) => [m.vorname, m.name].filter(Boolean).join(" ") || `Mitglied #${m.id}`;
+    mitgliedsnummer: number | null;
+}) => {
+    const memberName = [m.vorname, m.name].filter(Boolean).join(" ");
+    const number = `Mgl.-Nr. ${m.mitgliedsnummer ?? "–"}`;
+    return memberName ? `${memberName} · ${number}` : number;
+};
 export function LeaseContractFlow({ session, memberId, parcelId, startDate, onSaved, onCancel, preparedContractId, resumeMode = "edit" }: {
     session: BrowserSession;
     memberId: number;

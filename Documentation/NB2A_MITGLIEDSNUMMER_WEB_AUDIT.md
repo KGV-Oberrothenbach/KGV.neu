@@ -98,6 +98,8 @@ Führt eine fachliche Mitgliedsauflösung für Prüfungen, Prüfverläufe und Te
 
 ### NB-2A-W4 – Wartungsverträge und Vertragsauswahlen
 
+Status: **erledigt** (Commit folgt diesem Arbeitsblock).
+
 Dateien:
 
 - `KGV.Web/features/maintenance/MemberMaintenanceContracts.tsx`

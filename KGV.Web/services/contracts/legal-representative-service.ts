@@ -36,7 +36,11 @@ export async function loadLegalRepresentativeContext(club: ClubContext, session:
   if (!isMinorAtStart(member, startDate)) return { isMinor: false, options: [] as LegalRepresentativeOption[], draft: emptyLegalRepresentativeDraft() };
   const [members, relations] = await Promise.all([listMembersForSearch(club, session), listLegalRepresentativeRelations(club, session, member.id)]);
   const current = resolveActiveLegalRepresentativeRelation(relations, startDate);
-  const options = members.filter((item) => item.id !== member.id).map((item) => ({ id: item.id, label: [item.vorname, item.name].filter(Boolean).join(" ") || `Mitglied #${item.id}` })).sort((a, b) => a.label.localeCompare(b.label, "de"));
+  const options = members.filter((item) => item.id !== member.id).map((item) => {
+    const name = [item.vorname, item.name].filter(Boolean).join(" ");
+    const number = `Mgl.-Nr. ${item.mitgliedsnummer ?? "–"}`;
+    return { id: item.id, label: name ? `${name} · ${number}` : number };
+  }).sort((a, b) => a.label.localeCompare(b.label, "de"));
   if (!current) return { isMinor: true, options, draft: { ...emptyLegalRepresentativeDraft(), mode: (options.length ? "existing" : "manual") as LegalRepresentativeMode } };
   const representative = await getMember(club, session, current.vertreter_mitglied_id);
   return { isMinor: true, options, draft: representative ? { mode: "existing" as const, memberId: representative.id, vorname: representative.vorname ?? "", nachname: representative.name ?? "", adresseAbweichend: false, adresse: "", plz: "", ort: "" } : emptyLegalRepresentativeDraft() };
