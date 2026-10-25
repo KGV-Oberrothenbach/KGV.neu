@@ -85,6 +85,8 @@ Ersetzt sichtbare IDs in Belegungs- und Pächterlabels sowie in der Rechteverwal
 
 ### NB-2A-W3 – Arbeitsstunden und Arbeitseinsätze
 
+Status: **erledigt** (Commit folgt diesem Arbeitsblock).
+
 Dateien:
 
 - `KGV.Web/features/work-hours/WorkHoursReview.tsx`

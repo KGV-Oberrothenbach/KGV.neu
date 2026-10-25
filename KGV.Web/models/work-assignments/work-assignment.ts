@@ -32,6 +32,7 @@ export type WorkAssignmentRegistration = {
 
 export type WorkAssignmentMember = {
   id: number;
+  mitgliedsnummer: number | null;
   vorname: string | null;
   name: string | null;
 };
