@@ -4,7 +4,7 @@ import type { ClubContext } from "../../models/auth/club";
 import type { BrowserSession } from "../../lib/supabase-auth";
 import type { CommunicationItem } from "../../models/communication/communication-item";
 
-const select = "id,vorgangstyp,dokumenttyp,status,mitglied_id,parzelle_id,revision,signatur_revision,signatur_gestartet_am,final_dokument_id,empfaenger_email,betreff,mailtext,versendet_am,fehlertext,gedruckt_am,archiviert_am,zugewiesen_an,erstellt_am,erstellt_von,bearbeitet_am,bearbeitet_von,mitglied:mitglied_id(id,vorname,name),parzelle:parzelle_id(id,garten_nr)";
+const select = "id,vorgangstyp,dokumenttyp,status,mitglied_id,parzelle_id,revision,signatur_revision,signatur_gestartet_am,final_dokument_id,empfaenger_email,betreff,mailtext,versendet_am,fehlertext,gedruckt_am,archiviert_am,zugewiesen_an,erstellt_am,erstellt_von,bearbeitet_am,bearbeitet_von,mitglied:mitglied_id(id,mitgliedsnummer,vorname,name),parzelle:parzelle_id(id,garten_nr)";
 const contractSelect = `${select},entwurf_daten`;
 
 export function listCommunicationItems(club: ClubContext, session: BrowserSession, query: Record<string, string>) {

@@ -8,7 +8,7 @@ export type CommunicationItem = {
   empfaenger_email: string | null; betreff: string | null; mailtext: string | null; versendet_am: string | null; fehlertext: string | null;
   gedruckt_am: string | null; archiviert_am: string | null; zugewiesen_an: string | null;
   erstellt_am: string; erstellt_von: string | null; bearbeitet_am: string; bearbeitet_von: string | null;
-  mitglied: { id: number; vorname: string | null; name: string | null } | null;
+  mitglied: { id: number; mitgliedsnummer: number | null; vorname: string | null; name: string | null } | null;
   parzelle: { id: number; garten_nr: string | null } | null;
 };
 

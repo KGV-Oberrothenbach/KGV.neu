@@ -113,6 +113,8 @@ Vereinheitlicht Mitgliedslabels für Wartungsübersichten, Zuweisungsfehler, Ver
 
 ### NB-2A-W5 – Kommunikation und Vereinsfunktionen
 
+Status: **erledigt** (Commit folgt diesem Arbeitsblock).
+
 Dateien:
 
 - `KGV.Web/services/communication/communication-service.ts`
@@ -122,3 +124,12 @@ Dateien:
 Ersetzt technische Fallbacks in Kommunikations- und Vereinsfunktionsanzeigen; die Auswahlwerte und Datenbankreferenzen bleiben technisch.
 
 Jeder Block ist nach Prüfung der genannten Datenverfügbarkeit unabhängig implementierbar, in einem normalen CX-Turn testbar und mit eigenem Commit und Push abschließbar.
+
+## NB-2A Web – Abschluss
+
+- W1 erledigt
+- W2 erledigt
+- W3 erledigt
+- W4 erledigt
+- W5 erledigt
+- user-facing technische Mitglieds-IDs aus den auditierten Web-Bereichen entfernt

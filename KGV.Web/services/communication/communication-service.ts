@@ -33,6 +33,11 @@ const typeLabels: Record<string, string> = { vertrag_signatur: "Vertrag / Signat
 export const communicationDocumentLabel = (value: string) => documentLabels[value] ?? value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 export const communicationStatusLabel = (value: string) => statusLabels[value] ?? value;
 export const communicationTypeLabel = (value: string) => typeLabels[value] ?? value;
-export const communicationMemberLabel = (item: CommunicationItem) => item.mitglied ? [item.mitglied.vorname, item.mitglied.name].filter(Boolean).join(" ") || `Mitglied #${item.mitglied.id}` : "–";
+export const communicationMemberLabel = (item: CommunicationItem) => {
+  if (!item.mitglied) return "–";
+  const name = [item.mitglied.vorname, item.mitglied.name].filter(Boolean).join(" ");
+  const number = `Mgl.-Nr. ${item.mitglied.mitgliedsnummer ?? "–"}`;
+  return name ? `${name} · ${number}` : number;
+};
 export const communicationParcelLabel = (item: CommunicationItem) => item.parzelle?.garten_nr ? `Garten ${item.parzelle.garten_nr}` : "–";
 export const communicationActorLabel = (value: string | null) => value ? `${value.slice(0, 8)}…` : "–";
