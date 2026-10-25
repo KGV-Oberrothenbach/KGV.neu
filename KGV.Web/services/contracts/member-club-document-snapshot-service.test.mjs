@@ -20,3 +20,14 @@ test("club document snapshots detect materially different evidence", () => {
   assert.equal(mod.memberClubDocumentSnapshotsEqual(base, base.map((x, i) => i ? x : { ...x, bereitstellung_id: 999 }), "pachtvertrag"), false);
   assert.equal(mod.memberClubDocumentSnapshotsEqual(base, base.map((x, i) => i ? x : { ...x, bereitgestellt_am: "2026-01-03T10:00:00Z" }), "pachtvertrag"), false);
 });
+
+test("required sets accept exactly the contract-specific digital or paper evidence", () => {
+  const ma = [{ dokumenttyp: "satzung", vereinsdokument_fassung_id: 1, fassung: "S1", gueltig_ab: "2026-01-01", bereitstellungsart: "digital", bereitgestellt_am: "2026-01-02", bereitstellung_id: 10 }];
+  const pv = ["kleingartenordnung", "beitragsordnung", "arbeitsordnung"].map((dokumenttyp, index) => ({ ...ma[0], dokumenttyp, vereinsdokument_fassung_id: index + 1, bereitstellung_id: index + 10 }));
+  assert.equal(mod.isCompleteMemberClubDocumentSnapshot(ma, "mitgliedsantrag"), true);
+  assert.equal(mod.isCompleteMemberClubDocumentSnapshot([{ dokumenttyp: "satzung", vereinsdokument_fassung_id: null, fassung: null, gueltig_ab: null, bereitstellungsart: "papier", bereitgestellt_am: "2026-01-02", bereitstellung_id: null }], "mitgliedsantrag"), true);
+  assert.equal(mod.isCompleteMemberClubDocumentSnapshot(pv, "pachtvertrag"), true);
+  assert.equal(mod.isCompleteMemberClubDocumentSnapshot(pv.map((item, index) => index === 1 ? { ...item, vereinsdokument_fassung_id: null, fassung: null, gueltig_ab: null, bereitstellung_id: null, bereitstellungsart: "papier" } : item), "pachtvertrag"), true);
+  assert.equal(mod.isCompleteMemberClubDocumentSnapshot(pv.slice(0, 2), "pachtvertrag"), false);
+  assert.equal(mod.isCompleteMemberClubDocumentSnapshot([{ ...ma[0], dokumenttyp: "kleingartenordnung" }], "mitgliedsantrag"), false);
+});

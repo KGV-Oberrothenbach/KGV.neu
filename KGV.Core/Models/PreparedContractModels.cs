@@ -65,11 +65,12 @@ public sealed record PreparedMembershipApplicationDraft
 public sealed record VereinsunterlagenNachweisSnapshotItem
 {
     [JsonPropertyName("dokumenttyp")] public string Dokumenttyp { get; init; } = "";
-    [JsonPropertyName("vereinsdokument_fassung_id")] public long VereinsdokumentFassungId { get; init; }
-    [JsonPropertyName("fassung")] public string Fassung { get; init; } = "";
-    [JsonPropertyName("gueltig_ab")] public DateTime GueltigAb { get; init; }
+    // A genuine paper handover can be evidenced without inventing an unknown historic version.
+    [JsonPropertyName("vereinsdokument_fassung_id")] public long? VereinsdokumentFassungId { get; init; }
+    [JsonPropertyName("fassung")] public string? Fassung { get; init; }
+    [JsonPropertyName("gueltig_ab")] public DateTime? GueltigAb { get; init; }
     [JsonPropertyName("gueltig_bis")] public DateTime? GueltigBis { get; init; }
-    [JsonPropertyName("bereitstellung_id")] public long BereitstellungId { get; init; }
+    [JsonPropertyName("bereitstellung_id")] public long? BereitstellungId { get; init; }
     [JsonPropertyName("bereitstellungsart")] public string Bereitstellungsart { get; init; } = "";
     [JsonPropertyName("bereitgestellt_am")] public DateTime BereitgestelltAm { get; init; }
 }

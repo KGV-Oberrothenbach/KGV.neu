@@ -3,6 +3,7 @@ import type { MemberClubDocumentStatus } from "../../models/club-documents/membe
 export type PreparedContractDocumentType = "mitgliedsantrag" | "pachtvertrag";
 export type MemberClubDocumentType = "satzung" | "kleingartenordnung" | "beitragsordnung" | "arbeitsordnung";
 export type MemberClubDocumentSnapshotItem = { dokumenttyp: MemberClubDocumentType; vereinsdokument_fassung_id: number | null; fassung: string | null; gueltig_ab: string | null; gueltig_bis?: string | null; bereitstellungsart: "digital" | "papier"; bereitgestellt_am: string; bereitstellung_id: number | null };
+/** The sole contract-type rule. Do not derive this from document names or UI selections. */
 const required: Record<PreparedContractDocumentType, readonly MemberClubDocumentType[]> = { mitgliedsantrag: ["satzung"], pachtvertrag: ["kleingartenordnung", "beitragsordnung", "arbeitsordnung"] };
 const labels: Record<MemberClubDocumentSnapshotItem["dokumenttyp"], string> = { satzung: "Satzung", kleingartenordnung: "Kleingartenordnung", beitragsordnung: "Beitragsordnung", arbeitsordnung: "Arbeitsordnung" };
 export const requiredClubDocumentsFor = (documentType: PreparedContractDocumentType) => required[documentType];

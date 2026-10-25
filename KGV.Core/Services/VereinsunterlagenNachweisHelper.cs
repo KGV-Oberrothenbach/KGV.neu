@@ -23,8 +23,9 @@ public static class VereinsunterlagenNachweisHelper
         foreach (var code in RequiredFor(documentType))
         {
             if (!byCode.TryGetValue(code, out var item) || item.Status == "keine_aktuelle_fassung") throw new PreparedContractValidationException("Für mindestens eine Pflichtunterlage ist keine aktuelle Vereinsfassung hinterlegt.");
-            if (item.Status != "bereitgestellt" || item.VereinsdokumentFassungId is null || item.BereitstellungId is null || item.BereitgestelltAm is null || string.IsNullOrWhiteSpace(item.Fassung) || string.IsNullOrWhiteSpace(item.Bereitstellungsart)) throw new PreparedContractValidationException("Mindestens eine aktuelle Vereinsunterlage fehlt beim Mitglied.");
-            result.Add(new VereinsunterlagenNachweisSnapshotItem { Dokumenttyp = item.DokumenttypCode, VereinsdokumentFassungId = item.VereinsdokumentFassungId.Value, Fassung = item.Fassung, GueltigAb = item.GueltigAb ?? DateTime.MinValue, GueltigBis = item.GueltigBis, BereitstellungId = item.BereitstellungId.Value, Bereitstellungsart = item.Bereitstellungsart, BereitgestelltAm = item.BereitgestelltAm.Value });
+            if (item.Status != "bereitgestellt" || item.BereitgestelltAm is null || string.IsNullOrWhiteSpace(item.Bereitstellungsart)) throw new PreparedContractValidationException("Mindestens eine aktuelle Vereinsunterlage fehlt beim Mitglied.");
+            if (item.Bereitstellungsart != "papier" && (item.VereinsdokumentFassungId is null || item.BereitstellungId is null || string.IsNullOrWhiteSpace(item.Fassung) || item.GueltigAb is null)) throw new PreparedContractValidationException("Für eine digital gebundene Vereinsunterlage fehlt die konkrete Fassung.");
+            result.Add(new VereinsunterlagenNachweisSnapshotItem { Dokumenttyp = item.DokumenttypCode, VereinsdokumentFassungId = item.VereinsdokumentFassungId, Fassung = item.Fassung, GueltigAb = item.GueltigAb, GueltigBis = item.GueltigBis, BereitstellungId = item.BereitstellungId, Bereitstellungsart = item.Bereitstellungsart, BereitgestelltAm = item.BereitgestelltAm.Value });
         }
         return result;
     }
@@ -44,7 +45,7 @@ public static class VereinsunterlagenNachweisHelper
         return snapshot is not null && snapshot.Count == required.Count && snapshot.Select((item, index) =>
             string.Equals(item.Dokumenttyp, required[index], StringComparison.OrdinalIgnoreCase) &&
             item.Bereitstellungsart is "digital" or "papier" && item.BereitgestelltAm != DateTime.MinValue &&
-            (item.Bereitstellungsart == "papier" || (item.VereinsdokumentFassungId > 0 && item.BereitstellungId > 0 && !string.IsNullOrWhiteSpace(item.Fassung) && item.GueltigAb != DateTime.MinValue))).All(valid => valid);
+            (item.Bereitstellungsart == "papier" || (item.VereinsdokumentFassungId > 0 && item.BereitstellungId > 0 && !string.IsNullOrWhiteSpace(item.Fassung) && item.GueltigAb is not null))).All(valid => valid);
     }
     private static string Label(string code) => code.ToLowerInvariant() switch { "satzung" => "Satzung", "kleingartenordnung" => "Kleingartenordnung", "beitragsordnung" => "Beitragsordnung", "arbeitsordnung" => "Arbeitsordnung", _ => code };
 }
