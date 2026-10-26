@@ -28,5 +28,38 @@ public sealed class AuslaufendeWartungsvertraegePage : ContentPage
         Content = new VerticalStackLayout { Padding = 24, Spacing = 12, Children = { new Label { Text = Title, FontSize = 24, FontAttributes = FontAttributes.Bold }, new Label { Text = "Nach Vertragsende sortiert. Fälligkeitshinweise werden ausschließlich vom Serverzustand abgeleitet.", TextColor = Colors.Gray }, refresh, _status, _list } };
         Appearing += async (_, _) => await LoadAsync();
     }
-    private async Task LoadAsync() { try { _items.Clear(); foreach (var item in (await _service.GetAuslaufendeWartungsvertragZuordnungenAsync()).OrderBy(x => x.GueltigBis)) _items.Add(item); _status.Text = string.Empty; } catch { _status.Text = "Die auslaufenden Wartungsverträge konnten nicht geladen werden."; } }
+    private async Task LoadAsync()
+    {
+        try
+        {
+            var items = await _service.GetAuslaufendeWartungsvertragZuordnungenAsync();
+            var membersById = (await _service.GetMitgliederAsync()).ToDictionary(member => member.Id);
+
+            _items.Clear();
+            foreach (var item in items.OrderBy(item => item.GueltigBis))
+            {
+                if (membersById.TryGetValue(item.HauptmitgliedId, out var member))
+                    item.MitgliedName = FormatMemberReference(member);
+
+                _items.Add(item);
+            }
+
+            _status.Text = string.Empty;
+        }
+        catch
+        {
+            _status.Text = "Die auslaufenden Wartungsverträge konnten nicht geladen werden.";
+        }
+    }
+
+    private static string FormatMemberReference(MitgliedRecord member)
+    {
+        if (member.Mitgliedsnummer <= 0)
+            return "Mitgliedsnummer nicht verfügbar";
+
+        var name = $"{member.Vorname} {member.Name}".Trim();
+        return string.IsNullOrWhiteSpace(name)
+            ? $"Mgl.-Nr. {member.Mitgliedsnummer}"
+            : $"{name} · Mgl.-Nr. {member.Mitgliedsnummer}";
+    }
 }

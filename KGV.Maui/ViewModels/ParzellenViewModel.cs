@@ -958,13 +958,13 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
         if (member == null)
             return "Nicht verpachtet";
 
-        var nachname = member.Name?.Trim() ?? string.Empty;
-        var vorname = member.Vorname?.Trim() ?? string.Empty;
-        if (!string.IsNullOrWhiteSpace(nachname) && !string.IsNullOrWhiteSpace(vorname))
-            return $"{nachname}, {vorname}";
+        if (member.Mitgliedsnummer <= 0)
+            return "Mitgliedsnummer nicht verfügbar";
 
-        var combined = string.Join(", ", new[] { nachname, vorname }.Where(x => !string.IsNullOrWhiteSpace(x)));
-        return string.IsNullOrWhiteSpace(combined) ? (member.Email ?? "Nicht verpachtet") : combined;
+        var name = $"{member.Vorname} {member.Name}".Trim();
+        return string.IsNullOrWhiteSpace(name)
+            ? $"Mgl.-Nr. {member.Mitgliedsnummer}"
+            : $"{name} · Mgl.-Nr. {member.Mitgliedsnummer}";
     }
 
     private void ApplyFilter()

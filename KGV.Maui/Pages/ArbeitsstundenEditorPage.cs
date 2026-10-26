@@ -236,7 +236,7 @@ public sealed class ArbeitsstundenEditorPage : ContentPage, IQueryAttributable
         {
             var nebenmitglied = await _supabaseService.GetNebenmitgliedByHauptmitgliedIdAsync(hauptmitgliedId);
             if (nebenmitglied != null)
-                _memberOptions.Add(new MemberOption(nebenmitglied.Id, $"Nebenmitglied: {nebenmitglied.Name} {nebenmitglied.Vorname}".Trim()));
+                _memberOptions.Add(new MemberOption(nebenmitglied.Id, $"Nebenmitglied: {FormatMemberDisplay(nebenmitglied)}"));
         }
 
         _forWhomPicker.ItemsSource = null;
@@ -517,7 +517,23 @@ public sealed class ArbeitsstundenEditorPage : ContentPage, IQueryAttributable
     private static string BuildMemberDisplay(ArbeitsstundeDTO entry)
     {
         var display = $"{entry.Nachname} {entry.Vorname}".Trim();
-        return string.IsNullOrWhiteSpace(display) ? "-" : display;
+        if (entry.Mitgliedsnummer <= 0)
+            return "Mitgliedsnummer nicht verfügbar";
+
+        return string.IsNullOrWhiteSpace(display)
+            ? $"Mgl.-Nr. {entry.Mitgliedsnummer}"
+            : $"{display} · Mgl.-Nr. {entry.Mitgliedsnummer}";
+    }
+
+    private static string FormatMemberDisplay(MitgliedRecord member)
+    {
+        if (member.Mitgliedsnummer <= 0)
+            return "Mitgliedsnummer nicht verfügbar";
+
+        var name = $"{member.Vorname} {member.Name}".Trim();
+        return string.IsNullOrWhiteSpace(name)
+            ? $"Mgl.-Nr. {member.Mitgliedsnummer}"
+            : $"{name} · Mgl.-Nr. {member.Mitgliedsnummer}";
     }
 
     private static string BuildStatusText(ArbeitsstundeDTO entry)

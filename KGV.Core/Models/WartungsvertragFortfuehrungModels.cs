@@ -7,7 +7,7 @@ public sealed class WartungsvertragFortfuehrungDetail
 {
     [JsonPropertyName("vorgaenger_zuordnung_id")] public long VorgaengerZuordnungId { get; init; }
     [JsonPropertyName("hauptmitglied_id")] public int HauptmitgliedId { get; init; }
-    [JsonPropertyName("mitglied_name")] public string? MitgliedName { get; init; }
+    [JsonPropertyName("mitglied_name")] public string? MitgliedName { get; set; }
     [JsonPropertyName("wartungsvertrag_id")] public long WartungsvertragId { get; init; }
     [JsonPropertyName("wartungsvertrag_titel")] public string? WartungsvertragTitel { get; init; }
     [JsonPropertyName("gueltig_ab")] public DateTime GueltigAb { get; init; }

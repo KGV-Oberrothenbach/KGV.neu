@@ -166,12 +166,23 @@ public sealed class HomeViewModel : INotifyPropertyChanged
         {
             var selectedMember = _memberContextState.SelectedMember;
             if (selectedMember?.Id is > 0)
-                return $"Kontext: {roleText} · Mitglied: {selectedMember.DisplayName}";
+                return $"Kontext: {roleText} · Mitglied: {FormatMemberReference(selectedMember)}";
 
             return $"Kontext: {roleText} · kein Mitglied ausgewählt";
         }
 
         return $"Kontext: {roleText} · eigenes Mitglied";
+    }
+
+    private static string FormatMemberReference(MemberDTO member)
+    {
+        if (member.Mitgliedsnummer <= 0)
+            return "Mitgliedsnummer nicht verfügbar";
+
+        var name = member.DisplayName?.Trim() ?? string.Empty;
+        return string.IsNullOrWhiteSpace(name)
+            ? $"Mgl.-Nr. {member.Mitgliedsnummer}"
+            : $"{name} · Mgl.-Nr. {member.Mitgliedsnummer}";
     }
 
     private static string BuildWorkHoursInfoText(HomeWorkHoursSummary summary)

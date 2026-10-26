@@ -112,8 +112,22 @@ Die öffentliche Impressumsdarstellung und Signatur-/Unterzeichnerdarstellungen 
 
 ### NB-2A-M5B – abschließende MAUI-Regression
 
-Status: **offen – nicht begonnen**.
+Status: **erledigt – NB-2A MAUI = 100 %**.
 
-Vollständige abschließende MAUI-Regression und Resttrefferprüfung. Bei der gezielten M5A-Resttreffersuche wurde `AblesungenFreigabePage` gefunden: `AblesungReviewItem.MitgliedDisplay` zeigt weiterhin die aus der bestehenden Projektion stammende Name-only-Anzeige. Die Änderung benötigt eine Nummernprojektion über `SupabaseService` sowie das zugehörige Modell und bleibt daher für den vollständigen Abschlussblock M5B vorgemerkt. Vertrags-/Funktionsunterzeichner in `ParzellenProtokollePage` bleiben aufgrund der fachlichen Ausnahme unverändert.
+Der vollständige Audit von C#- und XAML-UI-Treffern klassifizierte technische IDs in FKs, Navigation, Auswahlwerten, Berechtigungen, State, RPC-Parametern, Gleichheitsprüfungen und Diagnose als zulässige Kategorie A/D. Sichtbare Mitgliedsreferenzen wurden gegen den verbindlichen Standard geprüft.
+
+Korrigierte Resttreffer:
+
+- `AblesungenFreigabePage`/`AblesungReviewItem`: Der bereits vorgemerkte Name-only-Treffer erhält `MitgliedId` als technischen Wert und die kanonische `Mitgliedsnummer` aus der vorhandenen einmalig geladenen Mitgliederliste. Das sichtbare Label ist nun `Name · Mgl.-Nr. Nummer`, ohne Namen `Mgl.-Nr. Nummer`.
+- Parzellenliste: Pächterreferenzen verwenden die Nummer aus dem bereits geladenen Mitglied und behalten `MitgliedId` für die Belegung bei.
+- Startseiten-Kontext: Das ausgewählte Mitglied wird mit der Nummer aus `MemberDTO` dargestellt; Kontext und Navigation bleiben ID-basiert.
+- Arbeitsstunden: Nebenmitglied-Picker und schreibgeschützte Arbeitsstundenansicht verwenden die in `MitgliedRecord` bzw. `ArbeitsstundeDTO` vorhandene Nummer.
+- Auslaufende Wartungsverträge: Die Liste löst alle angezeigten Vertragsparteien in einem einzigen Mitgliederabruf auf; `HauptmitgliedId` bleibt unverändert technisch.
+
+Die gezielte N+1-Prüfung bestätigt für die Ablesungsfreigabe die bereits vorhandene einzelne `GetMitgliederAsync`-Projektion. Die Wartungsvertragsliste lädt die Mitglieder ebenfalls einmal pro Listenladevorgang und verwendet danach ein Dictionary. Es gibt keine Einzelabfrage je Ablesung oder Vertragszeile.
+
+`Fachnummer.Mitglied` bleibt als älterer Helper bestehen, ist jedoch im MAUI-/Infrastructure-Laufzeitpfad unreferenziert. Für sichtbare Mitgliedslabels wird weder dort noch in den geprüften Projektionen `Id + 1000` berechnet; ausschließlich die gespeicherte `Mitgliedsnummer` wird verwendet.
+
+Die öffentlichen Kontaktangaben im Impressum sowie die rechtlichen Funktions- und Unterzeichnerdarstellungen, insbesondere in `ParzellenProtokollePage`, bleiben als fachliche Ausnahme unverändert.
 
 Jeder Block ist unabhängig implementierbar, auf seinen Fachbereich begrenzt, separat testbar und soll mit einem eigenen Commit und Push abgeschlossen werden. PDF-/Dokumentgeneratoren, Exporte, Datenbankmigrationen und KGV.Web sind ausdrücklich nicht Teil dieser Blöcke.

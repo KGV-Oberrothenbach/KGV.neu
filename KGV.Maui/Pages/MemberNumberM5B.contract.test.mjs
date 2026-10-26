@@ -25,3 +25,23 @@ test("meter-reading approval projects canonical membership numbers without per-r
   assert.doesNotMatch(model, /Mitglied \{MitgliedId\}|Id \+ 1000/);
   assert.match(page, /nameof\(AblesungReviewItem\.MitgliedDisplay\)/);
 });
+
+test("remaining member references preserve identifiers while rendering canonical labels", async () => {
+  const [home, parcels, workHours, maintenance] = await Promise.all([
+    read("../ViewModels/HomeViewModel.cs"),
+    read("../ViewModels/ParzellenViewModel.cs"),
+    read("ArbeitsstundenEditorPage.cs"),
+    read("AuslaufendeWartungsvertraegePage.cs"),
+  ]);
+
+  for (const source of [home, parcels, workHours, maintenance]) {
+    assert.match(source, /Mgl\.-Nr\. \{[^}]*Mitgliedsnummer\}/);
+    assert.doesNotMatch(source, /Id \+ 1000/);
+  }
+  assert.match(home, /FormatMemberReference\(selectedMember\)/);
+  assert.match(parcels, /MitgliedId = belegung\?\.MitgliedId/);
+  assert.match(workHours, /new MemberOption\(nebenmitglied\.Id,/);
+  assert.match(workHours, /entry\.Mitgliedsnummer/);
+  assert.match(maintenance, /GetMitgliederAsync\(\)/);
+  assert.match(maintenance, /TryGetValue\(item\.HauptmitgliedId, out var member\)/);
+});
