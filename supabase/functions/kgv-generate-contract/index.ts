@@ -394,9 +394,11 @@ Deno.serve(async (req) => {
       if (existing) { const { error: completeError } = await auth.admin.rpc("complete_wartungsvertrag_verlaengerungsmitteilung", { p_kommunikationsvorgang_id: sourceKommunikationsvorgangId, p_dokument_id: existing.id }); if (completeError) throw completeError; return json(200, { success: true, document_id: existing.id, message: "Vorhandene Verlängerungsmitteilung wurde wiederverwendet." }); }
       const draft = process.entwurf_daten as Record<string, unknown>;
       if (Number(draft.member_id) !== memberId || !safe(draft.template_key) || !safe(draft.template_version)) throw new Error("Der unveränderliche Verlängerungssnapshot ist unvollständig.");
+      const membershipNumber = Number(member.mitgliedsnummer);
+      if (!Number.isSafeInteger(membershipNumber) || membershipNumber <= 0) throw new Error("Für die Wartungsvertragsverlängerung fehlt eine gültige Mitgliedsnummer.");
       const { data: occupation } = await auth.admin.from("parzellen_belegung").select("parzelle_id").eq("mitglied_id", memberId).lte("von_datum", safe(draft.gueltig_ab)).or(`bis_datum.is.null,bis_datum.gte.${safe(draft.gueltig_ab)}`).order("von_datum", { ascending: false }).limit(1).maybeSingle();
       const { data: parcel } = occupation?.parzelle_id ? await auth.admin.from("parzelle").select("garten_nr").eq("id", occupation.parzelle_id).maybeSingle() : { data: null };
-      const values: Record<string, string> = { saisonjahr: safe(draft.gueltig_ab).slice(0, 4), mitglied_name: safe(draft.mitglied_name), mitgliedsnummer: safe(draft.mitgliedsnummer), parzelle_nummer: safe(parcel?.garten_nr) || "-", wartungsvertrag_titel: safe(draft.wartungsvertrag_titel), wartungsvertrag_beschreibung: safe(draft.wartungsvertrag_beschreibung), arbeitsstundenwirkung: safe(draft.arbeitsstundenwirkung), wartungsvertrag_bemerkung: safe(draft.bemerkung), verlaengerungsentscheidung_datum: formatDate(safe(draft.vorstandsbeschlussdatum)), verlaengerungsmitteilung_erstellt_am: formatDate(new Date().toISOString()) };
+      const values: Record<string, string> = { saisonjahr: safe(draft.gueltig_ab).slice(0, 4), mitglied_name: safe(draft.mitglied_name), mitgliedsnummer: String(membershipNumber), parzelle_nummer: safe(parcel?.garten_nr) || "-", wartungsvertrag_titel: safe(draft.wartungsvertrag_titel), wartungsvertrag_beschreibung: safe(draft.wartungsvertrag_beschreibung), arbeitsstundenwirkung: safe(draft.arbeitsstundenwirkung), wartungsvertrag_bemerkung: safe(draft.bemerkung), verlaengerungsentscheidung_datum: formatDate(safe(draft.vorstandsbeschlussdatum)), verlaengerungsmitteilung_erstellt_am: formatDate(new Date().toISOString()) };
       const template = await loadPublishedPdfTemplate(auth, maintenanceExtensionTemplate);
       pdf = await drawPdfTemplate(template.pdfBytes, template.fields, values, {}, "none"); title = "Wartungsvertragsverlängerung"; owner = { kind: "mitglied", id: memberId };
     } else if (type === "wartungsvertrag") {
@@ -416,9 +418,11 @@ Deno.serve(async (req) => {
         if (repairError || !repairedVorgang) throw new Error(`Vorhandenes Wartungsvertragsdokument konnte nicht am Signaturvorgang hinterlegt werden: ${repairError?.message ?? "Vorgang wurde zwischenzeitlich geändert."}`);
         return json(200, { success: true, document_id: existing.id, message: "Vorhandenes finales Wartungsvertragsdokument wurde wiederverwendet." });
       }
+      const membershipNumber = Number(member.mitgliedsnummer);
+      if (!Number.isSafeInteger(membershipNumber) || membershipNumber <= 0) throw new Error("Für den Wartungsvertrag fehlt eine gültige Mitgliedsnummer.");
       const values: Record<string, string> = {
         mitglied_name: [safe(member.vorname), safe(member.name)].filter(Boolean).join(" "),
-        mitgliedsnummer: String(member.id),
+        mitgliedsnummer: String(membershipNumber),
         parzelle_nummer: safe(parcel?.garten_nr) || "-",
         wartungsvertrag_titel: safe(maintenance.titel),
         wartungsvertrag_bereich: safe(maintenance.bereich),

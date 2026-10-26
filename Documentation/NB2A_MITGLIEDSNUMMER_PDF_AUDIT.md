@@ -78,3 +78,13 @@ Der lokale `MitgliedsvertragDokumentFactory` und der Edge-Fallback `buildSimpleC
 Auf der lokalen Signaturmetaseite bleibt ein vorhandener Vor- und Nachname unverändert die alleinige normale Mitgliedsangabe. Nur falls kein Name vorliegt, wird `Mgl.-Nr. <mitgliedsnummer>` verwendet; ohne gespeicherte Nummer lautet die neutrale Angabe `Mitglied`. Der frühere sichtbare Fallback `Mitglied #<id>` ist entfernt. Die Edge-Abfrage lädt den Member-Datensatz weiterhin vollständig, daher steht `mitgliedsnummer` ohne zusätzliche Abfrage und ohne N+1-Aufrufe bereit.
 
 NB-2A-D3 bis D5 bleiben offen und sind durch diesen Block nicht verändert worden.
+
+## 9. NB-2A-D3 – umgesetzt am 26.10.2026
+
+Der Edge-Pfad für den Wartungsvertrag befüllt das vorhandene sichtbare Feld `mitgliedsnummer` jetzt aus dem bereits vollständig geladenen `mitglied`-Datensatz (`member.mitgliedsnummer`). `member.id` bleibt ausschließlich die interne Zuordnungs-ID; `wartungsvertrag_id` bleibt unverändert die eigenständige Vertragsidentität.
+
+Für die Verlängerung ersetzt die neue, migrationssichere Quelldatei `20261026090000_nb2a_d3_wartungsvertrag_mitgliedsnummer.sql` die WV-6-Funktionsdefinition für künftig erzeugte Snapshots. Sie speichert `v_member.mitgliedsnummer` im Entwurf und verweigert die Verlängerung mit einer fachlichen Meldung, wenn keine gültige Mitgliedsnummer vorliegt. Die Migration ist **nur angelegt und nicht ausgeführt**; die historische WV-6-Migration wurde nicht verändert. Die Regel einer echten Verlängerung mit derselben `wartungsvertrag_id` bleibt unverändert erhalten.
+
+Bereits gespeicherte Verlängerungsentwürfe werden nicht geändert und können weiterhin die frühere technische ID im gespeicherten JSON enthalten. Beim Rendern wird deren sichtbares Nummernfeld jedoch sicher aus dem bereits zum Vorgang geladenen kanonischen Mitgliedsdatensatz aufgelöst. Dies ist keine Heuristik und keine zusätzliche Abfrage; der Vorgang validiert bereits dieselbe `mitglied_id`. Weder der Wartungsvertrag noch die Verlängerung berechnen eine Mitgliedsnummer aus einer technischen ID.
+
+NB-2A-D4 und D5 bleiben offen und sind durch diesen Block nicht verändert worden.
