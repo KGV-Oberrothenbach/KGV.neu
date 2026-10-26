@@ -42,6 +42,8 @@ public sealed class ContractGenerationClient : IContractGenerationClient
             ["admission_fee"] = admissionFee,
             ["include_secondary_member"] = request.IstMinderjaehrig ? false : request.NebenmitgliedEinbeziehen
         };
+        if (request.KommunikationsvorgangId > 0)
+            payload["kommunikationsvorgang_id"] = request.KommunikationsvorgangId;
 
         if (request.IstMinderjaehrig && draft.Representative is { } representative)
         {

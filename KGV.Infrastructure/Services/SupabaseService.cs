@@ -3821,7 +3821,7 @@ namespace KGV.Infrastructure.Services
             async () =>
             {
                 var context = await ResolveMitgliedsantragRequestAsync(request);
-                return await MitgliedsantragDokumentFactory.CreateUploadRequestAsync(context.Member, context.Mitgliedsbeitrag, context.Aufnahmegebuehr, context.BeginnDatum, context.GesetzlicherVertreterSnapshot, context.ZweitePrivateParteiArt, context.VereinskonfigurationSnapshot, FormularDokumentStatus.Unsigniert, _pdfTemplateProvider, request.VereinsunterlagenNachweis);
+                return await MitgliedsantragDokumentFactory.CreateUploadRequestAsync(context.Member, context.Mitgliedsbeitrag, context.Aufnahmegebuehr, context.BeginnDatum, context.GesetzlicherVertreterSnapshot, context.ZweitePrivateParteiArt, context.VereinskonfigurationSnapshot, FormularDokumentStatus.Unsigniert, _pdfTemplateProvider, request.VereinsunterlagenNachweis, request.Antragsnummer);
             },
             null);
 
@@ -3896,6 +3896,20 @@ namespace KGV.Infrastructure.Services
             return await CreateDokumentAsync(uploadRequest);
         }
 
+        private async Task<int> LoadMitgliedsantragAntragsnummerAsync(long kommunikationsvorgangId, bool isDemo)
+        {
+            var client = await EnsureClientAsync();
+            var response = await client.From<FachnummerReservierungRecord>()
+                .Where(x => x.QuelleArt == "kommunikationsvorgang")
+                .Where(x => x.QuelleId == kommunikationsvorgangId)
+                .Where(x => x.IsDemo == isDemo)
+                .Get();
+            var reservation = response.Models?.SingleOrDefault(x => x.Art == "mitgliedsantrag");
+            if (reservation is null || reservation.Nummer is < 10000 or > 19999)
+                throw new InvalidOperationException("Für den signaturbereiten Mitgliedsantrag fehlt eine gültige reservierte Antragsnummer.");
+            return reservation.Nummer;
+        }
+
         private async Task<(MitgliedRecord Member, decimal Mitgliedsbeitrag, decimal Aufnahmegebuehr, DateTime BeginnDatum, bool IstMinderjaehrig, MitgliedsantragVertreterSnapshot? GesetzlicherVertreterSnapshot, int? GesetzlicherVertreterMitgliedId, MitgliedsantragZweitePrivateParteiArt ZweitePrivateParteiArt, VereinskonfigurationSnapshot VereinskonfigurationSnapshot)> ResolveMitgliedsantragRequestAsync(MitgliedsantragDokumentRequest request)
         {
             if (request == null || request.MitgliedId <= 0)
@@ -3907,6 +3921,10 @@ namespace KGV.Infrastructure.Services
 
             if (!OperationalDataFilter.IsOperationalMember(member))
                 throw new InvalidOperationException("Für dieses Mitglied kann aktuell kein Antrag erzeugt werden.");
+
+            request.Antragsnummer = request.KommunikationsvorgangId > 0
+                ? await LoadMitgliedsantragAntragsnummerAsync(request.KommunikationsvorgangId, member.IsDemo)
+                : null;
 
             var beginnDatum = request.BeginnDatum == default
                 ? (member.MitgliedSeit ?? DateTime.Today)

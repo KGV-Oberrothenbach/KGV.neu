@@ -60,6 +60,8 @@ public sealed class PreparedMembershipApplicationPreviewFlow
         var isMinor = draft.Representative is not null;
         var application = PreparedMembershipApplicationMapper.ToDocumentRequest(draft, isMinor);
         application.NebenmitgliedEinbeziehen = !isMinor && draft.IncludeSecondaryMember;
+        if (contract.Status == PreparedContractConstants.ReadyForSignature)
+            application.KommunikationsvorgangId = contract.Id;
 
         var pdf = await _contractClient.PreviewMembershipApplicationAsync(
             application,

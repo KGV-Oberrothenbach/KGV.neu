@@ -156,3 +156,13 @@ Die technische Datenbankdefinition der gespeicherten `mitglied.mitgliedsnummer` 
 2. **NB-2A-D5C – Aufnahmebestätigung:** neue Dokumentart und generatorischen Ablauf nach positivem Vorstandsentscheid planen und implementieren; Antrags- und Mitgliedsnummer getrennt und aus kanonischen Quellen ausgeben.
 
 Keine dieser Empfehlungen wurde in D5A implementiert. Insbesondere wurden keine PDF-Felder, Vorlagen, Generatoren, Edge Functions, Migrationen, Storage-Objekte oder Produktionsdaten verändert.
+
+## 12. NB-2A-D5B – umgesetzt am 26.10.2026
+
+Der Mitgliedsantrag erhält mit `mitgliedsantrag` v5 das Feld `antragsnummer`. Im signaturbereiten Vorgang liest der Edge-Renderer ausschließlich die bereits vorhandene Reservierung `fachnummer_reservierung` des konkreten `kommunikationsvorgang` und zeigt sie als `Antrags-Nr. 10xxx`. Der Renderer reserviert keine Nummer, verwendet keine Mitgliedsnummer und zeigt keine technische ID. Vor der Reservierung bleibt die Vorschau ohne Ersatznummer; ab `zur_signatur` führt eine fehlende oder ungültige Reservierung zu einer fachlichen Fehlermeldung.
+
+Das Parzellenprotokoll zeigt für die bestehende Rolle Pächter/in 1 in lokalem und Edge-Pfad eine eigene Zeile `Mgl.-Nr. <mitgliedsnummer>`. Beide Pfade lesen nur die gespeicherte kanonische Mitgliedsnummer und brechen ohne gültige Nummer ab. Vorstand und Begleitperson bleiben ohne Nummer; eine zweite Pächterrolle wurde nicht ergänzt.
+
+Die Migration `20261026140000_nb2a_d5b_publish_mitgliedsantrag_v5.sql` ist nur angelegt und nicht ausgeführt. Weder Storage, Katalog noch Produktionsdaten wurden geändert.
+
+**NB-2A-D5B = 100 %**. Die 17 einschlägigen Node-/Contract-Tests sind erfolgreich; Core und Infrastructure bauen erfolgreich. `KGV.Tests` beendet sich lokal erfolgreich, gibt in dieser Umgebung jedoch keine Testdiagnose aus. D5C bleibt offen.

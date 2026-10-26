@@ -30,7 +30,8 @@ public static class ParzellenProtokollPdfBuilder
             var body = new XFont("Arial", 9.5, XFontStyle.Regular);
             gfx.DrawString(request.FormularTitel, title, XBrushes.Black, new XRect(Margin, y, page.Width - Margin * 2, 24), XStringFormats.TopLeft);
             y += 30;
-            DrawLines(gfx, page, label, body, ref y, "Protokolldatum", request.ProtokollDatum.ToString("dd.MM.yyyy"), "Mitglied", FullName(request.Mitglied), "Garten Nr.", request.Parzelle.DisplayName);
+            var mitgliedsnummer = RequireMembershipNumber(request.Mitglied);
+            DrawLines(gfx, page, label, body, ref y, "Protokolldatum", request.ProtokollDatum.ToString("dd.MM.yyyy"), "Mitglied", FullName(request.Mitglied), "Mgl.-Nr.", mitgliedsnummer, "Garten Nr.", request.Parzelle.DisplayName);
             DrawBox(gfx, page, label, body, ref y, "Teilnehmende", new[]
             {
                 $"Vorstand 1: {FullName(request.Vorstand1)}",
@@ -167,6 +168,13 @@ public static class ParzellenProtokollPdfBuilder
     }
 
     private static string FullName(MitgliedRecord member) => string.Join(" ", new[] { member?.Vorname, member?.Name }.Where(x => !string.IsNullOrWhiteSpace(x))).Trim();
+    private static string RequireMembershipNumber(MitgliedRecord member)
+    {
+        var number = member?.Mitgliedsnummer;
+        if (number is not > 0)
+            throw new InvalidOperationException("Für Pächter/in 1 fehlt eine gültige gespeicherte Mitgliedsnummer.");
+        return member.Mitgliedsnummer.ToString(System.Globalization.CultureInfo.InvariantCulture);
+    }
     private static string TextOrDash(string? value) => string.IsNullOrWhiteSpace(value) ? "-" : value.Trim();
     private static string UpperFirst(string value) => string.IsNullOrWhiteSpace(value) ? "-" : char.ToUpperInvariant(value[0]) + value[1..];
 }

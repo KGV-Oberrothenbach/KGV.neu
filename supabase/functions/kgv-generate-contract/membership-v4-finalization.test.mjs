@@ -7,7 +7,7 @@ const source = await readFile(new URL("./index.ts", import.meta.url), "utf8");
 test("membership application renderer accepts both v2 and v4 contracts", () => {
   assert.match(source, /membershipApplicationFieldSpecV2/);
   assert.match(source, /membershipApplicationFieldSpecV4/);
-  assert.match(source, /expectedFieldSpecVersions: \[membershipApplicationFieldSpecV2, membershipApplicationFieldSpecV4\]/);
+  assert.match(source, /expectedFieldSpecVersions: \[membershipApplicationFieldSpecV2, membershipApplicationFieldSpecV4, membershipApplicationFieldSpecV5\]/);
 });
 
 test("v4 maps every persistent signature key explicitly", () => {

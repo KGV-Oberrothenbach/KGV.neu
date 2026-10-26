@@ -10,6 +10,7 @@ public sealed class MitgliedsantragTemplateData
 
     public string Ausstellungsdatum { get; set; } = string.Empty;
     public string DokumentOrt { get; set; } = string.Empty;
+    public string Antragsnummer { get; set; } = string.Empty;
 
     public string MitgliedName { get; set; } = string.Empty;
     public string MitgliedVorname { get; set; } = string.Empty;

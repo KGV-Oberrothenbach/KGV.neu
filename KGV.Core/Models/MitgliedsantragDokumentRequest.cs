@@ -5,6 +5,9 @@ namespace KGV.Core.Models
     public sealed class MitgliedsantragDokumentRequest
     {
         public int MitgliedId { get; set; }
+        /// <summary>Der konkrete Signaturvorgang, dessen bereits reservierte Antragsnummer im PDF erscheint.</summary>
+        public long KommunikationsvorgangId { get; set; }
+        public int? Antragsnummer { get; set; }
         public DateTime BeginnDatum { get; set; }
         public decimal Mitgliedsbeitrag { get; set; }
         public decimal? Aufnahmegebuehr { get; set; }

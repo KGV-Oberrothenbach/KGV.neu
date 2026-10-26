@@ -73,12 +73,12 @@ namespace KGV.Core.Utilities
             MitgliedRecord member, decimal mitgliedsbeitrag, decimal aufnahmegebuehr, DateTime beginnDatum,
             MitgliedsantragVertreterSnapshot? gesetzlicherVertreterSnapshot, MitgliedsantragZweitePrivateParteiArt zweitePrivateParteiArt,
             VereinskonfigurationSnapshot? vereinskonfigurationSnapshot,
-            string? status, IPdfTemplateProvider templateProvider, string? vereinsunterlagenNachweis = null, CancellationToken cancellationToken = default)
+            string? status, IPdfTemplateProvider templateProvider, string? vereinsunterlagenNachweis = null, int? antragsnummer = null, CancellationToken cancellationToken = default)
         {
             if (templateProvider == null) throw new ArgumentNullException(nameof(templateProvider));
             const string documentType = "mitgliedsantrag";
             const string operation = "preview";
-            const string fieldSpecVersion = "mitgliedsantrag-field-spec/v2";
+            const string fieldSpecVersion = "mitgliedsantrag-field-spec/v5";
             const string rendererVersion = "top-left/v1";
             PdfTemplateAsset template;
             try
@@ -101,7 +101,7 @@ namespace KGV.Core.Utilities
 
             try
             {
-                return CreateUploadRequestCore(member, mitgliedsbeitrag, aufnahmegebuehr, beginnDatum, gesetzlicherVertreterSnapshot, zweitePrivateParteiArt, vereinskonfigurationSnapshot, status, template, vereinsunterlagenNachweis);
+                return CreateUploadRequestCore(member, mitgliedsbeitrag, aufnahmegebuehr, beginnDatum, gesetzlicherVertreterSnapshot, zweitePrivateParteiArt, vereinskonfigurationSnapshot, status, template, vereinsunterlagenNachweis, antragsnummer);
             }
             catch (DocumentPipelineException)
             {
@@ -127,7 +127,7 @@ namespace KGV.Core.Utilities
             VereinskonfigurationSnapshot? vereinskonfigurationSnapshot,
             string? status,
             PdfTemplateAsset template,
-            string? vereinsunterlagenNachweis)
+            string? vereinsunterlagenNachweis, int? antragsnummer)
         {
             if (member == null)
                 throw new ArgumentNullException(nameof(member));
@@ -153,7 +153,7 @@ namespace KGV.Core.Utilities
                 beginnDatum.Date,
                 gesetzlicherVertreterSnapshot,
                 VereinskonfigurationSnapshotFactory.NormalizeForMembershipApplication(vereinskonfigurationSnapshot),
-                vereinsunterlagenNachweis);
+                vereinsunterlagenNachweis, antragsnummer);
 
             var filledPdf = FillAndFlattenPdfForm(template.PdfBytes, templateData, template.Fields, zweitePrivateParteiArt);
 
@@ -175,7 +175,7 @@ namespace KGV.Core.Utilities
             DateTime beginnDatum,
             MitgliedsantragVertreterSnapshot? gesetzlicherVertreterSnapshot,
             VereinskonfigurationSnapshot bankverbindungSnapshot,
-            string? vereinsunterlagenNachweis)
+            string? vereinsunterlagenNachweis, int? antragsnummer)
         {
             var istMinderjaehrig = gesetzlicherVertreterSnapshot != null;
             var beitragsmonate = CalculateBeitragsmonate(beginnDatum);
@@ -208,6 +208,7 @@ namespace KGV.Core.Utilities
 
                 Ausstellungsdatum = FormatDate(DateTime.Today),
                 DokumentOrt = ort,
+                Antragsnummer = antragsnummer is >= 10000 and <= 19999 ? $"Antrags-Nr. {antragsnummer.Value}" : string.Empty,
 
                 MitgliedName = Safe(member.Name),
                 MitgliedVorname = Safe(member.Vorname),
@@ -275,6 +276,7 @@ namespace KGV.Core.Utilities
             {
                 ["ausstellungsdatum"] = data.Ausstellungsdatum,
                 ["dokument_ort"] = data.DokumentOrt,
+                ["antragsnummer"] = data.Antragsnummer,
 
                 ["mitglied_name"] = data.MitgliedName,
                 ["mitglied_vorname"] = data.MitgliedVorname,
