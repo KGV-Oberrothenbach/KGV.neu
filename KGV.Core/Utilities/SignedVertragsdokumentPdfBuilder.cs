@@ -99,10 +99,13 @@ namespace KGV.Core.Utilities
             var signerName = string.Join(" ", new[] { member.Vorname, member.Name }
                 .Where(x => !string.IsNullOrWhiteSpace(x))
                 .Select(x => x!.Trim()));
+            var signerDisplay = string.IsNullOrWhiteSpace(signerName)
+                ? member.Mitgliedsnummer > 0 ? $"Mgl.-Nr. {member.Mitgliedsnummer}" : "Mitglied"
+                : signerName;
 
             DrawMetaLine(graphics, labelFont, bodyFont, pageMargin, ref cursorY, signaturePage.Width, "Dokument", sourceDocument.FormularDokumentTypAnzeige);
             DrawMetaLine(graphics, labelFont, bodyFont, pageMargin, ref cursorY, signaturePage.Width, "Status", FormularDokumentStatus.ToDisplayName(FormularDokumentStatus.Signiert));
-            DrawMetaLine(graphics, labelFont, bodyFont, pageMargin, ref cursorY, signaturePage.Width, "Mitglied", string.IsNullOrWhiteSpace(signerName) ? $"Mitglied #{member.Id}" : signerName);
+            DrawMetaLine(graphics, labelFont, bodyFont, pageMargin, ref cursorY, signaturePage.Width, "Mitglied", signerDisplay);
             DrawMetaLine(graphics, labelFont, bodyFont, pageMargin, ref cursorY, signaturePage.Width, "Quelle", string.IsNullOrWhiteSpace(sourceDocument.Dateiname) ? sourceDocument.Title : sourceDocument.Dateiname);
             DrawMetaLine(graphics, labelFont, bodyFont, pageMargin, ref cursorY, signaturePage.Width, "Signiert am", signatureCapture.SignedAt.ToString("dd.MM.yyyy HH:mm"));
             cursorY += 12;

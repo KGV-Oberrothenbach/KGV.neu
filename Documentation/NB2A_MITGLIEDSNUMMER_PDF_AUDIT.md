@@ -70,3 +70,11 @@ Eine aktive Berechnung `Id + 1000`, `1000 + Id` oder Nutzung von `Fachnummer.Mit
 4. **NB-2A-D5 – Antrag, Aufnahmebestätigung und Parzellenprotokoll** (nach fachlicher Entscheidung): klären, ob diese Rollen tatsächlich eine Mitgliedsnummer im Dokument benötigen. Kein automatischer UI-Label-Transfer.
 
 Die D2- und D3-Befunde sind technische Fehler mit klarer kanonischer Datenquelle. D4 und D5 benötigen vor Umsetzung eine fachliche Entscheidung über die sichtbare Dokumentsemantik.
+
+## 8. NB-2A-D2 – umgesetzt am 26.10.2026
+
+Der lokale `MitgliedsvertragDokumentFactory` und der Edge-Fallback `buildSimpleContract` zeigen jetzt jeweils `Mitgliedsnummer: <mitgliedsnummer>` aus der gespeicherten kanonischen Spalte. Die sichtbare technische `mitglied.id` wurde aus beiden Mitgliedsvertragsgeneratoren entfernt; es gibt weder eine Berechnung noch einen ID-basierten Ersatz. Fehlt die gespeicherte Nummer, zeigen beide Pfade verständlich `nicht verfügbar`.
+
+Auf der lokalen Signaturmetaseite bleibt ein vorhandener Vor- und Nachname unverändert die alleinige normale Mitgliedsangabe. Nur falls kein Name vorliegt, wird `Mgl.-Nr. <mitgliedsnummer>` verwendet; ohne gespeicherte Nummer lautet die neutrale Angabe `Mitglied`. Der frühere sichtbare Fallback `Mitglied #<id>` ist entfernt. Die Edge-Abfrage lädt den Member-Datensatz weiterhin vollständig, daher steht `mitgliedsnummer` ohne zusätzliche Abfrage und ohne N+1-Aufrufe bereit.
+
+NB-2A-D3 bis D5 bleiben offen und sind durch diesen Block nicht verändert worden.

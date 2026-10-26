@@ -42,7 +42,7 @@ namespace KGV.Core.Utilities
         {
             var person = new List<string>
             {
-                $"Mitglied-ID: {member.Id}",
+                $"Mitgliedsnummer: {FormatMembershipNumber(member)}",
                 $"Vorname: {Safe(member.Vorname)}",
                 $"Nachname: {Safe(member.Name)}"
             };
@@ -108,6 +108,9 @@ namespace KGV.Core.Utilities
 
         private static string FormatDate(DateTime? value)
             => value.HasValue ? value.Value.ToString("dd.MM.yyyy") : "-";
+
+        private static string FormatMembershipNumber(MitgliedRecord member)
+            => member.Mitgliedsnummer > 0 ? member.Mitgliedsnummer.ToString() : "nicht verfügbar";
 
         private static string Safe(string? value)
             => string.IsNullOrWhiteSpace(value) ? "-" : value.Trim();
