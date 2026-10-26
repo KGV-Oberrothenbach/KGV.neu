@@ -45,6 +45,10 @@ public sealed class PachtvertragTemplateData
     public string UnterschriftDatum { get; set; } = string.Empty;
     public string WeitereVereinbarungen { get; set; } = string.Empty;
     public string VereinsUnterzeichner { get; set; } = string.Empty;
+    public string VereinName { get; set; } = string.Empty;
+    public string Vereinsregister { get; set; } = string.Empty;
+    public string VereinsFusszeile { get; set; } = string.Empty;
+    public string VereinsangabenFusszeile { get; set; } = string.Empty;
     public bool Anlage1 { get; set; }
     public bool Anlage2 { get; set; }
     public bool Anlage3 { get; set; }

@@ -74,7 +74,11 @@ public static class PachtvertragTemplateFactory
             UnterschriftOrt = CleanOrDefault(context.UnterschriftOrt, "Zwickau"),
             UnterschriftDatum = FormatDate(DateTime.Today),
             WeitereVereinbarungen = Clean(context.WeitereVereinbarungen),
-            VereinsUnterzeichner = string.Empty
+            VereinsUnterzeichner = string.Empty,
+            VereinName = Clean(context.VereinskonfigurationSnapshot?.VereinName),
+            Vereinsregister = Clean(context.VereinskonfigurationSnapshot?.VereinRegisterangabe),
+            VereinsFusszeile = BuildClubAddress(context.VereinskonfigurationSnapshot),
+            VereinsangabenFusszeile = BuildClubFooter(context.VereinskonfigurationSnapshot)
         };
     }
 
@@ -115,6 +119,34 @@ public static class PachtvertragTemplateFactory
 
         return string.Join(" | ", new[] { phone, email }
             .Where(value => !string.IsNullOrWhiteSpace(value)));
+    }
+
+    private static string BuildClubAddress(VereinskonfigurationSnapshot? configuration)
+    {
+        if (configuration == null)
+            return string.Empty;
+
+        return string.Join(", ", new[]
+        {
+            Clean(configuration.Strasse),
+            string.Join(" ", new[] { Clean(configuration.Plz), Clean(configuration.Ort) }
+                .Where(value => !string.IsNullOrWhiteSpace(value)))
+        }.Where(value => !string.IsNullOrWhiteSpace(value)));
+    }
+
+    private static string BuildClubFooter(VereinskonfigurationSnapshot? configuration)
+    {
+        if (configuration == null)
+            return string.Empty;
+
+        return string.Join(Environment.NewLine, new[]
+        {
+            Clean(configuration.VereinName),
+            Clean(configuration.Strasse),
+            string.Join(" ", new[] { Clean(configuration.Plz), Clean(configuration.Ort) }
+                .Where(value => !string.IsNullOrWhiteSpace(value))),
+            Clean(configuration.VereinRegisterangabe)
+        }.Where(value => !string.IsNullOrWhiteSpace(value)));
     }
 
     private static string FormatDate(DateTime value)

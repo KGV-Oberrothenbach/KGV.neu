@@ -11,7 +11,7 @@ internal sealed class CanonicalPdfTemplateProvider : IPdfTemplateProvider
         var (version, fieldSpecVersion, rendererVersion) = request.TemplateKey switch
         {
             "mitgliedsantrag" => ("v1", "mitgliedsantrag-field-spec/v1", "pdfsharpcore-ma/v1"),
-            "pachtvertrag" => ("v5", "pachtvertrag-field-spec/v5", "top-left/v1"),
+            "pachtvertrag" => ("v8", "pachtvertrag-field-spec/v8", "top-left/v1"),
             _ => throw new InvalidOperationException($"Unexpected template key '{request.TemplateKey}'.")
         };
 

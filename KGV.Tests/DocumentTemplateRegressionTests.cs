@@ -63,7 +63,7 @@ public sealed class DocumentTemplateRegressionTests
     public async Task Canonical_signature_placeholders_are_unique_positive_and_inside_their_production_templates()
     {
         var membership = await Provider.GetActiveAsync(new PdfTemplateRequest("mitgliedsantrag", "mitgliedsantrag-field-spec/v1", "pdfsharpcore-ma/v1"));
-        var lease = await Provider.GetActiveAsync(new PdfTemplateRequest("pachtvertrag", "pachtvertrag-field-spec/v5", "top-left/v1"));
+        var lease = await Provider.GetActiveAsync(new PdfTemplateRequest("pachtvertrag", "pachtvertrag-field-spec/v8", "top-left/v1"));
         AssertPlaceholders(ToPlaceholders(membership.Fields), 1);
         AssertPlaceholders(ToPlaceholders(lease.Fields), 3);
     }

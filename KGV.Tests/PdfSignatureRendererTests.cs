@@ -42,7 +42,7 @@ public sealed class PdfSignatureRendererTests
     {
         var provider = new CanonicalPdfTemplateProvider();
         var membership = ToPlaceholders((await provider.GetActiveAsync(new PdfTemplateRequest("mitgliedsantrag", "mitgliedsantrag-field-spec/v1", "pdfsharpcore-ma/v1"))).Fields);
-        var lease = ToPlaceholders((await provider.GetActiveAsync(new PdfTemplateRequest("pachtvertrag", "pachtvertrag-field-spec/v5", "top-left/v1"))).Fields);
+        var lease = ToPlaceholders((await provider.GetActiveAsync(new PdfTemplateRequest("pachtvertrag", "pachtvertrag-field-spec/v8", "top-left/v1"))).Fields);
 
         var membershipAlone = new[] { "unterschrift_antragsteller", "unterschrift_verein", "datenschutz_unterschrift_antragsteller" };
         var membershipWithSecondParty = membershipAlone.Concat(new[] { "unterschrift_vertreter", "datenschutz_unterschrift_vertreter" }).ToArray();

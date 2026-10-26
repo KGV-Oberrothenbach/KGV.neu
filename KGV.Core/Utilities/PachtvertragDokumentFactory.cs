@@ -11,15 +11,20 @@ namespace KGV.Core.Utilities
     {
         private static readonly IReadOnlyList<PdfFormFieldSpec> FieldSpecs = new[]
         {
-            new PdfFormFieldSpec("paechter_name", PdfFormFieldKind.Text, 1, 147, 234, 298, 14),
-            new PdfFormFieldSpec("mitgliedsnummer", PdfFormFieldKind.Text, 1, 488, 250, 75, 14),
-            new PdfFormFieldSpec("paechter_geburtsdatum", PdfFormFieldKind.Text, 1, 124, 260, 298, 14),
-            new PdfFormFieldSpec("paechter_anschrift", PdfFormFieldKind.Text, 1, 95, 285, 313, 14),
-            new PdfFormFieldSpec("paechter_kontakt", PdfFormFieldKind.Text, 1, 175, 311, 233, 14),
-            new PdfFormFieldSpec("zweite_partei_name", PdfFormFieldKind.Text, 1, 338, 334, 175, 14),
-            new PdfFormFieldSpec("zweite_partei_mitgliedsnummer", PdfFormFieldKind.Text, 1, 407, 347, 106, 14),
+            new PdfFormFieldSpec("verein_name", PdfFormFieldKind.Text, 1, 210, 232, 205, 14),
+            new PdfFormFieldSpec("vereinsregister", PdfFormFieldKind.Text, 1, 505, 232, 58, 14),
+            new PdfFormFieldSpec("paechter_name", PdfFormFieldKind.Text, 1, 215, 262, 185, 14),
+            new PdfFormFieldSpec("mitgliedsnummer", PdfFormFieldKind.Text, 1, 481, 262, 82, 14),
+            new PdfFormFieldSpec("paechter_geburtsdatum", PdfFormFieldKind.Text, 1, 175, 292, 130, 14),
+            new PdfFormFieldSpec("paechter_anschrift", PdfFormFieldKind.Text, 1, 390, 292, 173, 14),
+            new PdfFormFieldSpec("zweite_partei_name", PdfFormFieldKind.Text, 1, 215, 339, 185, 14),
+            new PdfFormFieldSpec("zweite_partei_mitgliedsnummer", PdfFormFieldKind.Text, 1, 481, 339, 82, 14),
+            new PdfFormFieldSpec("zweite_partei_geburtsdatum", PdfFormFieldKind.Text, 1, 175, 369, 130, 14),
+            new PdfFormFieldSpec("zweite_partei_anschrift", PdfFormFieldKind.Text, 1, 390, 369, 173, 14),
             new PdfFormFieldSpec("vertragsbeginn", PdfFormFieldKind.Text, 1, 193, 541, 85, 14),
             new PdfFormFieldSpec("uebergabe_datum", PdfFormFieldKind.Text, 1, 357, 541, 85, 14),
+            new PdfFormFieldSpec("vereinsangaben_fusszeile", PdfFormFieldKind.MultilineText, 1, 40, 790, 260, 36),
+            new PdfFormFieldSpec("vorstand_fusszeile", PdfFormFieldKind.MultilineText, 1, 365, 790, 188, 36),
             new PdfFormFieldSpec("weitere_vereinbarungen", PdfFormFieldKind.MultilineText, 3, 42, 544, 510, 32),
             new PdfFormFieldSpec("ort_datum", PdfFormFieldKind.Text, 3, 110, 603, 276, 14),
             new PdfFormFieldSpec("unterschrift_paechter_1", PdfFormFieldKind.SignaturePlaceholder, 3, 110, 631, 129, 28),
@@ -47,7 +52,7 @@ namespace KGV.Core.Utilities
             ArgumentNullException.ThrowIfNull(templateProvider);
             const string documentType = "pachtvertrag";
             const string operation = "preview";
-            const string fieldSpecVersion = "pachtvertrag-field-spec/v5";
+            const string fieldSpecVersion = "pachtvertrag-field-spec/v8";
             const string rendererVersion = "top-left/v1";
             PdfTemplateAsset template;
             try
@@ -203,18 +208,18 @@ namespace KGV.Core.Utilities
         {
             return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
+                ["verein_name"] = data.VereinName,
+                ["vereinsregister"] = data.Vereinsregister,
                 ["paechter_name"] = data.Paechter1Vollname,
                 ["mitgliedsnummer"] = data.Paechter1Mitgliedsnummer,
                 ["paechter_geburtsdatum"] = data.Paechter1Geburtsdatum,
                 ["paechter_anschrift"] = data.Paechter1Anschrift,
-                ["paechter_kontakt"] = data.Paechter1Kontakt,
-
-                ["zweite_partei_bezeichnung"] = data.ZweiteParteiBezeichnung,
                 ["zweite_partei_name"] = data.Paechter2Vollname,
                 ["zweite_partei_mitgliedsnummer"] = data.Paechter2Mitgliedsnummer,
                 ["zweite_partei_geburtsdatum"] = data.Paechter2Geburtsdatum,
                 ["zweite_partei_anschrift"] = data.Paechter2Anschrift,
-                ["zweite_partei_kontakt"] = data.Paechter2Kontakt,
+                ["vereinsangaben_fusszeile"] = data.VereinsangabenFusszeile,
+                ["vorstand_fusszeile"] = string.Empty,
 
                 ["parzelle_nr"] = data.ParzelleNummer,
                 ["lage_anlage"] = data.ParzelleAnlage,
@@ -264,7 +269,7 @@ namespace KGV.Core.Utilities
                     || field.Page != actual[index].Page
                     || field.X != actual[index].X || field.Y != actual[index].Y
                     || field.Width != actual[index].Width || field.Height != actual[index].Height).Any())
-                throw new InvalidOperationException("Die zentrale Pachtvertrag-Feldspezifikation entspricht nicht der unterstützten v5-Geometrie.");
+                throw new InvalidOperationException("Die zentrale Pachtvertrag-Feldspezifikation entspricht nicht der unterstützten v8-Geometrie.");
         }
 
         private enum PdfFormFieldKind
