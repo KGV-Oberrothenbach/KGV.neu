@@ -17,7 +17,9 @@ public sealed class AblesungReviewItem
     public string? Pruefkommentar { get; set; }
     public int? GeprueftVon { get; set; }
     public DateTime? GeprueftAm { get; set; }
+    public int? MitgliedId { get; set; }
     public string? MitgliedName { get; set; }
+    public long Mitgliedsnummer { get; set; }
     public string? QuelleHinweis { get; set; }
     public string? FotoPfad { get; set; }
     public string? FotoDateiname { get; set; }
@@ -31,9 +33,20 @@ public sealed class AblesungReviewItem
         ? "Wasser"
         : "Strom";
 
-    public string MitgliedDisplay => string.IsNullOrWhiteSpace(MitgliedName)
-        ? "Quelle im Modell nicht verfügbar"
-        : MitgliedName;
+    public string MitgliedDisplay
+    {
+        get
+        {
+            if (Mitgliedsnummer <= 0)
+                return string.IsNullOrWhiteSpace(MitgliedName)
+                    ? "Quelle im Modell nicht verfügbar"
+                    : "Mitgliedsnummer nicht verfügbar";
+
+            return string.IsNullOrWhiteSpace(MitgliedName)
+                ? $"Mgl.-Nr. {Mitgliedsnummer}"
+                : $"{MitgliedName} · Mgl.-Nr. {Mitgliedsnummer}";
+        }
+    }
 
     public string PruefstatusDisplay => AblesungPruefstatus.Normalize(Pruefstatus) switch
     {
