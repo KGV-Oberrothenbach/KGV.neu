@@ -5,11 +5,11 @@ const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers
 const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
 const createRequestId = () => crypto.randomUUID();
 const errorResponse = (status: number, errorCode: string, message: string, requestId: string) => json(status, { success: false, error_code: errorCode, message, request_id: requestId });
-type ContractType = "mitgliedsantrag" | "mitgliedsvertrag" | "pachtvertrag" | "wartungsvertrag" | "wartungsvertrag_verlaengerung" | "parzellenprotokoll";
+type ContractType = "mitgliedsantrag" | "mitgliedsvertrag" | "pachtvertrag" | "wartungsvertrag" | "wartungsvertrag_verlaengerung" | "parzellenprotokoll" | "aufnahmebestaetigung";
 type LegalRepresentativeRequest = { mode: "existing" | "manual"; member_id?: number; vorname?: string; nachname?: string; adresse_abweichend?: boolean; adresse?: string; plz?: string; ort?: string };
 type RequestBody = { action?: "preview" | "finalize" | "sign-existing"; type?: ContractType; member_id?: number; kommunikationsvorgang_id?: number; parcel_id?: number; start_date?: string; member_fee?: number; admission_fee?: number; representative?: LegalRepresentativeRequest; signature_application_member?: string; signature_privacy_member?: string; signature_application_representative?: string; signature_privacy_representative?: string; signature_application_secondary?: string; signature_privacy_secondary?: string; signature_member?: string; signature_secondary?: string; signature_board?: string; signature_board2?: string; has_previous_contract?: boolean; previous_contract_date?: string; include_secondary_member?: boolean; secondary_member_id?: number; effective_date?: string; handover_date?: string; additional_agreements?: string; club_signatory?: string; club_documents_snapshot?: string; protocol_id?: number; protocol_type?: string; protocol_reason?: string; protocol_condition?: string; protocol_agreement?: string; board2_id?: number; companion_name?: string; photos?: string[]; source_document_id?: number; source_kommunikationsvorgang_id?: number; source_revision?: number };
 type ClubConfigurationSnapshot = { vereinName: string; kurzname: string; registerangabe: string; strasse: string; plz: string; ort: string; standardEmail: string; standardTelefon: string; website: string; kontoinhaber: string; bankname: string; iban: string; bic: string; verwendungszweckMitgliedsantrag: string; verwendungszweckPachtvertrag: string; dokumentOrt: string; standardHinweistext: string; datenschutzText: string; datenschutzVersion: string; datenschutzStand: string };
-type FieldSpec = { page: number; type: string; name: string; rect: { x: number; y: number; w: number; h: number } };
+type FieldSpec = { page: number; type: string; name: string; font_size?: number; rect: { x: number; y: number; w: number; h: number } };
 type PdfTemplateCatalogRecord = { template_key: string; version: string; storage_bucket: string; storage_path: string; content_type: string; checksum: string; field_spec_path: string; field_spec_checksum: string; field_spec_version: string; renderer_version: string; status: string; aktiv: boolean; created_at: string };
 type LoadedPdfTemplate = { pdfBytes: Uint8Array; fields: FieldSpec[]; fieldSpecVersion: string };
 type PdfTemplateDescriptor = { templateKey: string; expectedFieldSpecVersions: readonly string[]; expectedRendererVersion: string; requiredFieldsByVersion: Record<string, readonly string[]>; displayName: string };
@@ -44,6 +44,7 @@ const membershipApplicationTemplate: PdfTemplateDescriptor = { templateKey: memb
 const leaseTemplate: PdfTemplateDescriptor = { templateKey: leaseTemplateKey, expectedFieldSpecVersions: [leaseFieldSpecV3, leaseFieldSpecV4, leaseFieldSpecV5, leaseFieldSpecV6, leaseFieldSpecV7, leaseFieldSpecV8], expectedRendererVersion: leaseRendererVersion, requiredFieldsByVersion: { [leaseFieldSpecV3]: leaseRequiredFields, [leaseFieldSpecV4]: leaseRequiredFieldsV4, [leaseFieldSpecV5]: leaseRequiredFieldsV5, [leaseFieldSpecV6]: leaseRequiredFieldsV6, [leaseFieldSpecV7]: leaseRequiredFieldsV7, [leaseFieldSpecV8]: leaseRequiredFieldsV8 }, displayName: "Pachtvertrag" };
 const maintenanceTemplate: PdfTemplateDescriptor = { templateKey: "wartungsvertrag", expectedFieldSpecVersions: ["wartungsvertrag-field-spec/v1"], expectedRendererVersion: "top-left/v1", requiredFieldsByVersion: { "wartungsvertrag-field-spec/v1": ["unterschrift_mitglied", "unterschrift_vorstand_1", "unterschrift_vorstand_2", "vereinsunterzeichner_1", "vereinsunterzeichner_2"] }, displayName: "Wartungsvertrag" };
 const maintenanceExtensionTemplate: PdfTemplateDescriptor = { templateKey: "wartungsvertrag-verlaengerung", expectedFieldSpecVersions: ["wartungsvertrag-verlaengerung-field-spec/v1"], expectedRendererVersion: "top-left/v1", requiredFieldsByVersion: { "wartungsvertrag-verlaengerung-field-spec/v1": ["saisonjahr", "mitglied_name", "mitgliedsnummer", "parzelle_nummer", "wartungsvertrag_titel", "wartungsvertrag_beschreibung", "arbeitsstundenwirkung", "wartungsvertrag_bemerkung", "verlaengerungsentscheidung_datum", "verlaengerungsmitteilung_erstellt_am"] }, displayName: "Wartungsvertragsverlängerung" };
+const admissionConfirmationTemplate: PdfTemplateDescriptor = { templateKey: "aufnahmebestaetigung", expectedFieldSpecVersions: ["aufnahmebestaetigung-field-spec/v1"], expectedRendererVersion: "top-left/v1", requiredFieldsByVersion: { "aufnahmebestaetigung-field-spec/v1": ["absender_name", "absender_anschrift", "empfaenger_block", "datum", "betreff", "antragsnummer", "mitgliedsnummer", "mitglied_vorname", "mitglied_name", "mitglied_seit", "anrede", "brieftext", "abschluss", "fusszeile_verein", "fusszeile_bank", "fusszeile_vorstand"] }, displayName: "Aufnahmebestätigung" };
 
 function formatDate(value?: string | null) { if (!value) return ""; const date = new Date(`${value.slice(0, 10)}T12:00:00Z`); return Number.isNaN(date.valueOf()) ? "" : new Intl.DateTimeFormat("de-DE", { timeZone: "UTC" }).format(date); }
 function money(value: number) { return new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(value); }
@@ -56,6 +57,23 @@ function membershipNumber(person: Record<string, unknown> | null | undefined, re
     return "";
   }
   return String(value);
+}
+function formatLetterheadName(value: string) {
+  const words = safe(value).split(/\s+/).filter(Boolean);
+  return words.length > 1 ? `${words[0]}\n${words.slice(1).join(" ")}` : safe(value);
+}
+async function loadImpressumBoardFooter(auth: Awaited<ReturnType<typeof authenticate>>) {
+  const { data: slots, error: slotError } = await auth.admin.from("impressum_funktion_slot").select("funktion,sort_order,mitglied_id").not("mitglied_id", "is", null).order("sort_order", { ascending: true });
+  if (slotError) throw new Error(`Vorstandsangaben für die Fußzeile konnten nicht geladen werden: ${slotError.message}`);
+  const memberIds = [...new Set((slots ?? []).map((slot) => Number(slot.mitglied_id)).filter((id) => Number.isSafeInteger(id) && id > 0))];
+  if (!memberIds.length) return "";
+  const { data: members, error: memberError } = await auth.admin.from("mitglied").select("id,vorname,name").in("id", memberIds);
+  if (memberError) throw new Error(`Vorstandsmitglieder für die Fußzeile konnten nicht geladen werden: ${memberError.message}`);
+  const names = new Map((members ?? []).map((member) => [Number(member.id), [safe(member.vorname), safe(member.name)].filter(Boolean).join(" ")]));
+  return (slots ?? []).map((slot) => {
+    const name = names.get(Number(slot.mitglied_id));
+    return name ? `${safe(slot.funktion)}: ${name}` : "";
+  }).filter(Boolean).join("\n");
 }
 function snapshotFromConfiguration(configuration: Record<string, unknown> | null): ClubConfigurationSnapshot {
   if (!configuration) throw new Error("Aktive Vereinskonfiguration fehlt für die Dokumenterzeugung.");
@@ -234,7 +252,7 @@ async function drawPdfTemplate(templateBytes: Uint8Array, specs: FieldSpec[], va
     const value = values[field.name] ?? "";
     if (field.type === "checkbox") { page.drawRectangle({ x, y: pdfY, width: w, height: h, borderWidth: 0.6, borderColor: rgb(0, 0, 0) }); if (value === "true") page.drawText("X", { x: x + 1, y: pdfY + 0.5, size: Math.max(6, h - 1), font }); continue; }
     if (!value) continue;
-    const lines = value.split(/\r?\n/); const size = value.length > 55 ? 6.2 : 7.2;
+    const lines = value.split(/\r?\n/); const configuredSize = Number(field.font_size); const size = Number.isFinite(configuredSize) && configuredSize >= 5 && configuredSize <= 32 ? configuredSize : value.length > 55 ? 6.2 : 7.2;
     lines.slice(0, Math.max(1, Math.floor(h / (size + 1)))).forEach((line, index) => page.drawText(line.slice(0, 120), { x: x + 1.8, y: pdfY + h - size - index * (size + 1), size, font, color: rgb(0, 0, 0), maxWidth: Math.max(1, w - 3.6) }));
   }
   drawSecondPrivatePartyLabels(pdf, secondPrivatePartyRole, font);
@@ -305,8 +323,9 @@ Deno.serve(async (req) => {
     else if (!['admin','vorstand'].includes(auth.role)) throw new Error("AUTH:Nur Admin oder Vorstand dürfen Vertragsdokumente erzeugen.");
     if (action === "finalize" && type === "mitgliedsantrag" && (!Number.isSafeInteger(sourceKommunikationsvorgangId) || sourceKommunikationsvorgangId <= 0)) return errorResponse(400, "BAD_REQUEST", "Kommunikationsvorgang ist für die Finalisierung erforderlich.", requestId);
     if (type === "wartungsvertrag" && action !== "finalize") return errorResponse(400, "BAD_REQUEST", "Wartungsverträge werden ausschließlich aus dem persistenten Signaturvorgang finalisiert.", requestId);
+    if (type === "aufnahmebestaetigung" && action !== "finalize") return errorResponse(400, "BAD_REQUEST", "Aufnahmebestätigungen werden ausschließlich final nach der positiven Aufnahmeentscheidung erzeugt.", requestId);
     if (type === "wartungsvertrag_verlaengerung" && action !== "finalize") return errorResponse(400, "BAD_REQUEST", "Verlängerungsmitteilungen werden ausschließlich final und ohne Signaturen erzeugt.", requestId);
-    if ((type === "wartungsvertrag" || type === "wartungsvertrag_verlaengerung") && (!Number.isSafeInteger(sourceKommunikationsvorgangId) || sourceKommunikationsvorgangId <= 0)) return errorResponse(400, "BAD_REQUEST", "Kommunikationsvorgang ist für die Dokumentfinalisierung erforderlich.", requestId);
+    if ((type === "wartungsvertrag" || type === "wartungsvertrag_verlaengerung" || type === "aufnahmebestaetigung") && (!Number.isSafeInteger(sourceKommunikationsvorgangId) || sourceKommunikationsvorgangId <= 0)) return errorResponse(400, "BAD_REQUEST", "Kommunikationsvorgang ist für die Dokumentfinalisierung erforderlich.", requestId);
     if (action === "finalize" && type === "mitgliedsantrag" && (!Number.isSafeInteger(memberId) || memberId <= 0)) {
       const { data: vorgang, error } = await auth.admin.from("kommunikationsvorgang").select("mitglied_id").eq("id", sourceKommunikationsvorgangId).maybeSingle();
       if (error || !vorgang || !Number.isSafeInteger(vorgang.mitglied_id)) return errorResponse(400, "BAD_REQUEST", "Der Kommunikationsvorgang enthält kein gültiges Mitglied.", requestId);
@@ -316,10 +335,10 @@ Deno.serve(async (req) => {
     if (maintenancePersistent) { memberId = Number(maintenancePersistent.vorgang.mitglied_id); sourceRevision = maintenancePersistent.revision; }
     if (!Number.isSafeInteger(memberId) || memberId <= 0) return errorResponse(400, "BAD_REQUEST", "Mitglied ist erforderlich.", requestId);
     const { data: member, error: memberError } = await auth.admin.from("mitglied").select("*").eq("id", memberId).single(); if (memberError || !member) throw new Error("Mitglied wurde nicht gefunden.");
-    const { data: config } = await auth.admin.from("vereinskonfiguration").select("*").eq("aktiv", true).order("updated_at", { ascending: false }).limit(1).maybeSingle(); const configurationSnapshot = type === "mitgliedsantrag" || type === "pachtvertrag" || type === "wartungsvertrag" || type === "wartungsvertrag_verlaengerung" ? snapshotFromConfiguration(config) : null;
+    const { data: config } = await auth.admin.from("vereinskonfiguration").select("*").eq("aktiv", true).order("updated_at", { ascending: false }).limit(1).maybeSingle(); const configurationSnapshot = type === "mitgliedsantrag" || type === "pachtvertrag" || type === "wartungsvertrag" || type === "wartungsvertrag_verlaengerung" || type === "aufnahmebestaetigung" ? snapshotFromConfiguration(config) : null;
     const startDate = body.start_date?.slice(0, 10) || (member.mitglied_seit as string | null)?.slice(0, 10) || new Date().toISOString().slice(0, 10);
     const signatures = { member: body.signature_member, secondary: body.signature_secondary, board: body.signature_board, board2: body.signature_board2 };
-    if (action === "finalize" && type !== "mitgliedsantrag" && type !== "pachtvertrag" && type !== "wartungsvertrag" && type !== "wartungsvertrag_verlaengerung" && (!signatures.member || !signatures.board)) return errorResponse(400, "BAD_REQUEST", "Unterschrift des Mitglieds und des Vereins sind erforderlich.", requestId);
+    if (action === "finalize" && type !== "mitgliedsantrag" && type !== "pachtvertrag" && type !== "wartungsvertrag" && type !== "wartungsvertrag_verlaengerung" && type !== "aufnahmebestaetigung" && (!signatures.member || !signatures.board)) return errorResponse(400, "BAD_REQUEST", "Unterschrift des Mitglieds und des Vereins sind erforderlich.", requestId);
     let pdf: Uint8Array; let title: string; let owner: { kind: "mitglied" | "parzelle"; id: number }; let protocolIdToComplete: number | null = null; let maintenanceAssignmentId: number | null = null;
     if (type === "mitgliedsantrag") {
       if (member.hauptmitglied_id !== null && member.hauptmitglied_id !== undefined) throw new Error("Für Nebenmitglieder kann kein eigener Mitgliedsantrag erstellt werden.");
@@ -363,6 +382,42 @@ Deno.serve(async (req) => {
         pdf = await drawPdfTemplate(template.pdfBytes, template.fields, values, { unterschrift_antragsteller: body.signature_application_member, unterschrift_zweite_partei: representative ? body.signature_application_representative : body.signature_application_secondary, unterschrift_verein: body.signature_board, mitglied_datenschutz_unterschrift: body.signature_privacy_member, zweite_partei_datenschutz_unterschrift: representative ? body.signature_privacy_representative : body.signature_privacy_secondary }, secondaryMember ? "secondary" : representative ? "representative" : "none");
       }
       title = `Mitgliedsantrag (${action === "finalize" ? "Signiert" : "Unsigniert"})`; owner = { kind: "mitglied", id: memberId };
+    } else if (type === "aufnahmebestaetigung") {
+      const { data: process, error: processError } = await auth.admin.from("kommunikationsvorgang").select("id,status,vorgangstyp,dokumenttyp,mitglied_id,revision,entwurf_daten").eq("id", sourceKommunikationsvorgangId).maybeSingle();
+      if (processError || !process || process.vorgangstyp !== "dokument_erzeugung" || process.dokumenttyp !== "aufnahmebestaetigung" || process.status !== "vorbereitet" || Number(process.mitglied_id) !== memberId) throw new Error("Die Aufnahmebestätigung ist nicht erzeugungsbereit.");
+      sourceRevision = Number(process.revision);
+      const { data: existing, error: existingError } = await auth.admin.from("dokument").select("id").eq("source_kommunikationsvorgang_id", sourceKommunikationsvorgangId).eq("source_revision", sourceRevision).is("archiviert_at", null).maybeSingle();
+      if (existingError) throw existingError;
+      if (existing) return json(200, { success: true, document_id: existing.id, message: "Vorhandene Aufnahmebestätigung wurde wiederverwendet." });
+      const draft = process.entwurf_daten as Record<string, unknown>;
+      const applicationProcessId = Number(draft.mitgliedsantrag_kommunikationsvorgang_id);
+      if (!Number.isSafeInteger(applicationProcessId) || applicationProcessId <= 0) throw new Error("Der ursprüngliche Mitgliedsantrag ist für die Aufnahmebestätigung nicht eindeutig hinterlegt.");
+      if (member.aufnahme_status !== "aufgenommen" || member.aktiv !== true || !safe(member.mitglied_seit)) throw new Error("Die Aufnahmebestätigung ist erst nach der erfolgreichen Mitgliedsaufnahme möglich.");
+      const membershipNo = membershipNumber(member, true, "das aufgenommene Mitglied");
+      const { data: reservation, error: reservationError } = await auth.admin.from("fachnummer_reservierung").select("nummer,art,quelle_art,quelle_id").eq("quelle_art", "kommunikationsvorgang").eq("quelle_id", applicationProcessId).eq("art", "mitgliedsantrag").maybeSingle();
+      if (reservationError || !reservation || Number(reservation.quelle_id) !== applicationProcessId || !Number.isSafeInteger(Number(reservation.nummer)) || Number(reservation.nummer) < 10000 || Number(reservation.nummer) > 19999) throw new Error("Für die Aufnahmebestätigung fehlt die gültige reservierte Antragsnummer des Mitgliedsantrags.");
+      const issuedOn = formatDate(new Date().toISOString());
+      const boardFooter = await loadImpressumBoardFooter(auth);
+      const values: Record<string, string> = {
+        absender_name: formatLetterheadName(configurationSnapshot!.vereinName),
+        absender_anschrift: [configurationSnapshot!.strasse, [configurationSnapshot!.plz, configurationSnapshot!.ort].filter(Boolean).join(" ")].filter(Boolean).join("\n"),
+        empfaenger_block: [safe(member.vorname), safe(member.name), safe(member.adresse), [safe(member.plz), safe(member.ort)].filter(Boolean).join(" ")].filter(Boolean).join("\n"),
+        datum: [configurationSnapshot!.dokumentOrt, issuedOn].filter(Boolean).join(", den "),
+        betreff: "Aufnahmebestätigung",
+        antragsnummer: `Antrags-Nr.: ${Number(reservation.nummer)}`,
+        mitgliedsnummer: `Mgl.-Nr.: ${membershipNo}`,
+        mitglied_vorname: `Vorname: ${safe(member.vorname)}`,
+        mitglied_name: `Name: ${safe(member.name)}`,
+        mitglied_seit: `Aufgenommen am: ${formatDate(member.mitglied_seit)}`,
+        anrede: `Sehr geehrte/r ${[safe(member.vorname), safe(member.name)].filter(Boolean).join(" ")},`,
+        brieftext: `wir freuen uns, Ihnen Ihre Aufnahme in den ${configurationSnapshot!.vereinName} zu bestätigen.`,
+        abschluss: "Mit freundlichen Grüßen\nDer Vorstand",
+        fusszeile_verein: [configurationSnapshot!.vereinName, configurationSnapshot!.strasse, [configurationSnapshot!.plz, configurationSnapshot!.ort].filter(Boolean).join(" "), configurationSnapshot!.registerangabe, configurationSnapshot!.standardEmail].filter(Boolean).join("\n"),
+        fusszeile_bank: [configurationSnapshot!.kontoinhaber, configurationSnapshot!.bankname, `IBAN: ${configurationSnapshot!.iban}`, `BIC: ${configurationSnapshot!.bic}`].filter(Boolean).join("\n"),
+        fusszeile_vorstand: boardFooter,
+      };
+      const template = await loadPublishedPdfTemplate(auth, admissionConfirmationTemplate);
+      pdf = await drawPdfTemplate(template.pdfBytes, template.fields, values, {}, "none"); title = "Aufnahmebestätigung"; owner = { kind: "mitglied", id: memberId };
     } else if (type === "parzellenprotokoll") {
       const parcelId = Number(body.parcel_id); const protocolId = Number(body.protocol_id); const board2Id = Number(body.board2_id);
       if (![parcelId, protocolId, board2Id].every((value) => Number.isSafeInteger(value) && value > 0)) return json(400, { message: "Parzelle, Protokollentwurf und zweiter Vorstand sind erforderlich." });
@@ -473,7 +528,7 @@ Deno.serve(async (req) => {
     const memberSegment = `${filenamePart(safe(member.name) || "Mitglied")}_${filenamePart(safe(member.vorname) || "OhneVorname")}`;
     const fileName = `${memberSegment}-${memberId}-${startDate}-${type}-${action === "finalize" ? "signiert" : "unsigniert"}.pdf`;
     if (action === "preview") return new Response(pdf, { headers: { ...cors, "Content-Type": "application/pdf", "Content-Disposition": `inline; filename="${fileName}"`, "Cache-Control": "private, no-store" } });
-    const documentId = await uploadContractDocument(auth, pdf, owner, title, fileName, action === "finalize" && (type === "mitgliedsantrag" || type === "pachtvertrag" || type === "wartungsvertrag" || type === "wartungsvertrag_verlaengerung") && Number.isSafeInteger(sourceKommunikationsvorgangId) && sourceKommunikationsvorgangId > 0 ? { sourceKommunikationsvorgangId, sourceRevision, ...(maintenanceAssignmentId ? { sourceWartungsvertragZuordnungId: maintenanceAssignmentId } : {}) } : undefined);
+    const documentId = await uploadContractDocument(auth, pdf, owner, title, fileName, action === "finalize" && (type === "mitgliedsantrag" || type === "pachtvertrag" || type === "wartungsvertrag" || type === "wartungsvertrag_verlaengerung" || type === "aufnahmebestaetigung") && Number.isSafeInteger(sourceKommunikationsvorgangId) && sourceKommunikationsvorgangId > 0 ? { sourceKommunikationsvorgangId, sourceRevision, ...(maintenanceAssignmentId ? { sourceWartungsvertragZuordnungId: maintenanceAssignmentId } : {}) } : undefined);
     if (type === "wartungsvertrag_verlaengerung") { const { error } = await auth.admin.rpc("complete_wartungsvertrag_verlaengerungsmitteilung", { p_kommunikationsvorgang_id: sourceKommunikationsvorgangId, p_dokument_id: documentId }); if (error) throw new Error(`Verlängerungsmitteilung konnte nicht abgeschlossen werden: ${error.message}`); }
     if (maintenanceAssignmentId) {
       const { data: updatedVorgang, error } = await auth.admin.from("kommunikationsvorgang").update({ final_dokument_id: documentId, status: "erledigt" }).eq("id", sourceKommunikationsvorgangId).eq("signatur_revision", sourceRevision).in("status", ["zur_signatur", "letzte_pruefung"]).select("id").maybeSingle();

@@ -1,0 +1,20 @@
+{
+  "schema_version": "kgv-pdf-field-spec/v1",
+  "coordinate_system": "top-left-points",
+  "settings": {
+    "coordinateOrigin": "topLeft"
+  },
+  "fields": [
+    { "name": "absender_name", "type": "multiline", "page": 1, "font_size": 27, "rect": { "x": 87.9, "y": 56.0, "w": 285.0, "h": 90.0 } },
+    { "name": "absender_anschrift", "type": "multiline", "page": 1, "font_size": 7.5, "rect": { "x": 87.9, "y": 147.0, "w": 285.0, "h": 30.0 } },
+    { "name": "empfaenger_block", "type": "multiline", "page": 1, "font_size": 11, "rect": { "x": 87.9, "y": 188.0, "w": 215.0, "h": 74.0 } },
+    { "name": "datum", "type": "text", "page": 1, "font_size": 8.5, "rect": { "x": 365.0, "y": 238.0, "w": 160.0, "h": 16.0 } },
+    { "name": "betreff", "type": "text", "page": 1, "font_size": 11, "rect": { "x": 87.9, "y": 314.0, "w": 420.0, "h": 18.0 } },
+    { "name": "anrede", "type": "text", "page": 1, "font_size": 10.5, "rect": { "x": 87.9, "y": 360.0, "w": 300.0, "h": 16.0 } },
+    { "name": "brieftext", "type": "multiline", "page": 1, "font_size": 10.5, "rect": { "x": 87.9, "y": 389.0, "w": 420.0, "h": 142.0 } },
+    { "name": "abschluss", "type": "multiline", "page": 1, "font_size": 10.5, "rect": { "x": 87.9, "y": 545.0, "w": 260.0, "h": 52.0 } },
+    { "name": "fusszeile_verein", "type": "multiline", "page": 1, "font_size": 6.2, "rect": { "x": 87.9, "y": 760.0, "w": 125.0, "h": 44.0 } },
+    { "name": "fusszeile_bank", "type": "multiline", "page": 1, "font_size": 6.2, "rect": { "x": 227.0, "y": 760.0, "w": 130.0, "h": 44.0 } },
+    { "name": "fusszeile_vorstand", "type": "multiline", "page": 1, "font_size": 6.2, "rect": { "x": 367.0, "y": 760.0, "w": 145.0, "h": 44.0 } }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "schema_version": "kgv-pdf-field-spec/v1",
+  "coordinate_system": "top-left-points",
+  "settings": { "coordinateOrigin": "topLeft" },
+  "field_spec_version": "aufnahmebestaetigung-field-spec/v1",
+  "fields": [
+    { "name": "absender_name", "type": "multiline", "page": 1, "font_size": 27, "rect": { "x": 87.9, "y": 56, "w": 285, "h": 90 }, "flags": { "multiline": true } },
+    { "name": "absender_anschrift", "type": "multiline", "page": 1, "font_size": 7.5, "rect": { "x": 87.9, "y": 147, "w": 285, "h": 30 }, "flags": { "multiline": true } },
+    { "name": "empfaenger_block", "type": "multiline", "page": 1, "font_size": 11, "rect": { "x": 87.9, "y": 188, "w": 215, "h": 74 }, "flags": { "multiline": true } },
+    { "name": "datum", "type": "text", "page": 1, "font_size": 8.5, "rect": { "x": 365, "y": 238, "w": 160, "h": 16 }, "flags": {} },
+    { "name": "betreff", "type": "text", "page": 1, "font_size": 11, "rect": { "x": 87.9, "y": 314, "w": 420, "h": 18 }, "flags": {} },
+    { "name": "antragsnummer", "type": "text", "page": 1, "font_size": 9, "rect": { "x": 87.9, "y": 341, "w": 220, "h": 14 }, "flags": {} },
+    { "name": "mitgliedsnummer", "type": "text", "page": 1, "font_size": 9, "rect": { "x": 87.9, "y": 358, "w": 220, "h": 14 }, "flags": {} },
+    { "name": "mitglied_vorname", "type": "text", "page": 1, "font_size": 9, "rect": { "x": 87.9, "y": 375, "w": 420, "h": 14 }, "flags": {} },
+    { "name": "mitglied_name", "type": "text", "page": 1, "font_size": 9, "rect": { "x": 87.9, "y": 392, "w": 420, "h": 14 }, "flags": {} },
+    { "name": "mitglied_seit", "type": "text", "page": 1, "font_size": 9, "rect": { "x": 87.9, "y": 409, "w": 420, "h": 14 }, "flags": {} },
+    { "name": "anrede", "type": "text", "page": 1, "font_size": 10.5, "rect": { "x": 87.9, "y": 433, "w": 300, "h": 16 }, "flags": {} },
+    { "name": "brieftext", "type": "multiline", "page": 1, "font_size": 10, "rect": { "x": 87.9, "y": 460, "w": 420, "h": 62 }, "flags": { "multiline": true } },
+    { "name": "abschluss", "type": "multiline", "page": 1, "font_size": 10.5, "rect": { "x": 87.9, "y": 545, "w": 260, "h": 52 }, "flags": { "multiline": true } },
+    { "name": "fusszeile_verein", "type": "multiline", "page": 1, "font_size": 6.2, "rect": { "x": 87.9, "y": 760, "w": 125, "h": 44 }, "flags": { "multiline": true } },
+    { "name": "fusszeile_bank", "type": "multiline", "page": 1, "font_size": 6.2, "rect": { "x": 227, "y": 760, "w": 130, "h": 44 }, "flags": { "multiline": true } },
+    { "name": "fusszeile_vorstand", "type": "multiline", "page": 1, "font_size": 6.2, "rect": { "x": 367, "y": 760, "w": 145, "h": 44 }, "flags": { "multiline": true } }
+  ]
+}
