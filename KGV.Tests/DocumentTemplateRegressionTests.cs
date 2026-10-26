@@ -47,23 +47,23 @@ public sealed class DocumentTemplateRegressionTests
     [InlineData(false, true)]
     public async Task Lease_contract_scenarios_keep_three_pages_and_template_signature_contract(bool secondaryMember, bool guardian)
     {
-        var secondParty = secondaryMember ? new MitgliedRecord { Id = 18, Vorname = "Erika", Name = "Musterfrau" } : null;
+        var secondParty = secondaryMember ? new MitgliedRecord { Id = 18, Mitgliedsnummer = 1018, Vorname = "Erika", Name = "Musterfrau" } : null;
         var guardianSnapshot = guardian ? new MitgliedsantragVertreterSnapshot { Vorname = "Eva", Nachname = "Vertreterin" } : null;
         var request = await PachtvertragDokumentFactory.CreateUploadRequestAsync(
             Member(), secondParty, Parcel(), Season(), new DateTime(2026, 4, 1), null, guardianSnapshot, Club(), FormularDokumentStatus.Unsigniert, Provider,
-            paechter2Override: guardian ? new MitgliedRecord { Id = 19, Vorname = "Eva", Name = "Vertreterin" } : null);
+            paechter2Override: guardian ? new MitgliedRecord { Id = 19, Mitgliedsnummer = 1019, Vorname = "Eva", Name = "Vertreterin" } : null);
 
         AssertValidPdf(request.FileContent, 3);
-        Assert.Equal(3, request.SignaturePlaceholders.Count);
+        Assert.Equal(4, request.SignaturePlaceholders.Count);
         Assert.All(request.SignaturePlaceholders, placeholder => Assert.Equal(3, placeholder.Page));
-        Assert.Contains(request.SignaturePlaceholders, x => x.Name == "unterschrift_zweite_partei");
+        Assert.Contains(request.SignaturePlaceholders, x => x.Name == "unterschrift_paechter_2");
     }
 
     [Fact]
     public async Task Canonical_signature_placeholders_are_unique_positive_and_inside_their_production_templates()
     {
         var membership = await Provider.GetActiveAsync(new PdfTemplateRequest("mitgliedsantrag", "mitgliedsantrag-field-spec/v1", "pdfsharpcore-ma/v1"));
-        var lease = await Provider.GetActiveAsync(new PdfTemplateRequest("pachtvertrag", "pachtvertrag-field-spec/v2", "top-left/v1"));
+        var lease = await Provider.GetActiveAsync(new PdfTemplateRequest("pachtvertrag", "pachtvertrag-field-spec/v5", "top-left/v1"));
         AssertPlaceholders(ToPlaceholders(membership.Fields), 1);
         AssertPlaceholders(ToPlaceholders(lease.Fields), 3);
     }
@@ -104,7 +104,7 @@ public sealed class DocumentTemplateRegressionTests
 
     private static MitgliedRecord Member() => new()
     {
-        Id = 17, Vorname = "Max", Name = "Mustermann", Geburtsdatum = new DateTime(1980, 1, 1),
+        Id = 17, Mitgliedsnummer = 1017, Vorname = "Max", Name = "Mustermann", Geburtsdatum = new DateTime(1980, 1, 1),
         Adresse = "Gartenweg 1", Plz = "08000", Ort = "Zwickau", Email = "max@example.test", Telefon = "0123"
     };
 

@@ -11,39 +11,23 @@ namespace KGV.Core.Utilities
     {
         private static readonly IReadOnlyList<PdfFormFieldSpec> FieldSpecs = new[]
         {
-            new PdfFormFieldSpec("paechter_name", PdfFormFieldKind.Text, 1, 30, 167, 244, 11),
-            new PdfFormFieldSpec("mitgliedsnummer", PdfFormFieldKind.Text, 1, 280, 167, 285, 11),
-            new PdfFormFieldSpec("paechter_geburtsdatum", PdfFormFieldKind.Text, 1, 30, 187, 244, 11),
-            new PdfFormFieldSpec("paechter_anschrift", PdfFormFieldKind.Text, 1, 280, 187, 285, 11),
-            new PdfFormFieldSpec("paechter_kontakt", PdfFormFieldKind.Text, 1, 30, 207, 535, 11),
-
-            new PdfFormFieldSpec("zweite_partei_bezeichnung", PdfFormFieldKind.Text, 1, 30, 227, 535, 11),
-            new PdfFormFieldSpec("zweite_partei_name", PdfFormFieldKind.Text, 1, 30, 247, 244, 11),
-            new PdfFormFieldSpec("zweite_partei_mitgliedsnummer", PdfFormFieldKind.Text, 1, 280, 247, 285, 11),
-            new PdfFormFieldSpec("zweite_partei_geburtsdatum", PdfFormFieldKind.Text, 1, 30, 267, 244, 11),
-            new PdfFormFieldSpec("zweite_partei_anschrift", PdfFormFieldKind.Text, 1, 280, 267, 285, 11),
-            new PdfFormFieldSpec("zweite_partei_kontakt", PdfFormFieldKind.Text, 1, 30, 287, 535, 11),
-
-            new PdfFormFieldSpec("parzelle_nr", PdfFormFieldKind.Text, 1, 30, 332, 71, 11),
-            new PdfFormFieldSpec("lage_anlage", PdfFormFieldKind.Text, 1, 107, 332, 184, 11),
-            new PdfFormFieldSpec("flaeche_qm", PdfFormFieldKind.Text, 1, 297, 332, 126, 11),
-            new PdfFormFieldSpec("vertragsbeginn", PdfFormFieldKind.Text, 1, 429, 332, 136, 11),
-            new PdfFormFieldSpec("uebergabe_datum", PdfFormFieldKind.Text, 1, 30, 352, 139, 11),
-            new PdfFormFieldSpec("probephase_bis", PdfFormFieldKind.Text, 1, 175, 352, 194, 11),
-            new PdfFormFieldSpec("pachtzins_jahr", PdfFormFieldKind.Text, 1, 375, 352, 90, 11),
-            new PdfFormFieldSpec("pacht_pro_qm", PdfFormFieldKind.Text, 1, 471, 352, 94, 11),
-            new PdfFormFieldSpec("faelligkeit", PdfFormFieldKind.Text, 1, 30, 372, 164, 17),
-            new PdfFormFieldSpec("altvertrag_hinweis", PdfFormFieldKind.MultilineText, 1, 200, 372, 365, 17),
-
-            new PdfFormFieldSpec("vereinsunterlagen_nachweis", PdfFormFieldKind.MultilineText, 1, 27, 439, 541, 25),
-
-            new PdfFormFieldSpec("weitere_vereinbarungen", PdfFormFieldKind.MultilineText, 1, 27, 508.2, 541, 34),
-            new PdfFormFieldSpec("ort_datum", PdfFormFieldKind.Text, 1, 30, 588.2, 199, 10),
-            new PdfFormFieldSpec("paechter_druckname", PdfFormFieldKind.Text, 1, 235, 588.2, 330, 10),
-            new PdfFormFieldSpec("unterschrift_paechter", PdfFormFieldKind.SignaturePlaceholder, 1, 27, 600.2, 205, 25),
-            new PdfFormFieldSpec("unterschrift_vorstand", PdfFormFieldKind.SignaturePlaceholder, 1, 242, 600.2, 326, 25),
-            new PdfFormFieldSpec("unterschrift_zweite_partei", PdfFormFieldKind.SignaturePlaceholder, 1, 27, 636.2, 205, 22),
-            new PdfFormFieldSpec("vereins_unterzeichner", PdfFormFieldKind.Text, 1, 242, 644.2, 326, 10)
+            new PdfFormFieldSpec("paechter_name", PdfFormFieldKind.Text, 1, 147, 234, 298, 14),
+            new PdfFormFieldSpec("mitgliedsnummer", PdfFormFieldKind.Text, 1, 488, 250, 75, 14),
+            new PdfFormFieldSpec("paechter_geburtsdatum", PdfFormFieldKind.Text, 1, 124, 260, 298, 14),
+            new PdfFormFieldSpec("paechter_anschrift", PdfFormFieldKind.Text, 1, 95, 285, 313, 14),
+            new PdfFormFieldSpec("paechter_kontakt", PdfFormFieldKind.Text, 1, 175, 311, 233, 14),
+            new PdfFormFieldSpec("zweite_partei_name", PdfFormFieldKind.Text, 1, 338, 334, 175, 14),
+            new PdfFormFieldSpec("zweite_partei_mitgliedsnummer", PdfFormFieldKind.Text, 1, 407, 347, 106, 14),
+            new PdfFormFieldSpec("vertragsbeginn", PdfFormFieldKind.Text, 1, 193, 541, 85, 14),
+            new PdfFormFieldSpec("uebergabe_datum", PdfFormFieldKind.Text, 1, 357, 541, 85, 14),
+            new PdfFormFieldSpec("weitere_vereinbarungen", PdfFormFieldKind.MultilineText, 3, 42, 544, 510, 32),
+            new PdfFormFieldSpec("ort_datum", PdfFormFieldKind.Text, 3, 110, 603, 276, 14),
+            new PdfFormFieldSpec("unterschrift_paechter_1", PdfFormFieldKind.SignaturePlaceholder, 3, 110, 631, 129, 28),
+            new PdfFormFieldSpec("unterschrift_paechter_2", PdfFormFieldKind.SignaturePlaceholder, 3, 357, 631, 113, 28),
+            new PdfFormFieldSpec("vereinsunterzeichner_1", PdfFormFieldKind.MultilineText, 3, 153, 714, 131, 29),
+            new PdfFormFieldSpec("unterschrift_vorstand_1", PdfFormFieldKind.SignaturePlaceholder, 3, 357, 717, 113, 28),
+            new PdfFormFieldSpec("vereinsunterzeichner_2", PdfFormFieldKind.MultilineText, 3, 153, 757, 131, 29),
+            new PdfFormFieldSpec("unterschrift_vorstand_2", PdfFormFieldKind.SignaturePlaceholder, 3, 357, 760, 113, 28)
         };
 
         public static async Task<DokumentUploadRequest> CreateUploadRequestAsync(
@@ -63,7 +47,7 @@ namespace KGV.Core.Utilities
             ArgumentNullException.ThrowIfNull(templateProvider);
             const string documentType = "pachtvertrag";
             const string operation = "preview";
-            const string fieldSpecVersion = "pachtvertrag-field-spec/v3";
+            const string fieldSpecVersion = "pachtvertrag-field-spec/v5";
             const string rendererVersion = "top-left/v1";
             PdfTemplateAsset template;
             try
@@ -280,7 +264,7 @@ namespace KGV.Core.Utilities
                     || field.Page != actual[index].Page
                     || field.X != actual[index].X || field.Y != actual[index].Y
                     || field.Width != actual[index].Width || field.Height != actual[index].Height).Any())
-                throw new InvalidOperationException("Die zentrale Pachtvertrag-Feldspezifikation entspricht nicht der unterstützten v2-Geometrie.");
+                throw new InvalidOperationException("Die zentrale Pachtvertrag-Feldspezifikation entspricht nicht der unterstützten v5-Geometrie.");
         }
 
         private enum PdfFormFieldKind

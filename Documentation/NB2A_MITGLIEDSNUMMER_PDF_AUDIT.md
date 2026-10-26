@@ -88,3 +88,13 @@ Für die Verlängerung ersetzt die neue, migrationssichere Quelldatei `202610260
 Bereits gespeicherte Verlängerungsentwürfe werden nicht geändert und können weiterhin die frühere technische ID im gespeicherten JSON enthalten. Beim Rendern wird deren sichtbares Nummernfeld jedoch sicher aus dem bereits zum Vorgang geladenen kanonischen Mitgliedsdatensatz aufgelöst. Dies ist keine Heuristik und keine zusätzliche Abfrage; der Vorgang validiert bereits dieselbe `mitglied_id`. Weder der Wartungsvertrag noch die Verlängerung berechnen eine Mitgliedsnummer aus einer technischen ID.
 
 NB-2A-D4 und D5 bleiben offen und sind durch diesen Block nicht verändert worden.
+
+## 10. NB-2A-D4 – umgesetzt am 26.10.2026
+
+Für den Pachtvertrag wurde die neue, separate Vorlage `pachtvertrag` v5 vorbereitet. Sie ergänzt die sichtbaren Vertragsdaten `Mgl.-Nr.` für Pächter/in 1 (`mitgliedsnummer`) und die zweite Vertragspartei (`zweite_partei_mitgliedsnummer`). Die v4-PDF und ihre Field-Spec bleiben unverändert. Die v5-Felder sind kein UI-Label und keine Signaturidentitäten.
+
+Im lokalen Pfad `PachtvertragTemplateFactory` und im Edge-Pfad `kgv-generate-contract` stammen die Nummern ausschließlich aus der gespeicherten kanonischen Spalte `mitglied.mitgliedsnummer`. Die bisherigen ID-Befüllungen für die alten v1–v3-Felder wurden damit im weiter verwendeten Datenaufbereiter korrigiert; der Edge-Pfad unterstützt v3 weiterhin, ohne `member.id` oder `party2.id` sichtbar als Mitgliedsnummer zu verwenden. Pächter/in 1 und eine vorhandene zweite Vertragspartei brechen mit einer fachlichen Meldung ab, wenn die gespeicherte Nummer fehlt.
+
+Ein gesetzlicher Vertreter erhält nur dann den optionalen Nummernwert der zweiten Vertragspartei, wenn er als Mitgliedsdatensatz vorhanden ist. Ohne verknüpften Mitgliedsdatensatz bleibt das Feld leer; es gibt keine Nummernheuristik und keinen technischen Ersatz. Vorstands- und Funktionsunterzeichner bleiben unverändert ohne Mitgliedsnummer.
+
+Die neue Katalogmigration `20261026100000_nb2a_d4_publish_pachtvertrag_v5.sql` ist **nur angelegt und nicht ausgeführt**. Sie schützt die neuen Storage-Pfade und würde v5 erst nach manuellem Upload registrieren; weder Storage noch Katalog oder Produktionsdaten wurden geändert. NB-2A-D5 bleibt offen.

@@ -85,7 +85,12 @@ public static class PachtvertragTemplateFactory
     }
 
     private static string FormatMitgliedsnummer(MitgliedRecord member)
-        => member.Id > 0 ? member.Id.ToString(CultureInfo.InvariantCulture) : string.Empty;
+    {
+        if (member.Mitgliedsnummer <= 0)
+            throw new InvalidOperationException("Für eine Vertragspartei des Pachtvertrags fehlt eine gültige Mitgliedsnummer.");
+
+        return member.Mitgliedsnummer.ToString(CultureInfo.InvariantCulture);
+    }
 
     private static string BuildFullName(MitgliedRecord member)
         => string.Join(" ", new[] { member.Vorname, member.Name }
