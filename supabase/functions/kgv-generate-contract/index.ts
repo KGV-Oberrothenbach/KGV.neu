@@ -384,11 +384,16 @@ Deno.serve(async (req) => {
       title = `Mitgliedsantrag (${action === "finalize" ? "Signiert" : "Unsigniert"})`; owner = { kind: "mitglied", id: memberId };
     } else if (type === "aufnahmebestaetigung") {
       const { data: process, error: processError } = await auth.admin.from("kommunikationsvorgang").select("id,status,vorgangstyp,dokumenttyp,mitglied_id,revision,entwurf_daten").eq("id", sourceKommunikationsvorgangId).maybeSingle();
-      if (processError || !process || process.vorgangstyp !== "dokument_erzeugung" || process.dokumenttyp !== "aufnahmebestaetigung" || process.status !== "vorbereitet" || Number(process.mitglied_id) !== memberId) throw new Error("Die Aufnahmebestätigung ist nicht erzeugungsbereit.");
+      if (processError || !process || process.vorgangstyp !== "dokument_erzeugung" || process.dokumenttyp !== "aufnahmebestaetigung" || Number(process.mitglied_id) !== memberId) throw new Error("Die Aufnahmebestätigung ist nicht erzeugungsbereit.");
       sourceRevision = Number(process.revision);
       const { data: existing, error: existingError } = await auth.admin.from("dokument").select("id").eq("source_kommunikationsvorgang_id", sourceKommunikationsvorgangId).eq("source_revision", sourceRevision).is("archiviert_at", null).maybeSingle();
       if (existingError) throw existingError;
-      if (existing) return json(200, { success: true, document_id: existing.id, message: "Vorhandene Aufnahmebestätigung wurde wiederverwendet." });
+      if (existing) {
+        const { error: completeError } = await auth.admin.rpc("complete_aufnahmebestaetigung", { p_kommunikationsvorgang_id: sourceKommunikationsvorgangId, p_dokument_id: existing.id });
+        if (completeError) throw new Error(`Vorhandene Aufnahmebestätigung konnte nicht abgeschlossen werden: ${completeError.message}`);
+        return json(200, { success: true, document_id: existing.id, message: "Vorhandene Aufnahmebestätigung wurde wiederverwendet." });
+      }
+      if (process.status !== "vorbereitet") throw new Error("Die Aufnahmebestätigung ist nicht erzeugungsbereit.");
       const draft = process.entwurf_daten as Record<string, unknown>;
       const applicationProcessId = Number(draft.mitgliedsantrag_kommunikationsvorgang_id);
       if (!Number.isSafeInteger(applicationProcessId) || applicationProcessId <= 0) throw new Error("Der ursprüngliche Mitgliedsantrag ist für die Aufnahmebestätigung nicht eindeutig hinterlegt.");
@@ -529,6 +534,10 @@ Deno.serve(async (req) => {
     const fileName = `${memberSegment}-${memberId}-${startDate}-${type}-${action === "finalize" ? "signiert" : "unsigniert"}.pdf`;
     if (action === "preview") return new Response(pdf, { headers: { ...cors, "Content-Type": "application/pdf", "Content-Disposition": `inline; filename="${fileName}"`, "Cache-Control": "private, no-store" } });
     const documentId = await uploadContractDocument(auth, pdf, owner, title, fileName, action === "finalize" && (type === "mitgliedsantrag" || type === "pachtvertrag" || type === "wartungsvertrag" || type === "wartungsvertrag_verlaengerung" || type === "aufnahmebestaetigung") && Number.isSafeInteger(sourceKommunikationsvorgangId) && sourceKommunikationsvorgangId > 0 ? { sourceKommunikationsvorgangId, sourceRevision, ...(maintenanceAssignmentId ? { sourceWartungsvertragZuordnungId: maintenanceAssignmentId } : {}) } : undefined);
+    if (type === "aufnahmebestaetigung") {
+      const { error } = await auth.admin.rpc("complete_aufnahmebestaetigung", { p_kommunikationsvorgang_id: sourceKommunikationsvorgangId, p_dokument_id: documentId });
+      if (error) throw new Error(`Aufnahmebestätigung konnte nicht abgeschlossen werden: ${error.message}`);
+    }
     if (type === "wartungsvertrag_verlaengerung") { const { error } = await auth.admin.rpc("complete_wartungsvertrag_verlaengerungsmitteilung", { p_kommunikationsvorgang_id: sourceKommunikationsvorgangId, p_dokument_id: documentId }); if (error) throw new Error(`Verlängerungsmitteilung konnte nicht abgeschlossen werden: ${error.message}`); }
     if (maintenanceAssignmentId) {
       const { data: updatedVorgang, error } = await auth.admin.from("kommunikationsvorgang").update({ final_dokument_id: documentId, status: "erledigt" }).eq("id", sourceKommunikationsvorgangId).eq("signatur_revision", sourceRevision).in("status", ["zur_signatur", "letzte_pruefung"]).select("id").maybeSingle();

@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useState } from "react";
 import type { BrowserSession } from "../../lib/supabase-auth";
 import type { MembershipBoardAuthorizationSource, MembershipBoardReview, MembershipBoardVote } from "../../models/communication/membership-board-review";
-import { canDecideMembershipBoardReview, decideMembershipBoardReview, listMembershipBoardReviews, listMembershipBoardVotes, voteMembershipBoardReview } from "../../repositories/communication/membership-board-review-repository";
+import { canDecideMembershipBoardReview, decideMembershipBoardReview, ensureAdmissionConfirmationProcess, listMembershipBoardReviews, listMembershipBoardVotes, voteMembershipBoardReview } from "../../repositories/communication/membership-board-review-repository";
 import { resolveActiveDocumentOpenUrl } from "../../services/documents/document-open-service";
+import { generateContract } from "../../services/contracts/contract-generation-service";
 import { useSelectedClub } from "../auth/AuthProvider";
 
 const sourceText = (source: MembershipBoardAuthorizationSource) => source.berechtigungsart === "vertretung"
@@ -18,6 +19,7 @@ export function MembershipBoardReviewList({ session }: { session: BrowserSession
   const [votes, setVotes] = useState<MembershipBoardVote[]>([]);
   const [canDecide, setCanDecide] = useState(false);
   const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -79,10 +81,45 @@ export function MembershipBoardReviewList({ session }: { session: BrowserSession
       ? window.prompt("Aufnahmedatum (JJJJ-MM-TT)", new Date().toISOString().slice(0, 10))
       : null;
     try {
+      setBusy(true);
+      setMessage("");
       await decideMembershipBoardReview(club, session, selected.bearbeitung_id, result, path, date, reason, admission);
-      await load();
     } catch {
       setMessage("Sie sind nicht entscheidungsberechtigt oder die Abschlussangaben sind unvollständig.");
+      setBusy(false);
+      return;
+    }
+
+    if (result === "annehmen") await createAdmissionConfirmation(selected);
+    else {
+      setMessage("Der Mitgliedsantrag wurde abgelehnt.");
+      setBusy(false);
+      await load();
+    }
+  };
+
+  const createAdmissionConfirmation = async (review: MembershipBoardReview) => {
+    try {
+      setBusy(true);
+      const process = await ensureAdmissionConfirmationProcess(club, session, review.bearbeitung_id);
+      if (process.status === "erledigt") {
+        setMessage("Das Mitglied wurde aufgenommen; die Aufnahmebestätigung liegt bereits vor.");
+      } else {
+        await generateContract(club, session, {
+          action: "finalize",
+          type: "aufnahmebestaetigung",
+          member_id: review.mitglied_id,
+          start_date: new Date().toISOString().slice(0, 10),
+          kommunikationsvorgang_id: process.id,
+          source_revision: process.revision,
+        });
+        setMessage("Das Mitglied wurde aufgenommen; die Aufnahmebestätigung wurde erstellt.");
+      }
+    } catch {
+      setMessage("Das Mitglied wurde aufgenommen. Die Aufnahmebestätigung steht noch aus und kann erneut erstellt werden.");
+    } finally {
+      setBusy(false);
+      await load();
     }
   };
 
@@ -105,8 +142,12 @@ export function MembershipBoardReviewList({ session }: { session: BrowserSession
           {voteRow.berechtigungsquellen.map((source, index) => <small key={`${source.snapshot_person_id}-${index}`} className="detail-hint">{sourceText(source)}<br /></small>)}
         </section>)}
         {selected.entscheidung === "offen" && <div className="editor-actions">
-          <button onClick={() => void vote("ja")}>Zustimmen</button><button className="secondary-action" onClick={() => void vote("nein")}>Ablehnen</button>
-          {canDecide && <><button onClick={() => void decide("annehmen")}>Aufnahme bestätigen</button><button className="secondary-action" onClick={() => void decide("ablehnen")}>Antrag ablehnen</button></>}
+          <button onClick={() => void vote("ja")} disabled={busy}>Zustimmen</button><button className="secondary-action" onClick={() => void vote("nein")} disabled={busy}>Ablehnen</button>
+          {canDecide && <><button onClick={() => void decide("annehmen")} disabled={busy}>Aufnahme bestätigen</button><button className="secondary-action" onClick={() => void decide("ablehnen")} disabled={busy}>Antrag ablehnen</button></>}
+        </div>}
+        {selected.entscheidung === "angenommen" && <div className="editor-actions">
+          <p>{selected.aufnahmebestaetigung_status === "erledigt" ? "Aufnahmebestätigung erstellt." : "Das Mitglied wurde aufgenommen. Die Aufnahmebestätigung steht noch aus."}</p>
+          {selected.aufnahmebestaetigung_status !== "erledigt" && canDecide && <button onClick={() => void createAdmissionConfirmation(selected)} disabled={busy}>Aufnahmebestätigung erneut erstellen</button>}
         </div>}
       </aside>}
     </div>

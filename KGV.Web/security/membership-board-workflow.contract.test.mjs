@@ -4,6 +4,7 @@ import test from "node:test";
 
 const root = new URL("../../", import.meta.url);
 const migration = new URL("supabase/migrations/20261022160000_vor3_mitgliedsaufnahme_vorstand.sql", root);
+const admissionConfirmationMigration = new URL("supabase/migrations/20261026160000_nb2a_d5c_aufnahmebestaetigung_workflow.sql", root);
 
 test("membership board workflow is snapshot-based, append-only and has no majority rule", async () => {
   const sql = await readFile(migration, "utf8");
@@ -45,4 +46,19 @@ test("web and download path use the board-document contract without role-derived
   assert.match(web, /berechtigungsquellen/);
   assert.match(edge, /can_access_mitgliedsaufnahme_vorstand_document/);
   assert.match(edge, /p_auth_user_id: auth\.userId/);
+});
+
+test("positive admission creates one retryable confirmation process without changing a rejection", async () => {
+  const [sql, edge, web] = await Promise.all([
+    readFile(admissionConfirmationMigration, "utf8"),
+    readFile(new URL("supabase/functions/kgv-generate-contract/index.ts", root), "utf8"),
+    readFile(new URL("KGV.Web/features/communication/MembershipBoardReviewList.tsx", root), "utf8"),
+  ]);
+  assert.match(sql, /ux_kommunikationsvorgang_aufnahmebestaetigung_quelle/);
+  assert.match(sql, /if p_ergebnis='annehmen' then\s+perform public\.ensure_aufnahmebestaetigung_dokumentvorgang\(b\.id\);/);
+  assert.match(sql, /'dokument_erzeugung','aufnahmebestaetigung','vorbereitet'/);
+  assert.match(sql, /create or replace function public\.complete_aufnahmebestaetigung/);
+  assert.match(edge, /auth\.admin\.rpc\("complete_aufnahmebestaetigung"/);
+  assert.match(web, /Aufnahmebestätigung erneut erstellen/);
+  assert.match(web, /ensureAdmissionConfirmationProcess/);
 });
