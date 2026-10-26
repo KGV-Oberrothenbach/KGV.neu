@@ -263,7 +263,7 @@ async function appendLeaseSignaturePage(pdfBytes: Uint8Array, member: Record<str
   const pdf = await PDFDocument.load(pdfBytes); const page = pdf.addPage([595.28, 841.89]); const font = await pdf.embedFont(StandardFonts.Helvetica); const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
   page.drawText("Digitale Signatur", { x: 42, y: 800, size: 18, font: bold });
   page.drawText("Diese Seite ergänzt die bestehende unsignierte Dokumentfassung.", { x: 42, y: 770, size: 11, font });
-  page.drawText(`Mitglied: ${[safe(member.vorname), safe(member.name)].filter(Boolean).join(" ") || `#${member.id}`}`, { x: 42, y: 746, size: 10.5, font });
+  page.drawText(`Mitglied: ${[safe(member.vorname), safe(member.name)].filter(Boolean).join(" ") || "Nicht angegeben"}`, { x: 42, y: 746, size: 10.5, font });
   page.drawText(`Signiert am: ${formatDate(new Date().toISOString())}`, { x: 42, y: 728, size: 10.5, font });
   const signers = [["Unterschrift Pächter/in", signatures.member], ...(secondPartyLabel ? [[secondPartyLabel, signatures.secondary]] : []), ["Unterschrift Vorstand / Verpächter", signatures.board]] as Array<[string, string | undefined]>;
   let y = 690; const height = signers.length > 2 ? 155 : 215;

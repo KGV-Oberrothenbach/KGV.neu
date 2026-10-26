@@ -10,6 +10,7 @@ test("membership contracts render the stored membership number instead of the te
   assert.match(localContractSource, /Mitgliedsnummer: \{FormatMembershipNumber\(member\)\}/);
   assert.match(localContractSource, /member\.Mitgliedsnummer > 0/);
   assert.doesNotMatch(localContractSource, /Mitglied-ID:/);
+  assert.doesNotMatch(localContractSource, /Hauptmitglied #\{member\.HauptmitgliedId\.Value\}/);
   assert.doesNotMatch(localContractSource, /member\.Id \+ 1000|1000 \+ member\.Id/);
 
   const edgeContract = /async function buildSimpleContract\([\s\S]*?\n\}/.exec(edgeSource)?.[0];
@@ -26,4 +27,8 @@ test("signature metadata keeps names and uses the membership number only as fall
   assert.match(signatureSource, /: "Mitglied"/);
   assert.doesNotMatch(signatureSource, /Mitglied #\{member\.Id\}/);
   assert.doesNotMatch(signatureSource, /member\.Id \+ 1000|1000 \+ member\.Id/);
+
+  const signaturePage = /async function appendLeaseSignaturePage\([\s\S]*?\n\}/.exec(edgeSource)?.[0];
+  assert.ok(signaturePage, "lease signature page renderer is missing");
+  assert.doesNotMatch(signaturePage, /#\$\{member\.id\}/);
 });

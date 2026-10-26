@@ -101,7 +101,7 @@ namespace KGV.Core.Utilities
         private static string BuildMitgliedskontext(MitgliedRecord member)
         {
             if (member.HauptmitgliedId.HasValue && member.HauptmitgliedId.Value > 0)
-                return $"Nebenmitglied zu Hauptmitglied #{member.HauptmitgliedId.Value}";
+                return "Nebenmitglied";
 
             return "Hauptmitglied";
         }

@@ -166,3 +166,87 @@ Das Parzellenprotokoll zeigt für die bestehende Rolle Pächter/in 1 in lokalem 
 Die Migration `20261026140000_nb2a_d5b_publish_mitgliedsantrag_v5.sql` ist nur angelegt und nicht ausgeführt. Weder Storage, Katalog noch Produktionsdaten wurden geändert.
 
 **NB-2A-D5B = 100 %**. Die 17 einschlägigen Node-/Contract-Tests sind erfolgreich; Core und Infrastructure bauen erfolgreich. `KGV.Tests` beendet sich lokal erfolgreich, gibt in dieser Umgebung jedoch keine Testdiagnose aus. D5C bleibt offen.
+
+## 13. NB-2A-D5C – Aufnahmebestätigung abgeschlossen am 26.10.2026
+
+Die neue Dokumentart `aufnahmebestaetigung` verwendet die versionierte Field-Spec
+`aufnahmebestaetigung-field-spec/v1` auf Grundlage des allgemeinen Briefbogens
+v2. Sie zeigt Antrags- und Mitgliedsnummer als getrennte Angaben. Die
+Antragsnummer wird ausschließlich aus der vorhandenen `fachnummer_reservierung`
+des konkret verknüpften ursprünglichen Mitgliedsantrags gelesen; der Renderer
+reserviert keine Nummer. Die Mitgliedsnummer wird ausschließlich aus
+`mitglied.mitgliedsnummer` gelesen. Fehlt eine gültige Reservierung oder
+Mitgliedsnummer, bricht die Erzeugung fachlich ab. Technische IDs, `Id + 1000`,
+`1000 + Id` und `Fachnummer.Mitglied` werden nicht als sichtbare Nummern
+verwendet.
+
+Nach einer positiven Vorstandsentscheidung wird erst die fachliche Aufnahme mit
+`mitglied_seit` abgeschlossen und anschließend genau ein
+`dokument_erzeugung`-Vorgang für die Aufnahmebestätigung sichergestellt. Dieser
+ist über die konkrete `mitgliedsantrag_kommunikationsvorgang_id` mit dem
+ursprünglichen Antrag verknüpft. Advisory Lock und Unique-Index verhindern
+doppelte Vorgänge bei parallelen oder redundanten Aufrufen. Ein vorhandener
+Vorgang und ein vorhandenes finales Dokument werden wiederverwendet; ein
+bereits vorhandenes Dokument kann den Vorgang idempotent auf `erledigt` setzen.
+
+Ein Fehler bei der PDF-Erzeugung nach erfolgreicher Aufnahme rollt weder die
+Mitgliedsaufnahme noch die Entscheidung zurück. Die Vorstandsansicht zeigt in
+diesem Fall an, dass nur die Aufnahmebestätigung aussteht, und bietet
+`Aufnahmebestätigung erneut erstellen`. Dieser Retry erzeugt ausschließlich das
+Dokument und führt keine zweite Aufnahmeentscheidung aus. Bei Ablehnung wird
+kein Aufnahmebestätigungsvorgang angelegt und keine Bestätigung erzeugt.
+
+Absender, Empfänger, Datum und die Vereins-, Bank- und Vorstands-Fußzeilen
+werden über die vorgesehenen Datenfelder befüllt. Die Vorstandsfußzeile lädt
+nur Funktionsbezeichnung und Namen aus den Impressum-Funktionsslots; sie gibt
+keine Mitgliedsnummern aus. Briefbogen v1 bleibt unverändert, während
+Briefbogen v2 keine wechselnden Vereins-, Empfänger-, Bank- oder
+Vorstandsdaten fest einbrennt.
+
+Die Template-/Katalogmigration
+`20261026150000_nb2a_d5c_publish_aufnahmebestaetigung_v1.sql` und die
+Workflowmigration
+`20261026160000_nb2a_d5c_aufnahmebestaetigung_workflow.sql` sind nur
+versionierte Quelldateien. Sie wurden nicht ausgeführt. Es gab weder ein Edge
+Deployment noch Storage-Upload, Produktivaktivierung, Produktionsdatenänderung
+oder Release.
+
+Die D5C-Regression umfasst den Vorstandsworkflow, die Aufnahmebestätigung,
+Mitgliedsantrag-/Prepared-Contract-Flows, Dokument-Upload- und
+Mitgliedsnummer-Verträge, Template-/Field-Spec- sowie Retry-/Idempotenzregeln.
+Der Web-Build ist erfolgreich. Der statische Kurzcheck der aktiven
+PDF-/Dokumentgeneratorpfade auf `Fachnummer.Mitglied`, `Id + 1000`, `1000 +
+Id`, `Mitglied-ID` und `Mitglied #` fand einen echten verbliebenen sichtbaren
+Fallback im lokalen Mitgliedsvertrag-Kontext (`Hauptmitglied #<id>`); dieser
+wurde auf die neutrale Angabe `Nebenmitglied` korrigiert. Die übrigen
+Vorkommen liegen außerhalb der aktiven NB-2A-Dokumentanzeige oder sind
+interne, nicht sichtbare Zuordnungen.
+
+**NB-2A-D5C = 100 %**
+
+**NB-2A PDF-/Dokumentgeneratoren = 100 %**
+
+### 14. Abschlussverifikation D5C
+
+Der finale einschlägige Node-Testlauf bestand **38/38 Tests**; darin sind die
+vorherigen 30 Dokument-/Contract-Tests enthalten. `contract-action-placement`
+ist grün und prüft die tatsächlich verwendete `MemberDocumentWorkspace`.
+Web-Build, `KGV.Core`-Build und `KGV.Infrastructure`-Build waren erfolgreich.
+Core und Infrastructure melden die bereits bekannten ImageSharp-NU1902-/
+NU1903-Paketwarnungen; der Web-Build meldet die bestehende Chunkgrößenwarnung.
+
+Der globale Kurzcheck aktiver Core-/Edge-PDF- und Dokumentgeneratoren fand
+keinen aktiven sichtbaren technischen Mitglieds-ID-Fallback. Neben dem bereits
+entfernten sichtbaren `Hauptmitglied #<id>` im lokalen Nebenmitgliedskontext
+wurde auch der Fallback `#<member.id>` auf der Pachtvertrags-Signaturseite
+durch `Nicht angegeben` ersetzt. Verbleibende `mitglied.id`-/`member.id`-
+Verwendungen in diesem Bereich dienen internen FK-, Lookup- und
+Repräsentationszwecken, nicht der sichtbaren Mitgliedsnummer.
+
+Alle D5C-Migrationen bleiben versionierte Quelldateien und wurden nicht
+ausgeführt. Es gab kein Deployment, keinen Storage-Upload und keine
+Template-Aktivierung.
+
+**NB-2A-D5C = 100 %**
+
+**NB-2A PDF-/Dokumentgeneratoren = 100 %**
