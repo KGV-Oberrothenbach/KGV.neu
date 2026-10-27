@@ -675,7 +675,7 @@ public sealed class HomeSectionDetailPage : ContentPage
                 StartTime = appointment.StartTime,
                 EndTime = appointment.EndTime
             });
-            var path = Path.Combine(FileSystem.CacheDirectory, $"termin-{appointment.Id}.ics");
+            var path = Path.Combine(FileSystem.CacheDirectory, IcsCalendarDateiname.Build(appointment.Title, appointment.Date.Value));
             await File.WriteAllTextAsync(path, content, new UTF8Encoding(false));
             await Share.Default.RequestAsync(new ShareFileRequest
             {

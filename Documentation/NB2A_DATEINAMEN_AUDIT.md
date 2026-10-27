@@ -1,7 +1,7 @@
 # NB-2A-E5A – Audit fachlich sichtbarer Dateinamen
 
 Stand: 27.10.2026  
-Prüfstatus: NB-2A-E5B1 umgesetzt; E5B2 (Kalender-ICS) und die ausgewiesenen Entscheidungsfälle offen.
+Prüfstatus: NB-2A-E5B1 und E5B2 umgesetzt; nur die ausgewiesenen Entscheidungsfälle offen.
 
 ## Prüfmaßstab
 
@@ -50,24 +50,23 @@ Dateiname weitergegeben werden.
 | Vereinsunterlagen und digitaler Versand | `KGV.Web/features/club-documents/*`, `KGV.Maui/Pages/VereinsunterlagenPage.cs`, `kgv-send-club-documents` | vom Vorstand gewählter PDF-Name, als Versandanhang wiederverwendet | Nicht systemseitig | Dokumenttyp/Fassung | ENTSCHEIDUNG ERFORDERLICH | Keine automatische Umbenennung; Upload-Name vor Freigabe prüfen |
 | Vertragsversand | `supabase/functions/kgv-send-contract-documents/index.ts` | `dateiname_snapshot` als Mailanhang | Nein für künftig erzeugte Dokumente; alte Snapshots bleiben unverändert | Siehe Vertrags-/Dokumentpfade | OK | Nein (E5B1); keine Rückwirkung |
 | Signierter Pachtvertrag (bestehendes Dokument) | `kgv-generate-contract` – `signExisting` | Übergabename enthält `source_document_id`, wird beim Upload jedoch in `<Titel>_<Zeitstempel>` normalisiert | Nein im persistierten/versendeten Ergebnis | Titel | OK | Nein |
-| Kalenderexport Web und MAUI | `KGV.Web/features/home/HomeDetail.tsx`, `services/calendar/ics-calendar-service.ts`, `KGV.Maui/Pages/HomeSectionDetailPage.cs` | `termin-<appointment.Id>.ics` | **Ja, Termin-/Datensatz-ID** | Terminbezeichnung und Datum | **FEHLER** | Ja, E5B |
+| Kalenderexport Web und MAUI | `KGV.Web/features/home/HomeDetail.tsx`, `services/calendar/ics-calendar-service.ts`, `KGV.Maui/Pages/HomeSectionDetailPage.cs` | `<Terminbezeichnung>_<YYYY-MM-DD>.ics`, bei leerem Titel `Termin_<YYYY-MM-DD>.ics` | Nein | Terminbezeichnung und Datum | OK | Nein (E5B2); ICS-UID bleibt technisch intern |
 | Alte Status-Erkennung für Formularnamen | `FormularDokumentDateiname.TryParse`, `KGV.Web/services/documents/document-metadata-service.ts` | akzeptiert alte Namen mit ID | Keine neue Ausgabe | Titelstatus; neue fachliche Konvention | NICHT AKTIV | In E5B nur Kompatibilität erhalten, nicht neu erzeugen |
 
 ## Befundzusammenfassung
 
 | Bewertung | Anzahl |
 |---|---:|
-| OK | 12 |
-| FEHLER | 1 |
+| OK | 13 |
+| FEHLER | 0 |
 | NICHT SICHTBAR | 1 |
 | NICHT AKTIV | 1 |
 | ENTSCHEIDUNG ERFORDERLICH | 3 |
 
 Die vier Formular-, Vertrags- und Pachtvorschau-Befunde wurden mit E5B1
-geschlossen: Neue Dateien verwenden ausschließlich vorhandene Fachnummern,
-gespeicherte Mitgliedsnummern oder einen neutralen Namen. Der einzige weiterhin
-offene Fehler ist `appointment.Id` in exportierten bzw. geteilten
-Kalenderdateien (E5B2).
+geschlossen. E5B2 schließt den Kalenderbefund: Web und MAUI verwenden für
+sichtbare ICS-Dateien ausschließlich die sanitizierte Terminbezeichnung und das
+Datum. Die technische Termin-ID bleibt ausschließlich im ICS-UID erhalten.
 
 Der generische Dokumentupload ist hiervon abgegrenzt: Er speichert und liefert
 den fachlichen Titel mit Zeitstempel aus. Seine Storage-Struktur enthält zwar
@@ -77,13 +76,13 @@ Exportpfade aus NB-2A-E1 bleiben ohne sichtbare `mitglied_id` oder
 
 ## E5B – fachliche Umstellung
 
-**NB-2A-E5B1 = 100 %.** Bestehende alte Dokumentnamen und Versand-Snapshots
+**NB-2A-E5B1 = 100 %; NB-2A-E5B2 = 100 %.** Bestehende alte Dokumentnamen und Versand-Snapshots
 werden nicht rückwirkend umbenannt. Die Parser akzeptieren weiterhin den alten
 ID-Stil, während neue Generatoren ihn nicht mehr ausgeben. Technische IDs in
 Storage-Pfaden bleiben intern zulässig.
 
-E5 insgesamt ist noch nicht abgeschlossen: E5B2 (Kalender-ICS) und die
-nachstehenden Entscheidungsfälle bleiben offen.
+E5 insgesamt ist noch nicht abgeschlossen: Die nachstehenden Entscheidungsfälle
+bleiben offen.
 
 Für E5B ist vor einer Umsetzung eine kleine, fachliche Namensmatrix festzulegen:
 
