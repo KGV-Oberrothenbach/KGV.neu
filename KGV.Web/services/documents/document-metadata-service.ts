@@ -7,7 +7,7 @@ const types = new Set<FormDocumentType>(["mitgliedsantrag", "mitgliedsvertrag", 
 const statuses = new Set<FormDocumentMetadataStatus>(["unsigniert", "signiert"]);
 const currentFileName = /^.+-\d+-\d{4}-\d{2}-\d{2}-([a-z0-9]+)-([a-z0-9]+)\.pdf$/i;
 const legacyFileName = /^(mitgliedsantrag|mitgliedsvertrag|pachtvertrag)-\((signiert|unsigniert)\)_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.pdf$/i;
-const titlePattern = /^(mitgliedsantrag|mitgliedsvertrag|pachtvertrag)\s*\((signiert|unsigniert)\)$/i;
+const titlePattern = /^(mitgliedsantrag|mitgliedsvertrag|pachtvertrag)(?:\s*·\s*Vertrags-Nr\.\s*\d+)?\s*\((signiert|unsigniert)\)$/i;
 
 export function resolveFormDocumentMetadata(document: FormDocumentSource): FormDocumentMetadata | null {
   for (const candidate of [document.dateiname, document.storage_path, document.titel]) {

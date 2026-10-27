@@ -30,6 +30,8 @@ public sealed class MemberParzellenDetailPage : ContentPage
     private readonly Button _openPachtvertragNachweisButton;
     private long? _pachtvertragNachweisDokumentId;
     private readonly Button _pachtvertragButton;
+    private readonly Button _pachtvertragErsatzButton;
+    private long? _pachtvertragsfassungId;
     private readonly Button _openPachtvertragButton;
     private readonly Button _discardPachtvertragButton;
     private bool _initialized;
@@ -91,6 +93,13 @@ public sealed class MemberParzellenDetailPage : ContentPage
         };
         _pachtvertragButton.Clicked += async (_, _) => await CreatePachtvertragAsync();
 
+        _pachtvertragErsatzButton = new Button
+        {
+            Text = "Korrektur-/Ersatzvertrag erstellen",
+            IsVisible = false
+        };
+        _pachtvertragErsatzButton.Clicked += async (_, _) => await CreatePachtvertragErsatzAsync();
+
         _openPachtvertragButton = new Button
         {
             Text = "Pachtvertrag öffnen",
@@ -130,6 +139,7 @@ public sealed class MemberParzellenDetailPage : ContentPage
             Children =
             {
                 _pachtvertragButton,
+                _pachtvertragErsatzButton,
                 _openPachtvertragButton,
                 _discardPachtvertragButton
             }
@@ -363,6 +373,8 @@ public sealed class MemberParzellenDetailPage : ContentPage
     {
         _pachtvertragNachweisLabel.Text = string.Empty;
         _pachtvertragNachweisDokumentId = null;
+        _pachtvertragsfassungId = null;
+        _pachtvertragErsatzButton.IsVisible = false;
         _openPachtvertragNachweisButton.IsVisible = false;
         var detail = _viewModel.SelectedDetail;
         if (detail == null || _parzellenContextState.ContextMitgliedId is not > 0)
@@ -380,9 +392,36 @@ public sealed class MemberParzellenDetailPage : ContentPage
                 ? "Pachtvertrag-Status konnte nicht geladen werden."
                 : $"Pachtvertrag: {FormatProofStatus(status.Status)}{(status.RelevantesDatum.HasValue ? $" · Vertragsdatum {status.RelevantesDatum.Value:dd.MM.yyyy}" : string.Empty)}";
             _pachtvertragNachweisDokumentId = status?.DokumentId;
+            _pachtvertragsfassungId = status?.PachtvertragsfassungId;
+            _pachtvertragErsatzButton.IsVisible = status?.Status == "unterschrieben"
+                && _pachtvertragsfassungId is > 0
+                && PermissionChecks.CanCreateMitglied(_userContextState.CurrentUserContext);
             _openPachtvertragNachweisButton.IsVisible = _pachtvertragNachweisDokumentId is > 0;
         }
         catch { _pachtvertragNachweisLabel.Text = "Pachtvertrag-Status konnte nicht geladen werden."; }
+    }
+
+    private async Task CreatePachtvertragErsatzAsync()
+    {
+        if (_pachtvertragsfassungId is not > 0 || !Guid.TryParse(_authService.CurrentUserId, out var userId))
+        {
+            await DisplayAlertAsync("Pachtvertrag", "Die aktuelle Vertragsfassung oder Benutzerzuordnung fehlt.", "OK");
+            return;
+        }
+        try
+        {
+            _pachtvertragErsatzButton.IsEnabled = false;
+            await _supabaseService.PreparePachtvertragErsatzAsync(_pachtvertragsfassungId.Value, userId);
+            await CreatePachtvertragAsync();
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlertAsync("Pachtvertrag", ex.Message, "OK");
+        }
+        finally
+        {
+            _pachtvertragErsatzButton.IsEnabled = true;
+        }
     }
 
     private async Task OpenRelationalPachtvertragAsync()

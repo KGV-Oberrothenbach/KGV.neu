@@ -1,0 +1,31 @@
+{
+  "schema_version": "kgv-pdf-field-spec/v1",
+  "coordinate_system": "top-left-points",
+  "settings": { "coordinateOrigin": "topLeft" },
+  "field_spec_version": "pachtvertrag-field-spec/v9",
+  "fields": [
+    { "name": "vertragsnummer", "type": "text", "page": 1, "rect": { "x": 410, "y": 145, "w": 150, "h": 16 } },
+    { "name": "verein_name", "type": "text", "page": 1, "rect": { "x": 210, "y": 232, "w": 205, "h": 14 } },
+    { "name": "vereinsregister", "type": "text", "page": 1, "rect": { "x": 505, "y": 232, "w": 58, "h": 14 } },
+    { "name": "paechter_name", "type": "text", "page": 1, "rect": { "x": 215, "y": 262, "w": 185, "h": 14 } },
+    { "name": "mitgliedsnummer", "type": "text", "page": 1, "rect": { "x": 481, "y": 262, "w": 82, "h": 14 } },
+    { "name": "paechter_geburtsdatum", "type": "text", "page": 1, "rect": { "x": 175, "y": 292, "w": 130, "h": 14 } },
+    { "name": "paechter_anschrift", "type": "text", "page": 1, "rect": { "x": 390, "y": 292, "w": 173, "h": 14 } },
+    { "name": "zweite_partei_name", "type": "text", "page": 1, "rect": { "x": 215, "y": 339, "w": 185, "h": 14 } },
+    { "name": "zweite_partei_mitgliedsnummer", "type": "text", "page": 1, "rect": { "x": 481, "y": 339, "w": 82, "h": 14 } },
+    { "name": "zweite_partei_geburtsdatum", "type": "text", "page": 1, "rect": { "x": 175, "y": 369, "w": 130, "h": 14 } },
+    { "name": "zweite_partei_anschrift", "type": "text", "page": 1, "rect": { "x": 390, "y": 369, "w": 173, "h": 14 } },
+    { "name": "vertragsbeginn", "type": "text", "page": 1, "rect": { "x": 193, "y": 541, "w": 85, "h": 14 } },
+    { "name": "uebergabe_datum", "type": "text", "page": 1, "rect": { "x": 357, "y": 541, "w": 85, "h": 14 } },
+    { "name": "vereinsangaben_fusszeile", "type": "multiline", "page": 1, "rect": { "x": 40, "y": 790, "w": 260, "h": 36 } },
+    { "name": "vorstand_fusszeile", "type": "multiline", "page": 1, "rect": { "x": 365, "y": 790, "w": 188, "h": 36 } },
+    { "name": "weitere_vereinbarungen", "type": "multiline", "page": 3, "rect": { "x": 42, "y": 544, "w": 510, "h": 32 } },
+    { "name": "ort_datum", "type": "text", "page": 3, "rect": { "x": 110, "y": 603, "w": 276, "h": 14 } },
+    { "name": "unterschrift_paechter_1", "type": "signature", "page": 3, "rect": { "x": 110, "y": 631, "w": 129, "h": 28 } },
+    { "name": "unterschrift_paechter_2", "type": "signature", "page": 3, "rect": { "x": 357, "y": 631, "w": 113, "h": 28 } },
+    { "name": "vereinsunterzeichner_1", "type": "multiline", "page": 3, "rect": { "x": 153, "y": 714, "w": 131, "h": 29 } },
+    { "name": "unterschrift_vorstand_1", "type": "signature", "page": 3, "rect": { "x": 357, "y": 717, "w": 113, "h": 28 } },
+    { "name": "vereinsunterzeichner_2", "type": "multiline", "page": 3, "rect": { "x": 153, "y": 757, "w": 131, "h": 29 } },
+    { "name": "unterschrift_vorstand_2", "type": "signature", "page": 3, "rect": { "x": 357, "y": 760, "w": 113, "h": 28 } }
+  ]
+}

@@ -2,6 +2,7 @@
 
 public sealed class PachtvertragTemplateData
 {
+    public string Vertragsnummer { get; set; } = string.Empty;
     public string Ausstellungsdatum { get; set; } = string.Empty;
 
     public string Paechter1Name { get; set; } = string.Empty;

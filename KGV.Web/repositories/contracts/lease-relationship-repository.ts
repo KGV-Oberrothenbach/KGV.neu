@@ -1,4 +1,5 @@
 import { readSupabaseRest } from "../../lib/supabase/rest-client";
+import { callSupabaseRpc } from "../../lib/supabase/rpc-client";
 import type { ClubContext } from "../../models/auth/club";
 import type { BrowserSession } from "../../lib/supabase-auth";
 
@@ -8,6 +9,25 @@ export type MemberLeaseParticipationRow = { pachtverhaeltnis_id: number; rolle: 
 export type MemberLeaseRelationshipRow = { id: number; parzelle_id: number; urspruenglicher_pachtbeginn: string | null; beendet_am: string | null };
 export type LeaseRelationshipParcelRow = { id: number; garten_nr: string | null; Anlage: string | null };
 export type ActiveLeaseRelationshipStatus = { relationshipId: number | null; contractVersionCount: number };
+export type LeaseContractVersionSummary = { id: number; vertragsnummer: number | null; vorgaenger_vertragsnummer: number | null; nachfolger_vertragsnummer: number | null; massgeblichkeit: "massgeblich" | "nicht_mehr_massgeblich"; nicht_mehr_massgeblich_am: string | null };
+
+export async function listLeaseContractVersions(club: ClubContext, session: BrowserSession, parcelId: number) {
+  return readSupabaseRest<LeaseContractVersionSummary>({ club, session }, "v_pachtvertragsfassung_uebersicht", {
+    select: "id,vertragsnummer,vorgaenger_vertragsnummer,nachfolger_vertragsnummer,massgeblichkeit,nicht_mehr_massgeblich_am",
+    parzelle_id: `eq.${parcelId}`,
+    order: "id.desc",
+    limit: "100",
+  });
+}
+
+export async function prepareLeaseContractReplacement(club: ClubContext, session: BrowserSession, predecessorVersionId: number) {
+  const rows = await callSupabaseRpc<Array<{ kommunikationsvorgang_id: number }>>({ club, session }, "prepare_pachtvertrag_ersatz", {
+    p_vorgaenger_fassung_id: predecessorVersionId,
+    p_assigned_to: session.user.id,
+  });
+  if (rows.length !== 1) throw new Error("Der Korrektur-/Ersatzvertrag konnte nicht vorbereitet werden.");
+  return rows[0].kommunikationsvorgang_id;
+}
 
 export async function getActiveLeaseRelationshipStatus(club: ClubContext, session: BrowserSession, parcelId: number): Promise<ActiveLeaseRelationshipStatus> {
   const active = await readSupabaseRest<LeaseRelationshipRow>({ club, session }, "pachtverhaeltnis", { select: "id", parzelle_id: `eq.${parcelId}`, beendet_am: "is.null", limit: "2" });

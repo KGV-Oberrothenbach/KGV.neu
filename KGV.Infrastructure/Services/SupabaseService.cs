@@ -3593,6 +3593,17 @@ namespace KGV.Infrastructure.Services
             return row == null ? null : new DokumentNachweisstatus(row.Nachweisstatus, row.Vertragsdatum, row.DokumentId, row.PachtvertragsfassungId);
         }
 
+        public async Task PreparePachtvertragErsatzAsync(long vorgaengerFassungId, Guid assignedTo)
+        {
+            if (vorgaengerFassungId <= 0 || assignedTo == Guid.Empty)
+                throw new ArgumentException("Vorgängerfassung und Benutzer sind erforderlich.");
+            await (await EnsureClientAsync()).Rpc("prepare_pachtvertrag_ersatz", new
+            {
+                p_vorgaenger_fassung_id = vorgaengerFassungId,
+                p_assigned_to = assignedTo
+            });
+        }
+
         public async Task<DokumentNachweisstatus?> GetWartungsvertragNachweisstatusAsync(long wartungsvertragZuordnungId)
         {
             if (wartungsvertragZuordnungId <= 0) return null;
@@ -4265,7 +4276,8 @@ namespace KGV.Infrastructure.Services
                     altvertragDatum: request.AltvertragDatum,
                     context.GesetzlicherVertreterSnapshot,
                     context.VereinskonfigurationSnapshot,
-                    FormularDokumentStatus.Unsigniert, _pdfTemplateProvider);
+                    FormularDokumentStatus.Unsigniert, _pdfTemplateProvider,
+                    vertragsnummer: request.Vertragsnummer);
             },
             null);
 
@@ -4351,7 +4363,8 @@ namespace KGV.Infrastructure.Services
                     request.AltvertragDatum,
                     context.GesetzlicherVertreterSnapshot,
                     context.VereinskonfigurationSnapshot,
-                    FormularDokumentStatus.Unsigniert, _pdfTemplateProvider);
+                    FormularDokumentStatus.Unsigniert, _pdfTemplateProvider,
+                    vertragsnummer: request.Vertragsnummer);
                 var finalUploadRequest = await PachtvertragDokumentFactory.CreateUploadRequestAsync(
                     context.Member,
                     paechter2,
@@ -4361,7 +4374,8 @@ namespace KGV.Infrastructure.Services
                     request.AltvertragDatum,
                     context.GesetzlicherVertreterSnapshot,
                     context.VereinskonfigurationSnapshot,
-                    FormularDokumentStatus.Signiert, _pdfTemplateProvider);
+                    FormularDokumentStatus.Signiert, _pdfTemplateProvider,
+                    vertragsnummer: request.Vertragsnummer);
                 var signatures = new List<PdfSignatureCaptureAssignment>
                 {
                     new("unterschrift_paechter", paechterSignatureCapture)

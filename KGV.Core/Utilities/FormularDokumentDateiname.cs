@@ -23,7 +23,7 @@ namespace KGV.Core.Utilities
             RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
 
         private static readonly Regex TitelRegex = new(
-            @"^(?<typ>mitgliedsantrag|mitgliedsvertrag|pachtvertrag)\s*\((?<status>signiert|unsigniert)\)$",
+            @"^(?<typ>mitgliedsantrag|mitgliedsvertrag|pachtvertrag)(?:\s*·\s*Vertrags-Nr\.\s*\d+)?\s*\((?<status>signiert|unsigniert)\)$",
             RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
 
         public static string BuildMitgliedDateiname(MitgliedRecord member, string dokumenttyp, string status, DateTime? referenceDate = null, int? fachnummer = null)

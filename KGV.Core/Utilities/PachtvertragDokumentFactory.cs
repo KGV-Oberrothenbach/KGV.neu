@@ -11,6 +11,7 @@ namespace KGV.Core.Utilities
     {
         private static readonly IReadOnlyList<PdfFormFieldSpec> FieldSpecs = new[]
         {
+            new PdfFormFieldSpec("vertragsnummer", PdfFormFieldKind.Text, 1, 410, 145, 150, 16),
             new PdfFormFieldSpec("verein_name", PdfFormFieldKind.Text, 1, 210, 232, 205, 14),
             new PdfFormFieldSpec("vereinsregister", PdfFormFieldKind.Text, 1, 505, 232, 58, 14),
             new PdfFormFieldSpec("paechter_name", PdfFormFieldKind.Text, 1, 215, 262, 185, 14),
@@ -47,12 +48,13 @@ namespace KGV.Core.Utilities
             string? status,
             IPdfTemplateProvider templateProvider,
             MitgliedRecord? paechter2Override = null,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default,
+            int? vertragsnummer = null)
         {
             ArgumentNullException.ThrowIfNull(templateProvider);
             const string documentType = "pachtvertrag";
             const string operation = "preview";
-            const string fieldSpecVersion = "pachtvertrag-field-spec/v8";
+            const string fieldSpecVersion = "pachtvertrag-field-spec/v9";
             const string rendererVersion = "top-left/v1";
             PdfTemplateAsset template;
             try
@@ -76,7 +78,7 @@ namespace KGV.Core.Utilities
             try
             {
                 return CreateUploadRequestCore(hauptmitglied, nebenmitglied, parzelle, saison, vertragsbeginn,
-                    altvertragDatum, gesetzlicherVertreterSnapshot, bankverbindungSnapshot, status, paechter2Override, template);
+                    altvertragDatum, gesetzlicherVertreterSnapshot, bankverbindungSnapshot, status, paechter2Override, template, vertragsnummer);
             }
             catch (DocumentPipelineException)
             {
@@ -103,7 +105,8 @@ namespace KGV.Core.Utilities
             VereinskonfigurationSnapshot? bankverbindungSnapshot,
             string? status,
             MitgliedRecord? paechter2Override,
-            PdfTemplateAsset template)
+            PdfTemplateAsset template,
+            int? vertragsnummer)
         {
             ArgumentNullException.ThrowIfNull(hauptmitglied);
             ArgumentNullException.ThrowIfNull(parzelle);
@@ -145,7 +148,8 @@ namespace KGV.Core.Utilities
                 VereinskonfigurationSnapshotFactory.NormalizeForLeaseContract(bankverbindungSnapshot),
                 paechter2Override,
                 gesetzlicherVertreterSnapshot != null,
-                null);
+                null,
+                vertragsnummer);
 
             var data = PachtvertragTemplateFactory.BuildData(templateContext);
             var content = FillAndFlattenPdfForm(template.PdfBytes, data, template.Fields);
@@ -173,12 +177,14 @@ namespace KGV.Core.Utilities
             VereinskonfigurationSnapshot bankverbindungSnapshot,
             MitgliedRecord? paechter2Override,
             bool zweiteParteiIstGesetzlicherVertreter,
-            string? vereinsunterlagenNachweis)
+            string? vereinsunterlagenNachweis,
+            int? vertragsnummer)
         {
             var paechter2 = paechter2Override ?? nebenmitglied;
 
             return new PachtvertragTemplateContext
             {
+                Vertragsnummer = vertragsnummer,
                 VereinskonfigurationSnapshot = bankverbindungSnapshot,
                 Paechter1 = hauptmitglied,
                 Paechter2 = paechter2,
@@ -208,6 +214,7 @@ namespace KGV.Core.Utilities
         {
             return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
+                ["vertragsnummer"] = data.Vertragsnummer,
                 ["verein_name"] = data.VereinName,
                 ["vereinsregister"] = data.Vereinsregister,
                 ["paechter_name"] = data.Paechter1Vollname,

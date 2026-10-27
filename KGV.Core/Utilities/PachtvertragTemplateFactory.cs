@@ -31,6 +31,9 @@ public static class PachtvertragTemplateFactory
         var jahrespacht = CalculateAnnualRent(context.ParzelleFlaecheQm, context.PachtProQm);
         return new PachtvertragTemplateData
         {
+            Vertragsnummer = context.Vertragsnummer is >= 20000 and <= 29999
+                ? $"Vertrags-Nr. {context.Vertragsnummer.Value}"
+                : string.Empty,
             Ausstellungsdatum = FormatDate(ausstellungsdatum),
 
             Paechter1Name = Clean(paechter1.Name),
@@ -170,6 +173,7 @@ public static class PachtvertragTemplateFactory
 
 public sealed class PachtvertragTemplateContext
 {
+    public int? Vertragsnummer { get; set; }
     public VereinskonfigurationSnapshot? VereinskonfigurationSnapshot { get; set; }
 
     public MitgliedRecord? Paechter1 { get; set; }

@@ -25,7 +25,7 @@ Fundstelle: `supabase/migrations/20261025130000_nb1_fachnummern_fundament.sql`.
 | Nummernart | Workflow | Reservierung | Anzeige | Retry | Korrektur/Verlängerung | Bewertung | Änderung nötig |
 |---|---|---|---|---|---|---|---|
 | 10xxx | Mitgliedsantrag | Trigger bei `zur_signatur`, Quelle `kommunikationsvorgang` | PDF, Aufnahmebestätigung und Dateiname | gleiche Quellreservierung wird gelesen | neuer Vorgang erhält neue Quelle | OK | Nein |
-| 20xxx | Pachtvertrag | Trigger bei `zur_signatur`, Quelle `kommunikationsvorgang` | Dateiname; nicht im PDF-Feld/Titel | vorhandenes Finaldokument wird je Revision wiederverwendet | Korrekturbezug nicht modelliert | FEHLER | Ja |
+| 20xxx | Pachtvertrag | Trigger bei `zur_signatur`, Quelle `kommunikationsvorgang` | PDF, Titel, Dateiname und Vertragsfassungsansicht | vorhandenes Finaldokument wird je Revision wiederverwendet | echte unmittelbare Ersatzkette | OK | Nein |
 | 80xxx | historischer Kombivertrag | ausdrückliche Aktion nach fachlicher Zuordnung, Quelle `historisches_dokument`/`dokument.id` | Titel, Metadaten, Ansicht und PDF-Stempel | dieselbe Quellreservierung | nicht anwendbar | OK | Nein |
 | 90xxx | Wartungsvertrag | Trigger bei `zur_signatur`, Quelle `kommunikationsvorgang` | Dateiname; nicht im PDF-Feld/Titel | vorhandenes Finaldokument wird wiederverwendet | Verlängerung erzeugt bewusst keine neue Reservierung | FEHLER | Ja |
 
@@ -43,11 +43,11 @@ Vorschauen vor `zur_signatur` bleiben ohne Antragsnummer. Finalisierungs- und Do
 
 Der Prepared-Pachtvertrag geht über denselben Statuswechsel zu `zur_signatur`; damit ist die 20xxx-Reservierung vorhanden. `kgv-generate-contract` lädt die bestehende Reservierung in `loadExistingFachnummer` und erzeugt den sichtbaren Dateinamen `Pachtvertrag-20xxx_…pdf`. Vor einer Reservierung bleibt die Vorschau ohne 20xxx und verwendet nur vorhandene Fachwerte.
 
-Die PDF-Feldspezifikationen v3–v8 enthalten jedoch kein Feld `vertragsnummer`; auch der Dokumenttitel bleibt `Pachtvertrag (signiert)`. Die Vertragsnummer ist damit weder im PDF noch zuverlässig in Dokumentenliste/Vorgangsansicht sichtbar. Die Finalisierung ist je Kommunikationsvorgang und Revision idempotent.
+Das versionierte v9-Template ergänzt `vertragsnummer` und zeigt nach der Reservierung `Vertrags-Nr. 20xxx`; eine Vorschau davor bleibt bewusst leer. Edge-Generator, Titel und Dateiname lesen ausschließlich die Reservierung des Kommunikationsvorgangs. Die Vertragsfassungsansicht löst dieselbe Nummer über Dokument-Provenance und `fachnummer_reservierung` auf.
 
-Zusätzlicher Fehler im aktiven Alt-Signierpfad `sign-existing`: `Pachtvertrag-signiert-${source_document_id}.pdf` gibt eine technische Dokument-ID sichtbar aus und erstellt keine 20xxx-Reservierung. Dieser Pfad ist nicht als Korrekturworkflow modelliert.
+Der Altpfad `signExisting` bleibt aus Kompatibilitätsgründen bestehen, ist aber nicht mehr der Korrekturpfad. Web und MAUI starten Korrekturen ausschließlich als neuen Prepared-Vorgang; dadurch entstehen neue Signaturen, eine neue 20xxx und der normale Finalisierungs-/Versandpfad.
 
-**Bewertung: FEHLER.**
+**Bewertung: OK.**
 
 ## Historischer Kombivertrag 80xxx
 
@@ -71,11 +71,11 @@ Eine normale Verlängerung behält technisch dieselbe `wartungsvertrag_id`, wie 
 
 ## Korrektur-/Ersatzverträge
 
-Für den Pachtvertrag gibt es nur `has_previous_contract` und `previous_contract_date`. Das PDF kann einen Hinweis auf eine bisherige Urkunde ausgeben, persistiert jedoch weder einen unmittelbaren Vorgänger noch eine Kette. Der Alt-Signierpfad bewahrt die unsignierte Quelle, erzeugt aber keinen neuen Prepared-Vorgang und keine neue 20xxx-Nummer.
+Der Korrekturstart bindet die aktuelle `pachtvertragsfassung` als unmittelbaren Vorgänger am neuen Prepared-Vorgang. Beim Abschluss verwendet die bestehende Registrierung diese Fassung über `vorgaenger_fassung_id`; das bestehende Pachtverhältnis und alle Dokumente bleiben erhalten. Erst in derselben erfolgreichen Abschluss-Transaktion erhält der Vorgänger `nicht_mehr_massgeblich_am`.
 
-Die verbindliche Regel „neuer Korrektur-/Ersatzvertrag mit neuer 20xxx, Vorgängerreferenz und weiterhin sichtbarem Altvertrag“ wird folglich noch nicht erfüllt.
+Damit bleiben vorbereitete, teilweise signierte, fehlgeschlagene oder abgebrochene Ersatzvorgänge ohne Wirkung auf die bisherige Maßgeblichkeit. A → B → C ist rekonstruierbar, weil C an B gebunden wird. Finalisierungs-Retries verwenden Vorgang/Revision, vorhandenes Dokument, Vertragsfassung und 20xxx erneut. Der normale Versand setzt auf dem abgeschlossenen neuen Prepared-Vorgang auf und versendet nicht automatisch den Vorgänger.
 
-**Bewertung: FEHLT.**
+**Bewertung: OK.**
 
 ## Retry / Idempotenz
 
@@ -139,5 +139,18 @@ Die übrigen geprüften IDs in FKs, RPC-Parametern, Navigation und Provenance bl
 - Migration erstellt, aber nicht ausgeführt.
 
 **NB-2B-B2 = 100 %.**
+
+## NB-2B-B3 Abschluss
+
+- Pachtvertrag 20xxx in PDF, Titel, Dateiname und Vertragsfassungsansicht: **OK**
+- `fachnummer_reservierung` bleibt einzige Nummernquelle: **OK**
+- unmittelbare Vorgängerrelation und Ketten A → B → C: **OK**
+- atomarer Maßgeblichkeitswechsel erst nach erfolgreichem Abschluss: **OK**
+- Prepared-Workflow, neue Signaturen, Retry und normaler Versand: **OK**
+- Web-/MAUI-Aktion „Korrektur-/Ersatzvertrag erstellen“: **OK**
+- `signExisting` nur noch Altkompatibilität, nicht Korrekturworkflow: **OK**
+- Migrationen und v9-Katalogeintrag erstellt, aber nicht ausgeführt oder aktiviert.
+
+**NB-2B-B3 = 100 %.**
 
 **NB-2B noch NICHT = 100 %.**
