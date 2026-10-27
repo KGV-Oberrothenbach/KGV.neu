@@ -464,8 +464,18 @@ public class LoginPage : ContentPage
                 _userContextState.CurrentNebenMitgliedId = null;
             }
 
+            if (!HasRequiredMembershipContext(userContext))
+            {
+                await RejectInvalidAccessAsync("LOGIN_ACCESS_DENIED", "Für dieses Konto ist kein gültiger KGV-Zugang hinterlegt. Bitte wende dich an den Vorstand.");
+                return;
+            }
+
             AppSettings.AppMode = null;
             AppSettings.Save();
+
+            AppSettings.LastEmail = email;
+            AppSettings.Save();
+            await OfferBiometricsAfterValidatedAccessAsync();
 
             var rootSwitched = await SwitchToUserContextAsync(userContext);
             if (!rootSwitched)
@@ -475,10 +485,6 @@ public class LoginPage : ContentPage
                 await RejectInvalidAccessAsync("LOGIN_ACCESS_DENIED", "Für dieses Konto ist kein gültiger KGV-Zugang hinterlegt. Bitte wende dich an den Vorstand.");
                 return;
             }
-
-            AppSettings.LastEmail = email;
-            AppSettings.Save();
-            await OfferBiometricsAfterValidatedAccessAsync();
 
             AppFileLog.Marker("LOGIN_RESULT_SUCCESS");
         }
@@ -644,11 +650,8 @@ public class LoginPage : ContentPage
             ? AppMode.Admin
             : AppMode.User;
 
-        if (mode == AppMode.User && _userContextState.CurrentMitgliedId == null)
-        {
-            _statusLabel.Text = "Account ist keinem Mitglied zugeordnet.";
+        if (!HasRequiredMembershipContext(userContext))
             return false;
-        }
 
         _userContextState.CurrentAppMode = mode;
         _userContextState.CurrentUserContext = userContext;
@@ -661,6 +664,16 @@ public class LoginPage : ContentPage
 
         await app.SwitchToCurrentRootAsync();
         return true;
+    }
+
+    private bool HasRequiredMembershipContext(UserContext userContext)
+    {
+        var isAdmin = userContext.Role is UserRole.Admin or UserRole.Vorstand;
+        if (isAdmin || _userContextState.CurrentMitgliedId != null)
+            return true;
+
+        _statusLabel.Text = "Account ist keinem Mitglied zugeordnet.";
+        return false;
     }
 
     public void ShowResumeTimeoutMessage(string message)

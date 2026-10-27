@@ -2,6 +2,26 @@
 
 ---
 
+## 2026-10-27 – MAUI-Biometrieangebot vor App-Wechsel
+
+- Nach erfolgreichem Passwortlogin wird das Biometrieangebot nun nach
+  User-ID-, UserContext- und erforderlicher Mitgliedskontextprüfung, aber vor
+  `SwitchToUserContextAsync` angezeigt. Ungültige Logins/Zugänge erreichen
+  den Prompt nicht.
+- Die bestehende Entscheidung, SecureStorage-Sitzung, Vereins-/Umgebungsscope,
+  Ablehnungsbehandlung, Vereinswechsel-Löschung und der Biometrie-Loginbutton
+  wurden beibehalten.
+- Der MAUI-Zugangsvertragstest prüft die Ablaufreihenfolge und die bisherigen
+  Biometriepfade. `node --test security/maui-valid-access.contract.test.mjs`
+  sowie vier `BiometricSessionScopeTests` bestanden. Das angefragte npm-Script
+  `test:maui-valid-access` ist im Web-Paket nicht definiert; der vorhandene
+  Test wurde direkt ausgeführt. Core-Build erfolgreich, mit bestehenden
+  ImageSharp-NU1902/NU1903-Warnungen.
+- MAUI-Build scheitert weiterhin an 53 vorhandenen Compilerdiagnosen
+  (106 ausgegebene Fehlermeldungen). `LoginPage.xaml.cs` hat keine
+  Builddiagnose; darunter sind die bekannten `LineBreakMode`-Fehler in
+  `WartungsvertragFortfuehrungPage.cs`. Keine blockfremden MAUI-Fehler behoben.
+
 ## 2026-10-27 – NB-2B-B4 Wartungsvertragsnummern abgeschlossen
 
 - Wartungsvertragsnummern sind im Repository an `wartungsvertrag_id` gebunden;

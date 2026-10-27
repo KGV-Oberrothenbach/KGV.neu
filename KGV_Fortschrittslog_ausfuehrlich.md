@@ -18,6 +18,27 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 - `KGV.Core`
 - `KGV.Maui`
 
+## 2026-10-27 – MAUI-Biometrieangebot vor App-Wechsel
+
+- Den Passwortloginablauf eng korrigiert: nach gültiger User-ID, geladenem
+  UserContext und validiertem Mitgliedskontext wird das vorhandene
+  Biometrieangebot vor dem Wechsel auf die App-Shell ausgeführt.
+- Ungültiger Login oder ungültiger KGV-Zugang bietet keine Biometrie an.
+  Speicherung bei Zustimmung, Ablehnungsentscheidung, SecureStorage,
+  Scope-Trennung, Vereinswechsel-Löschung und späterer Biometrie-Login bleiben
+  unverändert.
+- Der Regressionstest prüft `GetUserContextAsync` → Mitgliedskontextprüfung →
+  `OfferBiometricsAfterValidatedAccessAsync` → `SwitchToUserContextAsync` und
+  kontrolliert die bestehenden Zustimmungs-/Ablehnungs- und Resume-Pfade.
+- Verifikation: der direkte Node-Test
+  `security/maui-valid-access.contract.test.mjs` sowie vier
+  `BiometricSessionScopeTests` bestanden; Core-Build erfolgreich (bestehende
+  ImageSharp-NU1902/NU1903-Warnungen). Das npm-Script
+  `test:maui-valid-access` ist nicht registriert. MAUI-Build bleibt an 53
+  vorhandenen Compilerdiagnosen (106 ausgegebene Fehlermeldungen) blockiert;
+  `LoginPage.xaml.cs` ist fehlerfrei, bekannte `LineBreakMode`-Diagnosen in
+  `WartungsvertragFortfuehrungPage.cs` bleiben unverändert.
+
 ## 2026-10-27 – NB-2B-B4 Wartungsvertragsnummern
 
 - CX' lokale v2-Templateänderungen und der vorbereitete Generator-/Service-
