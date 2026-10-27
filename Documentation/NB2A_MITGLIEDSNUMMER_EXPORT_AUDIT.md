@@ -52,8 +52,8 @@ vorrangig bewertet.
 | Bereich | Export | Plattform | Ausgabeformat | Datenquelle | sichtbare Personenreferenz | aktueller Nummernwert | Soll | Bewertung | Änderung nötig |
 |---|---|---|---|---|---|---|---|---|---|
 | Mitglieder | Mitgliederliste | Web, MAUI | CSV, PDF | `rpc_export_mitgliederliste` über Gateway | eigene Zeile je Mitglied; Spalte `Mitglieds-Nr.` | `mitgliedsnr` und `mitgliedsnummer` stammen aus `g.mitgliedsnummer`; kein ID-Fallback | gespeicherte `g.mitgliedsnummer`; danach numerisch sortieren | **OK** | Nein; korrigiert durch die versionierte E2-Migration. |
-| Arbeitsstunden | Arbeitsstundenübersicht | Web, MAUI | CSV, PDF | `rpc_export_arbeitsstunden_uebersicht` über JSON-Wrapper | eine Zeile je Hauptmitglied und Saison; Vor-/Nachname sichtbar | keine Nummer sichtbar; `mitglied_id` ist nur Rückgabefeld, aber keine auswählbare Metadatenspalte | sichtbare Spalte `Mitgliedsnummer` aus `m.mitgliedsnummer` | **FEHLT** | Ja: RPC/Wrapper und Exportspalten ergänzen; technische ID intern behalten und nicht als Fachspalte anbieten. |
-| Datenschutz | Datenschutz – aktive Mitglieder | Web, MAUI | CSV, PDF | `rpc_export_datenschutz_aktive_mitglieder` über JSON-Wrapper | eine Zeile je aktivem Mitglied; Name sichtbar | keine Nummer sichtbar | sichtbare Spalte `Mitgliedsnummer` aus `m.mitgliedsnummer` | **FEHLT** | Ja: Projektion und Metadaten ergänzen; keine `m.id`-Ausgabe. |
+| Arbeitsstunden | Arbeitsstundenübersicht | Web, MAUI | CSV, PDF | `rpc_export_arbeitsstunden_uebersicht` über JSON-Wrapper | eine Zeile je Hauptmitglied und Saison; Vor-/Nachname sichtbar | `mitgliedsnummer` aus `m.mitgliedsnummer`; `mitglied_id` bleibt intern und ist keine Metadatenspalte | sichtbare Spalte `Mitgliedsnummer` aus `m.mitgliedsnummer` | **OK** | Nein; korrigiert durch die versionierte E3-Migration. |
+| Datenschutz | Datenschutz – aktive Mitglieder | Web, MAUI | CSV, PDF | `rpc_export_datenschutz_aktive_mitglieder` über JSON-Wrapper | eine Zeile je aktivem Mitglied; Name sichtbar | `mitgliedsnummer` aus `m.mitgliedsnummer`; keine sichtbare technische ID | sichtbare Spalte `Mitgliedsnummer` aus `m.mitgliedsnummer` | **OK** | Nein; korrigiert durch die versionierte E3-Migration. |
 | Zähler/JAE | Jahresablesung – Status | Web, MAUI | CSV, PDF | `rpc_export_jahresablesung_status` über JSON-Wrapper | Zähler-/Parzellenzeile; `Pächter am Jahresende` nur als Name | keine Mitgliedsnummer; keine sichtbare `mitglied_id`; `zaehler_id` ist als technische, standardmäßig unsichtbare Spalte markiert | fachliche Entscheidung, ob die Pächterreferenz eine Nummer benötigt | **ENTSCHEIDUNG ERFORDERLICH** | Erst Zweckentscheidung: Statusliste ist primär zählerbezogen; bei Nummernpflicht Projektion und Spalte ergänzen. |
 | Zähler | Zähler – Eichfälligkeit | Web, MAUI | CSV, PDF | `rpc_export_zaehler_eichfaelligkeit` über JSON-Wrapper | keine Person, nur Parzelle/Zähler/RFID/Status | keine Mitgliedsnummer; `zaehler_id` ist als technische, standardmäßig unsichtbare Spalte markiert | keine Mitgliedsnummer | **NICHT ERFORDERLICH** | Nein. Die technische Zähler-ID betrifft keine Mitgliedskennung. |
 | Parzellen | Parzellenliste | Web, MAUI | CSV, PDF | `rpc_export_parzellenliste` über Gateway | Parzellenzeile; aktuelle Pächter als Namensliste | keine Nummer sichtbar; keine `mitglied_id` in der Ausgabe | fachliche Entscheidung, ob Pächter in einer parzellenzentrierten Liste mit Nummer erscheinen | **ENTSCHEIDUNG ERFORDERLICH** | Erst Zweck-/Layoutentscheidung; bei Ja je Pächter die gespeicherte Nummer zusätzlich projizieren. |
@@ -175,19 +175,39 @@ es gab keinen Datenbank-Push und keine Produktivänderung.
 
 **NB-2A-E2 = 100 %**
 
+## NB-2A-E3 – umgesetzt am 27.10.2026
+
+Die versionierte, nicht ausgeführte Migration
+`20261027110000_nb2a_e3_personenexporte_mitgliedsnummer.sql` ergänzt die
+beiden personenbezogenen Standardexporte um `mitgliedsnummer` aus der
+gespeicherten Spalte `mitglied.mitgliedsnummer`. In der Arbeitsstundenübersicht
+bleibt `mitglied_id` ein internes Rückgabefeld und ist nicht als auswählbare
+Exportmetadatenspalte vorhanden. Beide RPCs verweigern eine exportierte Zeile
+mit fehlender oder ungültiger Nummer mit `MEMBER_NUMBER_MISSING`; es gibt keinen
+ID-Fallback und keine Berechnung.
+
+Die neue Metadatenspalte trägt in beiden Exporten die Bezeichnung
+`Mitgliedsnummer` und steht im vorderen Personenbereich. Web und MAUI lesen
+weiter dieselbe RPC-/Metadatenquelle für Vorschau, CSV und zentral erzeugtes
+PDF. Die Migration wurde nicht ausgeführt; es gab keinen Datenbank-Push und
+keine Produktivänderung.
+
+**NB-2A-E3 = 100 %**
+
 ## Abschluss und vorgeschlagene Folgeblöcke
 
 1. Aktive Listen-/Downloadexportpfade: **7**.
-2. **OK: 1** innerhalb dieser sieben Listenpfade – Mitgliederliste.
+2. **OK: 3** innerhalb dieser sieben Listenpfade – Mitgliederliste,
+   Arbeitsstundenübersicht und Datenschutzexport.
 3. **FEHLER: 0**.
-4. **FEHLT: 2** – Arbeitsstundenübersicht und Datenschutzexport.
+4. **FEHLT: 0**.
 5. **NICHT ERFORDERLICH: 1** – Zähler-Eichfälligkeit.
 6. **ENTSCHEIDUNG ERFORDERLICH: 3** – Jahresablesung-Status,
    Parzellenliste und JAE-XLSX.
 7. Der frühere technische-ID-Fallback der Mitgliederliste ist durch E2
    beseitigt; `mitglied_id` bleibt nur in internen Zuordnungen.
-8. Die kanonische Nummer muss weiterhin in Arbeitsstundenübersicht und
-   Datenschutzexport ergänzt werden.
+8. Die kanonische Nummer ist in allen drei personenbezogenen Standardlisten
+   aus der gespeicherten Spalte verfügbar.
 9. Bereits korrekt sind die separat geprüften aktiven
    PDF-/Dokumentgeneratoren (sieben personenbezogene Erzeugergruppen oben).
 10. Keine aktive Listenexport-Datei mit Mitglieds-ID-Fund; technische
@@ -195,13 +215,10 @@ es gab keinen Datenbank-Push und keine Produktivänderung.
 
 Vorgeschlagene kleine Umsetzungsblöcke:
 
-1. **NB-2A-E3 – personenbezogene Standardlisten:** Arbeitsstunden- und
-   Datenschutzprojektion sowie deren Metadatenspalten um die gespeicherte
-   Mitgliedsnummer ergänzen; `mitglied_id` intern belassen.
-2. **NB-2A-E4 – parzellen-/zählerzentrierte Ausgaben:** Fachentscheidung für
+1. **NB-2A-E4 – parzellen-/zählerzentrierte Ausgaben:** Fachentscheidung für
    Pächterreferenzen in Jahresablesung, Parzellenliste und JAE-XLSX dokumentieren
    und nur bei positiver Entscheidung gezielt erweitern.
-3. **NB-2A-E5 – Dateinamen:** separater Audit der technischen IDs in
+2. **NB-2A-E5 – Dateinamen:** separater Audit der technischen IDs in
    Dokument-/Vorschaudateinamen.
 
 **NB-2A-E1 Export-Audit = 100 %**
