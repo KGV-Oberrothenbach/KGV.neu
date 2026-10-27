@@ -85,13 +85,21 @@ internal static class PachtvertragFlowHelper
             else if (!PreparedContractDraftParser.AreEquivalent(contract.EntwurfDaten, serialized))
                 contract = await preparedContractRepository.UpdateDraftAsync(contract.Id, contract.Revision, serialized);
 
+            request.KommunikationsvorgangId = contract.Id;
+
             byte[] pdf;
             try { pdf = await contractGenerationClient.PreviewLeaseContractAsync(request); }
             catch (Exception ex) { throw new InvalidOperationException($"Pachtvertrag-Vorschau konnte nicht erzeugt werden: {ex.Message}", ex); }
             if (pdf.Length == 0) throw new InvalidOperationException("Pachtvertrag-Vorschau konnte nicht erzeugt werden.");
 
+            var previewMember = await supabaseService.GetMitgliedByIdAsync(mitgliedId);
+            var previewParcel = (await supabaseService.GetAllParzellenAsync()).FirstOrDefault(x => x.Id == parzelleId);
+            var previewFileName = FormularDokumentDateiname.BuildPachtvertragVorschauDateiname(
+                previewMember?.Mitgliedsnummer,
+                previewParcel?.GartenNr);
+
             var preview = new PachtvertragPreviewPage(
-                new DokumentUploadRequest { Titel = "Pachtvertrag – Vorschau", MimeType = "application/pdf", FileName = $"pachtvertrag-vorschau-{mitgliedId}-{parzelleId}.pdf", FileContent = pdf },
+                new DokumentUploadRequest { Titel = "Pachtvertrag – Vorschau", MimeType = "application/pdf", FileName = previewFileName, FileContent = pdf },
                 persistForSignature: false,
                 preparedActionLabel: contract == null ? "Zur Signatur vorbereiten" : "Änderungen speichern");
             await navigation.PushModalAsync(new NavigationPage(preview));

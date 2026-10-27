@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Text;
@@ -10,7 +11,7 @@ namespace KGV.Core.Utilities
     public static class FormularDokumentDateiname
     {
         private static readonly Regex DateinameRegex = new(
-            @"^.+-\d+-\d{4}-\d{2}-\d{2}-(?<typ>[a-z0-9]+)-(?<status>[a-z0-9]+)\.pdf$",
+            @"^.+-\d{4}-\d{2}-\d{2}-(?<typ>[a-z0-9]+)-(?<status>[a-z0-9]+)\.pdf$",
             RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
 
         // Bis zur Umstellung auf das aktuelle Dateinamensschema wurden Formulare
@@ -25,7 +26,7 @@ namespace KGV.Core.Utilities
             @"^(?<typ>mitgliedsantrag|mitgliedsvertrag|pachtvertrag)\s*\((?<status>signiert|unsigniert)\)$",
             RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
 
-        public static string BuildMitgliedDateiname(MitgliedRecord member, string dokumenttyp, string status, DateTime? referenceDate = null)
+        public static string BuildMitgliedDateiname(MitgliedRecord member, string dokumenttyp, string status, DateTime? referenceDate = null, int? fachnummer = null)
         {
             if (member == null)
                 throw new ArgumentNullException(nameof(member));
@@ -34,10 +35,27 @@ namespace KGV.Core.Utilities
             var normalizedStatus = FormularDokumentStatus.Normalize(status);
             var effectiveDate = (referenceDate ?? DateTime.Today).Date;
             var memberSegment = BuildMemberSegment(member.Name, member.Vorname);
+            var fachlicheKennung = BuildFachlicheKennung(member, normalizedType, fachnummer);
+            var prefix = string.IsNullOrWhiteSpace(fachlicheKennung)
+                ? memberSegment
+                : $"{memberSegment}-{fachlicheKennung}";
 
             return string.Create(
                 CultureInfo.InvariantCulture,
-                $"{memberSegment}-{member.Id}-{effectiveDate:yyyy-MM-dd}-{normalizedType}-{normalizedStatus}.pdf");
+                $"{prefix}-{effectiveDate:yyyy-MM-dd}-{normalizedType}-{normalizedStatus}.pdf");
+        }
+
+        public static string BuildPachtvertragVorschauDateiname(long? mitgliedsnummer, string? gartenNr)
+        {
+            var parts = new List<string> { "Pachtvertrag", "Vorschau" };
+            if (mitgliedsnummer is > 0)
+                parts.Add($"Mgl-{mitgliedsnummer.Value}");
+
+            var normalizedGarden = SanitizeSegment(gartenNr, string.Empty);
+            if (!string.IsNullOrWhiteSpace(normalizedGarden))
+                parts.Add($"Garten-{normalizedGarden}");
+
+            return string.Join("_", parts) + ".pdf";
         }
 
         public static string BuildTitel(string dokumenttyp, string status)
@@ -84,6 +102,27 @@ namespace KGV.Core.Utilities
             var firstName = SanitizeSegment(vorname, "OhneVorname");
             return $"{lastName}_{firstName}";
         }
+
+        private static string? BuildFachlicheKennung(MitgliedRecord member, string dokumenttyp, int? fachnummer)
+        {
+            if (fachnummer.HasValue && IsFachnummerForDokumenttyp(dokumenttyp, fachnummer.Value))
+            {
+                var prefix = string.Equals(dokumenttyp, FormularDokumentTyp.Mitgliedsantrag, StringComparison.Ordinal)
+                    ? "Antrag"
+                    : "Pachtvertrag";
+                return $"{prefix}-{fachnummer.Value}";
+            }
+
+            return member.Mitgliedsnummer > 0 ? $"Mgl-{member.Mitgliedsnummer}" : null;
+        }
+
+        private static bool IsFachnummerForDokumenttyp(string dokumenttyp, int nummer)
+            => dokumenttyp switch
+            {
+                FormularDokumentTyp.Mitgliedsantrag => Fachnummer.IstGueltig(Vertragsnummernart.Mitgliedsantrag, nummer),
+                FormularDokumentTyp.Pachtvertrag => Fachnummer.IstGueltig(Vertragsnummernart.Pachtvertrag, nummer),
+                _ => false
+            };
 
         private static string SanitizeSegment(string? value, string fallback)
         {

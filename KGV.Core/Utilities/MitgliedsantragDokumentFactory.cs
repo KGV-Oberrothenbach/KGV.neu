@@ -143,7 +143,7 @@ namespace KGV.Core.Utilities
 
             var normalizedStatus = FormularDokumentStatus.Normalize(status);
             var dokumenttyp = FormularDokumentTyp.Mitgliedsantrag;
-            var fileName = FormularDokumentDateiname.BuildMitgliedDateiname(member, dokumenttyp, normalizedStatus, DateTime.Today);
+            var fileName = FormularDokumentDateiname.BuildMitgliedDateiname(member, dokumenttyp, normalizedStatus, DateTime.Today, antragsnummer);
             var title = FormularDokumentDateiname.BuildTitel(dokumenttyp, normalizedStatus);
 
             var templateData = BuildTemplateData(

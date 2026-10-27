@@ -1,7 +1,7 @@
 # NB-2A-E5A – Audit fachlich sichtbarer Dateinamen
 
 Stand: 27.10.2026  
-Prüfstatus: abgeschlossen (Audit, keine Produktänderung)
+Prüfstatus: NB-2A-E5B1 umgesetzt; E5B2 (Kalender-ICS) und die ausgewiesenen Entscheidungsfälle offen.
 
 ## Prüfmaßstab
 
@@ -38,9 +38,9 @@ Dateiname weitergegeben werden.
 | MAUI-zentraler PDF-Export | `KGV.Maui/ViewModels/ExportViewModel.cs` | Servername; Fallback `<Zeitstempel>_<export_key>.pdf` | Nein | Exporttitel/-kennung | OK | Nein |
 | Persistierte allgemeine Dokumente und Download | `supabase/functions/kgv-upload-document/index.ts` – `buildFileName`, Download-Header | `<Titel>_<Zeitstempel>.<Endung>` | Nein | Titel | OK | Nein |
 | Dokument-Storage | `kgv-upload-document` – `buildStorageSegments` / `buildStoragePath` | Ordner enthalten `owner_id` | Nur intern | Titel/Dateiname, aber nicht im Storage nötig | NICHT SICHTBAR | Nein |
-| Lokale Formularfabriken | `KGV.Core/Utilities/FormularDokumentDateiname.cs` – `BuildMitgliedDateiname`; Aufrufer für Antrag, Mitglieds- und Pachtvertrag | `<Name>_<Vorname>-<member.Id>-<Datum>-<Typ>-<Status>.pdf` | **Ja, `member.Id`** | `mitgliedsnummer` (für Antrag ggf. Antragsnummer) | **FEHLER** | Ja, E5B |
-| Edge-Vertragsvorschau | `supabase/functions/kgv-generate-contract/index.ts` – finale `fileName`/`Content-Disposition` | `<Name>_<Vorname>-<memberId>-<Datum>-<Typ>-<Status>.pdf` | **Ja, `member_id`** | Mitgliedsnummer; je Typ Antrags-/Vertrags-/Wartungsnummer, falls vorhanden | **FEHLER** | Ja, E5B |
-| MAUI-Pachtvertragsvorschau | `KGV.Maui/Pages/PachtvertragFlowHelper.cs` und `PachtvertragPreviewPage.cs` | `pachtvertrag-vorschau-<mitgliedId>-<parzelleId>.pdf` (im Dialog angezeigt) | **Ja, Mitglieds- und Parzellen-ID** | Mitgliedsnummer, `garten_nr`; oder neutraler Vorschau-Name | **FEHLER** | Ja, E5B |
+| Lokale Formularfabriken | `KGV.Core/Utilities/FormularDokumentDateiname.cs` – `BuildMitgliedDateiname`; Aufrufer für Antrag, Mitglieds- und Pachtvertrag | `<Name>_<Vorname>-<Fachnummer oder Mgl-Nr.>-<Datum>-<Typ>-<Status>.pdf`, ohne Kennung neutral | Nein | Mitgliedsnummer; beim Antrag vorhandene Antragsnummer | OK | Nein (E5B1) |
+| Edge-Vertragsvorschau | `supabase/functions/kgv-generate-contract/index.ts` – finale `fileName`/`Content-Disposition` | `<Dokumenttyp>_<Fachnummer oder Mgl-Nr.>_<Datum>_<Status>.pdf`, ohne Kennung neutral | Nein | Vorhandene Antrags-/Pacht-/Wartungsnummer, sonst Mitgliedsnummer | OK | Nein (E5B1) |
+| MAUI-Pachtvertragsvorschau | `KGV.Maui/Pages/PachtvertragFlowHelper.cs` und `PachtvertragPreviewPage.cs` | `Pachtvertrag_Vorschau[_Mgl-<mitgliedsnummer>][_Garten-<garten_nr>].pdf` | Nein | Mitgliedsnummer, `garten_nr`; sonst neutraler Vorschau-Name | OK | Nein (E5B1) |
 | MAUI-Mitgliedsantragsvorschau (vorbereiteter Ablauf) | `KGV.Maui/Pages/PreparedMembershipApplicationPreviewFlow.cs` | `Mitgliedsantrag_Vorschau.pdf` | Nein | Bezeichnung | OK | Nein |
 | Parzellenprotokoll | `KGV.Maui/Pages/ParzellenProtokollePage.cs` | `<Protokolltyp>_<garten_nr>_<Datum>.pdf` | Nein | `garten_nr` | OK | Nein |
 | Ablesungs-/Zählerfotos | `supabase/functions/kgv-upload-photo/index.ts` – `buildFileName` | `<Datum>_<Art>_<Medium>_garten-<garten_nr>[_zaehler-<Nr>].<Endung>` | Nein | Garten- und Zählernummer | OK | Nein |
@@ -48,7 +48,7 @@ Dateiname weitergegeben werden.
 | PDF-Viewer teilen | `KGV.Maui/Pages/PdfViewerPage.cs` | `kgv-pdf-<UUID>.pdf` beim Share-Sheet | UUID, aber keine DB-ID | Seitentitel bzw. ursprünglicher Dokumentname | ENTSCHEIDUNG ERFORDERLICH | E5B prüfen; Share-Datei aus fachlichem Namen anlegen |
 | Historische Dokumente / manuelle Uploads | `KGV.Maui/Pages/HistoricalDocumentImportPage.cs`, `Pages/DokumentePage.xaml.cs`, `KGV.Web/features/documents/HistoricalDocumentUploadDialog.tsx` | zunächst vom Nutzer gewählter Originalname; persistiert danach `<Titel>_<Zeitstempel>` | Nicht systemseitig | Nutzername bzw. fachlicher Titel | ENTSCHEIDUNG ERFORDERLICH | Keine automatische Migration; Eingaben bei Bedarf fachlich redaktionell prüfen |
 | Vereinsunterlagen und digitaler Versand | `KGV.Web/features/club-documents/*`, `KGV.Maui/Pages/VereinsunterlagenPage.cs`, `kgv-send-club-documents` | vom Vorstand gewählter PDF-Name, als Versandanhang wiederverwendet | Nicht systemseitig | Dokumenttyp/Fassung | ENTSCHEIDUNG ERFORDERLICH | Keine automatische Umbenennung; Upload-Name vor Freigabe prüfen |
-| Vertragsversand | `supabase/functions/kgv-send-contract-documents/index.ts` | `dateiname_snapshot` als Mailanhang | Indirekt nur bei bereits fehlerhaftem Quelldokument | Siehe Vertrags-/Dokumentpfade | FEHLER (abgeleitet) | Ja, nach E5B neue Snapshots fachlich erzeugen |
+| Vertragsversand | `supabase/functions/kgv-send-contract-documents/index.ts` | `dateiname_snapshot` als Mailanhang | Nein für künftig erzeugte Dokumente; alte Snapshots bleiben unverändert | Siehe Vertrags-/Dokumentpfade | OK | Nein (E5B1); keine Rückwirkung |
 | Signierter Pachtvertrag (bestehendes Dokument) | `kgv-generate-contract` – `signExisting` | Übergabename enthält `source_document_id`, wird beim Upload jedoch in `<Titel>_<Zeitstempel>` normalisiert | Nein im persistierten/versendeten Ergebnis | Titel | OK | Nein |
 | Kalenderexport Web und MAUI | `KGV.Web/features/home/HomeDetail.tsx`, `services/calendar/ics-calendar-service.ts`, `KGV.Maui/Pages/HomeSectionDetailPage.cs` | `termin-<appointment.Id>.ics` | **Ja, Termin-/Datensatz-ID** | Terminbezeichnung und Datum | **FEHLER** | Ja, E5B |
 | Alte Status-Erkennung für Formularnamen | `FormularDokumentDateiname.TryParse`, `KGV.Web/services/documents/document-metadata-service.ts` | akzeptiert alte Namen mit ID | Keine neue Ausgabe | Titelstatus; neue fachliche Konvention | NICHT AKTIV | In E5B nur Kompatibilität erhalten, nicht neu erzeugen |
@@ -57,18 +57,17 @@ Dateiname weitergegeben werden.
 
 | Bewertung | Anzahl |
 |---|---:|
-| OK | 8 |
-| FEHLER | 5 |
+| OK | 12 |
+| FEHLER | 1 |
 | NICHT SICHTBAR | 1 |
 | NICHT AKTIV | 1 |
 | ENTSCHEIDUNG ERFORDERLICH | 3 |
 
-Die fünf Fehlerbewertungen beziehen sich auf drei eigenständige Ursachen:
-
-1. `member.Id` in lokal erzeugten Formularnamen.
-2. `member_id` im sichtbaren `Content-Disposition` der Edge-Vertragsvorschau
-   sowie `mitgliedId`/`parzelleId` im sichtbaren MAUI-Pachtvorschau-Namen.
-3. `appointment.Id` in exportierten bzw. geteilten Kalenderdateien.
+Die vier Formular-, Vertrags- und Pachtvorschau-Befunde wurden mit E5B1
+geschlossen: Neue Dateien verwenden ausschließlich vorhandene Fachnummern,
+gespeicherte Mitgliedsnummern oder einen neutralen Namen. Der einzige weiterhin
+offene Fehler ist `appointment.Id` in exportierten bzw. geteilten
+Kalenderdateien (E5B2).
 
 Der generische Dokumentupload ist hiervon abgegrenzt: Er speichert und liefert
 den fachlichen Titel mit Zeitstempel aus. Seine Storage-Struktur enthält zwar
@@ -76,10 +75,15 @@ Owner-IDs, übergibt diese aber nicht als sichtbaren Dateinamen. Auch die
 Exportpfade aus NB-2A-E1 bleiben ohne sichtbare `mitglied_id` oder
 `mitglied.Id`; dieser Befund wird hier bestätigt.
 
-## E5B – fachliche Umstellung ableitbar
+## E5B – fachliche Umstellung
 
-**E5B ist erforderlich.** Der Audit ist mit `NB-2A-E5A=100 %` abgeschlossen;
-die Produktkorrektur bleibt offen.
+**NB-2A-E5B1 = 100 %.** Bestehende alte Dokumentnamen und Versand-Snapshots
+werden nicht rückwirkend umbenannt. Die Parser akzeptieren weiterhin den alten
+ID-Stil, während neue Generatoren ihn nicht mehr ausgeben. Technische IDs in
+Storage-Pfaden bleiben intern zulässig.
+
+E5 insgesamt ist noch nicht abgeschlossen: E5B2 (Kalender-ICS) und die
+nachstehenden Entscheidungsfälle bleiben offen.
 
 Für E5B ist vor einer Umsetzung eine kleine, fachliche Namensmatrix festzulegen:
 

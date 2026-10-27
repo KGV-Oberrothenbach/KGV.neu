@@ -6,6 +6,8 @@ public sealed class PachtvertragDokumentRequest
 {
     public int MitgliedId { get; set; }
     public int ParzelleId { get; set; }
+    /// <summary>Optionaler bestehender Signaturvorgang; dient bei der Vorschau ausschließlich zum Lesen einer bereits reservierten Fachnummer.</summary>
+    public long KommunikationsvorgangId { get; set; }
     public DateTime Vertragsbeginn { get; set; }
     public string? Status { get; set; }
     public bool IstMinderjaehrig { get; set; }

@@ -79,7 +79,10 @@ public sealed class ContractGenerationClient : IContractGenerationClient
     public async Task<byte[]> PreviewLeaseContractAsync(PachtvertragDokumentRequest request, CancellationToken cancellationToken = default)
     {
         var draft = PreparedLeaseContractMapper.ToPreparedDraft(request);
-        return await SendPreviewAsync(CreateLeasePayload("preview", draft, request.MitgliedId, request.ParzelleId), cancellationToken);
+        var payload = CreateLeasePayload("preview", draft, request.MitgliedId, request.ParzelleId);
+        if (request.KommunikationsvorgangId > 0)
+            payload["kommunikationsvorgang_id"] = request.KommunikationsvorgangId;
+        return await SendPreviewAsync(payload, cancellationToken);
     }
 
     public async Task<ContractFinalizeResult> FinalizeMembershipApplicationAsync(MembershipApplicationFinalizeRequest request, CancellationToken cancellationToken = default)

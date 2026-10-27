@@ -86,6 +86,17 @@ public sealed class ContractGenerationClientHttpTests
     }
 
     [Fact]
+    public async Task Lease_preview_sendsExistingProcessOnlyWhenAvailableForFachnummerLookup()
+    {
+        var handler = new RecordingHandler(Pdf()); var request = LeaseRequest(); request.KommunikationsvorgangId = 4711;
+
+        await Client(handler).PreviewLeaseContractAsync(request);
+
+        using var body = JsonDocument.Parse(handler.Requests.Single().Body);
+        Assert.Equal(4711, body.RootElement.GetProperty("kommunikationsvorgang_id").GetInt64());
+    }
+
+    [Fact]
     public async Task Lease_without_previous_contract_omits_previous_contract_date()
     {
         var handler = new RecordingHandler(Pdf()); var request = LeaseRequest(); request.HasPreviousContract = false; request.AltvertragDatum = new DateTime(2020, 2, 3);

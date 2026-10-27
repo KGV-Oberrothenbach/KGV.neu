@@ -82,7 +82,22 @@ function snapshotFromConfiguration(configuration: Record<string, unknown> | null
   if (missing) throw new Error(`Aktive Vereinskonfiguration ist unvollständig (${missing}).`);
   return snapshot;
 }
-function filenamePart(value: string) { return value.normalize("NFKD").replace(/[^a-zA-Z0-9_-]+/g, "-").replace(/^-|-$/g, "").slice(0, 60) || "dokument"; }
+function visibleContractFileName(type: ContractType, member: Record<string, unknown>, startDate: string, status: "signiert" | "unsigniert", fachnummer: number | null) {
+  const labels: Record<ContractType, string> = { mitgliedsantrag: "Mitgliedsantrag", mitgliedsvertrag: "Mitgliedsvertrag", pachtvertrag: "Pachtvertrag", wartungsvertrag: "Wartungsvertrag", wartungsvertrag_verlaengerung: "Wartungsvertragsverlaengerung", parzellenprotokoll: "Parzellenprotokoll", aufnahmebestaetigung: "Aufnahmebestaetigung" };
+  const numberPrefix = type === "mitgliedsantrag" || type === "aufnahmebestaetigung" ? "Antrag" : type === "pachtvertrag" ? "Pachtvertrag" : type === "wartungsvertrag" || type === "wartungsvertrag_verlaengerung" ? "Wartungsvertrag" : "";
+  const membershipNo = Number(member.mitgliedsnummer);
+  const identifier = Number.isSafeInteger(fachnummer) && fachnummer! > 0 && numberPrefix ? `${numberPrefix}-${fachnummer}` : Number.isSafeInteger(membershipNo) && membershipNo > 0 ? `Mgl-${membershipNo}` : "";
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(startDate) ? startDate : "ohne-Datum";
+  return [labels[type], identifier, date, status].filter(Boolean).join("_") + ".pdf";
+}
+async function loadExistingFachnummer(auth: Awaited<ReturnType<typeof authenticate>>, kommunikationsvorgangId: number, type: ContractType) {
+  const expected = type === "mitgliedsantrag" ? { art: "mitgliedsantrag", min: 10000, max: 19999 } : type === "pachtvertrag" ? { art: "pachtvertrag", min: 20000, max: 29999 } : type === "wartungsvertrag" || type === "wartungsvertrag_verlaengerung" ? { art: "wartungsvertrag", min: 90000, max: 99999 } : null;
+  if (!expected || !Number.isSafeInteger(kommunikationsvorgangId) || kommunikationsvorgangId <= 0) return null;
+  const { data, error } = await auth.admin.from("fachnummer_reservierung").select("nummer,art,quelle_id").eq("quelle_art", "kommunikationsvorgang").eq("quelle_id", kommunikationsvorgangId).eq("art", expected.art).maybeSingle();
+  if (error) throw new Error(`Fachnummer konnte nicht geladen werden: ${error.message}`);
+  const number = Number(data?.nummer);
+  return data?.art === expected.art && Number(data?.quelle_id) === kommunikationsvorgangId && Number.isSafeInteger(number) && number >= expected.min && number <= expected.max ? number : null;
+}
 function fromDataUrl(value?: string) { if (!value?.startsWith("data:image/png;base64,")) return null; return Uint8Array.from(atob(value.split(",", 2)[1]), (char) => char.charCodeAt(0)); }
 function imageFromDataUrl(value?: string) { const match = value?.match(/^data:image\/(png|jpe?g);base64,(.+)$/i); if (!match) return null; return { kind: match[1].toLowerCase() === "png" ? "png" : "jpg", bytes: Uint8Array.from(atob(match[2]), (char) => char.charCodeAt(0)) }; }
 function isMinorAt(member: Record<string, unknown>, date: string) { const birth = safe(member.geburtsdatum); if (!birth) return false; const [by, bm, bd] = birth.slice(0, 10).split("-").map(Number); const [year, month, day] = date.split("-").map(Number); let age = year - by; if (month < bm || (month === bm && day < bd)) age--; return age < 18; }
@@ -339,7 +354,7 @@ Deno.serve(async (req) => {
     const startDate = body.start_date?.slice(0, 10) || (member.mitglied_seit as string | null)?.slice(0, 10) || new Date().toISOString().slice(0, 10);
     const signatures = { member: body.signature_member, secondary: body.signature_secondary, board: body.signature_board, board2: body.signature_board2 };
     if (action === "finalize" && type !== "mitgliedsantrag" && type !== "pachtvertrag" && type !== "wartungsvertrag" && type !== "wartungsvertrag_verlaengerung" && type !== "aufnahmebestaetigung" && (!signatures.member || !signatures.board)) return errorResponse(400, "BAD_REQUEST", "Unterschrift des Mitglieds und des Vereins sind erforderlich.", requestId);
-    let pdf: Uint8Array; let title: string; let owner: { kind: "mitglied" | "parzelle"; id: number }; let protocolIdToComplete: number | null = null; let maintenanceAssignmentId: number | null = null;
+    let pdf: Uint8Array; let title: string; let owner: { kind: "mitglied" | "parzelle"; id: number }; let protocolIdToComplete: number | null = null; let maintenanceAssignmentId: number | null = null; let fachnummer: number | null = null;
     if (type === "mitgliedsantrag") {
       if (member.hauptmitglied_id !== null && member.hauptmitglied_id !== undefined) throw new Error("Für Nebenmitglieder kann kein eigener Mitgliedsantrag erstellt werden.");
       const { data: applicationDocuments, error: applicationDocumentsError } = await auth.admin.from("dokument").select("titel,dateiname").eq("mitglied_id", memberId).is("archiviert_at", null);
@@ -361,6 +376,7 @@ Deno.serve(async (req) => {
         if (reservationError || !reservation || reservation.art !== "mitgliedsantrag" || Number(reservation.quelle_id) !== sourceKommunikationsvorgangId || !Number.isSafeInteger(Number(reservation.nummer)) || Number(reservation.nummer) < 10000 || Number(reservation.nummer) > 19999)
           throw new Error("Für den signaturbereiten Mitgliedsantrag fehlt eine gültige reservierte Antragsnummer.");
         applicationNumber = `Antrags-Nr. ${Number(reservation.nummer)}`;
+        fachnummer = Number(reservation.nummer);
       }
       const requiredSignatures = [body.signature_application_member, body.signature_board, body.signature_privacy_member, ...(minor ? [body.signature_application_representative, body.signature_privacy_representative] : []), ...(secondaryMember ? [body.signature_application_secondary, body.signature_privacy_secondary] : [])];
       if (minor && template.fieldSpecVersion !== membershipApplicationFieldSpecV4) { validateRepresentative(body.representative); if (body.representative!.mode === "existing") { const { data } = await auth.admin.from("mitglied").select("*").eq("id", body.representative!.member_id!).single(); if (!data || data.id === member.id) throw new Error("Gesetzlicher Vertreter konnte nicht geladen werden."); representative = data; } else { representative = { vorname: safe(body.representative!.vorname), name: safe(body.representative!.nachname), adresse: body.representative!.adresse_abweichend ? safe(body.representative!.adresse) : safe(member.adresse), plz: body.representative!.adresse_abweichend ? safe(body.representative!.plz) : safe(member.plz), ort: body.representative!.adresse_abweichend ? safe(body.representative!.ort) : safe(member.ort) }; } }
@@ -401,6 +417,7 @@ Deno.serve(async (req) => {
       const membershipNo = membershipNumber(member, true, "das aufgenommene Mitglied");
       const { data: reservation, error: reservationError } = await auth.admin.from("fachnummer_reservierung").select("nummer,art,quelle_art,quelle_id").eq("quelle_art", "kommunikationsvorgang").eq("quelle_id", applicationProcessId).eq("art", "mitgliedsantrag").maybeSingle();
       if (reservationError || !reservation || Number(reservation.quelle_id) !== applicationProcessId || !Number.isSafeInteger(Number(reservation.nummer)) || Number(reservation.nummer) < 10000 || Number(reservation.nummer) > 19999) throw new Error("Für die Aufnahmebestätigung fehlt die gültige reservierte Antragsnummer des Mitgliedsantrags.");
+      fachnummer = Number(reservation.nummer);
       const issuedOn = formatDate(new Date().toISOString());
       const boardFooter = await loadImpressumBoardFooter(auth);
       const values: Record<string, string> = {
@@ -530,8 +547,8 @@ Deno.serve(async (req) => {
       pdf = await drawPdfTemplate(template.pdfBytes, template.fields, values, maintenancePersistent.signatures, "none");
       title = "Wartungsvertrag (signiert)"; owner = { kind: "mitglied", id: memberId }; maintenanceAssignmentId = Number(assignment.id);
     } else { pdf = await buildSimpleContract(member, startDate, signatures); title = `Mitgliedsvertrag (${action === "finalize" ? "Signiert" : "Unsigniert"})`; owner = { kind: "mitglied", id: memberId }; }
-    const memberSegment = `${filenamePart(safe(member.name) || "Mitglied")}_${filenamePart(safe(member.vorname) || "OhneVorname")}`;
-    const fileName = `${memberSegment}-${memberId}-${startDate}-${type}-${action === "finalize" ? "signiert" : "unsigniert"}.pdf`;
+    fachnummer ??= await loadExistingFachnummer(auth, sourceKommunikationsvorgangId, type);
+    const fileName = visibleContractFileName(type, member, startDate, action === "finalize" ? "signiert" : "unsigniert", fachnummer);
     if (action === "preview") return new Response(pdf, { headers: { ...cors, "Content-Type": "application/pdf", "Content-Disposition": `inline; filename="${fileName}"`, "Cache-Control": "private, no-store" } });
     const documentId = await uploadContractDocument(auth, pdf, owner, title, fileName, action === "finalize" && (type === "mitgliedsantrag" || type === "pachtvertrag" || type === "wartungsvertrag" || type === "wartungsvertrag_verlaengerung" || type === "aufnahmebestaetigung") && Number.isSafeInteger(sourceKommunikationsvorgangId) && sourceKommunikationsvorgangId > 0 ? { sourceKommunikationsvorgangId, sourceRevision, ...(maintenanceAssignmentId ? { sourceWartungsvertragZuordnungId: maintenanceAssignmentId } : {}) } : undefined);
     if (type === "aufnahmebestaetigung") {
