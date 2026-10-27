@@ -48,7 +48,9 @@ public sealed class PendingPhotoService
             Parzelle = parzelle,
             Medium = medium,
             LocalFilePath = filePath,
-            FileName = Path.GetFileName(filePath),
+            // Die UUID im lokalen Pfad ist ausschließlich ein technischer Cache-Schlüssel.
+            // UI und Upload verwenden nur den fachlichen Namen.
+            FileName = fileName,
             ContentType = string.IsNullOrWhiteSpace(contentType) ? "application/octet-stream" : contentType.Trim(),
             Status = PendingPhotoUploadStatus.Pending,
             CreatedAtUtc = DateTime.UtcNow

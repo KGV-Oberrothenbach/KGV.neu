@@ -1,7 +1,7 @@
 # NB-2A-E5A – Audit fachlich sichtbarer Dateinamen
 
 Stand: 27.10.2026  
-Prüfstatus: NB-2A-E5B1 und E5B2 umgesetzt; nur die ausgewiesenen Entscheidungsfälle offen.
+Prüfstatus: NB-2A-E5B1, E5B2 und E5B3 umgesetzt; alle aktiven sichtbaren Pfade sind abgeschlossen.
 
 ## Prüfmaßstab
 
@@ -44,10 +44,10 @@ Dateiname weitergegeben werden.
 | MAUI-Mitgliedsantragsvorschau (vorbereiteter Ablauf) | `KGV.Maui/Pages/PreparedMembershipApplicationPreviewFlow.cs` | `Mitgliedsantrag_Vorschau.pdf` | Nein | Bezeichnung | OK | Nein |
 | Parzellenprotokoll | `KGV.Maui/Pages/ParzellenProtokollePage.cs` | `<Protokolltyp>_<garten_nr>_<Datum>.pdf` | Nein | `garten_nr` | OK | Nein |
 | Ablesungs-/Zählerfotos | `supabase/functions/kgv-upload-photo/index.ts` – `buildFileName` | `<Datum>_<Art>_<Medium>_garten-<garten_nr>[_zaehler-<Nr>].<Endung>` | Nein | Garten- und Zählernummer | OK | Nein |
-| Lokale vorgemerkte Fotos | `KGV.Maui/Services/PendingPhotos/*` | `<UUID>_<Art>_<Datum>_<Parzelle>_<Medium>.jpg` in der Pending-UI | UUID, aber keine DB-ID | `garten_nr` bereits enthalten | ENTSCHEIDUNG ERFORDERLICH | E5B prüfen; UUID vor einer sichtbaren Weitergabe entfernen oder nur intern halten |
-| PDF-Viewer teilen | `KGV.Maui/Pages/PdfViewerPage.cs` | `kgv-pdf-<UUID>.pdf` beim Share-Sheet | UUID, aber keine DB-ID | Seitentitel bzw. ursprünglicher Dokumentname | ENTSCHEIDUNG ERFORDERLICH | E5B prüfen; Share-Datei aus fachlichem Namen anlegen |
-| Historische Dokumente / manuelle Uploads | `KGV.Maui/Pages/HistoricalDocumentImportPage.cs`, `Pages/DokumentePage.xaml.cs`, `KGV.Web/features/documents/HistoricalDocumentUploadDialog.tsx` | zunächst vom Nutzer gewählter Originalname; persistiert danach `<Titel>_<Zeitstempel>` | Nicht systemseitig | Nutzername bzw. fachlicher Titel | ENTSCHEIDUNG ERFORDERLICH | Keine automatische Migration; Eingaben bei Bedarf fachlich redaktionell prüfen |
-| Vereinsunterlagen und digitaler Versand | `KGV.Web/features/club-documents/*`, `KGV.Maui/Pages/VereinsunterlagenPage.cs`, `kgv-send-club-documents` | vom Vorstand gewählter PDF-Name, als Versandanhang wiederverwendet | Nicht systemseitig | Dokumenttyp/Fassung | ENTSCHEIDUNG ERFORDERLICH | Keine automatische Umbenennung; Upload-Name vor Freigabe prüfen |
+| Lokale vorgemerkte Fotos | `KGV.Maui/Services/PendingPhotos/*` | `<Datum>_<Fotoart>_<garten_nr>_<Medium>.jpg` | Nein; UUID bleibt nur im lokalen Cache-Pfad | `garten_nr`, Fotoart und Medium | OK | Nein (E5B3); sichtbarer Queue-/Uploadname ist fachlich |
+| PDF-Viewer teilen | `KGV.Maui/Pages/PdfViewerPage.cs` | ursprünglicher Dokumentname, sonst Dokumenttitel, sonst `KGV_Dokument.pdf` | Nein; UUID bleibt nur im Cache-Verzeichnis | Ursprungsname bzw. Titel | OK | Nein (E5B3); Share-Datei wird separat fachlich angelegt |
+| Historische Dokumente / manuelle Uploads | `KGV.Maui/Pages/HistoricalDocumentImportPage.cs`, `Pages/DokumentePage.xaml.cs`, `KGV.Web/features/documents/HistoricalDocumentUploadDialog.tsx` | vom Nutzer gewählter Originalname; persistiert danach `<Titel>_<Zeitstempel>` | Nicht systemseitig | Nutzername bzw. fachlicher Titel | OK | Keine automatische Umbenennung, keine erzwungene Fachnummer und keine Migration |
+| Vereinsunterlagen und digitaler Versand | `KGV.Web/features/club-documents/*`, `KGV.Maui/Pages/VereinsunterlagenPage.cs`, `kgv-send-club-documents` | vom Vorstand gewählter PDF-Name, als Versandanhang wiederverwendet | Nicht systemseitig | Dokumenttyp/Fassung | OK | Keine automatische Umbenennung, kein technischer ID-Zusatz und keine Rückwirkung |
 | Vertragsversand | `supabase/functions/kgv-send-contract-documents/index.ts` | `dateiname_snapshot` als Mailanhang | Nein für künftig erzeugte Dokumente; alte Snapshots bleiben unverändert | Siehe Vertrags-/Dokumentpfade | OK | Nein (E5B1); keine Rückwirkung |
 | Signierter Pachtvertrag (bestehendes Dokument) | `kgv-generate-contract` – `signExisting` | Übergabename enthält `source_document_id`, wird beim Upload jedoch in `<Titel>_<Zeitstempel>` normalisiert | Nein im persistierten/versendeten Ergebnis | Titel | OK | Nein |
 | Kalenderexport Web und MAUI | `KGV.Web/features/home/HomeDetail.tsx`, `services/calendar/ics-calendar-service.ts`, `KGV.Maui/Pages/HomeSectionDetailPage.cs` | `<Terminbezeichnung>_<YYYY-MM-DD>.ics`, bei leerem Titel `Termin_<YYYY-MM-DD>.ics` | Nein | Terminbezeichnung und Datum | OK | Nein (E5B2); ICS-UID bleibt technisch intern |
@@ -57,16 +57,22 @@ Dateiname weitergegeben werden.
 
 | Bewertung | Anzahl |
 |---|---:|
-| OK | 13 |
+| OK | 19 |
 | FEHLER | 0 |
 | NICHT SICHTBAR | 1 |
 | NICHT AKTIV | 1 |
-| ENTSCHEIDUNG ERFORDERLICH | 3 |
+| ENTSCHEIDUNG ERFORDERLICH | 0 |
+
+Die 21 Auditzeilen sind damit vollständig klassifiziert: 19 `OK`, eine rein
+interne Storage-Struktur und eine nicht aktive Kompatibilitätslogik.
 
 Die vier Formular-, Vertrags- und Pachtvorschau-Befunde wurden mit E5B1
 geschlossen. E5B2 schließt den Kalenderbefund: Web und MAUI verwenden für
 sichtbare ICS-Dateien ausschließlich die sanitizierte Terminbezeichnung und das
 Datum. Die technische Termin-ID bleibt ausschließlich im ICS-UID erhalten.
+E5B3 trennt die UUID-Caches von sichtbaren PendingPhoto- und PDF-Share-Namen.
+Die beiden verbliebenen fachlichen Entscheidungen bestätigen ausdrücklich, dass
+historische Uploads und Vereinsunterlagen unverändert nutzerbestimmt bleiben.
 
 Der generische Dokumentupload ist hiervon abgegrenzt: Er speichert und liefert
 den fachlichen Titel mit Zeitstempel aus. Seine Storage-Struktur enthält zwar
@@ -76,15 +82,15 @@ Exportpfade aus NB-2A-E1 bleiben ohne sichtbare `mitglied_id` oder
 
 ## E5B – fachliche Umstellung
 
-**NB-2A-E5B1 = 100 %; NB-2A-E5B2 = 100 %.** Bestehende alte Dokumentnamen und Versand-Snapshots
-werden nicht rückwirkend umbenannt. Die Parser akzeptieren weiterhin den alten
-ID-Stil, während neue Generatoren ihn nicht mehr ausgeben. Technische IDs in
-Storage-Pfaden bleiben intern zulässig.
+**NB-2A-E5A = 100 %. NB-2A-E5B1 = 100 %. NB-2A-E5B2 = 100 %.
+NB-2A-E5B3 = 100 %. NB-2A-E5 Dateinamen = 100 %.** Bestehende alte
+Dokumentnamen und Versand-Snapshots werden nicht rückwirkend umbenannt. Die
+Parser akzeptieren weiterhin den alten ID-Stil, während neue Generatoren ihn
+nicht mehr ausgeben. Technische IDs in Storage-Pfaden, lokalen Cache-Pfaden und
+Queue-Schlüsseln bleiben intern zulässig, werden aber nicht als sichtbarer
+Dateiname weitergegeben.
 
-E5 insgesamt ist noch nicht abgeschlossen: Die nachstehenden Entscheidungsfälle
-bleiben offen.
-
-Für E5B ist vor einer Umsetzung eine kleine, fachliche Namensmatrix festzulegen:
+Für E5B wurde folgende fachliche Namensmatrix angewendet:
 
 | Dokumentfamilie | vorgeschlagener sichtbarer Kern | Voraussetzung |
 |---|---|---|
@@ -97,9 +103,18 @@ Für E5B ist vor einer Umsetzung eine kleine, fachliche Namensmatrix festzulegen
 | Pachtvorschau ohne Vertragsnummer | `Pachtvertrag-Vorschau-Mgl-<mitgliedsnummer>-Garten-<garten_nr>` oder neutraler Vorschau-Name | gültige Mitglieds-/Parzellendaten |
 | Kalenderdatei | `<Terminbezeichnung>_<Datum>.ics` | Titel sicher sanitizen; bei Gleichheit fachlichen Datumszusatz verwenden |
 
-E5B muss außerdem die vorhandenen Parser/Status-Erkennungen kompatibel zu den
-alten ID-Namen halten, aber ausschließlich die neue Konvention ausgeben. Die
-technischen Storage- und Protokollschlüssel bleiben dabei unverändert.
+## Gesamtabschluss NB-2A
+
+Die bestehenden Audits für Web, MAUI, PDF-/Dokumentgeneratoren und Exporte sind
+abgeschlossen; E5B3 schließt den verbleibenden Dateinamenblock. Damit gilt:
+
+**NB-2A Exporte = 100 %.**
+
+**NB-2A = 100 %.**
+
+Die vorhandenen Parser/Status-Erkennungen bleiben zu den alten ID-Namen
+kompatibel, geben aber ausschließlich die neue Konvention aus. Die technischen
+Storage- und Protokollschlüssel bleiben dabei unverändert.
 
 ## Nicht Bestandteil dieses Audits
 

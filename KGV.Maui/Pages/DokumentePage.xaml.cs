@@ -605,7 +605,7 @@ public class DokumentePage : ContentPage, IQueryAttributable
 
             if (IsPdfDocument(document))
             {
-                await Navigation.PushAsync(new PdfViewerPage(GetDocumentDisplayName(document), content));
+                await Navigation.PushAsync(new PdfViewerPage(GetDocumentDisplayName(document), content, document.Dateiname));
                 return;
             }
 

@@ -251,4 +251,7 @@ Vorschaudateinamen.
 
 **NB-2A-E1 Export-Audit = 100 %**
 
-**NB-2A Exporte noch NICHT = 100 %**
+Der separat ausgewiesene Dateinamenblock E5 ist inzwischen abgeschlossen; für
+die aktiven Exportpfade bestehen damit keine offenen NB-2A-Befunde mehr.
+
+**NB-2A Exporte = 100 %**

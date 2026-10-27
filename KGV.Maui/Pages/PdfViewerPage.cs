@@ -5,6 +5,7 @@ using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.ApplicationModel.DataTransfer;
 using Microsoft.Maui.Storage;
+using KGV.Core.Utilities;
 
 #if ANDROID
 using Android.Graphics;
@@ -22,6 +23,8 @@ namespace KGV.Maui.Pages;
 public sealed class PdfViewerPage : ContentPage
 {
     private readonly string _cachePath;
+    private readonly string _shareFileName;
+    private readonly string _shareDirectory;
     private readonly bool _deleteCacheOnClose;
     private Image _pageImage = null!;
     private Label _pageLabel = null!;
@@ -42,7 +45,7 @@ public sealed class PdfViewerPage : ContentPage
     private ParcelFileDescriptor? _fileDescriptor;
 #endif
 
-    public PdfViewerPage(string? title, byte[] pdfContent)
+    public PdfViewerPage(string? title, byte[] pdfContent, string? originalDateiname = null)
     {
         if (pdfContent is not { Length: > 0 })
             throw new ArgumentException("Für die PDF-Ansicht fehlt ein Dokumentinhalt.", nameof(pdfContent));
@@ -59,6 +62,8 @@ public sealed class PdfViewerPage : ContentPage
 
         Title = string.IsNullOrWhiteSpace(title) ? "Dokument" : title.Trim();
         _cachePath = System.IO.Path.Combine(FileSystem.CacheDirectory, $"kgv-pdf-{Guid.NewGuid():N}.pdf");
+        _shareFileName = SichtbarerDateiname.BuildPdf(originalDateiname, title);
+        _shareDirectory = System.IO.Path.Combine(FileSystem.CacheDirectory, "pdf-share", Guid.NewGuid().ToString("N"));
         _deleteCacheOnClose = true;
         File.WriteAllBytes(_cachePath, pdfContent);
 
@@ -72,6 +77,8 @@ public sealed class PdfViewerPage : ContentPage
             throw new ArgumentException("Für die PDF-Ansicht fehlt die Cache-Datei.", nameof(cachePath));
         Title = string.IsNullOrWhiteSpace(title) ? "Dokument" : title.Trim();
         _cachePath = cachePath;
+        _shareFileName = SichtbarerDateiname.BuildPdf(Path.GetFileName(cachePath), title);
+        _shareDirectory = System.IO.Path.Combine(FileSystem.CacheDirectory, "pdf-share", Guid.NewGuid().ToString("N"));
         _deleteCacheOnClose = false;
         InitializePage();
     }
@@ -100,11 +107,7 @@ public sealed class PdfViewerPage : ContentPage
         _zoomOutButton.Clicked += (_, _) => ChangeZoom(-0.5d);
         _zoomInButton.Clicked += (_, _) => ChangeZoom(0.5d);
         _resetZoomButton.Clicked += (_, _) => ResetZoom();
-        shareButton.Clicked += async (_, _) => await Share.Default.RequestAsync(new ShareFileRequest
-        {
-            Title = Title,
-            File = new ShareFile(_cachePath, "application/pdf")
-        });
+        shareButton.Clicked += async (_, _) => await SharePdfAsync();
 
         var pinch = new PinchGestureRecognizer();
         pinch.PinchUpdated += OnPinchUpdated;
@@ -200,6 +203,16 @@ public sealed class PdfViewerPage : ContentPage
             {
                 // Der Cache wird spätestens durch das Betriebssystem bereinigt.
             }
+
+            try
+            {
+                if (Directory.Exists(_shareDirectory))
+                    Directory.Delete(_shareDirectory, recursive: true);
+            }
+            catch
+            {
+                // Der temporäre Share-Cache wird spätestens durch das Betriebssystem bereinigt.
+            }
         }
 
         base.OnNavigatedFrom(args);
@@ -224,6 +237,18 @@ public sealed class PdfViewerPage : ContentPage
 #else
         throw new PlatformNotSupportedException("Die interne PDF-Ansicht ist derzeit für Android verfügbar.");
 #endif
+    }
+
+    private async Task SharePdfAsync()
+    {
+        Directory.CreateDirectory(_shareDirectory);
+        var sharePath = Path.Combine(_shareDirectory, _shareFileName);
+        File.Copy(_cachePath, sharePath, overwrite: true);
+        await Share.Default.RequestAsync(new ShareFileRequest
+        {
+            Title = Title,
+            File = new ShareFile(sharePath, "application/pdf")
+        });
     }
 
     private async Task ShowPageAsync(int pageIndex)
