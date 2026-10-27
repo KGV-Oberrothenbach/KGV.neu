@@ -24,7 +24,6 @@ export function clearPendingHistoricalDocumentRegistration(memberId: number) {
 export async function registerHistoricalDocumentForMember(club: ClubContext, session: BrowserSession, memberId: number, input: HistoricalDocumentRegistrationInput) {
   try {
     const rows = await registerHistoricalDocument(club, session, input);
-    clearPendingHistoricalDocumentRegistration(memberId);
     return rows[0] ?? null;
   } catch (cause) {
     throw new Error(registrationErrorMessage(cause));

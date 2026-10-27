@@ -7,8 +7,8 @@ import type { DocumentType, HistoricalLeaseRelationship, HistoricalMaintenanceAs
 import { loadMemberLeaseRelationships } from "../../services/contracts/lease-service";
 import { loadHistoricalDocumentMaintenanceAssignments } from "../../services/maintenance/maintenance-assignment-service";
 import { loadActiveDocumentTypes } from "../../services/documents/document-type-service";
-import { registerHistoricalDocumentForMember, savePendingHistoricalDocumentRegistration } from "../../services/documents/historical-document-registration-service";
-import { uploadDocumentForOwner } from "../../services/documents/document-upload-service";
+import { clearPendingHistoricalDocumentRegistration, registerHistoricalDocumentForMember, savePendingHistoricalDocumentRegistration } from "../../services/documents/historical-document-registration-service";
+import { reserveHistoricalContractNumber, uploadDocumentForOwner } from "../../services/documents/document-upload-service";
 import { memberDocumentOwner } from "../../models/documents/document";
 import type { DocumentProofStatus } from "../../models/documents/document-proof-status";
 import { loadLeaseDocumentProofStatuses } from "../../services/documents/document-proof-status-service";
@@ -57,7 +57,9 @@ export function HistoricalDocumentUploadDialog({ session, memberId, pending, onP
   const [leaseId, setLeaseId] = useState(pending?.pachtverhaeltnisId ? String(pending.pachtverhaeltnisId) : "");
   const [assignmentId, setAssignmentId] = useState(pending?.wartungsvertragZuordnungId ? String(pending.wartungsvertragZuordnungId) : "");
   const [loading, setLoading] = useState(true);
-  const [phase, setPhase] = useState<"idle" | "upload" | "register">("idle");
+  const [phase, setPhase] = useState<"idle" | "upload" | "register" | "assign-number">("idle");
+  const [registeredDocumentId, setRegisteredDocumentId] = useState<number | null>(pending?.documentId ?? null);
+  const [contractNumber, setContractNumber] = useState<number | null>(null);
   const [message, setMessage] = useState(pending ? "Die Datei ist bereits gespeichert. Schließen Sie die fachliche Zuordnung erneut ab." : "");
 
   useEffect(() => {
@@ -83,6 +85,7 @@ export function HistoricalDocumentUploadDialog({ session, memberId, pending, onP
   const selectedType = useMemo(() => types.find((type) => type.id === Number(typeId)), [types, typeId]);
   const needsLease = requiresPacht(selectedType);
   const needsAssignment = requiresWartung(selectedType);
+  const isHistoricalCombinedContract = Boolean(selectedType?.wirkungen.includes("mitgliedsantrag_nachweis") && selectedType.wirkungen.includes("pachtvertrag_nachweis"));
   const maintenanceAllowed = principalMemberId === null || principalMemberId === memberId;
   const matchingLeases = leases.filter((item) => item.gueltigAb <= documentDate && (!item.gueltigBis || item.gueltigBis >= documentDate));
 
@@ -106,11 +109,31 @@ export function HistoricalDocumentUploadDialog({ session, memberId, pending, onP
     onPendingChange(registration);
     try {
       await registerHistoricalDocumentForMember(club, session, memberId, registration);
-      onPendingChange(null);
       await onCompleted();
-      onClose();
+      setRegisteredDocumentId(documentId);
+      if (isHistoricalCombinedContract) {
+        setMessage("Dokument fachlich zugeordnet. Prüfen Sie die Angaben und weisen Sie anschließend ausdrücklich die Vertragsnummer zu.");
+      } else {
+        clearPendingHistoricalDocumentRegistration(memberId);
+        onPendingChange(null);
+        onClose();
+      }
     } catch (cause) {
       setMessage(cause instanceof Error ? cause.message : "Die fachliche Zuordnung konnte nicht abgeschlossen werden.");
+    } finally { setPhase("idle"); }
+  }
+  async function assignContractNumber() {
+    if (!registeredDocumentId) return;
+    setPhase("assign-number"); setMessage("");
+    try {
+      const result = await reserveHistoricalContractNumber(club, session, registeredDocumentId);
+      setContractNumber(result.nummer);
+      clearPendingHistoricalDocumentRegistration(memberId);
+      onPendingChange(null);
+      setMessage(result.pdfGestempelt ? `Vertrags-Nr. ${result.nummer} wurde zugewiesen und im PDF gespeichert.` : `Vertrags-Nr. ${result.nummer} wurde zugewiesen. Der Bildscan bleibt unverändert; Titel und Metadaten führen die Nummer.`);
+      await onCompleted();
+    } catch (cause) {
+      setMessage(cause instanceof Error ? cause.message : "Die Vertragsnummer konnte nicht zugewiesen werden. Die fachliche Zuordnung bleibt erhalten.");
     } finally { setPhase("idle"); }
   }
 
@@ -144,6 +167,7 @@ export function HistoricalDocumentUploadDialog({ session, memberId, pending, onP
       {needsLease && <><label>Pachtbeziehung<select value={leaseId} onChange={(event) => setLeaseId(event.target.value)}><option value="">Pachtbeziehung wählen</option>{leases.map((item) => <option key={`${item.pachtverhaeltnisId}:${item.gueltigAb}:${item.rolle}`} value={item.pachtverhaeltnisId}>{leaseLabel(item)}{matchingLeases.includes(item) ? "" : " · außerhalb des Dokumentdatums"}</option>)}</select>{leases.length === 0 && <small>Für dieses Mitglied sind keine fachlichen Pachtbeziehungen lesbar.</small>}</label>{leaseProofStatusError && <p className="notice" role="alert">{leaseProofStatusError}</p>}{leaseId && leaseProofStatuses.get(Number(leaseId)) && <DocumentProofStatusDisplay subject="Pachtvertrag" status={leaseProofStatuses.get(Number(leaseId))!} dateLabel="Vertragsdatum" onOpenDocument={openStatusDocument} />}</>}
       {needsAssignment && <label>Wartungsvertragszuordnung<select value={assignmentId} disabled={!maintenanceAllowed} onChange={(event) => setAssignmentId(event.target.value)}><option value="">Wartungsvertragszuordnung wählen</option>{assignments.map((item) => <option key={item.id} value={item.id}>{maintenanceLabel(item)}</option>)}</select>{!maintenanceAllowed && <small>Diese Zuordnung kann nur im Kontext des Hauptmitglieds registriert werden.</small>}</label>}
     </fieldset>}
-    <div className="editor-actions"><button disabled={loading || phase !== "idle"} onClick={() => void submit()}>{phase === "upload" ? "Datei wird hochgeladen …" : phase === "register" ? "Dokument wird fachlich zugeordnet …" : pending ? "Zuordnung erneut versuchen" : "Hochladen und zuordnen"}</button><button className="secondary-action" disabled={phase !== "idle"} onClick={onClose}>Schließen</button></div>
+    {isHistoricalCombinedContract && registeredDocumentId && <p><strong>{contractNumber ? `Vertrags-Nr. ${contractNumber}` : "Noch keine Vertragsnummer zugewiesen."}</strong> Die Nummer wird erst durch die bewusste Aktion unten reserviert.</p>}
+    <div className="editor-actions">{!(isHistoricalCombinedContract && registeredDocumentId) && <button disabled={loading || phase !== "idle"} onClick={() => void submit()}>{phase === "upload" ? "Datei wird hochgeladen …" : phase === "register" ? "Dokument wird fachlich zugeordnet …" : pending ? "Zuordnung erneut versuchen" : "Hochladen und zuordnen"}</button>}{isHistoricalCombinedContract && registeredDocumentId && !contractNumber && <button disabled={phase !== "idle"} onClick={() => void assignContractNumber()}>{phase === "assign-number" ? "Vertragsnummer wird zugewiesen …" : "Nummer zuweisen"}</button>}<button className="secondary-action" disabled={phase !== "idle"} onClick={onClose}>Schließen</button></div>
   </section></div>;
 }

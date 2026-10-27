@@ -3553,6 +3553,30 @@ namespace KGV.Infrastructure.Services
             return rows?.SingleOrDefault() ?? throw new InvalidOperationException("Die fachliche Dokumentzuordnung wurde nicht bestätigt.");
         }
 
+        public async Task<HistorischeVertragsnummerResult> ReserveHistorischeVertragsnummerAsync(long dokumentId)
+        {
+            if (dokumentId <= 0) throw new ArgumentOutOfRangeException(nameof(dokumentId));
+            var token = await _authService.GetAccessTokenAsync();
+            if (string.IsNullOrWhiteSpace(token)) throw new InvalidOperationException("Die aktuelle Anmeldung ist abgelaufen. Bitte erneut anmelden.");
+            if (string.IsNullOrWhiteSpace(_supabaseUrl) || string.IsNullOrWhiteSpace(_publishableKey)) throw new InvalidOperationException("Supabase-URL oder Publishable Key ist nicht konfiguriert.");
+
+            var endpoint = new Uri(new Uri(_supabaseUrl.TrimEnd('/') + "/"), $"functions/v1/{DokumentUploadFunctionName}");
+            using var message = new HttpRequestMessage(HttpMethod.Post, endpoint)
+            {
+                Content = new StringContent(JsonSerializer.Serialize(new { action = "reserve_historical_contract_number", document_id = dokumentId }), Encoding.UTF8, "application/json")
+            };
+            message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            message.Headers.Add("apikey", _publishableKey);
+            using var response = await _documentUploadHttpClient.SendAsync(message, HttpCompletionOption.ResponseHeadersRead);
+            var body = await response.Content.ReadAsStringAsync();
+            var result = DeserializeHistorischeVertragsnummerResponse(body);
+            if (!response.IsSuccessStatusCode)
+                throw new InvalidOperationException(result?.Message ?? "Die historische Vertragsnummer konnte nicht zugewiesen werden.");
+            if (result?.Nummer is < 80000 or > 89999)
+                throw new InvalidOperationException("Die historische Vertragsnummer-Antwort ist ungültig.");
+            return new HistorischeVertragsnummerResult(result.Nummer.Value, result.Titel ?? $"Vertrags-Nr. {result.Nummer}", result.PdfGestempelt);
+        }
+
         public async Task<DokumentNachweisstatus?> GetMitgliedsantragNachweisstatusAsync(int mitgliedId)
         {
             if (mitgliedId <= 0) return null;
@@ -8497,6 +8521,13 @@ namespace KGV.Infrastructure.Services
             }
         }
 
+        private static HistorischeVertragsnummerResponse? DeserializeHistorischeVertragsnummerResponse(string? rawBody)
+        {
+            if (string.IsNullOrWhiteSpace(rawBody)) return null;
+            try { return JsonSerializer.Deserialize<HistorischeVertragsnummerResponse>(rawBody); }
+            catch { return null; }
+        }
+
         private static MitgliedRegelwerkeVersandFunctionResponse? DeserializeMitgliedRegelwerkeVersandResponse(string? rawBody)
         {
             if (string.IsNullOrWhiteSpace(rawBody))
@@ -8593,6 +8624,14 @@ namespace KGV.Infrastructure.Services
                 get => SizeBytes;
                 set => SizeBytes ??= value;
             }
+        }
+
+        private sealed class HistorischeVertragsnummerResponse
+        {
+            [JsonPropertyName("nummer")] public int? Nummer { get; set; }
+            [JsonPropertyName("titel")] public string? Titel { get; set; }
+            [JsonPropertyName("pdf_gestempelt")] public bool PdfGestempelt { get; set; }
+            [JsonPropertyName("message")] public string? Message { get; set; }
         }
 
         private static string? FirstNonEmpty(params string?[] values)

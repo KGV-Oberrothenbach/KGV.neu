@@ -20,13 +20,13 @@ Fundstelle: `supabase/migrations/20261025130000_nb1_fachnummern_fundament.sql`.
 - `trg_reserve_vertragsnummer` reserviert beim ersten Statuswechsel eines `kommunikationsvorgang` nach `zur_signatur` für Antrag, Pacht und Wartung. Das Demo-Flag stammt aus `mitglied.is_demo`.
 - Tabelle und Funktion sind für `anon` gesperrt; `authenticated` darf lesen und die Funktion ausführen.
 
-Offener technischer Befund: `reserve_fachnummer` führt „lesen, nextval, insert“ ohne Konfliktbehandlung aus. Gleichzeitige erste Reservierungen für dieselbe Quelle können eine Unique-Verletzung auslösen und eine Sequenznummer zusätzlich verbrauchen. Es entsteht keine doppelte Zuweisung, aber der Retry ist in diesem Parallelfall nicht robust.
+**B2-Status:** Eine neue, nicht ausgeführte Migration ersetzt die Funktion mit einer quellbezogenen Transaktionssperre. Gleichzeitige erste Reservierungen derselben Quelle erhalten dieselbe Reservierung; für unterschiedliche Quellen besteht keine globale Sperre. Eine vorhandene Quelle mit abweichender `art` wird mit einer fachlichen Fehlermeldung abgelehnt.
 
 | Nummernart | Workflow | Reservierung | Anzeige | Retry | Korrektur/Verlängerung | Bewertung | Änderung nötig |
 |---|---|---|---|---|---|---|---|
 | 10xxx | Mitgliedsantrag | Trigger bei `zur_signatur`, Quelle `kommunikationsvorgang` | PDF, Aufnahmebestätigung und Dateiname | gleiche Quellreservierung wird gelesen | neuer Vorgang erhält neue Quelle | OK | Nein |
 | 20xxx | Pachtvertrag | Trigger bei `zur_signatur`, Quelle `kommunikationsvorgang` | Dateiname; nicht im PDF-Feld/Titel | vorhandenes Finaldokument wird je Revision wiederverwendet | Korrekturbezug nicht modelliert | FEHLER | Ja |
-| 80xxx | historischer Kombivertrag | keine Anbindung gefunden | keine Anzeige | Altimport ist fachlich idempotent, aber ohne Nummer | nicht anwendbar | FEHLT | Ja |
+| 80xxx | historischer Kombivertrag | ausdrückliche Aktion nach fachlicher Zuordnung, Quelle `historisches_dokument`/`dokument.id` | Titel, Metadaten, Ansicht und PDF-Stempel | dieselbe Quellreservierung | nicht anwendbar | OK | Nein |
 | 90xxx | Wartungsvertrag | Trigger bei `zur_signatur`, Quelle `kommunikationsvorgang` | Dateiname; nicht im PDF-Feld/Titel | vorhandenes Finaldokument wird wiederverwendet | Verlängerung erzeugt bewusst keine neue Reservierung | FEHLER | Ja |
 
 ## Mitgliedsantrag 10xxx
@@ -53,9 +53,11 @@ Zusätzlicher Fehler im aktiven Alt-Signierpfad `sign-existing`: `Pachtvertrag-s
 
 Der Altimport (`HistoricalDocumentImportPage`, `HistoricalDocumentUploadDialog`, `register_historisches_dokument`) übernimmt einen vom Nutzer gewählten Scan und ordnet Typ, Mitglied, Parzelle und Wirkungen atomar zu. Die Registrierungsfunktion prüft Wiederholungen auf denselben vollständigen Fachzustand; sie erzeugt keine zweite Pachtvertragsfassung oder Wartungszuordnung.
 
-Es gibt aber keine UI-, Service- oder SQL-Anbindung an `reserve_fachnummer('historischer_kombivertrag', 'historisches_dokument', …)`. 80xxx kann deshalb weder ausdrücklich zugewiesen noch im Stempel, Titel, Metadaten, Downloadnamen oder Versand dargestellt werden. Die vorgegebene manuelle Zuweisungsaktion ist somit noch nicht implementiert, nicht etwa automatisch zu ersetzen.
+**B2 umgesetzt:** Nach der fachlichen Zuordnung zeigen Web und MAUI ausdrücklich `Nummer zuweisen`. Erst diese bewusste Aktion ruft die gemeinsame Backend-Aktion auf. Die stabile Quelle ist die hochgeladene `dokument.id`, als `quelle_art = historisches_dokument`; beim Öffnen, der Scan-, Mitglieds- oder Parzellenauswahl wird keine Nummer reserviert. Wiederholungen verwenden dieselbe Reservierung.
 
-**Bewertung: FEHLT.**
+Das Backend leitet `is_demo` ausschließlich aus `dokument.mitglied_id -> mitglied.is_demo` ab. Es führt die 80xxx sichtbar in Titel und Metadaten. PDFs werden serverseitig mit `Vertrags-Nr. 80xxx` gestempelt; JPG/PNG/WebP und andere Bildscans bleiben grafisch unverändert und führen die Nummer über Titel und Metadaten. Der Originaldateiname bleibt erhalten; eine technische ID wird nicht als Vertragsnummer verwendet.
+
+**Bewertung: OK.**
 
 ## Wartungsvertrag 90xxx
 
@@ -80,15 +82,15 @@ Die verbindliche Regel „neuer Korrektur-/Ersatzvertrag mit neuer 20xxx, Vorgä
 - Die Quelleneindeutigkeit macht wiederholte sequenzielle `reserve_fachnummer`-Aufrufe idempotent.
 - Antrags-, Pacht- und Wartungsfinalisierung suchen vorhandene Dokumente nach Kommunikationsvorgang und Revision und verwenden sie wieder.
 - Altimportregistrierung ist bei identischem Fachzustand idempotent.
-- Die unter „Fundament“ genannte Parallelrace ist offen; sie kann keine Nummer doppelt vergeben, aber einen ersten Aufruf mit Konflikt scheitern lassen und eine Nummer zusätzlich verbrauchen.
+- Die B2-Sperre macht auch parallele Erstreservierungen derselben Quelle idempotent. Ein technischer Sequenzsprung bleibt zulässig, eine doppelte Reservierung oder ein sichtbarer Unique-Fehler nicht.
 
-**Bewertung: FEHLER (nur parallele Erstreservierung).**
+**Bewertung: OK.**
 
 ## Demo / Produktion
 
-Die acht Sequenzen sind je Nummernart strikt getrennt. Für Kommunikationsvorgänge bestimmt der Trigger die Wahl über `mitglied.is_demo`; die Reservierung enthält das gleiche Flag im Primär- und Unique-Schlüssel. Für den noch fehlenden historischen Reservierungsaufruf muss das Demo-Flag aus dem historischen Dokument bzw. dessen Mitglied fachlich festgelegt und explizit übergeben werden.
+Die acht Sequenzen sind je Nummernart strikt getrennt. Für Kommunikationsvorgänge bestimmt der Trigger die Wahl über `mitglied.is_demo`; die Reservierung enthält das gleiche Flag im Primär- und Unique-Schlüssel. Für den historischen Kombivertrag liest die gemeinsame Backend-Aktion das Flag ausschließlich über das ausgewählte Mitglied des historischen Dokuments.
 
-**Bewertung: OK für 10xxx/20xxx/90xxx; FEHLT für 80xxx.**
+**Bewertung: OK.**
 
 ## Sichtbare technische IDs
 
@@ -104,7 +106,6 @@ Die übrigen geprüften IDs in FKs, RPC-Parametern, Navigation und Provenance bl
 ## Offene Fachentscheidungen
 
 1. **Grundlegende Wartungsvertragsänderung:** Die Abgrenzung zur Verlängerung und der Auslöser für einen neuen Wartungsvertrag mit neuer 90xxx-Nummer fehlen.
-2. **Historischer Kombivertrag:** Der Auftrag fordert eine explizite manuelle 80xxx-Zuweisung. Zu entscheiden bleibt nur, an welcher Prüf-/Freigabestufe diese Aktion verbindlich erfolgt und wie das Demo-Flag bei Altmaterial bestimmt wird.
 
 ## Vorgeschlagene Umsetzungsblöcke
 
@@ -128,5 +129,15 @@ Die übrigen geprüften IDs in FKs, RPC-Parametern, Navigation und Provenance bl
 | Korrektur-/Verlängerungsprobleme | 2 |
 
 **NB-2B-A1 Fachnummern-Audit = 100 %.**
+
+## NB-2B-B2 Abschluss
+
+- Reservierungsrobustheit: **OK**
+- 80xxx historischer Kombivertrag: **OK**
+- Demo/Produktion 80xxx: **OK**
+- Gemeinsame Backendlogik für Web und MAUI: **OK**
+- Migration erstellt, aber nicht ausgeführt.
+
+**NB-2B-B2 = 100 %.**
 
 **NB-2B noch NICHT = 100 %.**

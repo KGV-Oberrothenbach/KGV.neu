@@ -31,6 +31,7 @@ public sealed class DokumenttypWirkungRecord : BaseModel
 public sealed record DokumenttypItem(long Id, string Bezeichnung, bool Aktiv, int Sortierung, IReadOnlyList<string> Wirkungen);
 public sealed record HistorischesDokumentRegistrierungRequest(long DokumentId, long DokumenttypId, DateTime Dokumentdatum, bool Unterzeichnet, long? PachtverhaeltnisId, long? WartungsvertragZuordnungId);
 public sealed record HistorischesDokumentRegistrierungResult(long DokumentId, long DokumenttypId, DateTime Dokumentdatum, bool Unterzeichnet, long? PachtvertragsfassungId, long? WartungsvertragZuordnungId);
+public sealed record HistorischeVertragsnummerResult(int Nummer, string Titel, bool PdfGestempelt);
 
 [Table("pachtverhaeltnis_beteiligung")]
 public sealed class PachtverhaeltnisBeteiligungRecord : BaseModel

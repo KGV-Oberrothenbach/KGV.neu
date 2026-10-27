@@ -19,6 +19,7 @@ public sealed class HistoricalDocumentImportPage : ContentPage
     private readonly Picker _assignment = new() { Title = "Wartungsvertragszuordnung auswählen", IsVisible = false };
     private readonly Label _file = new() { Text = "Keine Datei ausgewählt." };
     private readonly Label _status = new() { LineBreakMode = LineBreakMode.WordWrap };
+    private readonly Button _assignNumber = new() { Text = "Nummer zuweisen", IsVisible = false };
     private readonly List<DokumenttypItem> _types = [];
     private readonly List<HistorischePachtbeziehung> _leases = [];
     private readonly List<HistorischeWartungsvertragZuordnung> _assignments = [];
@@ -33,7 +34,8 @@ public sealed class HistoricalDocumentImportPage : ContentPage
         var camera = new Button { Text = "Foto aufnehmen", IsVisible = MediaPicker.Default.IsCaptureSupported }; camera.Clicked += async (_, _) => await SelectFileAsync(true);
         var save = new Button { Text = "Hochladen und zuordnen" }; save.Clicked += async (_, _) => await UploadAndRegisterAsync();
         var retry = new Button { Text = "Offene Zuordnung erneut versuchen" }; retry.Clicked += async (_, _) => await RetryAsync();
-        Content = new ScrollView { Content = new VerticalStackLayout { Padding = 24, Spacing = 12, Children = { new Label { Text = "Historisches Mitgliedsdokument", FontSize = 22, FontAttributes = FontAttributes.Bold }, _file, pick, camera, _type, _date, new HorizontalStackLayout { Children = { new Label { Text = "Unterzeichnet" }, _signed } }, _lease, _assignment, save, retry, _status } } };
+        _assignNumber.Clicked += async (_, _) => await AssignNumberAsync();
+        Content = new ScrollView { Content = new VerticalStackLayout { Padding = 24, Spacing = 12, Children = { new Label { Text = "Historisches Mitgliedsdokument", FontSize = 22, FontAttributes = FontAttributes.Bold }, _file, pick, camera, _type, _date, new HorizontalStackLayout { Children = { new Label { Text = "Unterzeichnet" }, _signed } }, _lease, _assignment, save, retry, _assignNumber, _status } } };
         Appearing += async (_, _) => await LoadAsync();
     }
 
@@ -99,6 +101,16 @@ public sealed class HistoricalDocumentImportPage : ContentPage
         try
         {
             await _supabase.RegisterHistorischesDokumentAsync(new HistorischesDokumentRegistrierungRequest(pending.DokumentId, pending.DokumenttypId, pending.Dokumentdatum, pending.Unterzeichnet, pending.PachtverhaeltnisId, pending.WartungsvertragZuordnungId));
+            var type = _types.FirstOrDefault(x => x.Id == pending.DokumenttypId);
+            var isHistoricalCombinedContract = type?.Wirkungen.Contains(DokumenttypWirkung.MitgliedsantragNachweis) == true
+                && type.Wirkungen.Contains(DokumenttypWirkung.PachtvertragNachweis);
+            if (isHistoricalCombinedContract)
+            {
+                _assignNumber.IsVisible = true;
+                _assignNumber.CommandParameter = pending;
+                _status.Text = "Dokument fachlich zugeordnet. Prüfen Sie die Angaben und weisen Sie anschließend ausdrücklich die Vertragsnummer zu.";
+                return;
+            }
             _queue.Remove(pending.Id);
             _status.Text = "Dokument fachlich zugeordnet.";
             if (RegistrationCompleted != null)
@@ -106,5 +118,24 @@ public sealed class HistoricalDocumentImportPage : ContentPage
             await Navigation.PopAsync();
         }
         catch { _status.Text = "Die Datei wurde gespeichert, die fachliche Zuordnung konnte jedoch noch nicht abgeschlossen werden. Sie können die Zuordnung erneut versuchen, ohne die Datei erneut hochzuladen."; }
+    }
+
+    private async Task AssignNumberAsync()
+    {
+        if (_busy || _assignNumber.CommandParameter is not HistoricalDocumentRegistrationPending pending) return;
+        _busy = true;
+        try
+        {
+            var result = await _supabase.ReserveHistorischeVertragsnummerAsync(pending.DokumentId);
+            _queue.Remove(pending.Id);
+            _assignNumber.IsVisible = false;
+            _status.Text = result.PdfGestempelt
+                ? $"Vertrags-Nr. {result.Nummer} wurde zugewiesen und im PDF gespeichert."
+                : $"Vertrags-Nr. {result.Nummer} wurde zugewiesen. Der Bildscan bleibt unverändert; Titel und Metadaten führen die Nummer.";
+            if (RegistrationCompleted != null)
+                await RegistrationCompleted.Invoke();
+        }
+        catch (Exception ex) { _status.Text = $"Die Vertragsnummer konnte nicht zugewiesen werden: {ex.Message}"; }
+        finally { _busy = false; }
     }
 }

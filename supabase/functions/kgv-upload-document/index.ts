@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { PDFDocument, StandardFonts, rgb } from "npm:pdf-lib@1.17.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -46,6 +47,11 @@ type ArchiveDocumentRequest = {
   reason?: string | null;
 };
 
+type HistoricalContractNumberRequest = {
+  action?: string | null;
+  document_id?: number | string | null;
+};
+
 type AuthenticatedDocumentUser = {
   userId: string;
   role: string;
@@ -61,6 +67,8 @@ type DriveDocumentRecord = {
   dateiname: string | null;
   mime_type: string | null;
   archiviert_at: string | null;
+  historische_vertragsnummer?: number | null;
+  historische_vertragsnummer_pdf_gestempelt_am?: string | null;
 };
 
 const supportedDocumentTypes: Record<string, readonly string[]> = {
@@ -686,6 +694,52 @@ async function downloadDriveDocument(accessToken: string, driveFileId: string): 
   return response;
 }
 
+async function replaceDriveFileContent(accessToken: string, driveFileId: string, content: Uint8Array): Promise<void> {
+  const url = new URL(`https://www.googleapis.com/upload/drive/v3/files/${encodeURIComponent(driveFileId)}`);
+  url.searchParams.set("uploadType", "media");
+  url.searchParams.set("supportsAllDrives", "true");
+  const response = await fetch(url, {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/pdf" },
+    body: content,
+    signal: AbortSignal.timeout(DRIVE_UPLOAD_TIMEOUT_MS),
+  });
+  if (!response.ok) throw new Error(`Drive PDF update failed: ${await response.text()}`);
+}
+
+async function stampHistoricalContractPdf(bytes: ArrayBuffer, nummer: number): Promise<Uint8Array> {
+  const pdf = await PDFDocument.load(bytes);
+  const page = pdf.getPages()[0];
+  if (!page) throw new Error("Das PDF enthält keine Seite.");
+  const font = await pdf.embedFont(StandardFonts.HelveticaBold);
+  const text = `Vertrags-Nr. ${nummer}`;
+  const width = font.widthOfTextAtSize(text, 11);
+  page.drawRectangle({ x: page.getWidth() - width - 42, y: page.getHeight() - 42, width: width + 14, height: 20, color: rgb(1, 1, 1), opacity: 0.92 });
+  page.drawText(text, { x: page.getWidth() - width - 35, y: page.getHeight() - 35, size: 11, font, color: rgb(0.05, 0.05, 0.05) });
+  return await pdf.save();
+}
+
+async function reserveHistoricalContractNumber(auth: { supabaseAdmin: ReturnType<typeof createClient>; role: string }, document: DriveDocumentRecord, documentId: number) {
+  const { data, error } = await auth.supabaseAdmin.rpc("reserve_historische_vertragsnummer", { p_dokument_id: documentId });
+  if (error || !Array.isArray(data) || data.length !== 1) throw new Error(`Historische Vertragsnummer konnte nicht reserviert werden: ${error?.message ?? "ungültige Antwort"}`);
+  const reservation = data[0] as { nummer: number; titel: string; mime_type: string | null; pdf_bereits_gestempelt: boolean };
+  const nummer = Number(reservation.nummer);
+  if (!Number.isInteger(nummer) || nummer < 80000 || nummer > 89999) throw new Error("Die reservierte historische Vertragsnummer ist ungültig.");
+
+  const isPdf = (reservation.mime_type ?? document.mime_type ?? "").toLowerCase() === "application/pdf";
+  if (isPdf && !reservation.pdf_bereits_gestempelt) {
+    const driveFileId = (document.drive_file_id ?? "").trim();
+    if (!driveFileId) throw new Error("Das PDF besitzt keine Google-Drive-Dateireferenz.");
+    const accessToken = await getGoogleAccessToken();
+    const source = await downloadDriveDocument(accessToken, driveFileId);
+    await replaceDriveFileContent(accessToken, driveFileId, await stampHistoricalContractPdf(await source.arrayBuffer(), nummer));
+    const { error: markError } = await auth.supabaseAdmin.rpc("mark_historische_vertragsnummer_pdf_gestempelt", { p_dokument_id: documentId, p_nummer: nummer });
+    if (markError) throw new Error(`PDF-Stempel konnte nicht bestätigt werden: ${markError.message}`);
+  }
+
+  return { nummer, titel: reservation.titel, pdf_gestempelt: isPdf };
+}
+
 Deno.serve(async (req) => {
   const requestId = createRequestId();
   let uploadedDriveFileId: string | null = null;
@@ -703,7 +757,7 @@ Deno.serve(async (req) => {
     const authHeader = req.headers.get("Authorization") ?? "";
 
     if (req.method === "POST" && (req.headers.get("content-type") ?? "").toLowerCase().includes("application/json")) {
-      const payload = await req.json() as DownloadDocumentRequest & ArchiveDocumentRequest;
+      const payload = await req.json() as DownloadDocumentRequest & ArchiveDocumentRequest & HistoricalContractNumberRequest;
       const action = (payload.action ?? "").trim().toLowerCase();
       if (action === "archive") {
         const documentId = Number(payload.document_id);
@@ -738,6 +792,18 @@ Deno.serve(async (req) => {
 
         logStep("document archived", { documentId, userId: auth.userId });
         return json(200, { success: true, message: "Dokument wurde archiviert.", request_id: requestId });
+      }
+
+      if (action === "reserve_historical_contract_number") {
+        const documentId = Number(payload.document_id);
+        if (!Number.isSafeInteger(documentId) || documentId <= 0)
+          return errorResponse(400, "BAD_REQUEST", "document_id fehlt oder ist ungültig.", requestId);
+        const auth = await requireAdminOrVorstand(authHeader);
+        if (!auth.ok) return errorResponse(auth.status, "FORBIDDEN", auth.message, requestId);
+        const document = await mayReadDocument(auth, documentId);
+        if (!document) return errorResponse(403, "FORBIDDEN", "Dieses Dokument ist für den aktuellen Benutzer nicht freigegeben.", requestId);
+        const result = await reserveHistoricalContractNumber(auth, document, documentId);
+        return json(200, { success: true, ...result, request_id: requestId });
       }
 
       if (action !== "download") {

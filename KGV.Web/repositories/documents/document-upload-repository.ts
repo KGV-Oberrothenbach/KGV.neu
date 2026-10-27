@@ -10,6 +10,16 @@ type DocumentUploadResponse = {
   request_id?: string;
 };
 
+type HistoricalContractNumberResponse = {
+  success?: boolean;
+  nummer?: number;
+  titel?: string;
+  pdf_gestempelt?: boolean;
+  message?: string;
+  error_code?: string;
+  request_id?: string;
+};
+
 export class DocumentUploadError extends Error {
   readonly status: number;
   readonly errorCode: string | null;
@@ -38,4 +48,19 @@ export async function uploadDocumentForOwnerRequest(club: ClubContext, session: 
   if (!response.ok) throw new DocumentUploadError(response.status, payload);
   if (!payload?.document) throw new DocumentUploadError(response.status, { ...payload, error_code: payload?.error_code ?? "UPLOAD_RESPONSE_INVALID", message: payload?.message ?? "Der Server lieferte keinen Dokumentdatensatz." });
   return payload.document;
+}
+
+export async function reserveHistoricalContractNumberRequest(club: ClubContext, session: BrowserSession, documentId: number) {
+  const response = await invokeEdgeFunctionRaw({ club, session }, "kgv-upload-document", {
+    method: "POST",
+    body: JSON.stringify({ action: "reserve_historical_contract_number", document_id: documentId }),
+    contentType: "application/json",
+  });
+  const payload = await response.json().catch(() => null) as HistoricalContractNumberResponse | null;
+  if (!response.ok) throw new DocumentUploadError(response.status, payload);
+  const nummer = Number(payload?.nummer);
+  if (!Number.isInteger(nummer) || nummer < 80000 || nummer > 89999) {
+    throw new DocumentUploadError(response.status, { ...payload, error_code: "HISTORICAL_NUMBER_RESPONSE_INVALID", message: payload?.message ?? "Der Server lieferte keine gültige historische Vertragsnummer." });
+  }
+  return { nummer, titel: payload?.titel ?? `Vertrags-Nr. ${nummer}`, pdfGestempelt: payload?.pdf_gestempelt === true };
 }
