@@ -210,6 +210,7 @@ namespace KGV.Core.Interfaces
         Task<string?> ResolveAblesungFotoOpenUrlAsync(string? fotoPfad, string? fotoDriveFileId, int expiresInSeconds = 3600);
         Task<PflichtstundenUebersichtRecord?> GetPflichtstundenUebersichtForMitgliedAsync(int mitgliedId);
         Task<WartungsvertragRecord?> GetWartungsvertragByIdAsync(long wartungsvertragId);
+        Task<int?> GetWartungsvertragFachnummerAsync(long wartungsvertragId);
         Task<List<WartungsvertragOverviewItem>> GetWartungsvertraegeOverviewAsync();
         Task<WartungsvertragDetailItem?> GetWartungsvertragDetailAsync(long wartungsvertragId);
         Task<List<MemberWartungsvertragItem>> GetWartungsvertraegeForMitgliedAsync(int mitgliedId);
@@ -224,6 +225,7 @@ namespace KGV.Core.Interfaces
         Task<List<WartungsvertragFortfuehrungDetail>> GetAuslaufendeWartungsvertragZuordnungenAsync();
         Task<WartungsvertragFortfuehrungDetail?> GetWartungsvertragFortfuehrungDetailAsync(long vorgaengerZuordnungId);
         Task<WartungsvertragVerlaengerungResult> VerlaengereWartungsvertragAsync(long vorgaengerZuordnungId, DateTime neuesGueltigBis, DateTime vorstandsbeschlussdatum, string? bemerkung);
+        Task<WartungsvertragGrundlegendeAenderungResult> StarteWartungsvertragGrundlegendeAenderungAsync(WartungsvertragGrundlegendeAenderungRequest request);
         Task NichtverlaengerungEntscheidenAsync(long vorgaengerZuordnungId, string initiator, DateTime entscheidungsdatum, DateTime? vorstandsbeschlussdatum, string? begruendung);
         Task NichtverlaengerungZuruecknehmenAsync(long folgeentscheidungId, string? ruecknahmebegruendung);
         Task DokumenterzeugungWartungsvertragVerlaengerungWiederholenAsync(long hauptmitgliedId, long kommunikationsvorgangId);

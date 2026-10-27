@@ -4,6 +4,7 @@ namespace KGV.Core.Models;
 
 public sealed class MemberWartungsvertragItem : WartungsvertragOverviewItem
 {
+    public int? Vertragsnummer { get; init; }
     public long ZuordnungId { get; init; }
     public DateTime GueltigAb { get; init; }
     public DateTime? GueltigBis { get; init; }

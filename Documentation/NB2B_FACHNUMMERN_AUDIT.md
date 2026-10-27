@@ -27,7 +27,7 @@ Fundstelle: `supabase/migrations/20261025130000_nb1_fachnummern_fundament.sql`.
 | 10xxx | Mitgliedsantrag | Trigger bei `zur_signatur`, Quelle `kommunikationsvorgang` | PDF, Aufnahmebestätigung und Dateiname | gleiche Quellreservierung wird gelesen | neuer Vorgang erhält neue Quelle | OK | Nein |
 | 20xxx | Pachtvertrag | Trigger bei `zur_signatur`, Quelle `kommunikationsvorgang` | PDF, Titel, Dateiname und Vertragsfassungsansicht | vorhandenes Finaldokument wird je Revision wiederverwendet | echte unmittelbare Ersatzkette | OK | Nein |
 | 80xxx | historischer Kombivertrag | ausdrückliche Aktion nach fachlicher Zuordnung, Quelle `historisches_dokument`/`dokument.id` | Titel, Metadaten, Ansicht und PDF-Stempel | dieselbe Quellreservierung | nicht anwendbar | OK | Nein |
-| 90xxx | Wartungsvertrag | Trigger bei `zur_signatur`, Quelle `kommunikationsvorgang` | Dateiname; nicht im PDF-Feld/Titel | vorhandenes Finaldokument wird wiederverwendet | Verlängerung erzeugt bewusst keine neue Reservierung | FEHLER | Ja |
+| 90xxx | Wartungsvertrag | Trigger bei `zur_signatur`, kanonische Quelle `wartungsvertrag_id` | versioniertes v2-PDF, Titel, Dateiname, Mitglieds- und Workflowansichten | vorhandene Reservierung und Finaldokument werden wiederverwendet | normale Verlängerung behält dieselbe 90xxx; grundlegende Änderung erhält eine neue | OK (B4, Repository-Stand) | Nein |
 
 ## Mitgliedsantrag 10xxx
 
@@ -61,13 +61,17 @@ Das Backend leitet `is_demo` ausschließlich aus `dokument.mitglied_id -> mitgli
 
 ## Wartungsvertrag 90xxx
 
-`ensure_wartungsvertrag_prepared_contract` erstellt einen vorbereiteten Signaturvorgang; `MaintenanceContractSignatureFlow` startet ihn über `start_prepared_contract_signature`. Der Trigger reserviert dadurch eine 90xxx-Nummer. Der Edge-Renderer liest sie für den Dateinamen `Wartungsvertrag-90xxx_…pdf`; Wiederholungen finden das bereits vorhandene Finaldokument über Vorgang, Revision und Zuordnung.
+**B4-Abschluss im Repository-Stand:** `fachnummer_reservierung` ist die einzige Quelle. Die neue Migration macht die Nummer über `v_wartungsvertrag_fachnummer` pro `wartungsvertrag_id` kanonisch; der Statuswechsel eines Prepared-Vorgangs nach `zur_signatur` reserviert die Nummer für genau diese Vertragsdefinition. Vorher bleibt die Vorschau ohne Nummer. Bei finaler Erzeugung verwenden PDF-Feld, Titel, Dateiname und Metadaten dieselbe 90xxx. Die v1-Artefakte bleiben unverändert; Wartungsvertrag und Verlängerungsmitteilung erhalten versionierte v2-Artefakte mit `vertragsnummer`.
 
-Das Wartungsvertragstemplate v1 besitzt kein Vertragsnummernfeld. Titel, Dokumentmetadaten und die sichtbaren Workflowansichten zeigen die 90xxx-Nummer nicht. Die Verlängerungsmitteilung arbeitet bewusst mit einem eigenen Dokumentvorgang und erhält keine neue Reservierung; sie zeigt aber auch nicht die Nummer des fortgeführten Wartungsvertrags.
+Eine normale Verlängerung behält dieselbe `wartungsvertrag_id` und dieselbe 90xxx. Ihre Mitteilung referenziert „Wartungsvertrag Nr. 90xxx“ und erzeugt keine eigene Nummer. Wiederholungen verwenden die vorhandene Reservierung und das bereits gespeicherte Dokument.
 
-Eine normale Verlängerung behält technisch dieselbe `wartungsvertrag_id`, wie die Fortführungsfunktionen verlangen. Ob eine grundlegende Änderung einen neuen Wartungsvertrag und damit eine neue 90xxx anlegt, ist im aktuellen Code nicht als fachlicher Entscheidungs- oder Nachfolgepfad erkennbar.
+Eine grundlegende Änderung wird ausschließlich durch die ausdrückliche Aktion „Neuen Wartungsvertrag wegen grundlegender Änderung erstellen“ gestartet; es gibt keinen Feldvergleich oder eine automatische Heuristik. Der Server legt einen neuen inaktiven Wartungsvertrag mit technischer Vorgängerzuordnung und einen Prepared-Signaturvorgang an, aber noch keine neue Nummer oder neue Zuordnung. Erst der normale Signaturstart reserviert die neue 90xxx. Erst der erfolgreiche Abschluss nach vollständigen Unterschriften und finalem Dokument aktiviert den neuen Vertrag, legt die neue Zuordnung an und beendet nötigenfalls die alte Laufzeit. Vorbereitung, Abbruch, Teilunterschrift und Dokumentfehler verändern den Altvertrag nicht. Eindeutige Vorgängerbindung, wiederverwendeter Vorgang/dieselbe Reservierung und idempotenter Abschluss verhindern Dubletten.
 
-**Bewertung: FEHLER; grundlegende Änderung: ENTSCHEIDUNG ERFORDERLICH.**
+Der Wartungsvertrags-Signaturflow und die Web-/MAUI-Mitglieds- und Fortführungsansichten verwenden die Vertragsnummer statt technischer Wartungsvertrags-IDs. Die gefundenen Wartungsvertrags-Fallbacks in Fortführungs-, Mitglieds- und Zuweisungsansichten sind beseitigt; andere allgemeine Vertrags-/Parzellen-ID-Fallbacks bleiben B5.
+
+Die beiden neuen Templatekatalogeinträge sind ausdrücklich `draft` und inaktiv. Die Migrationen und lokalen Artefakte sind vorbereitet; sie wurden nicht angewendet, hochgeladen oder aktiviert. Deshalb ist die PDF-Nummerndarstellung im lokalen Generator-/Field-Spec-Vertrag geprüft, nicht in einem produktiv aktivierten Template.
+
+**Bewertung: OK (B4 im Repository; operative Aktivierung bleibt separat).**
 
 ## Korrektur-/Ersatzverträge
 
@@ -98,14 +102,14 @@ Die acht Sequenzen sind je Nummernart strikt getrennt. Für Kommunikationsvorgä
 |---|---|---|
 | `kgv-generate-contract/signExisting` | Dateiname `Pachtvertrag-signiert-<dokument_id>.pdf` | FEHLER |
 | `kgv-generate-contract` Pachtwerte | Fallback `parzelle_nr = #<parzelle.id>` im PDF | FEHLER |
-| `MaintenanceContinuationPanel.tsx` | „Bestehender Wartungsvertrag #<wartungsvertrag_id>“ | FEHLER |
-| `maintenance-assignment-service.ts`, `AssignContractsToMember.tsx` | Fallback `Wartungsvertrag #<wartungsvertrag_id>` | FEHLER |
+| `MaintenanceContinuationPanel.tsx` | zuvor „Bestehender Wartungsvertrag #<wartungsvertrag_id>“ | in B4 behoben; verwendet 90xxx |
+| `maintenance-assignment-service.ts`, `AssignContractsToMember.tsx` | zuvor Fallback `Wartungsvertrag #<wartungsvertrag_id>` | in B4 behoben; verwendet 90xxx bzw. neutrale Bezeichnung |
 
 Die übrigen geprüften IDs in FKs, RPC-Parametern, Navigation und Provenance bleiben intern zulässig. Insbesondere wird keine 10xxx-, 20xxx-, 80xxx- oder 90xxx-Nummer aus einer technischen ID berechnet.
 
 ## Offene Fachentscheidungen
 
-1. **Grundlegende Wartungsvertragsänderung:** Die Abgrenzung zur Verlängerung und der Auslöser für einen neuen Wartungsvertrag mit neuer 90xxx-Nummer fehlen.
+1. **Grundlegende Wartungsvertragsänderung:** Durch NB-2B-B4 umgesetzt; kein Feldvergleich und keine automatische Heuristik.
 
 ## Vorgeschlagene Umsetzungsblöcke
 
@@ -114,7 +118,9 @@ Die übrigen geprüften IDs in FKs, RPC-Parametern, Navigation und Provenance bl
 3. **NB-2B-B4 – Wartungsvertrag 90xxx:** Sichtbarkeit in PDF, Metadaten und Verlängerungsmitteilung; danach die Entscheidung und Umsetzung für grundlegende Änderungen.
 4. **NB-2B-B5 – sichtbare technische Fallbacks:** Parzellen- und Wartungsvertrags-IDs durch neutrale/fachliche Angaben ersetzen.
 
-## Abschluss
+## Abschluss – Ausgangsbefund NB-2B-A1
+
+Die folgende Zählung dokumentiert den historischen A1-Ausgangsbefund vor B2–B4:
 
 | Kennzahl | Anzahl |
 |---|---:|
@@ -153,4 +159,19 @@ Die übrigen geprüften IDs in FKs, RPC-Parametern, Navigation und Provenance bl
 
 **NB-2B-B3 = 100 %.**
 
-**NB-2B noch NICHT = 100 %.**
+## NB-2B-B4 Abschluss
+
+- 90xxx-Quelle je Wartungsvertrag, Nummernreservierung erst bei `zur_signatur`, Vorschau vorher ohne Nummer: **OK**
+- Wartungsvertrag-PDF, Titel, Dateiname und Metadaten verwenden dieselbe reservierte 90xxx: **OK im lokalen Generator-/v2-Vertrag; v2 bleibt draft/inaktiv**
+- Normale Verlängerung behält Vertrags-ID und 90xxx; Verlängerungsmitteilung referenziert die bestehende Nummer und erzeugt keine eigene: **OK**
+- Ausdrücklicher grundlegender Änderungsstart, neuer inaktiver Vertrag, Prepared-Signaturen und neue 90xxx: **OK**
+- Altvertrag bleibt bis zum vollständigen signierten Dokumentabschluss unverändert; Abschluss und Wiederholung sind idempotent: **OK**
+- Keine automatische Feldvergleichsheuristik; Web und MAUI nutzen denselben Prepared-/Backendpfad: **OK**
+- Die gefundenen Wartungsvertrags-ID-Fallbacks in `MaintenanceContinuationPanel.tsx`, `maintenance-assignment-service.ts` und `AssignContractsToMember.tsx` sind durch 90xxx bzw. neutrale Texte ersetzt; andere allgemeine Vertrags-/Parzellen-Fallbacks bleiben B5.
+- Die Generator-Finalisierung prüft die Mitgliedsunterschrift gegen die Vertragspartei des signierten Vorgangs und unterstützt so den Grundänderungs-Prepared-Vertrag ohne aktive Zuordnung.
+- B4-Tests: **57 bestanden** (46 Web-/Generator- und 11 .NET-Tests); der Workflow-Validator unterscheidet Erstvertrag und Verlängerungsmitteilung anhand ihrer Vorgangsart. Web-, Core- und Infrastructure-Build erfolgreich. Der MAUI-Build scheitert an 53 unterschiedlichen vorhandenen Compilerfehlern (106 Meldungen über zwei Target Frameworks), darunter zwei unveränderte `LineBreakMode`-Verwendungen in der Fortführungsseite; keine B4-spezifischen Compilerfehler.
+- Schema- und Templatekatalogmigrationen sowie zwei v2-Artefaktpaare erstellt; **keine Migration angewendet**, keine Templates hochgeladen oder aktiviert.
+
+**NB-2B-B4 = 100 %.**
+
+**NB-2B bleibt nur wegen NB-2B-B5 offen.**

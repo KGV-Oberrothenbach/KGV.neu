@@ -4,6 +4,7 @@ export type CommunicationType = "vertrag_signatur" | "mail" | "druck" | "dokumen
 export type CommunicationItem = {
   id: number; vorgangstyp: CommunicationType; dokumenttyp: string; status: CommunicationStatus;
   mitglied_id: number | null; parzelle_id: number | null; revision: number; signatur_revision: number | null; signatur_gestartet_am: string | null;
+  wartungsvertrag_id?: number | null;
   final_dokument_id: number | null;
   empfaenger_email: string | null; betreff: string | null; mailtext: string | null; versendet_am: string | null; fehlertext: string | null;
   gedruckt_am: string | null; archiviert_am: string | null; zugewiesen_an: string | null;

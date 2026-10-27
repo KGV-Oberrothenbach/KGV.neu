@@ -4,15 +4,17 @@ import { type MaintenanceContract, type MaintenanceContractDraft } from "../../m
 import { maintenanceWorkHoursEffect } from "../../models/maintenance/maintenance-contract";
 import { type MaintenanceContractOverview } from "../../models/maintenance/maintenance-contract-overview";
 import { type MaintenanceAssignment } from "../../models/maintenance/maintenance-assignment";
-import { createMaintenanceContract, getMaintenanceContract, listMaintenanceContracts, type MaintenanceContractRow, type MaintenanceContractWriteRow, updateMaintenanceContract } from "../../repositories/maintenance/maintenance-contract-repository";
+import { createMaintenanceContract, getMaintenanceContract, getMaintenanceContractNumber, listMaintenanceContractNumbers, listMaintenanceContracts, type MaintenanceContractRow, type MaintenanceContractWriteRow, updateMaintenanceContract } from "../../repositories/maintenance/maintenance-contract-repository";
 import { listMaintenanceAssignmentsForContract } from "../../repositories/maintenance/maintenance-assignment-repository";
 
-function fromRow(row: MaintenanceContractRow): MaintenanceContract {
-  return { id: row.id, title: row.titel, description: row.beschreibung, area: row.bereich, maxActiveAssignments: row.max_aktive_zuordnungen, exemptsFromDutyHours: row.befreit_von_pflichtstunden, workHoursCredit: Number(row.arbeitsstunden_gutschrift), active: row.aktiv, note: row.bemerkung };
+function fromRow(row: MaintenanceContractRow, contractNumber: number | null = null): MaintenanceContract {
+  return { id: row.id, contractNumber, title: row.titel, description: row.beschreibung, area: row.bereich, maxActiveAssignments: row.max_aktive_zuordnungen, exemptsFromDutyHours: row.befreit_von_pflichtstunden, workHoursCredit: Number(row.arbeitsstunden_gutschrift), active: row.aktiv, note: row.bemerkung };
 }
 
 export async function loadMaintenanceContracts(club: ClubContext, session: BrowserSession): Promise<MaintenanceContract[]> {
-  return (await listMaintenanceContracts(club, session)).map(fromRow);
+  const [rows, numberRows] = await Promise.all([listMaintenanceContracts(club, session), listMaintenanceContractNumbers(club, session)]);
+  const numbers = new Map(numberRows.map((row) => [row.wartungsvertrag_id, row.vertragsnummer]));
+  return rows.map((row) => fromRow(row, numbers.get(row.id) ?? null));
 }
 
 export function buildMaintenanceContractOverview(contracts: MaintenanceContract[], assignments: MaintenanceAssignment[], referenceDate: string): MaintenanceContractOverview[] {
@@ -23,8 +25,8 @@ export function buildMaintenanceContractOverview(contracts: MaintenanceContract[
 }
 
 export async function loadMaintenanceContract(club: ClubContext, session: BrowserSession, id: number): Promise<MaintenanceContract | null> {
-  const row = await getMaintenanceContract(club, session, id);
-  return row ? fromRow(row) : null;
+  const [row, contractNumber] = await Promise.all([getMaintenanceContract(club, session, id), getMaintenanceContractNumber(club, session, id)]);
+  return row ? fromRow(row, contractNumber) : null;
 }
 
 export function normalizeAndValidateMaintenanceContract(draft: MaintenanceContractDraft): { payload?: MaintenanceContractWriteRow; error?: string } {

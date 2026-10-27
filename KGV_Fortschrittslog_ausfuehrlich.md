@@ -18,6 +18,46 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 - `KGV.Core`
 - `KGV.Maui`
 
+## 2026-10-27 – NB-2B-B4 Wartungsvertragsnummern
+
+- CX' lokale v2-Templateänderungen und der vorbereitete Generator-/Service-
+  Umbau wurden beibehalten und fachlich vervollständigt. Ergänzt wurden die
+  stabile Nummernquelle pro Wartungsvertrag, der Nummerntrigger bei
+  `zur_signatur`, Nummernanzeige in PDF/Dateiname/Titel/Metadaten und die
+  Nummer in Web-/MAUI-Vertragsansichten.
+- Reguläre Verlängerungen halten dieselbe Wartungsvertragsdefinition und
+  90xxx bei; Verlängerungsmitteilungen beziehen sich auf dieselbe Nummer,
+  reservieren aber keine eigene.
+- Die neue ausdrückliche Aktion für grundlegende Änderungen legt einen
+  separaten inaktiven Vertrag und Prepared-Signaturvorgang an. Erst nach allen
+  erforderlichen Signaturen und erfolgreicher Dokumentfinalisierung werden
+  neue Zuordnung/Vertragsaktivierung wirksam und die alte Laufzeit nötigenfalls
+  beendet. Vorgängerzuordnung, unique retry binding und idempotenter Abschluss
+  sichern Herkunft und Wiederholung; es gibt keine Feldvergleichs-Heuristik.
+- Eine Vertragsanbindungsprüfung wurde auf die tatsächliche Vertragspartei
+  korrigiert. Test-Fakes wurden an die bestehenden Prepared-Signaturinterfaces
+  angepasst. Wartungsvertrags-ID-Fallbacks in Fortführungs-, Mitglieds- und
+  Zuweisungsansichten wurden durch die 90xxx bzw. neutrale Bezeichnungen
+  ersetzt.
+- Die PDF-Finalisierung prüft die Mitgliedssignatur gegen die Vertragspartei
+  aus dem signierten Vorgang und kann damit auch den neuen Grundänderungs-
+  vorgang ohne aktive Zuordnung abschließen.
+- Der Dokumentworkflow-Validator unterscheidet Erstvertrag und
+  Verlängerungsmitteilung anhand ihrer Vorgangsart; ein Regressionstest sichert
+  beide Vorgänge ab.
+- Schema- und Templatekatalogmigration sowie Wartungsvertrag-/Verlängerungs-
+  v2-Artefakte sind vorbereitet. Katalogeinträge bleiben `draft`, `aktiv=false`;
+  keine Migration wurde angewendet und kein Template hochgeladen/aktiviert.
+- Verifikation: 46 gezielte Web-/Generator- und 11 fokussierte .NET-Tests
+  bestanden (57 gesamt).
+  Web-, Core- und Infrastructure-Build erfolgreich. MAUI-Build scheitert mit
+  53 vorhandenen unterschiedlichen Compilerfehlern (106 Meldungen über zwei
+  Target Frameworks), darunter zwei unveränderte `LineBreakMode`-Verwendungen
+  in der Fortführungsseite; keine B4-spezifischen Compilerfehler. Vorhandene
+  ImageSharp- und Web-Chunk-Warnungen bleiben.
+- Keine Produktionsdatenänderung, kein Supabase-Migrationslauf, kein
+  Template-Upload/-Aktivierung und kein Deployment.
+
 ## 2026-10-21 – Wartungsvertrags-Dokumentworkflow technisch vorbereitet
 
 - Die vorhandene Prepared-Contract-Architektur mit `kommunikationsvorgang`,

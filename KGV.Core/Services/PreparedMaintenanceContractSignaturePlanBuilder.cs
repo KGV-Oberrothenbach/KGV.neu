@@ -10,8 +10,8 @@ public static class PreparedMaintenanceContractSignaturePlanBuilder
     public static IReadOnlyList<PreparedContractSignatureSlot> BuildPersistent(PreparedMaintenanceContractDraft draft)
     {
         ArgumentNullException.ThrowIfNull(draft);
-        if (draft.MemberId <= 0 || draft.WartungsvertragZuordnungId <= 0 || draft.WartungsvertragId <= 0)
-            throw new PreparedContractValidationException("Die Wartungsvertragszuordnung ist für den Signaturplan unvollständig.");
+        if (draft.MemberId <= 0 || draft.WartungsvertragId <= 0)
+            throw new PreparedContractValidationException("Der Wartungsvertragsvorgang ist für den Signaturplan unvollständig.");
         return [
             new(Member, 10, true, SignaturePersonTypes.Member, "Mitglied / Vertragspartner", draft.MemberId),
             new(PreparedContractBoardSignatureKeys.Board1, 90, true, "vereinsunterzeichner", "Vorstand 1"),

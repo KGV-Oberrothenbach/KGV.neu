@@ -2,6 +2,7 @@ export type MaintenanceWorkHoursEffect = "none" | "credit" | "exempt";
 
 export type MaintenanceContract = {
   id: number;
+  contractNumber?: number | null;
   title: string;
   description: string | null;
   area: string | null;

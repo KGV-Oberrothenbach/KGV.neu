@@ -13,7 +13,7 @@ import { ensureMaintenanceDocumentWorkflow, type MaintenanceDocumentWorkflowRow 
 export { classifyMaintenanceAssignments } from "./maintenance-assignment-time-model.js";
 
 function fromRow(row: MaintenanceAssignmentRow): MaintenanceAssignment {
-  return { id: row.id, maintenanceContractId: row.wartungsvertrag_id, principalMemberId: row.hauptmitglied_id, validFrom: row.gueltig_ab, validUntil: row.gueltig_bis, note: row.bemerkung, predecessorAssignmentId: row.vorgaenger_zuordnung_id ?? null };
+  return { id: row.id, maintenanceContractId: row.wartungsvertrag_id, principalMemberId: row.hauptmitglied_id, contractPartyMemberId: row.vertragspartei_mitglied_id, validFrom: row.gueltig_ab, validUntil: row.gueltig_bis, note: row.bemerkung, predecessorAssignmentId: row.vorgaenger_zuordnung_id ?? null };
 }
 
 export type ClassifiedMaintenanceAssignments = { active: MaintenanceAssignment[]; future: MaintenanceAssignment[]; history: MaintenanceAssignment[] };
@@ -86,7 +86,7 @@ export async function loadHistoricalDocumentMaintenanceAssignments(club: ClubCon
     principalMemberId,
     assignments: assignments.map((assignment) => ({
       id: assignment.id,
-      bezeichnung: contractById.get(assignment.maintenanceContractId)?.title ?? `Wartungsvertrag #${assignment.maintenanceContractId}`,
+      bezeichnung: [contractById.get(assignment.maintenanceContractId)?.title ?? "Wartungsvertrag", contractById.get(assignment.maintenanceContractId)?.contractNumber ? `Nr. ${contractById.get(assignment.maintenanceContractId)?.contractNumber}` : null].filter(Boolean).join(" · "),
       gueltigAb: assignment.validFrom,
       gueltigBis: assignment.validUntil,
       hauptmitgliedId: assignment.principalMemberId,

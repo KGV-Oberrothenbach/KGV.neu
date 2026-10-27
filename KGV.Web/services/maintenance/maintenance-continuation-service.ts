@@ -6,6 +6,7 @@ import * as repository from "../../repositories/maintenance/maintenance-continua
 export const loadExpiringMaintenanceAssignments = repository.listExpiringMaintenanceAssignments;
 export const loadMaintenanceContinuationDetail = repository.getMaintenanceContinuationDetail;
 export const extendMaintenanceAssignment = repository.extendMaintenanceAssignment;
+export const startMaintenanceMaterialChange = repository.startMaintenanceMaterialChange;
 export const decideMaintenanceNonExtension = repository.decideMaintenanceNonExtension;
 export const withdrawMaintenanceNonExtension = repository.withdrawMaintenanceNonExtension;
 

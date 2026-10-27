@@ -23,6 +23,12 @@ const select = "id,titel,beschreibung,bereich,max_aktive_zuordnungen,befreit_von
 export const listMaintenanceContracts = (club: ClubContext, session: BrowserSession) =>
   readSupabaseRest<MaintenanceContractRow>({ club, session }, "wartungsvertraege", { select, is_demo: "eq.false", order: "titel.asc", limit: "500" });
 
+export const listMaintenanceContractNumbers = (club: ClubContext, session: BrowserSession) =>
+  readSupabaseRest<{ wartungsvertrag_id: number; vertragsnummer: number | null }>({ club, session }, "v_wartungsvertrag_fachnummer", { select: "wartungsvertrag_id,vertragsnummer", order: "wartungsvertrag_id.asc", limit: "1000" });
+
+export const getMaintenanceContractNumber = async (club: ClubContext, session: BrowserSession, id: number) =>
+  (await readSupabaseRest<{ wartungsvertrag_id: number; vertragsnummer: number | null }>({ club, session }, "v_wartungsvertrag_fachnummer", { select: "wartungsvertrag_id,vertragsnummer", wartungsvertrag_id: `eq.${id}`, limit: "1" }))[0]?.vertragsnummer ?? null;
+
 export const getMaintenanceContract = async (club: ClubContext, session: BrowserSession, id: number) =>
   (await readSupabaseRest<MaintenanceContractRow>({ club, session }, "wartungsvertraege", { select, id: `eq.${id}`, is_demo: "eq.false", limit: "1" }))[0] ?? null;
 

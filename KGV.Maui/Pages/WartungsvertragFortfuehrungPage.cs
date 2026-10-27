@@ -13,6 +13,7 @@ public sealed class WartungsvertragFortfuehrungPage : ContentPage, IQueryAttribu
     private readonly Label _status = new() { TextColor = Colors.DarkSlateBlue, LineBreakMode = LineBreakMode.WordWrap };
     private long _assignmentId;
     private WartungsvertragFortfuehrungDetail? _detail;
+    private int? _contractNumber;
     private bool _busy;
 
     public WartungsvertragFortfuehrungPage(ISupabaseService service)
@@ -34,7 +35,7 @@ public sealed class WartungsvertragFortfuehrungPage : ContentPage, IQueryAttribu
     {
         if (_busy || _assignmentId <= 0) return;
         _busy = true;
-        try { _detail = await _service.GetWartungsvertragFortfuehrungDetailAsync(_assignmentId); Render(); }
+        try { _detail = await _service.GetWartungsvertragFortfuehrungDetailAsync(_assignmentId); _contractNumber = _detail is null ? null : await _service.GetWartungsvertragFachnummerAsync(_detail.WartungsvertragId); Render(); }
         catch (Exception ex) { _status.Text = FriendlyError(ex); Render(); }
         finally { _busy = false; }
     }
@@ -45,6 +46,7 @@ public sealed class WartungsvertragFortfuehrungPage : ContentPage, IQueryAttribu
         _content.Children.Add(new Label { Text = "Wartungsvertrag fortführen", FontSize = 24, FontAttributes = FontAttributes.Bold });
         if (_detail == null) { _content.Children.Add(new Label { Text = "Die Folgeentscheidung konnte nicht geladen werden." }); return; }
         var d = _detail;
+        if (_contractNumber is { } number) _content.Children.Add(Text($"Wartungsvertrag Nr. {number}"));
         _content.Children.Add(Text($"Bisherige Laufzeit: {d.GueltigAb:dd.MM.yyyy} – {(d.GueltigBis.HasValue ? d.GueltigBis.Value.ToString("dd.MM.yyyy") : "offen")}"));
         _content.Children.Add(Text(DecisionText(d)));
         if (d.FolgezuordnungId is > 0) _content.Children.Add(Text($"Folgezuordnung: {d.FolgeWartungsvertragTitel ?? "Wartungsvertrag"} · {d.FolgeGueltigAb:dd.MM.yyyy} – {d.FolgeGueltigBis:dd.MM.yyyy}"));
@@ -52,6 +54,8 @@ public sealed class WartungsvertragFortfuehrungPage : ContentPage, IQueryAttribu
         if (d.ZurueckgenommenAm.HasValue) _content.Children.Add(Text($"Zurückgenommen am {d.ZurueckgenommenAm.Value:dd.MM.yyyy}{(string.IsNullOrWhiteSpace(d.RuecknahmeBegruendung) ? "" : $" · {d.RuecknahmeBegruendung}")}"));
         if (!string.IsNullOrWhiteSpace(d.Begruendung)) _content.Children.Add(Text($"Begründung: {d.Begruendung}"));
         _content.Children.Add(_status);
+        if (d.GueltigBis is null || d.GueltigBis >= DateTime.Today)
+            _content.Children.Add(Button("Neuen Wartungsvertrag wegen grundlegender Änderung erstellen", StartMaterialChangeAsync));
         if (d.CanDecide) { _content.Children.Add(Button("Verlängern", ExtendAsync)); _content.Children.Add(Button("Nicht verlängern", NonExtendAsync)); }
         if (d.CanWithdrawNichtverlaengerung) _content.Children.Add(Button("Nichtverlängerung zurücknehmen", WithdrawAsync));
         if (d.Entscheidung == "verlaengern" && d.DokumentId is not > 0 && d.KommunikationsvorgangId is > 0) _content.Children.Add(Button("Dokumenterzeugung erneut versuchen", RetryDocumentAsync));
@@ -72,6 +76,40 @@ public sealed class WartungsvertragFortfuehrungPage : ContentPage, IQueryAttribu
             // The continuation RPC is idempotent. Only its confirmed communication
             // process may be finalized; never derive it from the stale predecessor detail.
             await _service.DokumenterzeugungWartungsvertragVerlaengerungWiederholenAsync(result.VertragsparteiMitgliedId, result.KommunikationsvorgangId);
+        });
+    }
+
+    private async Task StartMaterialChangeAsync()
+    {
+        if (_detail is not { } detail) return;
+        var old = await _service.GetWartungsvertragByIdAsync(detail.WartungsvertragId);
+        if (old is null) { _status.Text = "Die Ausgangsdefinition des Wartungsvertrags wurde nicht gefunden."; Render(); return; }
+        var title = await DisplayPromptAsync("Grundlegende Änderung", "Titel des neuen Wartungsvertrags", initialValue: old.Titel ?? "");
+        if (title is null) return;
+        var description = await DisplayPromptAsync("Grundlegende Änderung", "Beschreibung (optional)", initialValue: old.Beschreibung ?? "");
+        if (description is null) return;
+        var area = await DisplayPromptAsync("Grundlegende Änderung", "Bereich (optional)", initialValue: old.Bereich ?? "");
+        if (area is null) return;
+        var maximumText = await DisplayPromptAsync("Grundlegende Änderung", "Maximale Zuordnungen", initialValue: old.MaxAktiveZuordnungen.ToString());
+        if (!int.TryParse(maximumText, out var maximum) || maximum < 1) { _status.Text = "Das Kontingent muss mindestens 1 betragen."; Render(); return; }
+        var hourChoice = await DisplayActionSheetAsync("Arbeitsstundenwirkung", "Abbrechen", null, "Vollbefreiung von Pflichtstunden", "Gutschrift oder keine Befreiung");
+        if (hourChoice is null or "Abbrechen") return;
+        var exempt = hourChoice == "Vollbefreiung von Pflichtstunden";
+        var creditText = exempt ? "0" : await DisplayPromptAsync("Arbeitsstundenwirkung", "Gutschrift pro Saison (0 für keine)", initialValue: old.ArbeitsstundenGutschrift.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        if (creditText is null || !decimal.TryParse(creditText, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out var credit) || credit < 0)
+        { _status.Text = "Die Gutschrift muss eine nichtnegative Zahl sein."; Render(); return; }
+        var minimumStart = new[] { DateTime.Today.AddDays(1), detail.GueltigAb.Date.AddDays(1) }.Max();
+        var startText = await DisplayPromptAsync("Grundlegende Änderung", "Neuer Vertragsbeginn (TT.MM.JJJJ)", initialValue: minimumStart.ToString("dd.MM.yyyy"));
+        if (!DateTime.TryParse(startText, out var start) || start.Date < minimumStart)
+        { _status.Text = "Der neue Vertragsbeginn muss nach dem bisherigen Beginn und frühestens morgen liegen."; Render(); return; }
+        var note = await DisplayPromptAsync("Grundlegende Änderung", "Bemerkung (optional)", initialValue: old.Bemerkung ?? "");
+        if (note is null) return;
+
+        await RunAsync(async () =>
+        {
+            var result = await _service.StarteWartungsvertragGrundlegendeAenderungAsync(new WartungsvertragGrundlegendeAenderungRequest(
+                detail.VorgaengerZuordnungId, title, description, area, maximum, exempt, credit, start.Date, note));
+            await DisplayAlertAsync("Grundlegende Änderung", $"Prepared-Vertrag erstellt (Vorgang {result.KommunikationsvorgangId}). Die 90xxx wird erst beim Signaturstart reserviert. Zum Unterschreiben den Vorgang unter „Vorgänge“ öffnen.", "OK");
         });
     }
 

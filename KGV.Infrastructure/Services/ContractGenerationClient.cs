@@ -85,6 +85,20 @@ public sealed class ContractGenerationClient : IContractGenerationClient
         return await SendPreviewAsync(payload, cancellationToken);
     }
 
+    public Task<byte[]> PreviewMaintenanceContractAsync(long kommunikationsvorgangId, int memberId, CancellationToken cancellationToken = default)
+    {
+        if (kommunikationsvorgangId <= 0 || memberId <= 0)
+            throw new ArgumentOutOfRangeException(nameof(kommunikationsvorgangId), "Kommunikationsvorgang und Mitglied müssen gültig sein.");
+        return SendPreviewAsync(new Dictionary<string, object?>
+        {
+            ["action"] = "preview",
+            ["type"] = "wartungsvertrag",
+            ["kommunikationsvorgang_id"] = kommunikationsvorgangId,
+            ["member_id"] = memberId,
+            ["start_date"] = DateTime.Today.ToString("yyyy-MM-dd")
+        }, cancellationToken);
+    }
+
     public async Task<ContractFinalizeResult> FinalizeMembershipApplicationAsync(MembershipApplicationFinalizeRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request); ArgumentNullException.ThrowIfNull(request.Application);

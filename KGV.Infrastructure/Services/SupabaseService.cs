@@ -4787,6 +4787,17 @@ namespace KGV.Infrastructure.Services
             },
             null);
 
+        public async Task<int?> GetWartungsvertragFachnummerAsync(long wartungsvertragId)
+        {
+            if (wartungsvertragId <= 0)
+                throw new ArgumentOutOfRangeException(nameof(wartungsvertragId));
+
+            var response = await (await EnsureClientAsync()).From<WartungsvertragFachnummerRecord>()
+                .Where(x => x.WartungsvertragId == wartungsvertragId)
+                .Get();
+            return response?.Models?.FirstOrDefault()?.Vertragsnummer;
+        }
+
         public Task<List<WartungsvertragOverviewItem>> GetWartungsvertraegeOverviewAsync() => ExecuteAsync(
             "GetWartungsvertraegeOverviewAsync",
             async () =>
@@ -4872,7 +4883,7 @@ namespace KGV.Infrastructure.Services
 
                 var memberItems = bundle.Assignments
                     .Where(x => x.HauptmitgliedId == normalizedMitgliedId)
-                    .Select(x => CreateMemberWartungsvertragItem(x, contractsById, countsByContractId, today))
+                    .Select(x => CreateMemberWartungsvertragItem(x, contractsById, countsByContractId, bundle.ContractNumbersById, today))
                     .Where(x => x != null)
                     .Cast<MemberWartungsvertragItem>()
                     .ToList();
@@ -5438,6 +5449,26 @@ namespace KGV.Infrastructure.Services
                 p_bemerkung = string.IsNullOrWhiteSpace(bemerkung) ? null : bemerkung.Trim()
             });
             return rows?.FirstOrDefault() ?? throw new InvalidOperationException("Die Verlängerungsentscheidung wurde nicht bestätigt.");
+        }
+
+        public async Task<WartungsvertragGrundlegendeAenderungResult> StarteWartungsvertragGrundlegendeAenderungAsync(WartungsvertragGrundlegendeAenderungRequest request)
+        {
+            ArgumentNullException.ThrowIfNull(request);
+            if (request.VorgaengerZuordnungId <= 0 || string.IsNullOrWhiteSpace(request.Titel))
+                throw new ArgumentException("Ausgangszuordnung und Vertragstitel sind erforderlich.", nameof(request));
+            var rows = await (await EnsureClientAsync()).Rpc<List<WartungsvertragGrundlegendeAenderungResult>>("start_wartungsvertrag_grundlegende_aenderung", new
+            {
+                p_vorgaenger_zuordnung_id = request.VorgaengerZuordnungId,
+                p_titel = request.Titel.Trim(),
+                p_beschreibung = string.IsNullOrWhiteSpace(request.Beschreibung) ? null : request.Beschreibung.Trim(),
+                p_bereich = string.IsNullOrWhiteSpace(request.Bereich) ? null : request.Bereich.Trim(),
+                p_max_aktive_zuordnungen = request.MaxAktiveZuordnungen,
+                p_befreit_von_pflichtstunden = request.BefreitVonPflichtstunden,
+                p_arbeitsstunden_gutschrift = request.ArbeitsstundenGutschrift,
+                p_gueltig_ab = request.GueltigAb.ToString("yyyy-MM-dd"),
+                p_bemerkung = string.IsNullOrWhiteSpace(request.Bemerkung) ? null : request.Bemerkung.Trim()
+            });
+            return rows?.FirstOrDefault() ?? throw new InvalidOperationException("Der neue Wartungsvertragsvorgang wurde nicht bestätigt.");
         }
 
         public async Task NichtverlaengerungEntscheidenAsync(long vorgaengerZuordnungId, string initiator, DateTime entscheidungsdatum, DateTime? vorstandsbeschlussdatum, string? begruendung)
@@ -7228,9 +7259,14 @@ namespace KGV.Infrastructure.Services
                 ?? new List<WartungsvertragRecord>();
 
             if (wartungsvertraege.Count == 0)
-                return new WartungsvertragBundle(new List<WartungsvertragRecord>(), new List<WartungsvertragZuordnungRecord>(), new List<WartungsvertragZuordnungRecord>(), new Dictionary<long, MitgliedRecord>(), new Dictionary<long, string>());
+                return new WartungsvertragBundle(new List<WartungsvertragRecord>(), new List<WartungsvertragZuordnungRecord>(), new List<WartungsvertragZuordnungRecord>(), new Dictionary<long, MitgliedRecord>(), new Dictionary<long, string>(), new Dictionary<long, int>());
 
             var contractIds = wartungsvertraege.Select(x => x.Id).ToHashSet();
+            var numberResponse = await client.From<WartungsvertragFachnummerRecord>().Get();
+            var contractNumbers = numberResponse?.Models?
+                .Where(x => x.Vertragsnummer is >= 90000 and <= 99999)
+                .ToDictionary(x => x.WartungsvertragId, x => x.Vertragsnummer!.Value)
+                ?? new Dictionary<long, int>();
             var zuordnungenResponse = await client.From<WartungsvertragZuordnungRecord>().Get();
             var members = await GetMitgliederAsync();
             var operationalMembers = members
@@ -7255,7 +7291,7 @@ namespace KGV.Infrastructure.Services
             var belegungen = await GetAllParzellenBelegungenAsync();
             var gardenLookup = BuildWartungsvertragGardenLookup(parzellen, belegungen, operationalMembers.Keys, activeDate);
 
-            return new WartungsvertragBundle(wartungsvertraege, assignments, activeAssignments, operationalMembers, gardenLookup);
+            return new WartungsvertragBundle(wartungsvertraege, assignments, activeAssignments, operationalMembers, gardenLookup, contractNumbers);
         }
 
         private async Task<WartungsvertragAssignmentSaveResult> SaveWartungsvertragAssignmentsForMembersAsync(long wartungsvertragId, DateTime gueltigAb, IReadOnlyCollection<int> mitgliedIds)
@@ -7588,6 +7624,7 @@ namespace KGV.Infrastructure.Services
             WartungsvertragZuordnungRecord zuordnung,
             IReadOnlyDictionary<long, WartungsvertragRecord> contractsById,
             IReadOnlyDictionary<long, int> countsByContractId,
+            IReadOnlyDictionary<long, int> contractNumbersById,
             DateTime stichtag)
         {
             if (!contractsById.TryGetValue(zuordnung.WartungsvertragId, out var contract))
@@ -7598,6 +7635,7 @@ namespace KGV.Infrastructure.Services
             {
                 ZuordnungId = zuordnung.Id,
                 Id = overview.Id,
+                Vertragsnummer = contractNumbersById.TryGetValue(overview.Id, out var number) ? number : null,
                 Titel = overview.Titel,
                 Kurzbeschreibung = overview.Kurzbeschreibung,
                 MaxKontingent = overview.MaxKontingent,
@@ -7688,7 +7726,8 @@ namespace KGV.Infrastructure.Services
             List<WartungsvertragZuordnungRecord> Assignments,
             List<WartungsvertragZuordnungRecord> ActiveAssignments,
             Dictionary<long, MitgliedRecord> MembersById,
-            Dictionary<long, string> GardenNumbersByMemberId);
+            Dictionary<long, string> GardenNumbersByMemberId,
+            Dictionary<long, int> ContractNumbersById);
 
         private async Task<List<HomeWorkAssignmentItem>> LoadStartseiteArbeitseinsaetzeAsync()
         {

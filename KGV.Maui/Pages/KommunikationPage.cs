@@ -277,7 +277,26 @@ public sealed class KommunikationPage : ContentPage
     {
         var signing = new PreparedMaintenanceContractSigningService(_repository, _contractClient, _preparedSignatures);
         PreparedMaintenanceContractSignatureState state;
-        try { state = await signing.StartOrResumeAsync(contract); }
+        try
+        {
+            var existingNumber = contract.WartungsvertragId is > 0
+                ? await _supabaseService.GetWartungsvertragFachnummerAsync(contract.WartungsvertragId.Value)
+                : null;
+            var preview = await _contractClient.PreviewMaintenanceContractAsync(contract.Id, contract.MitgliedId);
+            var previewTitle = existingNumber is > 0 ? $"Wartungsvertrag · Vertrags-Nr. {existingNumber}" : "Wartungsvertragsvorschau";
+            await Navigation.PushAsync(new PdfViewerPage(previewTitle, preview));
+            state = await signing.StartOrResumeAsync(contract);
+            var contractNumber = state.Contract.WartungsvertragId is > 0
+                ? await _supabaseService.GetWartungsvertragFachnummerAsync(state.Contract.WartungsvertragId.Value)
+                : null;
+            if (contractNumber is not > 0)
+                throw new InvalidOperationException("Für den signaturbereiten Wartungsvertrag fehlt die reservierte 90xxx.");
+            if (contract.Status == PreparedContractConstants.Prepared)
+            {
+                var numberedPreview = await _contractClient.PreviewMaintenanceContractAsync(state.Contract.Id, state.Contract.MitgliedId);
+                await Navigation.PushAsync(new PdfViewerPage($"Wartungsvertrag · Vertrags-Nr. {contractNumber}", numberedPreview));
+            }
+        }
         catch (Exception ex) { await DisplayAlertAsync("Wartungsvertrag", ex.Message, "OK"); return; }
         while (true)
         {

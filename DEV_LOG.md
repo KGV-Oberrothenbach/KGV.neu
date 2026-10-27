@@ -2,6 +2,46 @@
 
 ---
 
+## 2026-10-27 – NB-2B-B4 Wartungsvertragsnummern abgeschlossen
+
+- Wartungsvertragsnummern sind im Repository an `wartungsvertrag_id` gebunden;
+  die einzige Nummernquelle bleibt `fachnummer_reservierung`. Der Wechsel zu
+  `zur_signatur` reserviert je Vertragsdefinition eine stabile 90xxx.
+- Versionierte v2-Field-Specs ergänzen Vertragsnummernfeld und Verlängerungs-
+  mitteilung. Vorschauen vor Signaturstart bleiben ohne Nummer; Generator,
+  Dateiname, Titel und Metadaten lesen danach dieselbe 90xxx.
+- Normale Verlängerungen behalten Wartungsvertrags-ID und Nummer. Die
+  Verlängerungsmitteilung referenziert den bestehenden Vertrag und erhält
+  keine eigene Nummer.
+- Web und MAUI bieten eine ausdrücklich ausgelöste grundlegende Änderung.
+  Sie legt einen neuen inaktiven Wartungsvertrag und Prepared-Signaturvorgang
+  ohne Nummer/Zuordnung an. Erst der vollständige signierte Abschluss
+  aktiviert den neuen Vertrag, legt die Zuordnung an und beendet nötigenfalls
+  die alte Laufzeit. Feldvergleichs-Heuristiken gibt es nicht; Abbruch und
+  Finalisierungsfehler beschädigen den Altvertrag nicht.
+- Die technischen Wartungsvertrags-ID-Fallbacks in
+  `MaintenanceContinuationPanel.tsx`, `maintenance-assignment-service.ts` und
+  `AssignContractsToMember.tsx` wurden durch die Nummer bzw. eine neutrale
+  Bezeichnung ersetzt. Zwei versionierte v2-Template-Artefaktpaare und eine
+  draft/inaktive Katalogmigration wurden ergänzt; die v1-Artefakte blieben
+  unverändert.
+- Der Prepared-Abschluss prüft die Mitgliedssignatur gegen die Vertragspartei
+  im signierten Vorgang. Damit funktioniert die ausdrückliche grundlegende
+  Änderung auch ohne bereits bestehende Vertragszuordnung; ein nicht mehr
+  gültiger lokaler Zuordnungsbezug wurde entfernt.
+- Der Dokumentworkflow-Validator prüft Erstvertrag und Verlängerungsmitteilung
+  anhand ihrer jeweiligen Vorgangsart; ein zuvor widersprüchlicher gemeinsamer
+  Vorgangsarten-Check wurde durch einen Regressionstest abgesichert.
+- Validierung: 46 gezielte Web-/Generator- und 11 .NET-Tests bestanden.
+  Web-, Core- und Infrastructure-Build erfolgreich. MAUI-Build scheitert mit
+  53 unterschiedlichen vorhandenen Compilerfehlern (106 Meldungen über zwei
+  Target Frameworks); zwei unveränderte `LineBreakMode`-Verwendungen in der
+  Fortführungsseite sind enthalten. Keine B4-spezifischen Compilerfehler.
+  Bekannte ImageSharp- und Web-Chunk-Warnungen blieben.
+- Migrationen nicht angewendet; Templates weder hochgeladen noch aktiviert;
+  kein Edge-Deployment. B4-Audit aktualisiert. NB-2B-B4 = **100 %**; NB-2B
+  bleibt nur wegen B5 offen.
+
 ## 2026-10-21 – Wartungsvertrags-Dokumentworkflow technisch vorbereitet
 
 - Gemeinsame Dokument-/Signaturarchitektur geprüft: Der Prepared-Contract- und

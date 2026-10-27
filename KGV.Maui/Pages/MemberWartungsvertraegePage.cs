@@ -479,6 +479,14 @@ public sealed class MemberWartungsvertraegePage : ContentPage
                         await Shell.Current.GoToAsync($"{nameof(WartungsvertragFortfuehrungPage)}?zuordnungId={item.ZuordnungId}");
                 };
 
+                var materialChangeButton = new Button { Text = "Grundlegende Änderung – neuen Wartungsvertrag erstellen", FontSize = 12, HorizontalOptions = LayoutOptions.Start };
+                materialChangeButton.SetBinding(IsVisibleProperty, nameof(MemberContractListItem.CanStartFundamentalChange));
+                materialChangeButton.Clicked += async (sender, _) =>
+                {
+                    if (sender is Button { BindingContext: MemberContractListItem item })
+                        await Shell.Current.GoToAsync($"{nameof(WartungsvertragFortfuehrungPage)}?zuordnungId={item.ZuordnungId}");
+                };
+
                 return new Border
                 {
                     Stroke = Colors.LightGray,
@@ -487,7 +495,7 @@ public sealed class MemberWartungsvertraegePage : ContentPage
                     Content = new VerticalStackLayout
                     {
                         Spacing = 4,
-                        Children = { title, description, validity, status, effect, documentWorkflow, proof, proofButton, continuationButton, documentButton, endButton }
+                        Children = { title, description, validity, status, effect, documentWorkflow, proof, proofButton, continuationButton, materialChangeButton, documentButton, endButton }
                     }
                 };
             })
@@ -600,18 +608,20 @@ public sealed class MemberWartungsvertraegePage : ContentPage
         private string _nachweisText = string.Empty;
         private long? _nachweisDokumentId;
         private readonly DateTime? _gueltigBis;
+        private readonly bool _canStartFundamentalChange;
 
         public MemberContractListItem(MemberWartungsvertragItem source, bool canManage)
         {
             ContractId = source.Id;
             ZuordnungId = source.ZuordnungId;
-            Titel = source.Titel;
+            Titel = source.Vertragsnummer is { } number ? $"{source.Titel} · Vertrags-Nr. {number}" : source.Titel;
             Kurzbeschreibung = source.Kurzbeschreibung;
             GueltigkeitText = source.GueltigkeitText;
             StatusText = source.StatusText;
             ArbeitsstundenwirkungText = source.ArbeitsstundenwirkungText;
             _gueltigBis = source.GueltigBis;
             CanEnd = canManage && source.Zeitstatus == WartungsvertragZeitstatus.Aktuell && source.ZuordnungId > 0;
+            _canStartFundamentalChange = canManage && source.Zeitstatus == WartungsvertragZeitstatus.Aktuell && source.ZuordnungId > 0;
             CanPrepareDocument = canManage && source.ZuordnungId > 0;
         }
 
@@ -626,6 +636,7 @@ public sealed class MemberWartungsvertraegePage : ContentPage
         public bool CanPrepareDocument { get; }
         // The detail page obtains all action visibility from WV-3 backend flags.
         public bool CanOpenContinuation => ZuordnungId > 0 && _gueltigBis.HasValue;
+        public bool CanStartFundamentalChange => _canStartFundamentalChange;
         public string DokumentWorkflowText
         {
             get => _dokumentWorkflowText;

@@ -26,7 +26,7 @@ public static class PreparedContractDraftParser
         }
         if (type == PreparedContractConstants.MaintenanceContract)
         {
-            if (!HasNumber(value, "wartungsvertrag_zuordnung_id") || !HasNumber(value, "wartungsvertrag_id") || !HasString(value, "gueltig_ab") || !HasStringOrNull(value, "gueltig_bis"))
+            if (!HasNumberOrNull(value, "wartungsvertrag_zuordnung_id") || !HasNumber(value, "wartungsvertrag_id") || !HasString(value, "gueltig_ab") || !HasStringOrNull(value, "gueltig_bis"))
                 throw Invalid("Der gespeicherte Wartungsvertrag ist unvollständig.");
             return JsonSerializer.Deserialize<PreparedMaintenanceContractDraft>(value.GetRawText(), Options)!;
         }
@@ -58,6 +58,7 @@ public static class PreparedContractDraftParser
     private static bool HasString(JsonElement value, string name) => GetString(value, name) is not null;
     private static bool HasStringOrNull(JsonElement value, string name) => value.TryGetProperty(name, out var item) && (item.ValueKind == JsonValueKind.String || item.ValueKind == JsonValueKind.Null);
     private static bool HasNumber(JsonElement value, string name) => value.TryGetProperty(name, out var item) && item.ValueKind == JsonValueKind.Number;
+    private static bool HasNumberOrNull(JsonElement value, string name) => value.TryGetProperty(name, out var item) && (item.ValueKind == JsonValueKind.Number || item.ValueKind == JsonValueKind.Null);
     private static bool HasBoolean(JsonElement value, string name) => value.TryGetProperty(name, out var item) && (item.ValueKind is JsonValueKind.True or JsonValueKind.False);
     private static PreparedContractValidationException Invalid(string message) => new(message);
 }

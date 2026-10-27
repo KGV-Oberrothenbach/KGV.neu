@@ -44,8 +44,10 @@ const leaseRequiredFieldsV8 = ["verein_name", "vereinsregister", "paechter_name"
 const leaseRequiredFieldsV9 = [...leaseRequiredFieldsV8, "vertragsnummer"];
 const membershipApplicationTemplate: PdfTemplateDescriptor = { templateKey: membershipApplicationTemplateKey, expectedFieldSpecVersions: [membershipApplicationFieldSpecV2, membershipApplicationFieldSpecV4, membershipApplicationFieldSpecV5], expectedRendererVersion: membershipApplicationRendererVersion, requiredFieldsByVersion: { [membershipApplicationFieldSpecV2]: membershipApplicationRequiredFieldsV2, [membershipApplicationFieldSpecV4]: membershipApplicationRequiredFieldsV4, [membershipApplicationFieldSpecV5]: membershipApplicationRequiredFieldsV5 }, displayName: "Mitgliedsantrag" };
 const leaseTemplate: PdfTemplateDescriptor = { templateKey: leaseTemplateKey, expectedFieldSpecVersions: [leaseFieldSpecV3, leaseFieldSpecV4, leaseFieldSpecV5, leaseFieldSpecV6, leaseFieldSpecV7, leaseFieldSpecV8, leaseFieldSpecV9], expectedRendererVersion: leaseRendererVersion, requiredFieldsByVersion: { [leaseFieldSpecV3]: leaseRequiredFields, [leaseFieldSpecV4]: leaseRequiredFieldsV4, [leaseFieldSpecV5]: leaseRequiredFieldsV5, [leaseFieldSpecV6]: leaseRequiredFieldsV6, [leaseFieldSpecV7]: leaseRequiredFieldsV7, [leaseFieldSpecV8]: leaseRequiredFieldsV8, [leaseFieldSpecV9]: leaseRequiredFieldsV9 }, displayName: "Pachtvertrag" };
-const maintenanceTemplate: PdfTemplateDescriptor = { templateKey: "wartungsvertrag", expectedFieldSpecVersions: ["wartungsvertrag-field-spec/v1"], expectedRendererVersion: "top-left/v1", requiredFieldsByVersion: { "wartungsvertrag-field-spec/v1": ["unterschrift_mitglied", "unterschrift_vorstand_1", "unterschrift_vorstand_2", "vereinsunterzeichner_1", "vereinsunterzeichner_2"] }, displayName: "Wartungsvertrag" };
-const maintenanceExtensionTemplate: PdfTemplateDescriptor = { templateKey: "wartungsvertrag-verlaengerung", expectedFieldSpecVersions: ["wartungsvertrag-verlaengerung-field-spec/v1"], expectedRendererVersion: "top-left/v1", requiredFieldsByVersion: { "wartungsvertrag-verlaengerung-field-spec/v1": ["saisonjahr", "mitglied_name", "mitgliedsnummer", "parzelle_nummer", "wartungsvertrag_titel", "wartungsvertrag_beschreibung", "arbeitsstundenwirkung", "wartungsvertrag_bemerkung", "verlaengerungsentscheidung_datum", "verlaengerungsmitteilung_erstellt_am"] }, displayName: "Wartungsvertragsverlängerung" };
+const maintenanceRequiredFields = ["unterschrift_mitglied", "unterschrift_vorstand_1", "unterschrift_vorstand_2", "vereinsunterzeichner_1", "vereinsunterzeichner_2"];
+const maintenanceTemplate: PdfTemplateDescriptor = { templateKey: "wartungsvertrag", expectedFieldSpecVersions: ["wartungsvertrag-field-spec/v1", "wartungsvertrag-field-spec/v2"], expectedRendererVersion: "top-left/v1", requiredFieldsByVersion: { "wartungsvertrag-field-spec/v1": maintenanceRequiredFields, "wartungsvertrag-field-spec/v2": [...maintenanceRequiredFields, "vertragsnummer"] }, displayName: "Wartungsvertrag" };
+const maintenanceExtensionRequiredFields = ["saisonjahr", "mitglied_name", "mitgliedsnummer", "parzelle_nummer", "wartungsvertrag_titel", "wartungsvertrag_beschreibung", "arbeitsstundenwirkung", "wartungsvertrag_bemerkung", "verlaengerungsentscheidung_datum", "verlaengerungsmitteilung_erstellt_am"];
+const maintenanceExtensionTemplate: PdfTemplateDescriptor = { templateKey: "wartungsvertrag-verlaengerung", expectedFieldSpecVersions: ["wartungsvertrag-verlaengerung-field-spec/v1", "wartungsvertrag-verlaengerung-field-spec/v2"], expectedRendererVersion: "top-left/v1", requiredFieldsByVersion: { "wartungsvertrag-verlaengerung-field-spec/v1": maintenanceExtensionRequiredFields, "wartungsvertrag-verlaengerung-field-spec/v2": [...maintenanceExtensionRequiredFields, "vertragsnummer"] }, displayName: "Wartungsvertragsverlängerung" };
 const admissionConfirmationTemplate: PdfTemplateDescriptor = { templateKey: "aufnahmebestaetigung", expectedFieldSpecVersions: ["aufnahmebestaetigung-field-spec/v1"], expectedRendererVersion: "top-left/v1", requiredFieldsByVersion: { "aufnahmebestaetigung-field-spec/v1": ["absender_name", "absender_anschrift", "empfaenger_block", "datum", "betreff", "antragsnummer", "mitgliedsnummer", "mitglied_vorname", "mitglied_name", "mitglied_seit", "anrede", "brieftext", "abschluss", "fusszeile_verein", "fusszeile_bank", "fusszeile_vorstand"] }, displayName: "Aufnahmebestätigung" };
 
 function formatDate(value?: string | null) { if (!value) return ""; const date = new Date(`${value.slice(0, 10)}T12:00:00Z`); return Number.isNaN(date.valueOf()) ? "" : new Intl.DateTimeFormat("de-DE", { timeZone: "UTC" }).format(date); }
@@ -99,6 +101,13 @@ async function loadExistingFachnummer(auth: Awaited<ReturnType<typeof authentica
   if (error) throw new Error(`Fachnummer konnte nicht geladen werden: ${error.message}`);
   const number = Number(data?.nummer);
   return data?.art === expected.art && Number(data?.quelle_id) === kommunikationsvorgangId && Number.isSafeInteger(number) && number >= expected.min && number <= expected.max ? number : null;
+}
+async function loadMaintenanceContractNumber(auth: Awaited<ReturnType<typeof authenticate>>, wartungsvertragId: number) {
+  if (!Number.isSafeInteger(wartungsvertragId) || wartungsvertragId <= 0) return null;
+  const { data, error } = await auth.admin.from("v_wartungsvertrag_fachnummer").select("vertragsnummer").eq("wartungsvertrag_id", wartungsvertragId).maybeSingle();
+  if (error) throw new Error(`Wartungsvertragsnummer konnte nicht geladen werden: ${error.message}`);
+  const number = Number(data?.vertragsnummer);
+  return Number.isSafeInteger(number) && number >= 90000 && number <= 99999 ? number : null;
 }
 function fromDataUrl(value?: string) { if (!value?.startsWith("data:image/png;base64,")) return null; return Uint8Array.from(atob(value.split(",", 2)[1]), (char) => char.charCodeAt(0)); }
 function imageFromDataUrl(value?: string) { const match = value?.match(/^data:image\/(png|jpe?g);base64,(.+)$/i); if (!match) return null; return { kind: match[1].toLowerCase() === "png" ? "png" : "jpg", bytes: Uint8Array.from(atob(match[2]), (char) => char.charCodeAt(0)) }; }
@@ -168,20 +177,39 @@ function snapshotBoardSigner(position: PreparedSignaturePosition) {
 }
 
 async function loadPersistentMaintenanceSignatures(auth: Awaited<ReturnType<typeof authenticate>>, kommunikationsvorgangId: number) {
-  const { data: vorgang, error: vorgangError } = await auth.admin.from("kommunikationsvorgang").select("id,vorgangstyp,dokumenttyp,status,mitglied_id,wartungsvertrag_zuordnung_id,signatur_revision").eq("id", kommunikationsvorgangId).maybeSingle();
-  if (vorgangError || !vorgang || vorgang.vorgangstyp !== "vertrag_signatur" || vorgang.dokumenttyp !== "wartungsvertrag" || !Number.isSafeInteger(vorgang.signatur_revision) || !Number.isSafeInteger(vorgang.wartungsvertrag_zuordnung_id) || !["zur_signatur", "letzte_pruefung"].includes(vorgang.status)) throw new Error("Der Wartungsvertrags-Signaturvorgang ist ungültig.");
+  const { data: vorgang, error: vorgangError } = await auth.admin.from("kommunikationsvorgang").select("id,vorgangstyp,dokumenttyp,status,mitglied_id,wartungsvertrag_zuordnung_id,wartungsvertrag_id,entwurf_daten,signatur_revision").eq("id", kommunikationsvorgangId).maybeSingle();
+  if (vorgangError || !vorgang || vorgang.vorgangstyp !== "vertrag_signatur" || vorgang.dokumenttyp !== "wartungsvertrag" || !Number.isSafeInteger(vorgang.signatur_revision) || !Number.isSafeInteger(vorgang.wartungsvertrag_id) || !["zur_signatur", "letzte_pruefung", "erledigt"].includes(vorgang.status)) throw new Error("Der Wartungsvertrags-Signaturvorgang ist ungültig.");
   const revision = Number(vorgang.signatur_revision);
   const { data: complete, error: completeError } = await auth.admin.rpc("prepared_contract_signaturen_vollstaendig", { p_kommunikationsvorgang_id: kommunikationsvorgangId, p_signatur_revision: revision });
   if (completeError || complete !== true) throw new Error("Alle drei persistenten Wartungsvertragsunterschriften müssen vorliegen.");
-  const { data: assignment, error: assignmentError } = await auth.admin.from("wartungsvertrag_zuordnungen").select("id,hauptmitglied_id").eq("id", vorgang.wartungsvertrag_zuordnung_id).maybeSingle();
-  if (assignmentError || !assignment || Number(assignment.hauptmitglied_id) !== Number(vorgang.mitglied_id)) throw new Error("Die Wartungsvertragszuordnung passt nicht zum Hauptmitglied.");
+  const draft = vorgang.entwurf_daten as Record<string, unknown>;
+  if (Number(draft.wartungsvertrag_id) !== Number(vorgang.wartungsvertrag_id) || Number(draft.memberId) !== Number(vorgang.mitglied_id)) throw new Error("Der Wartungsvertragssnapshot passt nicht zum Signaturvorgang.");
+  let assignmentId: number | null = null;
+  if (Number.isSafeInteger(vorgang.wartungsvertrag_zuordnung_id)) {
+    const { data: assignment, error: assignmentError } = await auth.admin.from("wartungsvertrag_zuordnungen").select("id,wartungsvertrag_id,vertragspartei_mitglied_id").eq("id", vorgang.wartungsvertrag_zuordnung_id).maybeSingle();
+    if (assignmentError || !assignment || Number(assignment.wartungsvertrag_id) !== Number(vorgang.wartungsvertrag_id) || Number(assignment.vertragspartei_mitglied_id) !== Number(vorgang.mitglied_id)) throw new Error("Die Wartungsvertragszuordnung passt nicht zur Vertragspartei.");
+    assignmentId = Number(assignment.id);
+  } else {
+    const { data: change, error: changeError } = await auth.admin.from("wartungsvertrag_grundlegende_aenderung").select("wartungsvertrag_id,vorgaenger_zuordnung_id").eq("kommunikationsvorgang_id", kommunikationsvorgangId).maybeSingle();
+    if (changeError || !change || Number(change.wartungsvertrag_id) !== Number(vorgang.wartungsvertrag_id)) throw new Error("Die ausdrückliche grundlegende Änderung fehlt.");
+    const { data: predecessor, error: predecessorError } = await auth.admin.from("wartungsvertrag_zuordnungen").select("vertragspartei_mitglied_id").eq("id", change.vorgaenger_zuordnung_id).maybeSingle();
+    if (predecessorError || !predecessor || Number(predecessor.vertragspartei_mitglied_id) !== Number(vorgang.mitglied_id)) throw new Error("Die Ausgangszuordnung passt nicht zur Vertragspartei.");
+  }
   const { data: rows, error: rowsError } = await auth.admin.from("prepared_contract_signatur").select("signatur_schluessel,status,mitglied_id,storage_bucket,storage_path,signatur_sha256,unterzeichner_name_snapshot,vereinsfunktion_bezeichnung_snapshot,vertretung_id,vertretene_funktion_bezeichnung_snapshot").eq("kommunikationsvorgang_id", kommunikationsvorgangId).eq("signatur_revision", revision).eq("status", "unterschrieben");
   if (rowsError) throw rowsError;
   const positions = new Map((rows ?? []).map((row) => [row.signatur_schluessel, row as PreparedSignaturePosition & { mitglied_id: number | null }]));
-  if (["mitglied", "vorstand_1", "vorstand_2"].some((key) => !positions.has(key)) || Number(positions.get("mitglied")!.mitglied_id) !== Number(assignment.hauptmitglied_id)) throw new Error("Die persistenten Wartungsvertragssignaturen sind unvollständig oder falsch zugeordnet.");
+  if (["mitglied", "vorstand_1", "vorstand_2"].some((key) => !positions.has(key)) || Number(positions.get("mitglied")!.mitglied_id) !== Number(vorgang.mitglied_id)) throw new Error("Die persistenten Wartungsvertragssignaturen sind unvollständig oder falsch zugeordnet.");
   const signatures: Record<string, string> = {};
   for (const [key, field] of Object.entries(maintenanceSignatureFields)) { const p = positions.get(key)!; if (!p.storage_bucket || !p.storage_path || !p.signatur_sha256) throw new Error("Signatur-Storage-Metadaten fehlen."); const { data, error } = await auth.admin.storage.from(p.storage_bucket).download(p.storage_path); if (error || !data) throw new Error("Signaturdatei konnte nicht aus privatem Storage geladen werden."); const bytes = new Uint8Array(await data.arrayBuffer()); if (!bytes.length || await sha256(bytes) !== p.signatur_sha256) throw new Error("Signaturdatei ist beschädigt oder ihr Hash stimmt nicht."); signatures[field] = pngDataUrl(bytes); }
-  return { vorgang, revision, assignmentId: Number(assignment.id), signatures, board1Snapshot: snapshotBoardSigner(positions.get("vorstand_1")!), board2Snapshot: snapshotBoardSigner(positions.get("vorstand_2")!) };
+  return { vorgang, revision, assignmentId, wartungsvertragId: Number(vorgang.wartungsvertrag_id), draft, signatures, board1Snapshot: snapshotBoardSigner(positions.get("vorstand_1")!), board2Snapshot: snapshotBoardSigner(positions.get("vorstand_2")!) };
+}
+
+async function loadMaintenanceDraft(auth: Awaited<ReturnType<typeof authenticate>>, kommunikationsvorgangId: number) {
+  const { data: vorgang, error } = await auth.admin.from("kommunikationsvorgang").select("id,vorgangstyp,dokumenttyp,status,mitglied_id,wartungsvertrag_id,wartungsvertrag_zuordnung_id,entwurf_daten").eq("id", kommunikationsvorgangId).maybeSingle();
+  if (error || !vorgang || vorgang.vorgangstyp !== "vertrag_signatur" || vorgang.dokumenttyp !== "wartungsvertrag" || !["vorbereitet", "zur_signatur", "letzte_pruefung"].includes(vorgang.status) || !Number.isSafeInteger(vorgang.wartungsvertrag_id)) throw new Error("Der Wartungsvertragsentwurf ist nicht verfügbar.");
+  const draft = vorgang.entwurf_daten as Record<string, unknown>;
+  if (Number(draft.wartungsvertrag_id) !== Number(vorgang.wartungsvertrag_id) || Number(draft.memberId) !== Number(vorgang.mitglied_id)) throw new Error("Der Wartungsvertragssnapshot ist unvollständig.");
+  return { vorgang, draft, wartungsvertragId: Number(vorgang.wartungsvertrag_id) };
 }
 
 function pngDataUrl(bytes: Uint8Array) {
@@ -339,7 +367,7 @@ Deno.serve(async (req) => {
     if (type === "wartungsvertrag_verlaengerung") { const { data: allowed, error: allowedError } = await auth.admin.rpc("ist_wartungsvertrag_entscheidung_berechtigt", { p_auth_user_id: auth.userId }); if (allowedError || allowed !== true) throw new Error("AUTH:Keine fachliche Berechtigung zur Wartungsvertragsentscheidung."); }
     else if (!['admin','vorstand'].includes(auth.role)) throw new Error("AUTH:Nur Admin oder Vorstand dürfen Vertragsdokumente erzeugen.");
     if (action === "finalize" && type === "mitgliedsantrag" && (!Number.isSafeInteger(sourceKommunikationsvorgangId) || sourceKommunikationsvorgangId <= 0)) return errorResponse(400, "BAD_REQUEST", "Kommunikationsvorgang ist für die Finalisierung erforderlich.", requestId);
-    if (type === "wartungsvertrag" && action !== "finalize") return errorResponse(400, "BAD_REQUEST", "Wartungsverträge werden ausschließlich aus dem persistenten Signaturvorgang finalisiert.", requestId);
+    if (type === "wartungsvertrag" && action !== "finalize" && action !== "preview") return errorResponse(400, "BAD_REQUEST", "Wartungsverträge werden ausschließlich aus dem persistenten Signaturvorgang erzeugt.", requestId);
     if (type === "aufnahmebestaetigung" && action !== "finalize") return errorResponse(400, "BAD_REQUEST", "Aufnahmebestätigungen werden ausschließlich final nach der positiven Aufnahmeentscheidung erzeugt.", requestId);
     if (type === "wartungsvertrag_verlaengerung" && action !== "finalize") return errorResponse(400, "BAD_REQUEST", "Verlängerungsmitteilungen werden ausschließlich final und ohne Signaturen erzeugt.", requestId);
     if ((type === "wartungsvertrag" || type === "wartungsvertrag_verlaengerung" || type === "aufnahmebestaetigung") && (!Number.isSafeInteger(sourceKommunikationsvorgangId) || sourceKommunikationsvorgangId <= 0)) return errorResponse(400, "BAD_REQUEST", "Kommunikationsvorgang ist für die Dokumentfinalisierung erforderlich.", requestId);
@@ -348,7 +376,9 @@ Deno.serve(async (req) => {
       if (error || !vorgang || !Number.isSafeInteger(vorgang.mitglied_id)) return errorResponse(400, "BAD_REQUEST", "Der Kommunikationsvorgang enthält kein gültiges Mitglied.", requestId);
       memberId = Number(vorgang.mitglied_id);
     }
-    const maintenancePersistent = type === "wartungsvertrag" ? await loadPersistentMaintenanceSignatures(auth, sourceKommunikationsvorgangId) : null;
+    const maintenancePreview = type === "wartungsvertrag" && action === "preview" ? await loadMaintenanceDraft(auth, sourceKommunikationsvorgangId) : null;
+    const maintenancePersistent = type === "wartungsvertrag" && action === "finalize" ? await loadPersistentMaintenanceSignatures(auth, sourceKommunikationsvorgangId) : null;
+    if (maintenancePreview) memberId = Number(maintenancePreview.vorgang.mitglied_id);
     if (maintenancePersistent) { memberId = Number(maintenancePersistent.vorgang.mitglied_id); sourceRevision = maintenancePersistent.revision; }
     if (!Number.isSafeInteger(memberId) || memberId <= 0) return errorResponse(400, "BAD_REQUEST", "Mitglied ist erforderlich.", requestId);
     const { data: member, error: memberError } = await auth.admin.from("mitglied").select("*").eq("id", memberId).single(); if (memberError || !member) throw new Error("Mitglied wurde nicht gefunden.");
@@ -499,7 +529,7 @@ Deno.serve(async (req) => {
       }
       title = `Pachtvertrag${fachnummer ? ` · Vertrags-Nr. ${fachnummer}` : ""} (${action === "finalize" ? "Signiert" : "Unsigniert"})`; owner = { kind: "parzelle", id: parcelId };
     } else if (type === "wartungsvertrag_verlaengerung") {
-      const { data: process, error: processError } = await auth.admin.from("kommunikationsvorgang").select("id,status,vorgangstyp,dokumenttyp,mitglied_id,revision,entwurf_daten,final_dokument_id").eq("id", sourceKommunikationsvorgangId).maybeSingle();
+      const { data: process, error: processError } = await auth.admin.from("kommunikationsvorgang").select("id,status,vorgangstyp,dokumenttyp,mitglied_id,wartungsvertrag_id,revision,entwurf_daten,final_dokument_id").eq("id", sourceKommunikationsvorgangId).maybeSingle();
       if (processError || !process || process.vorgangstyp !== "dokument_erzeugung" || process.dokumenttyp !== "wartungsvertrag_verlaengerung" || process.status !== "vorbereitet" || Number(process.mitglied_id) !== memberId) throw new Error("Die Verlängerungsmitteilung ist nicht erzeugungsbereit.");
       sourceRevision = Number(process.revision);
       const { data: existing, error: existingError } = await auth.admin.from("dokument").select("id").eq("source_kommunikationsvorgang_id", sourceKommunikationsvorgangId).eq("source_revision", sourceRevision).is("archiviert_at", null).maybeSingle();
@@ -509,47 +539,59 @@ Deno.serve(async (req) => {
       if (Number(draft.member_id) !== memberId || !safe(draft.template_key) || !safe(draft.template_version)) throw new Error("Der unveränderliche Verlängerungssnapshot ist unvollständig.");
       const membershipNumber = Number(member.mitgliedsnummer);
       if (!Number.isSafeInteger(membershipNumber) || membershipNumber <= 0) throw new Error("Für die Wartungsvertragsverlängerung fehlt eine gültige Mitgliedsnummer.");
+      fachnummer = await loadMaintenanceContractNumber(auth, Number(process.wartungsvertrag_id));
+      if (!Number.isSafeInteger(fachnummer) || fachnummer! < 90000 || fachnummer! > 99999) throw new Error("Für die Wartungsverlängerung fehlt die reservierte Wartungsvertragsnummer.");
       const { data: occupation } = await auth.admin.from("parzellen_belegung").select("parzelle_id").eq("mitglied_id", memberId).lte("von_datum", safe(draft.gueltig_ab)).or(`bis_datum.is.null,bis_datum.gte.${safe(draft.gueltig_ab)}`).order("von_datum", { ascending: false }).limit(1).maybeSingle();
       const { data: parcel } = occupation?.parzelle_id ? await auth.admin.from("parzelle").select("garten_nr").eq("id", occupation.parzelle_id).maybeSingle() : { data: null };
-      const values: Record<string, string> = { saisonjahr: safe(draft.gueltig_ab).slice(0, 4), mitglied_name: safe(draft.mitglied_name), mitgliedsnummer: String(membershipNumber), parzelle_nummer: safe(parcel?.garten_nr) || "-", wartungsvertrag_titel: safe(draft.wartungsvertrag_titel), wartungsvertrag_beschreibung: safe(draft.wartungsvertrag_beschreibung), arbeitsstundenwirkung: safe(draft.arbeitsstundenwirkung), wartungsvertrag_bemerkung: safe(draft.bemerkung), verlaengerungsentscheidung_datum: formatDate(safe(draft.vorstandsbeschlussdatum)), verlaengerungsmitteilung_erstellt_am: formatDate(new Date().toISOString()) };
+      const values: Record<string, string> = { vertragsnummer: `Wartungsvertrag Nr. ${fachnummer}`, saisonjahr: safe(draft.gueltig_ab).slice(0, 4), mitglied_name: safe(draft.mitglied_name), mitgliedsnummer: String(membershipNumber), parzelle_nummer: safe(parcel?.garten_nr) || "-", wartungsvertrag_titel: safe(draft.wartungsvertrag_titel), wartungsvertrag_beschreibung: safe(draft.wartungsvertrag_beschreibung), arbeitsstundenwirkung: safe(draft.arbeitsstundenwirkung), wartungsvertrag_bemerkung: safe(draft.bemerkung), verlaengerungsentscheidung_datum: formatDate(safe(draft.vorstandsbeschlussdatum)), verlaengerungsmitteilung_erstellt_am: formatDate(new Date().toISOString()) };
       const template = await loadPublishedPdfTemplate(auth, maintenanceExtensionTemplate);
-      pdf = await drawPdfTemplate(template.pdfBytes, template.fields, values, {}, "none"); title = "Wartungsvertragsverlängerung"; owner = { kind: "mitglied", id: memberId };
+      pdf = await drawPdfTemplate(template.pdfBytes, template.fields, values, {}, "none"); title = `Wartungsvertragsverlängerung · Wartungsvertrag Nr. ${fachnummer}`; owner = { kind: "mitglied", id: memberId };
     } else if (type === "wartungsvertrag") {
-      if (!maintenancePersistent) throw new Error("Die persistenten Wartungsvertragssignaturen konnten nicht geladen werden.");
-      const { data: assignment, error: assignmentError } = await auth.admin.from("wartungsvertrag_zuordnungen").select("id,wartungsvertrag_id,hauptmitglied_id,gueltig_ab,gueltig_bis,bemerkung").eq("id", maintenancePersistent.assignmentId).maybeSingle();
-      if (assignmentError || !assignment || Number(assignment.hauptmitglied_id) !== memberId) throw new Error("Die Wartungsvertragszuordnung ist nicht mehr gültig.");
-      const [{ data: maintenance, error: maintenanceError }, { data: occupation }] = await Promise.all([
-        auth.admin.from("wartungsvertraege").select("id,titel,beschreibung,bereich,befreit_von_pflichtstunden,bemerkung").eq("id", assignment.wartungsvertrag_id).maybeSingle(),
-        auth.admin.from("parzellen_belegung").select("parzelle_id").eq("mitglied_id", memberId).lte("von_datum", assignment.gueltig_ab).or(`bis_datum.is.null,bis_datum.gte.${assignment.gueltig_ab}`).order("von_datum", { ascending: false }).limit(1).maybeSingle(),
-      ]);
-      if (maintenanceError || !maintenance) throw new Error("Der Wartungsvertrag wurde nicht gefunden.");
+      const draft = maintenancePersistent?.draft ?? maintenancePreview?.draft;
+      const wartungsvertragId = maintenancePersistent?.wartungsvertragId ?? maintenancePreview?.wartungsvertragId;
+      if (!draft || !wartungsvertragId) throw new Error("Der Wartungsvertragssnapshot konnte nicht geladen werden.");
+      fachnummer = await loadMaintenanceContractNumber(auth, wartungsvertragId);
+      if (action === "finalize" && (!Number.isSafeInteger(fachnummer) || fachnummer! < 90000 || fachnummer! > 99999)) throw new Error("Für den signierten Wartungsvertrag fehlt die reservierte Vertragsnummer.");
+      const gueltigAb = safe(draft.gueltig_ab);
+      const { data: occupation } = await auth.admin.from("parzellen_belegung").select("parzelle_id").eq("mitglied_id", memberId).lte("von_datum", gueltigAb).or(`bis_datum.is.null,bis_datum.gte.${gueltigAb}`).order("von_datum", { ascending: false }).limit(1).maybeSingle();
       const { data: parcel } = occupation?.parzelle_id ? await auth.admin.from("parzelle").select("id,garten_nr").eq("id", occupation.parzelle_id).maybeSingle() : { data: null };
-      const { data: existing, error: existingError } = await auth.admin.from("dokument").select("id").eq("source_kommunikationsvorgang_id", sourceKommunikationsvorgangId).eq("source_revision", sourceRevision).eq("source_wartungsvertrag_zuordnung_id", assignment.id).is("archiviert_at", null).maybeSingle();
-      if (existingError) throw existingError;
-      if (existing) {
-        const { data: repairedVorgang, error: repairError } = await auth.admin.from("kommunikationsvorgang").update({ final_dokument_id: existing.id, status: "erledigt" }).eq("id", sourceKommunikationsvorgangId).eq("signatur_revision", sourceRevision).in("status", ["zur_signatur", "letzte_pruefung", "erledigt"]).select("id").maybeSingle();
-        if (repairError || !repairedVorgang) throw new Error(`Vorhandenes Wartungsvertragsdokument konnte nicht am Signaturvorgang hinterlegt werden: ${repairError?.message ?? "Vorgang wurde zwischenzeitlich geändert."}`);
-        return json(200, { success: true, document_id: existing.id, message: "Vorhandenes finales Wartungsvertragsdokument wurde wiederverwendet." });
+      if (action === "finalize") {
+        const existingQuery = auth.admin.from("dokument").select("id").eq("source_kommunikationsvorgang_id", sourceKommunikationsvorgangId).eq("source_revision", sourceRevision).is("archiviert_at", null);
+        const { data: existing, error: existingError } = maintenancePersistent!.assignmentId === null
+          ? await existingQuery.maybeSingle()
+          : await existingQuery.eq("source_wartungsvertrag_zuordnung_id", maintenancePersistent!.assignmentId).maybeSingle();
+        if (existingError) throw existingError;
+        if (existing) {
+          const { error: completeError } = await auth.admin.rpc("complete_prepared_wartungsvertrag", { p_kommunikationsvorgang_id: sourceKommunikationsvorgangId, p_dokument_id: existing.id });
+          if (completeError) throw new Error(`Vorhandenes Wartungsvertragsdokument konnte nicht abgeschlossen werden: ${completeError.message}`);
+          return json(200, { success: true, document_id: existing.id, message: "Vorhandenes finales Wartungsvertragsdokument wurde wiederverwendet." });
+        }
       }
       const membershipNumber = Number(member.mitgliedsnummer);
       if (!Number.isSafeInteger(membershipNumber) || membershipNumber <= 0) throw new Error("Für den Wartungsvertrag fehlt eine gültige Mitgliedsnummer.");
       const values: Record<string, string> = {
+        vertragsnummer: fachnummer ? `Vertrags-Nr. ${fachnummer}` : "",
         mitglied_name: [safe(member.vorname), safe(member.name)].filter(Boolean).join(" "),
         mitgliedsnummer: String(membershipNumber),
         parzelle_nummer: safe(parcel?.garten_nr) || "-",
-        wartungsvertrag_titel: safe(maintenance.titel),
-        wartungsvertrag_bereich: safe(maintenance.bereich),
-        saisonjahr: assignment.gueltig_ab.slice(0, 4),
-        wartungsvertrag_beschreibung: safe(maintenance.beschreibung),
-        arbeitsstundenwirkung: maintenance.befreit_von_pflichtstunden ? "Befreiung von Pflichtstunden" : "Keine Befreiung von Pflichtstunden",
-        wartungsvertrag_bemerkung: safe(assignment.bemerkung) || safe(maintenance.bemerkung),
+        wartungsvertrag_titel: safe(draft.wartungsvertrag_titel),
+        wartungsvertrag_bereich: safe(draft.wartungsvertrag_bereich),
+        saisonjahr: gueltigAb.slice(0, 4),
+        wartungsvertrag_beschreibung: safe(draft.wartungsvertrag_beschreibung),
+        arbeitsstundenwirkung: Boolean(draft.befreit_von_pflichtstunden) ? "Befreiung von Pflichtstunden" : Number(draft.arbeitsstunden_gutschrift) > 0 ? `${Number(draft.arbeitsstunden_gutschrift)} Stunden Gutschrift pro Saison` : "Keine Befreiung von Pflichtstunden",
+        wartungsvertrag_bemerkung: safe(draft.bemerkung),
         ort_datum: [configurationSnapshot!.dokumentOrt, formatDate(new Date().toISOString())].filter(Boolean).join(", "),
-        vereinsunterzeichner_1: maintenancePersistent.board1Snapshot,
-        vereinsunterzeichner_2: maintenancePersistent.board2Snapshot,
+        vereinsunterzeichner_1: maintenancePersistent?.board1Snapshot ?? "",
+        vereinsunterzeichner_2: maintenancePersistent?.board2Snapshot ?? "",
       };
       const template = await loadPublishedPdfTemplate(auth, maintenanceTemplate);
-      pdf = await drawPdfTemplate(template.pdfBytes, template.fields, values, maintenancePersistent.signatures, "none");
-      title = "Wartungsvertrag (signiert)"; owner = { kind: "mitglied", id: memberId }; maintenanceAssignmentId = Number(assignment.id);
+      if (action === "preview") {
+        pdf = await drawPdfTemplate(template.pdfBytes, template.fields, values, {}, "none");
+      } else {
+        if (!maintenancePersistent) throw new Error("Die persistenten Wartungsvertragssignaturen konnten nicht geladen werden.");
+        pdf = await drawPdfTemplate(template.pdfBytes, template.fields, values, maintenancePersistent.signatures, "none");
+      }
+      title = `Wartungsvertrag${fachnummer ? ` · Vertrags-Nr. ${fachnummer}` : ""} (${action === "finalize" ? "Signiert" : "Vorschau"})`; owner = { kind: "mitglied", id: memberId }; maintenanceAssignmentId = maintenancePersistent?.assignmentId ?? null;
     } else { pdf = await buildSimpleContract(member, startDate, signatures); title = `Mitgliedsvertrag (${action === "finalize" ? "Signiert" : "Unsigniert"})`; owner = { kind: "mitglied", id: memberId }; }
     fachnummer ??= await loadExistingFachnummer(auth, sourceKommunikationsvorgangId, type);
     const fileName = visibleContractFileName(type, member, startDate, action === "finalize" ? "signiert" : "unsigniert", fachnummer);
@@ -561,8 +603,11 @@ Deno.serve(async (req) => {
     }
     if (type === "wartungsvertrag_verlaengerung") { const { error } = await auth.admin.rpc("complete_wartungsvertrag_verlaengerungsmitteilung", { p_kommunikationsvorgang_id: sourceKommunikationsvorgangId, p_dokument_id: documentId }); if (error) throw new Error(`Verlängerungsmitteilung konnte nicht abgeschlossen werden: ${error.message}`); }
     if (maintenanceAssignmentId) {
-      const { data: updatedVorgang, error } = await auth.admin.from("kommunikationsvorgang").update({ final_dokument_id: documentId, status: "erledigt" }).eq("id", sourceKommunikationsvorgangId).eq("signatur_revision", sourceRevision).in("status", ["zur_signatur", "letzte_pruefung"]).select("id").maybeSingle();
-      if (error || !updatedVorgang) throw new Error(`Wartungsvertrags-Finaldokument konnte nicht am Signaturvorgang hinterlegt werden: ${error?.message ?? "Vorgang wurde zwischenzeitlich geändert."}`);
+      const { error } = await auth.admin.rpc("complete_prepared_wartungsvertrag", { p_kommunikationsvorgang_id: sourceKommunikationsvorgangId, p_dokument_id: documentId });
+      if (error) throw new Error(`Wartungsvertrags-Finaldokument konnte nicht abgeschlossen werden: ${error.message}`);
+    } else if (type === "wartungsvertrag" && action === "finalize") {
+      const { error } = await auth.admin.rpc("complete_prepared_wartungsvertrag", { p_kommunikationsvorgang_id: sourceKommunikationsvorgangId, p_dokument_id: documentId });
+      if (error) throw new Error(`Wartungsvertrags-Finaldokument konnte nicht abgeschlossen werden: ${error.message}`);
     }
     if (protocolIdToComplete) { const { error } = await auth.admin.from("parzellen_protokoll").update({ status: "abgeschlossen", dokument_id: documentId, abgeschlossen_am: new Date().toISOString(), abgeschlossen_von: auth.userId, updated_at: new Date().toISOString() }).eq("id", protocolIdToComplete); if (error) throw error; }
     return json(200, { success: true, document_id: documentId, message: protocolIdToComplete ? "Das signierte Protokoll wurde als Mitgliedsdokument abgelegt." : "Signiertes Vertragsdokument wurde sicher abgelegt." });

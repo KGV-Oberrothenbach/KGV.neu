@@ -31,6 +31,7 @@ public sealed record KommunikationsvorgangDto
     [JsonPropertyName("signatur_gestartet_am")] public DateTimeOffset? SignaturGestartetAm { get; init; }
     [JsonPropertyName("final_dokument_id")] public long? FinalDokumentId { get; init; }
     [JsonPropertyName("wartungsvertrag_zuordnung_id")] public long? WartungsvertragZuordnungId { get; init; }
+    [JsonPropertyName("wartungsvertrag_id")] public long? WartungsvertragId { get; init; }
     [JsonPropertyName("zugewiesen_an")] public Guid? ZugewiesenAn { get; init; }
     [JsonPropertyName("erstellt_am")] public DateTimeOffset ErstelltAm { get; init; }
     [JsonPropertyName("bearbeitet_am")] public DateTimeOffset BearbeitetAm { get; init; }
@@ -127,10 +128,17 @@ public sealed record PreparedMaintenanceContractDraft
     [JsonPropertyName("schema_version")] public string SchemaVersion { get; init; } = PreparedContractConstants.SchemaVersion;
     [JsonPropertyName("document_type")] public string DocumentType { get; init; } = PreparedContractConstants.MaintenanceContract;
     [JsonPropertyName("memberId")] public int MemberId { get; init; }
-    [JsonPropertyName("wartungsvertrag_zuordnung_id")] public long WartungsvertragZuordnungId { get; init; }
+    [JsonPropertyName("wartungsvertrag_zuordnung_id")] public long? WartungsvertragZuordnungId { get; init; }
+    [JsonPropertyName("vorgaenger_zuordnung_id")] public long? VorgaengerZuordnungId { get; init; }
     [JsonPropertyName("wartungsvertrag_id")] public long WartungsvertragId { get; init; }
     [JsonPropertyName("gueltig_ab")] public string GueltigAb { get; init; } = "";
     [JsonPropertyName("gueltig_bis")] public string? GueltigBis { get; init; }
+    [JsonPropertyName("wartungsvertrag_titel")] public string WartungsvertragTitel { get; init; } = "";
+    [JsonPropertyName("wartungsvertrag_beschreibung")] public string? WartungsvertragBeschreibung { get; init; }
+    [JsonPropertyName("wartungsvertrag_bereich")] public string? WartungsvertragBereich { get; init; }
+    [JsonPropertyName("befreit_von_pflichtstunden")] public bool BefreitVonPflichtstunden { get; init; }
+    [JsonPropertyName("arbeitsstunden_gutschrift")] public decimal ArbeitsstundenGutschrift { get; init; }
+    [JsonPropertyName("bemerkung")] public string? Bemerkung { get; init; }
 }
 
 public sealed class PreparedContractValidationException : Exception

@@ -40,3 +40,19 @@ public sealed record WartungsvertragVerlaengerungResult(
     [property: JsonPropertyName("kommunikationsvorgang_id")] long KommunikationsvorgangId,
     [property: JsonPropertyName("workflow_id")] long WorkflowId,
     [property: JsonPropertyName("vertragspartei_mitglied_id")] long VertragsparteiMitgliedId);
+
+public sealed record WartungsvertragGrundlegendeAenderungRequest(
+    long VorgaengerZuordnungId,
+    string Titel,
+    string? Beschreibung,
+    string? Bereich,
+    int MaxAktiveZuordnungen,
+    bool BefreitVonPflichtstunden,
+    decimal ArbeitsstundenGutschrift,
+    DateTime GueltigAb,
+    string? Bemerkung);
+
+public sealed record WartungsvertragGrundlegendeAenderungResult(
+    [property: JsonPropertyName("kommunikationsvorgang_id")] long KommunikationsvorgangId,
+    [property: JsonPropertyName("wartungsvertrag_id")] long WartungsvertragId,
+    [property: JsonPropertyName("status")] string Status);

@@ -11,6 +11,8 @@ public interface IContractGenerationClient
 
     Task<byte[]> PreviewLeaseContractAsync(PachtvertragDokumentRequest request, CancellationToken cancellationToken = default);
 
+    Task<byte[]> PreviewMaintenanceContractAsync(long kommunikationsvorgangId, int memberId, CancellationToken cancellationToken = default);
+
     Task<ContractFinalizeResult> FinalizeMembershipApplicationAsync(MembershipApplicationFinalizeRequest request, CancellationToken cancellationToken = default);
 
     Task<ContractFinalizeResult> FinalizeLeaseContractAsync(

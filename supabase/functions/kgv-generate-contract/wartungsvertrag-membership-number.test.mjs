@@ -11,7 +11,7 @@ test("wartungsvertrag renders the stored membership number and keeps technical i
   assert.match(branch, /Number\(member\.mitgliedsnummer\)/);
   assert.match(branch, /mitgliedsnummer: String\(membershipNumber\)/);
   assert.doesNotMatch(branch, /mitgliedsnummer: String\(member\.id\)/);
-  assert.match(branch, /assignment\.wartungsvertrag_id/);
+  assert.match(branch, /loadMaintenanceContractNumber\(auth, wartungsvertragId\)/);
   assert.doesNotMatch(branch, /\+ 1000|1000 \+/);
 });
 

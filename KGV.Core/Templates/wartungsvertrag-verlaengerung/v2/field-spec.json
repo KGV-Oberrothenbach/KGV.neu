@@ -1,0 +1,19 @@
+{
+  "schema_version": "kgv-pdf-field-spec/v1",
+  "coordinate_system": "top-left-points",
+  "settings": { "coordinateOrigin": "topLeft" },
+  "field_spec_version": "wartungsvertrag-verlaengerung-field-spec/v2",
+  "fields": [
+    { "name": "vertragsnummer", "type": "text", "page": 1, "rect": { "x": 350, "y": 160, "w": 195, "h": 16 } },
+    { "name": "saisonjahr", "type": "text", "page": 1, "rect": { "x": 182, "y": 141, "w": 100, "h": 14 } },
+    { "name": "mitglied_name", "type": "text", "page": 1, "rect": { "x": 133, "y": 219, "w": 210, "h": 14 } },
+    { "name": "wartungsvertrag_titel", "type": "text", "page": 1, "rect": { "x": 303, "y": 243, "w": 214, "h": 14 } },
+    { "name": "mitgliedsnummer", "type": "text", "page": 1, "rect": { "x": 263, "y": 304, "w": 102, "h": 14 } },
+    { "name": "parzelle_nummer", "type": "text", "page": 1, "rect": { "x": 143, "y": 331, "w": 375, "h": 14 } },
+    { "name": "wartungsvertrag_beschreibung", "type": "multiline", "page": 1, "rect": { "x": 51, "y": 479, "w": 493, "h": 92 } },
+    { "name": "arbeitsstundenwirkung", "type": "text", "page": 1, "rect": { "x": 173, "y": 584, "w": 370, "h": 14 } },
+    { "name": "wartungsvertrag_bemerkung", "type": "text", "page": 1, "rect": { "x": 125, "y": 613, "w": 418, "h": 14 } },
+    { "name": "verlaengerungsentscheidung_datum", "type": "text", "page": 1, "rect": { "x": 242, "y": 679, "w": 132, "h": 14 } },
+    { "name": "verlaengerungsmitteilung_erstellt_am", "type": "text", "page": 1, "rect": { "x": 165, "y": 708, "w": 150, "h": 14 } }
+  ]
+}
