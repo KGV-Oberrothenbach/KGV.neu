@@ -51,7 +51,7 @@ vorrangig bewertet.
 
 | Bereich | Export | Plattform | Ausgabeformat | Datenquelle | sichtbare Personenreferenz | aktueller Nummernwert | Soll | Bewertung | Änderung nötig |
 |---|---|---|---|---|---|---|---|---|---|
-| Mitglieder | Mitgliederliste | Web, MAUI | CSV, PDF | `rpc_export_mitgliederliste` über Gateway | eigene Zeile je Mitglied; Spalte `Mitglieds-Nr.` | `mitgliedsnr` und `mitgliedsnummer` werden beide aus `g.id` gebildet | gespeicherte `g.mitgliedsnummer`; danach sortieren | **FEHLER** | Ja: RPC-Ausgabe und Sortierung auf die kanonische Spalte umstellen; die Metadatenbeschriftung ist bereits fachlich richtig. |
+| Mitglieder | Mitgliederliste | Web, MAUI | CSV, PDF | `rpc_export_mitgliederliste` über Gateway | eigene Zeile je Mitglied; Spalte `Mitglieds-Nr.` | `mitgliedsnr` und `mitgliedsnummer` stammen aus `g.mitgliedsnummer`; kein ID-Fallback | gespeicherte `g.mitgliedsnummer`; danach numerisch sortieren | **OK** | Nein; korrigiert durch die versionierte E2-Migration. |
 | Arbeitsstunden | Arbeitsstundenübersicht | Web, MAUI | CSV, PDF | `rpc_export_arbeitsstunden_uebersicht` über JSON-Wrapper | eine Zeile je Hauptmitglied und Saison; Vor-/Nachname sichtbar | keine Nummer sichtbar; `mitglied_id` ist nur Rückgabefeld, aber keine auswählbare Metadatenspalte | sichtbare Spalte `Mitgliedsnummer` aus `m.mitgliedsnummer` | **FEHLT** | Ja: RPC/Wrapper und Exportspalten ergänzen; technische ID intern behalten und nicht als Fachspalte anbieten. |
 | Datenschutz | Datenschutz – aktive Mitglieder | Web, MAUI | CSV, PDF | `rpc_export_datenschutz_aktive_mitglieder` über JSON-Wrapper | eine Zeile je aktivem Mitglied; Name sichtbar | keine Nummer sichtbar | sichtbare Spalte `Mitgliedsnummer` aus `m.mitgliedsnummer` | **FEHLT** | Ja: Projektion und Metadaten ergänzen; keine `m.id`-Ausgabe. |
 | Zähler/JAE | Jahresablesung – Status | Web, MAUI | CSV, PDF | `rpc_export_jahresablesung_status` über JSON-Wrapper | Zähler-/Parzellenzeile; `Pächter am Jahresende` nur als Name | keine Mitgliedsnummer; keine sichtbare `mitglied_id`; `zaehler_id` ist als technische, standardmäßig unsichtbare Spalte markiert | fachliche Entscheidung, ob die Pächterreferenz eine Nummer benötigt | **ENTSCHEIDUNG ERFORDERLICH** | Erst Zweckentscheidung: Statusliste ist primär zählerbezogen; bei Nummernpflicht Projektion und Spalte ergänzen. |
@@ -156,21 +156,38 @@ in technischen Storage-/Dateinamen führen; das ist
 - `_Archiv`, Recovery-Dateien, Tests, historische Dokumentation und
   Buildausgaben wurden nicht als aktive Produktpfade gewertet.
 
+## NB-2A-E2 – umgesetzt am 27.10.2026
+
+Die versionierte, nicht ausgeführte Migration
+`20261027100000_nb2a_e2_mitgliederliste_mitgliedsnummer.sql` ersetzt die
+aktuelle `rpc_export_mitgliederliste`-Definition. Die sichtbaren JSON-Felder
+`mitgliedsnr` und `mitgliedsnummer` lesen ausschließlich
+`g.mitgliedsnummer::text`; es gibt weder eine Berechnung noch einen Fallback
+auf `g.id`. Eine fehlende oder ungültige Nummer erzeugt den fachlichen Fehler
+`MEMBER_NUMBER_MISSING`. Die Sortieroption `mitgliedsnr` verwendet den
+numerischen Datenbankwert `g.mitgliedsnummer`.
+
+Die Exportmetadaten wurden nicht geändert. Der gezielte Contract-Test
+`member-list-membership-number.contract.test.mjs` sichert die beiden
+Projektionen, die Fehlerschranke, die Sortierung sowie die weiterhin gemeinsame
+Web-/MAUI-Zeilenquelle für CSV und PDF ab. Die Migration wurde nicht ausgeführt;
+es gab keinen Datenbank-Push und keine Produktivänderung.
+
+**NB-2A-E2 = 100 %**
+
 ## Abschluss und vorgeschlagene Folgeblöcke
 
 1. Aktive Listen-/Downloadexportpfade: **7**.
-2. **OK: 0** innerhalb dieser sieben Listenpfade.
-3. **FEHLER: 1** – Mitgliederliste gibt die technische ID als Mitgliedsnummer
-   aus.
+2. **OK: 1** innerhalb dieser sieben Listenpfade – Mitgliederliste.
+3. **FEHLER: 0**.
 4. **FEHLT: 2** – Arbeitsstundenübersicht und Datenschutzexport.
 5. **NICHT ERFORDERLICH: 1** – Zähler-Eichfälligkeit.
 6. **ENTSCHEIDUNG ERFORDERLICH: 3** – Jahresablesung-Status,
    Parzellenliste und JAE-XLSX.
-7. Konkreter technischer-ID-Fallback: `rpc_export_mitgliederliste` setzt
-   `mitgliedsnr` und `mitgliedsnummer` auf `g.id::text`.
-8. Die kanonische Nummer muss in Arbeitsstundenübersicht und
-   Datenschutzexport ergänzt werden; die Mitgliederliste muss sie korrekt
-   lesen.
+7. Der frühere technische-ID-Fallback der Mitgliederliste ist durch E2
+   beseitigt; `mitglied_id` bleibt nur in internen Zuordnungen.
+8. Die kanonische Nummer muss weiterhin in Arbeitsstundenübersicht und
+   Datenschutzexport ergänzt werden.
 9. Bereits korrekt sind die separat geprüften aktiven
    PDF-/Dokumentgeneratoren (sieben personenbezogene Erzeugergruppen oben).
 10. Keine aktive Listenexport-Datei mit Mitglieds-ID-Fund; technische
@@ -178,16 +195,13 @@ in technischen Storage-/Dateinamen führen; das ist
 
 Vorgeschlagene kleine Umsetzungsblöcke:
 
-1. **NB-2A-E2 – Mitgliederliste:** `rpc_export_mitgliederliste` auf
-   `mitglied.mitgliedsnummer` umstellen, einschließlich Sortierung; Regression
-   für CSV, PDF und beide Clients.
-2. **NB-2A-E3 – personenbezogene Standardlisten:** Arbeitsstunden- und
+1. **NB-2A-E3 – personenbezogene Standardlisten:** Arbeitsstunden- und
    Datenschutzprojektion sowie deren Metadatenspalten um die gespeicherte
    Mitgliedsnummer ergänzen; `mitglied_id` intern belassen.
-3. **NB-2A-E4 – parzellen-/zählerzentrierte Ausgaben:** Fachentscheidung für
+2. **NB-2A-E4 – parzellen-/zählerzentrierte Ausgaben:** Fachentscheidung für
    Pächterreferenzen in Jahresablesung, Parzellenliste und JAE-XLSX dokumentieren
    und nur bei positiver Entscheidung gezielt erweitern.
-4. **NB-2A-E5 – Dateinamen:** separater Audit der technischen IDs in
+3. **NB-2A-E5 – Dateinamen:** separater Audit der technischen IDs in
    Dokument-/Vorschaudateinamen.
 
 **NB-2A-E1 Export-Audit = 100 %**
