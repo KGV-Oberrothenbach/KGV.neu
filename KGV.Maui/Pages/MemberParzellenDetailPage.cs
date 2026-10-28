@@ -163,7 +163,6 @@ public sealed class MemberParzellenDetailPage : ContentPage
                 {
                     currentParzelleLabel,
                     CreateSection("Parzellen-Details",
-                        CreateValueLabel("ID", "SelectedDetail.ParzelleId"),
                         CreateValueLabel("Garten Nr", "SelectedDetail.GartenNr"),
                         CreateValueLabel("Größe / Fläche", nameof(ParzellenViewModel.SelectedParzelleSizeText)),
                         CreateValueLabel("Strom", nameof(ParzellenViewModel.SelectedParzelleStromAvailabilityText)),

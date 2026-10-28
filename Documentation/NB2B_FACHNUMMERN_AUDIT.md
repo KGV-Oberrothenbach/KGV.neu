@@ -67,7 +67,7 @@ Eine normale Verlängerung behält dieselbe `wartungsvertrag_id` und dieselbe 90
 
 Eine grundlegende Änderung wird ausschließlich durch die ausdrückliche Aktion „Neuen Wartungsvertrag wegen grundlegender Änderung erstellen“ gestartet; es gibt keinen Feldvergleich oder eine automatische Heuristik. Der Server legt einen neuen inaktiven Wartungsvertrag mit technischer Vorgängerzuordnung und einen Prepared-Signaturvorgang an, aber noch keine neue Nummer oder neue Zuordnung. Erst der normale Signaturstart reserviert die neue 90xxx. Erst der erfolgreiche Abschluss nach vollständigen Unterschriften und finalem Dokument aktiviert den neuen Vertrag, legt die neue Zuordnung an und beendet nötigenfalls die alte Laufzeit. Vorbereitung, Abbruch, Teilunterschrift und Dokumentfehler verändern den Altvertrag nicht. Eindeutige Vorgängerbindung, wiederverwendeter Vorgang/dieselbe Reservierung und idempotenter Abschluss verhindern Dubletten.
 
-Der Wartungsvertrags-Signaturflow und die Web-/MAUI-Mitglieds- und Fortführungsansichten verwenden die Vertragsnummer statt technischer Wartungsvertrags-IDs. Die gefundenen Wartungsvertrags-Fallbacks in Fortführungs-, Mitglieds- und Zuweisungsansichten sind beseitigt; andere allgemeine Vertrags-/Parzellen-ID-Fallbacks bleiben B5.
+Der Wartungsvertrags-Signaturflow und die Web-/MAUI-Mitglieds- und Fortführungsansichten verwenden die Vertragsnummer statt technischer Wartungsvertrags-IDs. Die gefundenen Wartungsvertrags-Fallbacks in Fortführungs-, Mitglieds- und Zuweisungsansichten sind beseitigt. Mit B5 wurden auch die allgemeinen sichtbaren Vertrags-, Dokument-, Kommunikations-, Ablesungs- und Parzellen-ID-Fallbacks entfernt.
 
 Die beiden neuen Templatekatalogeinträge sind ausdrücklich `draft` und inaktiv. Die Migrationen und lokalen Artefakte sind vorbereitet; sie wurden nicht angewendet, hochgeladen oder aktiviert. Deshalb ist die PDF-Nummerndarstellung im lokalen Generator-/Field-Spec-Vertrag geprüft, nicht in einem produktiv aktivierten Template.
 
@@ -100,10 +100,14 @@ Die acht Sequenzen sind je Nummernart strikt getrennt. Für Kommunikationsvorgä
 
 | Fundstelle | Befund | Bewertung |
 |---|---|---|
-| `kgv-generate-contract/signExisting` | Dateiname `Pachtvertrag-signiert-<dokument_id>.pdf` | FEHLER |
-| `kgv-generate-contract` Pachtwerte | Fallback `parzelle_nr = #<parzelle.id>` im PDF | FEHLER |
+| `kgv-generate-contract/signExisting` | neutraler sichtbarer Dateiname `Pachtvertrag-signiert.pdf`; technische Dokument-ID nur intern | in B5 behoben |
+| `kgv-generate-contract` und `.NET PachtvertragDokumentFactory` | Gartennummer im PDF, sonst neutral `nicht verfügbar`; kein Fallback auf `parzelle.id` | in B5 behoben |
 | `MaintenanceContinuationPanel.tsx` | zuvor „Bestehender Wartungsvertrag #<wartungsvertrag_id>“ | in B4 behoben; verwendet 90xxx |
 | `maintenance-assignment-service.ts`, `AssignContractsToMember.tsx` | zuvor Fallback `Wartungsvertrag #<wartungsvertrag_id>` | in B4 behoben; verwendet 90xxx bzw. neutrale Bezeichnung |
+| Web-Parzellen-, Zähler- und Protokollansichten | zuvor sichtbare `#<parzelle_id>`-Fallbacks und eine explizite Parzellen-ID | in B5 behoben; Gartennummer oder neutraler Text |
+| MAUI-Parzellen-, Dokument- und Pachtvertragsansichten | zuvor sichtbare ID-Zeilen und `#<parzelle_id>`-Fallbacks | in B5 behoben; Gartennummer oder neutraler Text |
+| Kommunikationszentrum, Vertragsversand und Finalprüfung | zuvor Vorgangs-, Revisions-, Dokument- oder Vorgänger-ID sichtbar | in B5 behoben; fachlicher Status bzw. neutraler Verfügbarkeitstext |
+| historischer Upload und offene Ablesefotos | zuvor Dokument- bzw. Ablesungs-ID sichtbar | in B5 behoben; neutraler Status-/Kontexttext |
 
 Die übrigen geprüften IDs in FKs, RPC-Parametern, Navigation und Provenance bleiben intern zulässig. Insbesondere wird keine 10xxx-, 20xxx-, 80xxx- oder 90xxx-Nummer aus einer technischen ID berechnet.
 
@@ -116,7 +120,7 @@ Die übrigen geprüften IDs in FKs, RPC-Parametern, Navigation und Provenance bl
 1. **NB-2B-B2 – Reservierungsrobustheit und 80xxx:** Konfliktsichere `reserve_fachnummer`, manuelle Altimport-Zuweisung, Wiederverwendung und Anzeige von 80xxx.
 2. **NB-2B-B3 – Pachtvertrag 20xxx und Ersatzkette:** PDF-/Metadatenfelder, Dokumentlisten, fachlicher Alt-Signierpfad sowie persistierte Vorgängerreferenz für Korrektur-/Ersatzverträge.
 3. **NB-2B-B4 – Wartungsvertrag 90xxx:** Sichtbarkeit in PDF, Metadaten und Verlängerungsmitteilung; danach die Entscheidung und Umsetzung für grundlegende Änderungen.
-4. **NB-2B-B5 – sichtbare technische Fallbacks:** Parzellen- und Wartungsvertrags-IDs durch neutrale/fachliche Angaben ersetzen.
+4. **NB-2B-B5 – sichtbare technische Fallbacks:** abgeschlossen; Parzellen-, Vertrags-, Dokument-, Kommunikations- und Ablesungs-IDs wurden durch fachliche Nummern oder neutrale Angaben ersetzt.
 
 ## Abschluss – Ausgangsbefund NB-2B-A1
 
@@ -167,11 +171,28 @@ Die folgende Zählung dokumentiert den historischen A1-Ausgangsbefund vor B2–B
 - Ausdrücklicher grundlegender Änderungsstart, neuer inaktiver Vertrag, Prepared-Signaturen und neue 90xxx: **OK**
 - Altvertrag bleibt bis zum vollständigen signierten Dokumentabschluss unverändert; Abschluss und Wiederholung sind idempotent: **OK**
 - Keine automatische Feldvergleichsheuristik; Web und MAUI nutzen denselben Prepared-/Backendpfad: **OK**
-- Die gefundenen Wartungsvertrags-ID-Fallbacks in `MaintenanceContinuationPanel.tsx`, `maintenance-assignment-service.ts` und `AssignContractsToMember.tsx` sind durch 90xxx bzw. neutrale Texte ersetzt; andere allgemeine Vertrags-/Parzellen-Fallbacks bleiben B5.
+- Die gefundenen Wartungsvertrags-ID-Fallbacks in `MaintenanceContinuationPanel.tsx`, `maintenance-assignment-service.ts` und `AssignContractsToMember.tsx` sind durch 90xxx bzw. neutrale Texte ersetzt; die übrigen allgemeinen Vertrags-/Parzellen-Fallbacks wurden anschließend in B5 geschlossen.
 - Die Generator-Finalisierung prüft die Mitgliedsunterschrift gegen die Vertragspartei des signierten Vorgangs und unterstützt so den Grundänderungs-Prepared-Vertrag ohne aktive Zuordnung.
 - B4-Tests: **57 bestanden** (46 Web-/Generator- und 11 .NET-Tests); der Workflow-Validator unterscheidet Erstvertrag und Verlängerungsmitteilung anhand ihrer Vorgangsart. Web-, Core- und Infrastructure-Build erfolgreich. Der MAUI-Build scheitert an 53 unterschiedlichen vorhandenen Compilerfehlern (106 Meldungen über zwei Target Frameworks), darunter zwei unveränderte `LineBreakMode`-Verwendungen in der Fortführungsseite; keine B4-spezifischen Compilerfehler.
 - Schema- und Templatekatalogmigrationen sowie zwei v2-Artefaktpaare erstellt; **keine Migration angewendet**, keine Templates hochgeladen oder aktiviert.
 
 **NB-2B-B4 = 100 %.**
 
-**NB-2B bleibt nur wegen NB-2B-B5 offen.**
+## NB-2B-B5 Abschluss
+
+- `signExisting` erzeugt den neutralen sichtbaren Dateinamen `Pachtvertrag-signiert.pdf`; die technische Quelldokument-ID bleibt ausschließlich intern.
+- Pachtvertrag-PDFs aus Edge Function und .NET verwenden die Gartennummer oder den neutralen Text `nicht verfügbar`, niemals die Parzellen-ID.
+- Web- und MAUI-Parzellenansichten, Zählerfilter, Protokollhistorie und Dokumentkontexte verwenden Gartennummern bzw. neutrale Fallbacks; explizite technische Parzellen-ID-Zeilen wurden entfernt.
+- Kommunikationszentrum, Vertragsversand, historische Uploads, Foto-Uploads und Finalprüfung zeigen keine technischen Vorgangs-, Revisions-, Dokument-, Ablesungs- oder Vorgänger-IDs mehr.
+- Die B4-Wartungsvertragsansichten bleiben fachnummernbasiert (`90xxx`) und fallen andernfalls neutral zurück.
+- UUIDs bleiben nur in internen Request-, Storage-, Cache-, Pending- und Client-Schlüsseln. Sichtbare Dateinamen werden davon getrennt fachlich/original benannt.
+- Schlussaudit über Web, MAUI, Core, Infrastructure und Edge Functions: **0 Treffer** für die bekannten sichtbaren Hash-/ID-Fallbackmuster (`#${...}`, `Mitglied #`, `Parzelle #`, `Garten #`, `Dokument #`, `Wartungsvertrag #`, `Vorgangs-ID`, `Parzellen-ID`, `Finaldokument #`, `Ablesung #`, sichtbare `ID`-Detailzeilen sowie die beiden PDF-Fallbacks).
+- Tests: **30/30 bestanden** (16 B5-Vertragstests, 3 bestehende sichtbare-Dateinamen-Tests und 11 bestehende B2–B4-Fachnummerntests). Der ältere vollständige .NET-Testbestand bleibt mit 354 bestandenen und 39 fachfremden Altfehlern inkonsistent.
+- Builds: Web, Core und Infrastructure erfolgreich. MAUI reproduziert die bereits aus B4 bekannten **53 fachfremden Compilerfehler**; keine geänderte B5-Stelle ist in der Fehlerliste enthalten.
+- Keine Migration notwendig oder angelegt; keine Migration ausgeführt. Kein Template aktiviert. E2E gemäß Vorgabe nicht gestartet.
+
+**NB-2B-B5 = 100 %.**
+
+**NB-2B = 100 %.**
+
+**Nummerierungssystem / Phase 7 = 100 %.**

@@ -189,7 +189,7 @@ namespace KGV.Core.Utilities
                 Paechter1 = hauptmitglied,
                 Paechter2 = paechter2,
                 ZweiteParteiIstGesetzlicherVertreter = zweiteParteiIstGesetzlicherVertreter && paechter2 != null,
-                ParzelleNummer = string.IsNullOrWhiteSpace(parzelle.GartenNr) ? $"#{parzelle.Id}" : parzelle.GartenNr.Trim(),
+                ParzelleNummer = string.IsNullOrWhiteSpace(parzelle.GartenNr) ? "nicht verfügbar" : parzelle.GartenNr.Trim(),
                 ParzelleFlaecheQm = parzelle.FlaecheQm!.Value,
                 ParzelleAnlage = parzelle.Anlage,
                 Pachtbeginn = vertragsbeginn,

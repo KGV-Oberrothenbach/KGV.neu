@@ -160,7 +160,7 @@ export function HistoricalDocumentUploadDialog({ session, memberId, pending, onP
     {message && <p className="notice" role="status">{message}</p>}
     {loading ? <p>Auswahldaten werden geladen …</p> : <fieldset disabled={phase !== "idle"}>
       {!pending && <label>Datei oder Scan<input type="file" accept={acceptedFiles} onChange={(event) => setFile(event.target.files?.[0] ?? null)} /><small>Für Fotos kann auf einem Mobilgerät die Kameraauswahl angeboten werden.</small></label>}
-      {pending && <p><strong>Bereits hochgeladenes Dokument:</strong> #{pending.documentId}. Es wird keine Datei erneut übertragen.</p>}
+      {pending && <p><strong>Dokument bereits hochgeladen.</strong> Es wird keine Datei erneut übertragen.</p>}
       <label>Dokumenttyp<select value={typeId} onChange={(event) => { setTypeId(event.target.value); setLeaseId(""); setAssignmentId(""); }}><option value="">Dokumenttyp wählen</option>{types.map((type) => <option key={type.id} value={type.id}>{type.bezeichnung}</option>)}</select></label>
       <label>Dokumentdatum<input type="date" value={documentDate} onChange={(event) => setDocumentDate(event.target.value)} /></label>
       <label>Unterzeichnet<select value={signed} onChange={(event) => setSigned(event.target.value as "ja" | "nein")}><option value="ja">Ja</option><option value="nein">Nein</option></select></label>

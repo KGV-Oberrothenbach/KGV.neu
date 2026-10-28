@@ -179,7 +179,6 @@ public sealed class ParzellenPage : ContentPage
                 {
                     CreateCurrentParzelleLabel(),
                     CreateSection("Stammdaten",
-                        CreateValueLabel("ID", "SelectedDetail.ParzelleId"),
                         CreateValueLabel("Garten Nr", "SelectedDetail.GartenNr"),
                         CreateValueLabel("Fläche", "SelectedDetail.FlaecheText"),
                         CreateValueLabel("hat Wasser", "SelectedDetail.HatWasserText"),

@@ -114,7 +114,7 @@ internal sealed class PreparedFinalDocumentReviewPage : ContentPage
             return;
         }
 
-        _statusLabel.Text = $"Finaldokument #{result.Contract.FinalDokumentId} wurde geladen.";
+        _statusLabel.Text = "Finaldokument wurde geladen.";
         _reloadButton.IsEnabled = true;
         _completeButton.IsEnabled = _reviewService.CanComplete;
         await Navigation.PushAsync(new PdfViewerPage(result.Document.Document.Title, result.Document.Content));

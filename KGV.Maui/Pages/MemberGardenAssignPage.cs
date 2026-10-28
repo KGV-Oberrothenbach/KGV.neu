@@ -287,7 +287,7 @@ public sealed class MemberGardenAssignPage : ContentPage
 
     private static string BuildParzelleDisplayText(ParzelleRecord parzelle)
     {
-        var gartenNr = string.IsNullOrWhiteSpace(parzelle.GartenNr) ? $"#{parzelle.Id}" : parzelle.GartenNr.Trim();
+        var gartenNr = string.IsNullOrWhiteSpace(parzelle.GartenNr) ? "nicht verfügbar" : parzelle.GartenNr.Trim();
         var anlage = string.IsNullOrWhiteSpace(parzelle.Anlage) ? "-" : parzelle.Anlage.Trim();
         return $"Garten {gartenNr} ({anlage})";
     }

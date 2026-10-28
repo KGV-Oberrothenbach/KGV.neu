@@ -835,7 +835,7 @@ public class DokumentePage : ContentPage, IQueryAttributable
             }
 
             var detail = await _supabaseService.GetParzelleDetailAsync(parzelleId.Value);
-            var displayName = detail?.DisplayName ?? $"Parzelle #{parzelleId.Value}";
+            var displayName = detail?.DisplayName ?? "Parzelle";
             return DokumentPageContext.Valid(
                 DokumentOwnerScope.Parzelle,
                 parzelleId.Value,
