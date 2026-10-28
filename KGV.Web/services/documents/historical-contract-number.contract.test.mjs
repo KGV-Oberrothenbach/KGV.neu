@@ -7,7 +7,7 @@ const root = resolve(import.meta.dirname, "../../..");
 const read = (path) => readFileSync(resolve(root, path), "utf8");
 
 test("B2 reservation is source-locked, idempotent and rejects a wrong number type", () => {
-  const sql = read("supabase/migrations/20261027110000_nb2b_b2_historische_vertragsnummern.sql");
+  const sql = read("supabase/migrations/20261027120000_nb2b_b2_historische_vertragsnummern.sql");
   assert.match(sql, /pg_advisory_xact_lock\(hashtextextended/);
   assert.match(sql, /quelle_art = p_quelle_art[\s\S]*quelle_id = p_quelle_id/);
   assert.match(sql, /v_bestehende_art <> p_art/);
@@ -16,7 +16,7 @@ test("B2 reservation is source-locked, idempotent and rejects a wrong number typ
 });
 
 test("B2 derives demo scope from the selected document member and keeps 80xxx metadata", () => {
-  const sql = read("supabase/migrations/20261027110000_nb2b_b2_historische_vertragsnummern.sql");
+  const sql = read("supabase/migrations/20261027120000_nb2b_b2_historische_vertragsnummern.sql");
   assert.match(sql, /from public\.mitglied where id = v_dokument\.mitglied_id/);
   assert.match(sql, /v_dokument\.mitglied_id is null/);
   assert.match(sql, /historische_vertragsnummer/);
