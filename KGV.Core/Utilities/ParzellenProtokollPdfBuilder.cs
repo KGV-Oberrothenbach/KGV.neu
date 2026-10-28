@@ -173,7 +173,7 @@ public static class ParzellenProtokollPdfBuilder
         var number = member?.Mitgliedsnummer;
         if (number is not > 0)
             throw new InvalidOperationException("Für Pächter/in 1 fehlt eine gültige gespeicherte Mitgliedsnummer.");
-        return member.Mitgliedsnummer.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        return number.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
     }
     private static string TextOrDash(string? value) => string.IsNullOrWhiteSpace(value) ? "-" : value.Trim();
     private static string UpperFirst(string value) => string.IsNullOrWhiteSpace(value) ? "-" : char.ToUpperInvariant(value[0]) + value[1..];

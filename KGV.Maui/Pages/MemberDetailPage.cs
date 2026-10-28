@@ -534,7 +534,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         if (member == null)
             return "Mitglied nicht verfügbar";
 
-        var name = string.Join(' ', new[] { member?.Vorname, member?.Name }
+        var name = string.Join(' ', new[] { member.Vorname, member.Name }
             .Where(value => !string.IsNullOrWhiteSpace(value))
             .Select(value => value!.Trim()));
         if (member.Mitgliedsnummer <= 0)

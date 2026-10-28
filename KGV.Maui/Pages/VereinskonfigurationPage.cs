@@ -39,7 +39,7 @@ public sealed class VereinskonfigurationPage : ContentPage
     private readonly Button _refreshButton;
     private readonly Button _saveButton;
 
-    private VereinskonfigurationRecord _currentRecord = new() { Aktiv = true };
+    private VereinskonfigurationRecord? _currentRecord = new() { Aktiv = true };
     private bool _isBusy;
 
     public VereinskonfigurationPage(ISupabaseService supabaseService, UserContextState userContextState)
@@ -280,6 +280,12 @@ public sealed class VereinskonfigurationPage : ContentPage
     private bool TryBuildRecord(out VereinskonfigurationRecord record, out string validationMessage)
     {
         validationMessage = string.Empty;
+        if (_currentRecord is null)
+        {
+            record = new VereinskonfigurationRecord();
+            validationMessage = "Die Vereinskonfiguration wurde noch nicht geladen.";
+            return false;
+        }
         record = new VereinskonfigurationRecord
         {
             Id = _currentRecord.Id,

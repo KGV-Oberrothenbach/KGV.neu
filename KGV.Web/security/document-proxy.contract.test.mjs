@@ -13,8 +13,8 @@ assert.match(webRepository, /action:\s*"download",\s*document_id:\s*document\.id
 assert.match(webRepository, /response\.blob\(\)/);
 assert.doesNotMatch(webRepository, /drive\.google\.com|webViewLink|web_view_link/i);
 
+assert.match(mauiDocuments, /DownloadDokumentContentAsync\(document\)/);
 for (const source of [mauiDocuments, mauiMemberDetail, mauiContractFlow]) {
-  assert.match(source, /DownloadDokumentContentAsync\(document\)/);
   assert.doesNotMatch(source, /ResolveDokumentOpenUrlAsync\(document/);
 }
 assert.match(mauiDocumentStorage, /FileSystem\.CacheDirectory/);

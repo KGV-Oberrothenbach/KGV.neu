@@ -48,7 +48,7 @@ namespace KGV.Core.Utilities
                 throw new ArgumentNullException(nameof(member));
             if (sourceDocument == null)
                 throw new ArgumentNullException(nameof(sourceDocument));
-            if ((originalPdfContent?.Length ?? 0) <= 0)
+            if (originalPdfContent is not { Length: > 0 })
                 throw new InvalidOperationException("Die unsignierte Dokumentfassung konnte nicht geladen werden.");
             if (signatureCapture == null || !signatureCapture.HasContent)
                 throw new InvalidOperationException("Es liegt keine digitale Signatur zum Übernehmen vor.");

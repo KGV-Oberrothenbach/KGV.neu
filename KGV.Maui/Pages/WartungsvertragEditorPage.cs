@@ -50,8 +50,8 @@ public sealed class WartungsvertragEditorPage : ContentPage, IQueryAttributable
         _bemerkungEditor = new Editor { AutoSize = EditorAutoSizeOption.TextChanges, HeightRequest = 100, Placeholder = "Bemerkung" };
         _maxKontingentEntry = new Entry { Placeholder = "Max. Kontingent", Keyboard = Keyboard.Numeric };
         _befreitVonPflichtstundenSwitch = new Switch();
-        _befreitVonPflichtstundenSwitch.Toggled += (_, e) => _arbeitsstundenGutschriftEntry.IsEnabled = !e.Value && _isAuthorized;
         _arbeitsstundenGutschriftEntry = new Entry { Placeholder = "Stunden pro Saison", Keyboard = Keyboard.Numeric };
+        _befreitVonPflichtstundenSwitch.Toggled += (_, e) => _arbeitsstundenGutschriftEntry.IsEnabled = !e.Value && _isAuthorized;
         _activeSwitch = new Switch { IsToggled = true };
         _saveButton = new Button { Text = "Speichern" };
         _saveButton.Clicked += async (_, _) => await SaveAsync();

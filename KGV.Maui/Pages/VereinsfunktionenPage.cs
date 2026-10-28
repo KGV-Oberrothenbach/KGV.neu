@@ -116,7 +116,7 @@ public sealed class VereinsfunktionenPage : ContentPage
     private async Task NewUseAsync() { if (_selected != null) await EditUseAsync(new VereinsfunktionVerwendungRecord { VereinsfunktionId = _selected.Id }); }
     private async Task DeleteUseAsync(VereinsfunktionVerwendungRecord record)
     {
-        var confirmed = await DisplayAlert("Verwendungszweck entfernen", $"{record.Verwendungszweck} wirklich entfernen?", "Entfernen", "Abbrechen");
+        var confirmed = await DisplayAlertAsync("Verwendungszweck entfernen", $"{record.Verwendungszweck} wirklich entfernen?", "Entfernen", "Abbrechen");
         if (!confirmed) return;
         try
         {
@@ -125,7 +125,7 @@ public sealed class VereinsfunktionenPage : ContentPage
         }
         catch (Exception ex)
         {
-            await DisplayAlert("Entfernen nicht möglich", ErrorText(ex), "OK");
+            await DisplayAlertAsync("Entfernen nicht möglich", ErrorText(ex), "OK");
         }
     }
     private async Task EditUseAsync(VereinsfunktionVerwendungRecord record)
@@ -141,7 +141,7 @@ public sealed class VereinsfunktionenPage : ContentPage
     private async Task EditPage(string title, IEnumerable<View> fields, Func<Task> save)
     {
         var host = new VerticalStackLayout { Padding = 24, Spacing = 10 }; foreach (var field in fields) host.Children.Add(field); var page = new ContentPage { Title = title, Content = new ScrollView { Content = host } }; var saveButton = new Button { Text = "Speichern" }; var cancel = new Button { Text = "Abbrechen" };
-        saveButton.Clicked += async (_, _) => { try { await save(); await Navigation.PopAsync(); await LoadAsync(); } catch (Exception ex) { await page.DisplayAlert("Speichern nicht möglich", ErrorText(ex), "OK"); } }; cancel.Clicked += async (_, _) => await Navigation.PopAsync(); host.Children.Add(saveButton); host.Children.Add(cancel); await Navigation.PushAsync(page);
+        saveButton.Clicked += async (_, _) => { try { await save(); await Navigation.PopAsync(); await LoadAsync(); } catch (Exception ex) { await page.DisplayAlertAsync("Speichern nicht möglich", ErrorText(ex), "OK"); } }; cancel.Clicked += async (_, _) => await Navigation.PopAsync(); host.Children.Add(saveButton); host.Children.Add(cancel); await Navigation.PushAsync(page);
     }
 
     private HorizontalStackLayout Buttons(params (string text, Func<Task> action)[] values) { var row = new HorizontalStackLayout { Spacing = 8 }; foreach (var value in values) { var b = new Button { Text = value.text }; b.Clicked += async (_, _) => await value.action(); row.Children.Add(b); } return row; }
