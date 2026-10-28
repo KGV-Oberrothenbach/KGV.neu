@@ -1,6 +1,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { PDFDocument, PDFName, PDFFont, StandardFonts, rgb } from "npm:pdf-lib@1.17.1";
 import { usesPersistentMembershipSignatures } from "./membership-application-policy.ts";
+import { isEligibleLeaseTenantRecord } from "./lease-contract-policy.ts";
 
 const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, apikey, content-type", "Access-Control-Allow-Methods": "POST, OPTIONS" };
 const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
@@ -485,6 +486,7 @@ Deno.serve(async (req) => {
     } else if (type === "pachtvertrag") {
       const parcelId = Number(body.parcel_id); if (!Number.isSafeInteger(parcelId) || parcelId <= 0) return json(400, { message: "Für den Pachtvertrag ist eine Parzelle erforderlich." });
       if (member.hauptmitglied_id !== null && member.hauptmitglied_id !== undefined) throw new Error("Pachtvertrag kann nur aus dem Hauptmitglied-Kontext erzeugt werden.");
+      if (!isEligibleLeaseTenantRecord(member)) throw new Error("Pächter 1 muss ein aktives aufgenommenes Mitglied sein.");
       const [{ data: applicationDocuments }, { data: activeRelationships }, { data: parcel, error: parcelError }, { data: assignment }, { data: season }] = await Promise.all([
         auth.admin.from("dokument").select("titel,dateiname").eq("mitglied_id", memberId).is("archiviert_at", null),
         auth.admin.from("pachtverhaeltnis").select("id").eq("parzelle_id", parcelId).is("beendet_am", null).limit(2),
@@ -503,7 +505,7 @@ Deno.serve(async (req) => {
       let representative: Record<string, unknown> | null = null;
       if (isMinorAt(member, startDate)) { const { data: relations } = await auth.admin.from("mitglied_gesetzlicher_vertreter").select("id,vertreter_mitglied_id,gueltig_ab,gueltig_bis").eq("minderjaehriges_mitglied_id", memberId); const relation = resolveActiveLegalRepresentativeRelation((relations ?? []) as LegalRepresentativeRelation[], startDate); if (!relation) throw new Error("Für dieses minderjährige Mitglied ist im signierten Mitgliedsantrag kein gesetzlicher Vertreter hinterlegt."); const { data } = await auth.admin.from("mitglied").select("*").eq("id", relation.vertreter_mitglied_id).maybeSingle(); if (!data) throw new Error("Für dieses minderjährige Mitglied ist im signierten Mitgliedsantrag kein gesetzlicher Vertreter hinterlegt."); representative = data; }
       if (typeof body.has_previous_contract !== "boolean") throw new Error("Bitte entscheiden Sie, ob ein Altvertrag vorliegt."); if (body.has_previous_contract && !isLocalIsoDate(body.previous_contract_date)) throw new Error("Bitte ein gültiges Datum des Altvertrags angeben.");
-      let secondary: Record<string, unknown> | null = null; if (!representative && body.include_secondary_member === true) { const secondaryId = Number(body.secondary_member_id); if (!Number.isSafeInteger(secondaryId) || secondaryId <= 0) throw new Error("Für Pächter 2 fehlt das eingefrorene Nebenmitglied."); const { data, error } = await auth.admin.from("mitglied").select("*").eq("id", secondaryId).eq("hauptmitglied_id", memberId).maybeSingle(); if (error || !data) throw new Error("Das eingefrorene Nebenmitglied ist nicht mehr dem Hauptmitglied zugeordnet."); secondary = data; } const party2 = representative ?? secondary; const annual = Math.round(area * rate * 100) / 100;
+      let secondary: Record<string, unknown> | null = null; if (!representative && body.include_secondary_member === true) { const secondaryId = Number(body.secondary_member_id); if (!Number.isSafeInteger(secondaryId) || secondaryId <= 0 || secondaryId === memberId) throw new Error("Für Pächter 2 fehlt ein anderes gültiges Mitglied."); const { data, error } = await auth.admin.from("mitglied").select("*").eq("id", secondaryId).maybeSingle(); if (error || !data || !isEligibleLeaseTenantRecord(data)) throw new Error("Pächter 2 muss ein aktives aufgenommenes Mitglied sein."); secondary = data; } const party2 = representative ?? secondary; const annual = Math.round(area * rate * 100) / 100;
       const address = (person: Record<string, unknown> | null | undefined) => [safe(person?.adresse), [safe(person?.plz), safe(person?.ort)].filter(Boolean).join(" ")].filter(Boolean).join(", ");
       const contact = (person: Record<string, unknown> | null | undefined) => [safe(person?.telefon), safe(person?.handy), safe(person?.email)].filter(Boolean).join(" · ");
       const fullName = (person: Record<string, unknown> | null | undefined) => [safe(person?.vorname), safe(person?.name)].filter(Boolean).join(" ");

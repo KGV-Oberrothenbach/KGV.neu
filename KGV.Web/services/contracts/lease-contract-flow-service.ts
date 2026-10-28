@@ -5,7 +5,7 @@ export type LeasePersistentSlot = { key: "lease.member" | "lease.second_party" |
 export function buildLeaseContractPersistentSlots({ isMinor, includeSecondaryMember, memberId, secondaryMemberId }: { isMinor: boolean; includeSecondaryMember: boolean; memberId: number; secondaryMemberId?: number | null }): LeasePersistentSlot[] {
   const slots: LeasePersistentSlot[] = [{ key: "lease.member", sortOrder: 10, required: true, signerType: "mitglied", memberId }];
   if (isMinor) slots.push({ key: "lease.second_party", sortOrder: 20, required: true, signerType: "gesetzlicher_vertreter" });
-  else if (includeSecondaryMember) slots.push({ key: "lease.second_party", sortOrder: 20, required: true, signerType: "nebenmitglied", memberId: secondaryMemberId ?? null });
+  else if (includeSecondaryMember) slots.push({ key: "lease.second_party", sortOrder: 20, required: true, signerType: "mitglied", memberId: secondaryMemberId ?? null });
   slots.push({ key: "vorstand_1", sortOrder: 90, required: true, signerType: "vereinsunterzeichner" }, { key: "vorstand_2", sortOrder: 100, required: true, signerType: "vereinsunterzeichner" });
   return slots;
 }

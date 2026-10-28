@@ -21,6 +21,7 @@
     "test:communication-center": "node features/communication/communication-center.contract.test.mjs",
     "test:prepared-contract": "node --test services/communication/prepared-contract-service.test.mjs services/communication/prepared-contract-resume.test.mjs services/communication/prepared-contract-signature.test.mjs",
     "test:membership-application-e2e": "node --experimental-strip-types --test services/contracts/membership-application-e2e.integration.test.ts",
+    "test:lease-contract-e2e": "node --experimental-strip-types --test services/contracts/lease-contract-e2e.integration.test.ts",
     "test:maui-valid-access": "node security/maui-valid-access.contract.test.mjs",
     "test:document-proxy": "node security/document-proxy.contract.test.mjs",
     "test:navigation-capabilities": "node security/navigation-capabilities.contract.test.mjs",

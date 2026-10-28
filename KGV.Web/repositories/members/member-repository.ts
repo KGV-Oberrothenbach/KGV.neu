@@ -13,6 +13,14 @@ export const listMembersForSearch = (club: ClubContext, session: BrowserSession)
   limit: "1000",
 });
 
+export const listEligibleLeaseContractParties = (club: ClubContext, session: BrowserSession) => readSupabaseRest<Member>({ club, session }, "mitglied", {
+  select: memberStammdatenSelect,
+  aktiv: "eq.true",
+  aufnahme_status: "eq.aufgenommen",
+  order: "name.asc,vorname.asc",
+  limit: "2000",
+});
+
 export const getMemberWorkspaceInfo = (club: ClubContext, session: BrowserSession, memberId: number) => readSupabaseRest<MemberWorkspaceInfo>({ club, session }, "mitglied", {
   select: "id,mitgliedsnummer,vorname,name",
   id: `eq.${memberId}`,

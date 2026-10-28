@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
 using KGV.Core.Services;
+using KGV.Core.Utilities;
 using Microsoft.Maui.Controls;
 
 namespace KGV.Maui.Pages;
@@ -77,8 +78,8 @@ internal static class PachtvertragFlowHelper
             var request = await PromptPachtvertragRequestAsync(navigation, supabaseService, mitgliedId, parzelleId, vertragsbeginn, initialRequest, contract);
             if (request == null) return PachtvertragFlowResult.Abgebrochen;
 
-            request.VereinsunterlagenSnapshot = await vereinsunterlagenService.CreateCurrentSnapshotAsync(mitgliedId);
-            request.VereinsunterlagenNachweis = VereinsunterlagenNachweisHelper.FormatForPdf(request.VereinsunterlagenSnapshot);
+            request.VereinsunterlagenSnapshot = await vereinsunterlagenService.CreateCurrentSnapshotAsync(mitgliedId, PreparedContractConstants.LeaseContract);
+            request.VereinsunterlagenNachweis = VereinsunterlagenNachweisHelper.FormatForPdf(request.VereinsunterlagenSnapshot, PreparedContractConstants.LeaseContract);
             var serialized = PreparedContractDraftParser.Serialize(PreparedLeaseContractMapper.ToPreparedDraft(request));
             if (contract == null)
                 contract = await preparedContractRepository.CreateAsync(PreparedContractConstants.LeaseContract, mitgliedId, parzelleId, serialized);
@@ -122,7 +123,11 @@ internal static class PachtvertragFlowHelper
         var representative = await supabaseService.ResolveGesetzlicherVertreterAsync(mitgliedId, vertragsbeginn);
         if (representative.IstMinderjaehrig && !representative.HatAktivenGesetzlichenVertreter)
             throw new InvalidOperationException("Für dieses minderjährige Mitglied ist im signierten Mitgliedsantrag kein gesetzlicher Vertreter hinterlegt.");
-        var nebenmitglied = await supabaseService.GetNebenmitgliedByHauptmitgliedIdAsync(mitgliedId);
+        var nebenmitglied = initialRequest?.SecondaryMemberId is > 0
+            ? await supabaseService.GetMitgliedByIdAsync(initialRequest.SecondaryMemberId.Value)
+            : await supabaseService.GetNebenmitgliedByHauptmitgliedIdAsync(mitgliedId);
+        if (nebenmitglied is not null && (!OperationalDataFilter.IsOperationalMember(nebenmitglied) || nebenmitglied.Id == mitgliedId))
+            throw new InvalidOperationException("Pächter 2 muss ein anderes aktives aufgenommenes Mitglied sein.");
         var relationship = await supabaseService.GetAktivesPachtverhaeltnisStatusAsync(parzelleId);
         if (relationship.HatAktivesPachtverhaeltnis && relationship.Vertragsfassungen == 0)
             throw new InvalidOperationException("Das aktive Pachtverhältnis besitzt keine Vertragsfassung.");
