@@ -348,14 +348,21 @@ async function buildParcelProtocol(member: Record<string, unknown>, parcel: Reco
 
 async function uploadContractDocument(auth: Awaited<ReturnType<typeof authenticate>>, pdf: Uint8Array, owner: { kind: "mitglied" | "parzelle"; id: number }, title: string, fileName: string, provenance?: { sourceKommunikationsvorgangId: number; sourceRevision: number; sourceWartungsvertragZuordnungId?: number }) {
   const form = new FormData(); form.set("file", new File([pdf], fileName, { type: "application/pdf" })); form.set("owner_kind", owner.kind); form.set("owner_id", String(owner.id)); form.set("titel", title);
-  const uploadResponse = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/kgv-upload-document`, { method: "POST", headers: { Authorization: auth.authorization, apikey: Deno.env.get("SUPABASE_ANON_KEY") ?? "" }, body: form });
-  const upload = await uploadResponse.json(); if (!uploadResponse.ok || !Number.isSafeInteger(upload.document_id)) throw new Error(upload.message ?? "Dokument-Upload fehlgeschlagen.");
-  const documentId = upload.document_id as number;
   if (provenance) {
-    const { error } = await auth.admin.from("dokument").update({ source_kommunikationsvorgang_id: provenance.sourceKommunikationsvorgangId, source_revision: provenance.sourceRevision, ...(provenance.sourceWartungsvertragZuordnungId ? { source_wartungsvertrag_zuordnung_id: provenance.sourceWartungsvertragZuordnungId } : {}) }).eq("id", documentId);
-    if (error) throw new Error(`Dokument-Provenienz konnte nicht gespeichert werden: ${error.message}`);
+    form.set("source_kommunikationsvorgang_id", String(provenance.sourceKommunikationsvorgangId));
+    form.set("source_revision", String(provenance.sourceRevision));
+    if (provenance.sourceWartungsvertragZuordnungId) form.set("source_wartungsvertrag_zuordnung_id", String(provenance.sourceWartungsvertragZuordnungId));
   }
-  return documentId;
+  const uploadResponse = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/kgv-upload-document`, { method: "POST", headers: { Authorization: auth.authorization, apikey: Deno.env.get("SUPABASE_ANON_KEY") ?? "" }, body: form });
+  const upload = await uploadResponse.json();
+  if (!uploadResponse.ok || !Number.isSafeInteger(upload.document_id)) {
+    if (provenance) {
+      const { data: existing } = await auth.admin.from("dokument").select("id").eq("source_kommunikationsvorgang_id", provenance.sourceKommunikationsvorgangId).eq("source_revision", provenance.sourceRevision).is("archiviert_at", null).maybeSingle();
+      if (existing) return existing.id;
+    }
+    throw new Error(upload.message ?? "Dokument-Upload fehlgeschlagen.");
+  }
+  return upload.document_id as number;
 }
 
 Deno.serve(async (req) => {

@@ -13,7 +13,8 @@ test("contract dispatch distinguishes frozen digital and paper attachments", asy
 });
 test("edge function sends only digital snapshots and never fabricates a paper PDF", async () => {
   const source = await readFile(edge, "utf8");
-  for (const expected of ["claim_contract_dispatch", "versandinstanz_versuch", "SMTP_TEST_RECIPIENT", "GOOGLE_DRIVE_REFRESH_TOKEN", "teilweise_fehlerhaft", 'eq("bindungsstatus","digital_gebunden")']) assert.ok(source.includes(expected));
+  for (const expected of ["claim_contract_dispatch", "versandinstanz_versuch", "SMTP_TEST_RECIPIENT", "GOOGLE_DRIVE_REFRESH_TOKEN", "teilweise_fehlerhaft", "stableMessageId", "idempotenzschluessel"]) assert.ok(source.includes(expected));
+  assert.match(source, /eq\("bindungsstatus",\s*"digital_gebunden"\)/);
   assert.doesNotMatch(source, /papier.*placeholder|placeholder.*papier/i);
 });
 test("redispatch is a separate successful-dispatch path with new current recipients", async () => {

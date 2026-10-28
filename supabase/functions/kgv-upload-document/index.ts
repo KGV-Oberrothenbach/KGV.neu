@@ -893,6 +893,13 @@ Deno.serve(async (req) => {
     const ownerKind = normalizeOwnerKind(String(form.get("owner_kind") ?? ""));
     const ownerId = normalizeOwnerId(String(form.get("owner_id") ?? ""));
     const titel = String(form.get("titel") ?? "").trim();
+    const sourceProcessRaw = String(form.get("source_kommunikationsvorgang_id") ?? "").trim();
+    const sourceRevisionRaw = String(form.get("source_revision") ?? "").trim();
+    const sourceAssignmentRaw = String(form.get("source_wartungsvertrag_zuordnung_id") ?? "").trim();
+    const sourceProcessId = sourceProcessRaw ? normalizeOwnerId(sourceProcessRaw) : null;
+    const sourceRevision = sourceRevisionRaw ? Number(sourceRevisionRaw) : null;
+    const sourceAssignmentId = sourceAssignmentRaw ? normalizeOwnerId(sourceAssignmentRaw) : null;
+    const hasProvenance = sourceProcessRaw !== "" || sourceRevisionRaw !== "" || sourceAssignmentRaw !== "";
     if (!ownerKind || !ownerId) {
       return errorResponse(400, "BAD_REQUEST", "Owner muss als Mitglied oder Parzelle mit gültiger ID angegeben werden.", requestId);
     }
@@ -900,10 +907,30 @@ Deno.serve(async (req) => {
     if (!titel) {
       return errorResponse(400, "BAD_REQUEST", "Feld 'titel' fehlt.", requestId);
     }
+    if (hasProvenance && (!sourceProcessId || !Number.isSafeInteger(sourceRevision) || sourceRevision! < 1)) {
+      return errorResponse(400, "BAD_REQUEST", "Dokument-Provenienz ist unvollständig.", requestId);
+    }
+    if (hasProvenance && !["admin", "vorstand"].includes(auth.role)) {
+      return errorResponse(403, "FORBIDDEN", "Dokument-Provenienz darf nur durch die Vertragsbearbeitung gesetzt werden.", requestId);
+    }
 
     const ownerIsDemo = await resolveUploadOwnerScope(auth, ownerKind, ownerId);
     if (ownerIsDemo === null || ownerIsDemo !== auth.isDemoAccount) {
       return errorResponse(403, "FORBIDDEN", "Dieses Dokument ist für den aktuellen Benutzer nicht freigegeben.", requestId);
+    }
+    if (hasProvenance) {
+      const { data: source, error: sourceError } = await auth.supabaseAdmin
+        .from("kommunikationsvorgang")
+        .select("id,revision,signatur_revision,mitglied_id,parzelle_id")
+        .eq("id", sourceProcessId!)
+        .maybeSingle();
+      const effectiveRevision = Number(source?.signatur_revision ?? source?.revision);
+      const ownerMatches = ownerKind === "mitglied"
+        ? Number(source?.mitglied_id) === ownerId
+        : Number(source?.parzelle_id) === ownerId;
+      if (sourceError || !source || effectiveRevision !== sourceRevision || !ownerMatches) {
+        return errorResponse(400, "BAD_REQUEST", "Dokument-Provenienz passt nicht zum Owner oder Vertragsstand.", requestId);
+      }
     }
 
     if (!hasAllowedDocumentType(file)) {
@@ -948,6 +975,9 @@ Deno.serve(async (req) => {
         mime_type: file.type || "application/octet-stream",
         size_bytes: file.size,
         created_by: auth.userId,
+        source_kommunikationsvorgang_id: sourceProcessId,
+        source_revision: sourceRevision,
+        source_wartungsvertrag_zuordnung_id: sourceAssignmentId,
       })
       .select("id,mitglied_id,parzelle_id,bucket,storage_path,drive_file_id,titel,dateiname,mime_type,size_bytes,created_at,updated_at,created_by,archiviert_at,archiviert_by,archiviert_begruendung")
       .single();

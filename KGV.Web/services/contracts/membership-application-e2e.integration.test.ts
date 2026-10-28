@@ -72,7 +72,11 @@ class MembershipApplicationHarness {
 
   decide(application: Application, result: "annehmen" | "ablehnen", path: "einstimmig" | "vorstandssitzung", authorized = true, manualRepresentative = false) {
     if (!authorized) throw new Error("forbidden");
-    if (application.decision !== "offen") throw new Error("already decided");
+    const expected = result === "annehmen" ? "angenommen" : "abgelehnt";
+    if (application.decision !== "offen") {
+      if (application.decision === expected) return application.decision;
+      throw new Error("already decided differently");
+    }
     if (path === "einstimmig" && [...application.votes.values()].some(vote => vote.value !== "ja")) throw new Error("not unanimous");
     if (manualRepresentative && result === "annehmen") {
       const existing = this.representativeLinks.get(this.member.id);
@@ -88,6 +92,7 @@ class MembershipApplicationHarness {
     this.member.active = result === "annehmen";
     this.member.memberSince = result === "annehmen" ? "2026-11-01" : null;
     if (result === "annehmen") application.confirmationProcessId ??= this.nextObjectId++;
+    return application.decision;
   }
 
   confirm(application: Application) {
@@ -131,7 +136,7 @@ test("Happy Path A: adult application remains idempotent through confirmation an
   assert.equal(application.decision, "offen", "unanimous votes must not decide automatically");
   assert.equal(membershipBoardDecisionPath(true), "einstimmig");
   flow.decide(application, "annehmen", "einstimmig");
-  assert.throws(() => flow.decide(application, "annehmen", "einstimmig"), /already decided/);
+  assert.equal(flow.decide(application, "annehmen", "einstimmig"), "angenommen");
   const confirmation = flow.confirm(application);
   assert.equal(flow.confirm(application), confirmation);
   const dispatch = flow.dispatch(application);
@@ -162,7 +167,7 @@ test("Happy Path C: a manual representative is created once on acceptance", () =
   flow.decide(application, "annehmen", "einstimmig", true, true);
   assert.equal(flow.representatives.size, 1);
   assert.ok([...flow.representatives.values()][0].createdAt);
-  assert.throws(() => flow.decide(application, "annehmen", "einstimmig", true, true), /already decided/);
+  assert.equal(flow.decide(application, "annehmen", "einstimmig", true, true), "angenommen");
   assert.equal(flow.representatives.size, 1);
 });
 

@@ -11,6 +11,7 @@ function decodePng(value: unknown) {
   try { const binary = atob(value); const bytes = Uint8Array.from(binary, char => char.charCodeAt(0)); return bytes.length <= 1048576 && isPng(bytes) ? bytes : null; } catch { return null; }
 }
 async function sha256(bytes: Uint8Array) { const digest = await crypto.subtle.digest("SHA-256", bytes); return Array.from(new Uint8Array(digest), value => value.toString(16).padStart(2, "0")).join(""); }
+function stableObjectId(hash: string) { return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-${hash.slice(12, 16)}-${hash.slice(16, 20)}-${hash.slice(20, 32)}`; }
 
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -31,16 +32,22 @@ Deno.serve(async (request) => {
     const png = decodePng(body?.png_base64);
     if (!Number.isSafeInteger(id) || id <= 0 || !Number.isSafeInteger(revision) || revision < 1 || typeof key !== "string" || !keyPattern.test(key) || !png)
       return json({ success: false, message: "Die Signatur-Uploadanfrage ist ungültig." }, 400);
-    const { data: contract, error: contractError } = await admin.from("kommunikationsvorgang").select("id,status,revision,signatur_revision").eq("id", id).maybeSingle();
-    if (contractError || !contract || contract.status !== "zur_signatur" || contract.revision !== revision || contract.signatur_revision !== revision)
-      return json({ success: false, message: "Der Vertragsvorgang ist nicht für diese Signaturrevision geöffnet." }, 409);
-    const { data: position, error: positionError } = await admin.from("prepared_contract_signatur").select("id,status").eq("kommunikationsvorgang_id", id).eq("signatur_revision", revision).eq("signatur_schluessel", key).maybeSingle();
-    if (positionError || !position) return json({ success: false, message: "Die Signaturposition wurde nicht vorbereitet." }, 409);
-    if (position.status !== "offen") return json({ success: false, message: "Diese Signaturposition ist bereits unterschrieben." }, 409);
-    const objectId = crypto.randomUUID();
-    const storagePath = `${id}/${revision}/${key}/${objectId}.png`;
     const hash = await sha256(png);
-    const { error: uploadError } = await admin.storage.from(bucket).upload(storagePath, png, { contentType: "image/png", upsert: false });
+    const { data: contract, error: contractError } = await admin.from("kommunikationsvorgang").select("id,status,revision,signatur_revision").eq("id", id).maybeSingle();
+    if (contractError || !contract || !["zur_signatur", "letzte_pruefung", "erledigt"].includes(contract.status) || contract.revision !== revision || contract.signatur_revision !== revision)
+      return json({ success: false, message: "Der Vertragsvorgang ist nicht für diese Signaturrevision geöffnet." }, 409);
+    const { data: position, error: positionError } = await admin.from("prepared_contract_signatur").select("id,status,storage_path,signatur_sha256").eq("kommunikationsvorgang_id", id).eq("signatur_revision", revision).eq("signatur_schluessel", key).maybeSingle();
+    if (positionError || !position) return json({ success: false, message: "Die Signaturposition wurde nicht vorbereitet." }, 409);
+    if (position.status === "unterschrieben") {
+      if (position.signatur_sha256 === hash && position.storage_path)
+        return json({ success: true, storage_path: position.storage_path, sha256: hash, already_stored: true });
+      return json({ success: false, message: "Diese Signaturposition wurde bereits abweichend unterschrieben." }, 409);
+    }
+    if (position.status !== "offen" || contract.status !== "zur_signatur")
+      return json({ success: false, message: "Diese Signaturposition ist nicht mehr unterschreibbar." }, 409);
+    const objectId = stableObjectId(hash);
+    const storagePath = `${id}/${revision}/${key}/${objectId}.png`;
+    const { error: uploadError } = await admin.storage.from(bucket).upload(storagePath, png, { contentType: "image/png", upsert: true });
     if (uploadError) throw new Error(uploadError.message);
     return json({ success: true, storage_path: storagePath, sha256: hash });
   } catch (error) {
