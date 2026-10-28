@@ -77,7 +77,7 @@ public sealed class PdfViewerPage : ContentPage
             throw new ArgumentException("Für die PDF-Ansicht fehlt die Cache-Datei.", nameof(cachePath));
         Title = string.IsNullOrWhiteSpace(title) ? "Dokument" : title.Trim();
         _cachePath = cachePath;
-        _shareFileName = SichtbarerDateiname.BuildPdf(Path.GetFileName(cachePath), title);
+        _shareFileName = SichtbarerDateiname.BuildPdf(System.IO.Path.GetFileName(cachePath), title);
         _shareDirectory = System.IO.Path.Combine(FileSystem.CacheDirectory, "pdf-share", Guid.NewGuid().ToString("N"));
         _deleteCacheOnClose = false;
         InitializePage();
@@ -242,7 +242,7 @@ public sealed class PdfViewerPage : ContentPage
     private async Task SharePdfAsync()
     {
         Directory.CreateDirectory(_shareDirectory);
-        var sharePath = Path.Combine(_shareDirectory, _shareFileName);
+        var sharePath = System.IO.Path.Combine(_shareDirectory, _shareFileName);
         File.Copy(_cachePath, sharePath, overwrite: true);
         await Share.Default.RequestAsync(new ShareFileRequest
         {

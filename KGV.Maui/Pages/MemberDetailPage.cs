@@ -832,7 +832,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
             var snapshot = await EnsureVereinsunterlagenForMitgliedsantragAsync(mitgliedId);
             if (snapshot is null) { initial = request; continue; }
             request.VereinsunterlagenSnapshot = snapshot;
-            request.VereinsunterlagenNachweis = VereinsunterlagenNachweisHelper.FormatForPdf(request.VereinsunterlagenSnapshot);
+            request.VereinsunterlagenNachweis = VereinsunterlagenNachweisHelper.FormatForPdf(request.VereinsunterlagenSnapshot, PreparedContractConstants.MembershipApplication);
             var serialized = PreparedContractDraftParser.Serialize(PreparedMembershipApplicationMapper.ToPreparedDraft(request, resolution?.IstMinderjaehrig ?? request.IstMinderjaehrig));
             if (contract is null)
             {
@@ -869,7 +869,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
     private async Task<IReadOnlyList<VereinsunterlagenNachweisSnapshotItem>?> EnsureVereinsunterlagenForMitgliedsantragAsync(int mitgliedId)
     {
         var status = await _supabaseService.GetMitgliedVereinsdokumentStatusAsync(mitgliedId, DateOnly.FromDateTime(DateTime.Today));
-        try { return VereinsunterlagenNachweisHelper.CreateSnapshot(status); }
+        try { return VereinsunterlagenNachweisHelper.CreateSnapshot(status, PreparedContractConstants.MembershipApplication); }
         catch (PreparedContractValidationException)
         {
             if (status.HatFehlendeVereinsfassungen)
@@ -898,7 +898,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
             }
             else return null;
             var reloadedStatus = await _supabaseService.GetMitgliedVereinsdokumentStatusAsync(mitgliedId, DateOnly.FromDateTime(DateTime.Today));
-            try { return VereinsunterlagenNachweisHelper.CreateSnapshot(reloadedStatus); }
+            try { return VereinsunterlagenNachweisHelper.CreateSnapshot(reloadedStatus, PreparedContractConstants.MembershipApplication); }
             catch (PreparedContractValidationException) { await DisplayAlertAsync("Mitgliedsantrag", "Die Pflichtunterlagen sind nach der Bereitstellung weiterhin nicht vollständig. Die Vorschau bleibt gesperrt.", "OK"); return null; }
         }
     }

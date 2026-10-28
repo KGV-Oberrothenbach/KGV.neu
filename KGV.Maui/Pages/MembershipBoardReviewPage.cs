@@ -3,6 +3,7 @@ using KGV.Core.Interfaces;
 using KGV.Core.Models;
 using KGV.Maui.Services.Documents;
 using KGV.Maui.State;
+using Microsoft.Maui;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
 
@@ -56,9 +57,9 @@ public sealed class MembershipBoardReviewPage : ContentPage
 
     private View CreateItem()
     {
-        var name = new Label { FontSize = 17, FontAttributes = FontAttributes.Bold }; name.SetBinding(nameof(MembershipBoardReviewRecord.Antragsteller));
-        var progress = new Label { TextColor = Colors.Gray }; progress.SetBinding(new Binding(".", converter: new BoardReviewProgressConverter()));
-        var state = new Label { FontSize = 12 }; state.SetBinding(new Binding(".", converter: new BoardReviewStateConverter()));
+        var name = new Label { FontSize = 17, FontAttributes = FontAttributes.Bold }; name.SetBinding(Label.TextProperty, nameof(MembershipBoardReviewRecord.Antragsteller));
+        var progress = new Label { TextColor = Colors.Gray }; progress.SetBinding(Label.TextProperty, new Binding(".", converter: new BoardReviewProgressConverter()));
+        var state = new Label { FontSize = 12 }; state.SetBinding(Label.TextProperty, new Binding(".", converter: new BoardReviewStateConverter()));
         return new Border { Stroke = Colors.LightGray, Padding = 12, Margin = new Thickness(0, 0, 0, 8), Content = new VerticalStackLayout { Spacing = 4, Children = { name, progress, state } } };
     }
 

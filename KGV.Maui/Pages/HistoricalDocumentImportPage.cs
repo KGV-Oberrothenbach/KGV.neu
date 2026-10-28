@@ -2,7 +2,9 @@ using KGV.Core.Interfaces;
 using KGV.Core.Models;
 using KGV.Maui.Services.Documents;
 using KGV.Maui.Models;
+using Microsoft.Maui;
 using Microsoft.Maui.Controls;
+using Microsoft.Maui.Media;
 using Microsoft.Maui.Storage;
 
 namespace KGV.Maui.Pages;
@@ -77,14 +79,15 @@ public sealed class HistoricalDocumentImportPage : ContentPage
     {
         if (_busy) return;
         if (_type.SelectedIndex < 0 || _content is not { Length: > 0 }) { _status.Text = "Bitte Datei und Dokumenttyp auswählen."; return; }
+        if (_date.Date is not DateTime documentDate) { _status.Text = "Bitte ein Dokumentdatum auswählen."; return; }
         var type = _types[_type.SelectedIndex]; var lease = _lease.IsVisible && _lease.SelectedIndex >= 0 ? _leases[_lease.SelectedIndex].PachtverhaeltnisId : (long?)null; var assignment = _assignment.IsVisible && _assignment.SelectedIndex >= 0 ? _assignments[_assignment.SelectedIndex].ZuordnungId : (long?)null;
         if ((_lease.IsVisible && lease is null) || (_assignment.IsVisible && assignment is null)) { _status.Text = "Bitte die erforderliche fachliche Zuordnung auswählen."; return; }
         _busy = true;
         try
         {
-            var upload = await _supabase.CreateDokumentAsync(new DokumentUploadRequest { MitgliedId = _memberId, Titel = $"{type.Bezeichnung} – {_date.Date:yyyy-MM-dd}", FileName = _name, MimeType = _mime, FileContent = _content });
+            var upload = await _supabase.CreateDokumentAsync(new DokumentUploadRequest { MitgliedId = _memberId, Titel = $"{type.Bezeichnung} – {documentDate:yyyy-MM-dd}", FileName = _name, MimeType = _mime, FileContent = _content });
             if (!upload.Success || upload.Document?.Id is not > 0) { _status.Text = upload.Success ? "Die Datei wurde nicht mit einer sicheren Dokument-ID bestätigt." : upload.Message; return; }
-            var pending = _queue.Create(upload.Document.Id, _memberId, type.Id, _date.Date, _signed.IsToggled, lease, assignment); _queue.Save(pending); await RegisterAsync(pending);
+            var pending = _queue.Create(upload.Document.Id, _memberId, type.Id, documentDate, _signed.IsToggled, lease, assignment); _queue.Save(pending); await RegisterAsync(pending);
         }
         finally { _busy = false; }
     }
