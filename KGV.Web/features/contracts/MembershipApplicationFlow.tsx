@@ -19,6 +19,7 @@ import { PreparedFinalReview } from "./PreparedFinalReview";
 import { MemberClubDocuments } from "../members/MemberClubDocuments";
 import { getMemberClubDocumentStatus } from "../../services/club-documents/member-club-document-status-service";
 import { createMemberClubDocumentSnapshot, formatMemberClubDocumentSnapshotForPdf, isCompleteMemberClubDocumentSnapshot, memberClubDocumentSnapshotsEqual, type MemberClubDocumentSnapshotItem } from "../../services/contracts/member-club-document-snapshot-service";
+import { canStartMembershipApplication } from "../../services/contracts/membership-application-lifecycle";
 
 export function MembershipApplicationFlow({ session, memberId, onSaved, onPrepared, onCancel, preparedContractId, resumeMode = "edit" }: { session: BrowserSession; memberId: number; onSaved: () => Promise<void>; onPrepared?: () => Promise<void> | void; onCancel?: () => void; preparedContractId?: number; resumeMode?: "edit" | "signatures" | "review" }) {
   const club = useSelectedClub();
@@ -209,7 +210,7 @@ export function MembershipApplicationFlow({ session, memberId, onSaved, onPrepar
         {minor && <LegalRepresentativeFields draft={draft} options={options} onChange={setDraft} />}
         {!minor && data.secondaryMember && <label className="wide"><input type="checkbox" checked={includeSecondaryMember} onChange={(event) => setIncludeSecondaryMember(event.target.checked)} /> {`${data.secondaryMember.vorname ?? ""} ${data.secondaryMember.name ?? ""}`.trim() || "Nebenmitglied"} als zweite private Partei mitunterzeichnen lassen</label>}
       </fieldset>
-      <div className="editor-actions"><button disabled={busy || data.status !== "none" || !contribution} onClick={preview}>Vorschau</button></div>
+      <div className="editor-actions"><button disabled={busy || !canStartMembershipApplication(data.member.aufnahme_status, data.status) || !contribution} onClick={preview}>Vorschau</button></div>
     </>}
     {step === "documents" && <><p className="notice">Die Vorschau bleibt gesperrt, bis die Satzung digital gebunden oder als Papierübergabe dokumentiert ist.</p><MemberClubDocuments session={session} member={data.member} requiredDocumentTypes={["satzung"]} onStatusUpdated={(status) => { try { createMemberClubDocumentSnapshot(status, "mitgliedsantrag"); setMessage("Satzungsnachweis vollständig. Bitte erstellen Sie jetzt die Vorschau."); setStep("edit"); } catch { /* andere Vereinsunterlagen sind für den Mitgliedsantrag nicht relevant */ } }} /><div className="editor-actions"><button className="secondary-action" onClick={() => setStep("edit")}>Zurück zum Mitgliedsantrag</button></div></>}
     {step === "preview" && <><ContractPreview onBack={() => setStep("edit")} onPark={() => void park()} parkLabel={resumeContext ? "Änderungen speichern" : "Zur Signatur vorbereiten"} {...(preparedContractId ? { onContinue: () => { void beginSignatures(); } } : {})} />{resumeContext && <div className="editor-actions"><button className="secondary-action" disabled={busy} onClick={() => void discard()}>Verwerfen</button></div>}</>}

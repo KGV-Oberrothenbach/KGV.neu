@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { PDFDocument, PDFName, PDFFont, StandardFonts, rgb } from "npm:pdf-lib@1.17.1";
+import { usesPersistentMembershipSignatures } from "./membership-application-policy.ts";
 
 const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, apikey, content-type", "Access-Control-Allow-Methods": "POST, OPTIONS" };
 const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
@@ -218,7 +219,7 @@ function pngDataUrl(bytes: Uint8Array) {
   return `data:image/png;base64,${btoa(binary)}`;
 }
 
-async function loadPersistentMembershipV4Signatures(auth: Awaited<ReturnType<typeof authenticate>>, kommunikationsvorgangId: number, memberId: number) {
+async function loadPersistentMembershipSignatures(auth: Awaited<ReturnType<typeof authenticate>>, kommunikationsvorgangId: number, memberId: number) {
   const { data: vorgang, error: vorgangError } = await auth.admin.from("kommunikationsvorgang").select("id,vorgangstyp,dokumenttyp,mitglied_id,revision,signatur_revision,final_dokument_id").eq("id", kommunikationsvorgangId).maybeSingle();
   if (vorgangError || !vorgang || vorgang.vorgangstyp !== "vertrag_signatur" || vorgang.dokumenttyp !== "mitgliedsantrag" || Number(vorgang.mitglied_id) !== memberId || !Number.isSafeInteger(vorgang.signatur_revision)) throw new Error("Der Mitgliedsantrags-Signaturvorgang ist ungültig oder gehört nicht zum Mitglied.");
   const revision = Number(vorgang.signatur_revision);
@@ -228,7 +229,7 @@ async function loadPersistentMembershipV4Signatures(auth: Awaited<ReturnType<typ
   const { data, error } = await auth.admin.from("prepared_contract_signatur").select("signatur_schluessel,status,storage_bucket,storage_path,signatur_sha256,unterzeichner_name_snapshot,vereinsfunktion_bezeichnung_snapshot,vertretung_id,vertretene_funktion_bezeichnung_snapshot").eq("kommunikationsvorgang_id", kommunikationsvorgangId).eq("signatur_revision", revision).eq("status", "unterschrieben");
   if (error) throw new Error(`Persistente Signaturen konnten nicht geladen werden: ${error.message}`);
   const positions = new Map((data ?? []).map((item) => [item.signatur_schluessel, item as PreparedSignaturePosition]));
-  if (membershipV4RequiredKeys.some((key) => !positions.has(key))) throw new Error("Für die MA-v4-Finalisierung fehlen erforderliche persistente Signaturen.");
+  if (membershipV4RequiredKeys.some((key) => !positions.has(key))) throw new Error("Für die Mitgliedsantrags-Finalisierung fehlen erforderliche persistente Signaturen.");
   const hasRepresentative = representativeKeys.some((key) => positions.has(key)); const hasSecondary = secondaryKeys.some((key) => positions.has(key));
   if (hasRepresentative && hasSecondary) throw new Error("Gesetzliche Vertretung und Nebenmitglied dürfen nicht gleichzeitig unterschrieben sein.");
   if (hasRepresentative && representativeKeys.some((key) => !positions.has(key))) throw new Error("Die Signaturen der gesetzlichen Vertretung sind unvollständig.");
@@ -391,7 +392,7 @@ Deno.serve(async (req) => {
       if (member.hauptmitglied_id !== null && member.hauptmitglied_id !== undefined) throw new Error("Für Nebenmitglieder kann kein eigener Mitgliedsantrag erstellt werden.");
       const { data: applicationDocuments, error: applicationDocumentsError } = await auth.admin.from("dokument").select("titel,dateiname").eq("mitglied_id", memberId).is("archiviert_at", null);
       if (applicationDocumentsError) throw applicationDocumentsError;
-      if ((applicationDocuments ?? []).some((document) => documentStatus(document, "mitgliedsantrag") === "signiert")) throw new Error("Für dieses Mitglied liegt bereits ein signierter Mitgliedsantrag vor.");
+      if (member.aufnahme_status === "aufgenommen" && (applicationDocuments ?? []).some((document) => documentStatus(document, "mitgliedsantrag") === "signiert")) throw new Error("Für dieses Mitglied liegt bereits ein signierter Mitgliedsantrag vor.");
       const fee = Number(body.member_fee ?? 0); const admission = Number(body.admission_fee ?? 0); const month = new Date(`${startDate}T12:00:00Z`).getUTCMonth() + 1; const months = Math.max(1, 13 - month);
       let representative: Record<string, unknown> | null = null;
       const minor = isMinorAt(member, startDate);
@@ -415,8 +416,8 @@ Deno.serve(async (req) => {
       const secondPrivateParty = representative ?? secondaryMember;
       const values: Record<string, string> = { ausstellungsdatum: formatDate(new Date().toISOString()), dokument_ort: configurationSnapshot!.dokumentOrt, mitglied_name: safe(member.name), mitglied_vorname: safe(member.vorname), mitglied_geburtsdatum: formatDate(member.geburtsdatum), mitglied_aufnahme_ab: formatDate(startDate), mitglied_telefon: safe(member.telefon), mitglied_mobil: safe(member.handy), mitglied_email: safe(member.email), mitglied_anschrift_mehrzeilig: `${safe(member.adresse)}\n${safe(member.plz)} ${safe(member.ort)}`.trim(), zweite_partei_bezeichnung: secondPrivateParty ? (representative ? "Gesetzliche Vertretung minderjähriger Antragsteller/in" : "Nebenmitglied") : "", zweite_partei_name: safe(secondPrivateParty?.name), zweite_partei_vorname: safe(secondPrivateParty?.vorname), zweite_partei_geburtsdatum: formatDate(secondPrivateParty?.geburtsdatum), zweite_partei_telefon: safe(secondPrivateParty?.telefon), zweite_partei_mobil: safe(secondPrivateParty?.handy), zweite_partei_email: safe(secondPrivateParty?.email), zweite_partei_anschrift_mehrzeilig: secondPrivateParty ? `${safe(secondPrivateParty.adresse)}\n${safe(secondPrivateParty.plz)} ${safe(secondPrivateParty.ort)}`.trim() : "", mitgliedsbeitrag_jaehrlich: money(fee), mitgliedsbeitrag_anteilig: money(Math.round(fee * months / 12 * 100) / 100), beitragsmonate: String(months), aufnahmegebuehr: money(admission), vereinsunterlagen_nachweis: safe(body.club_documents_snapshot), unterschrift_ort: configurationSnapshot!.dokumentOrt, unterschrift_datum: formatDate(new Date().toISOString()), unterschrift_zweite_partei_bezeichnung: representative ? "Unterschrift gesetzliche Vertretung" : secondaryMember ? "Unterschrift Nebenmitglied" : "", mitglied_einwilligung_whatsapp: member.whatsapp_einwilligung ? "true" : "", mitglied_einwilligung_rechnung_mail: member.email_rechnung_einwilligung ? "true" : "", mitglied_einwilligung_info_mail: member.email_info_einwilligung ? "true" : "" };
       values.antragsnummer = applicationNumber;
-      if (action === "finalize" && template.fieldSpecVersion === membershipApplicationFieldSpecV4) {
-        const persistent = await loadPersistentMembershipV4Signatures(auth, sourceKommunikationsvorgangId, memberId);
+      if (usesPersistentMembershipSignatures(action, template.fieldSpecVersion)) {
+        const persistent = await loadPersistentMembershipSignatures(auth, sourceKommunikationsvorgangId, memberId);
         sourceRevision = persistent.revision;
         const { data: existing, error: existingError } = await auth.admin.from("dokument").select("id").eq("source_kommunikationsvorgang_id", sourceKommunikationsvorgangId).eq("source_revision", sourceRevision).is("archiviert_at", null).maybeSingle();
         if (existingError) throw existingError;

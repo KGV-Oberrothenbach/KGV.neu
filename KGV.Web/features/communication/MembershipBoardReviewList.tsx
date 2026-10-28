@@ -7,6 +7,8 @@ import { canDecideMembershipBoardReview, decideMembershipBoardReview, ensureAdmi
 import { resolveActiveDocumentOpenUrl } from "../../services/documents/document-open-service";
 import { generateContract } from "../../services/contracts/contract-generation-service";
 import { useSelectedClub } from "../auth/AuthProvider";
+import { membershipBoardDecisionPath } from "../../services/contracts/membership-application-lifecycle";
+import { ContractDispatchPanel } from "./ContractDispatchPanel";
 
 const sourceText = (source: MembershipBoardAuthorizationSource) => source.berechtigungsart === "vertretung"
   ? `Vertretung für ${source.vertretene_funktionsbezeichnung_snapshot ?? source.funktionsbezeichnung_snapshot}`
@@ -74,7 +76,7 @@ export function MembershipBoardReviewList({ session }: { session: BrowserSession
 
   const decide = async (result: "annehmen" | "ablehnen") => {
     if (!selected || !canDecide) return;
-    const path = selected.einstimmig_ja ? "einstimmig" : "vorstandssitzung";
+    const path = membershipBoardDecisionPath(selected.einstimmig_ja);
     const date = path === "einstimmig" ? null : window.prompt("Sitzungsdatum (JJJJ-MM-TT)");
     const reason = result === "ablehnen" ? window.prompt("Abschlussbegründung") : null;
     const admission = result === "annehmen"
@@ -149,6 +151,7 @@ export function MembershipBoardReviewList({ session }: { session: BrowserSession
           <p>{selected.aufnahmebestaetigung_status === "erledigt" ? "Aufnahmebestätigung erstellt." : "Das Mitglied wurde aufgenommen. Die Aufnahmebestätigung steht noch aus."}</p>
           {selected.aufnahmebestaetigung_status !== "erledigt" && canDecide && <button onClick={() => void createAdmissionConfirmation(selected)} disabled={busy}>Aufnahmebestätigung erneut erstellen</button>}
         </div>}
+        {selected.aufnahmebestaetigung_vorgang_id && <ContractDispatchPanel club={club} session={session} communicationId={selected.aufnahmebestaetigung_vorgang_id} contractType="Aufnahmebestätigung" completed={selected.aufnahmebestaetigung_status === "erledigt"} />}
       </aside>}
     </div>
   </section>;
