@@ -11,6 +11,23 @@ test("contract dispatch distinguishes frozen digital and paper attachments", asy
   const source = await readFile(migration, "utf8");
   for (const expected of ["versandinstanz", "versandinstanz_empfaenger_snapshot", "versandinstanz_dokument_snapshot", "email_info_einwilligung", "email_rechnung_einwilligung", "vertragsversand", "wartungsvertrag_verlaengerung", "satzung", "kleingartenordnung", "beitragsordnung", "arbeitsordnung", "digital_gebunden", "papier_ausgehaendigt", "weder digital gebunden noch als Papierübergabe dokumentiert", "bereitstellungsart'='papier'"]) assert.match(source, new RegExp(expected));
 });
+test("attachment snapshot keeps the revision-wide party invariant without an invalid composite foreign key", async () => {
+  const source = await readFile(migration, "utf8");
+
+  assert.doesNotMatch(
+    source,
+    /foreign key \(kommunikationsvorgang_id, revision\) references public\.vertragsversand_vertragspartei_snapshot/
+  );
+
+  for (const expected of [
+    "guard_vertragsversand_anlage_party_snapshot",
+    "create constraint trigger trg_vertragsversand_anlage_party_snapshot",
+    "deferrable initially deferred",
+    "Vertragsversand-Anlage benötigt mindestens einen Vertragspartei-Snapshot",
+  ]) {
+    assert.ok(source.includes(expected));
+  }
+});
 test("edge function sends only digital snapshots and never fabricates a paper PDF", async () => {
   const source = await readFile(edge, "utf8");
   for (const expected of ["claim_contract_dispatch", "versandinstanz_versuch", "SMTP_TEST_RECIPIENT", "GOOGLE_DRIVE_REFRESH_TOKEN", "teilweise_fehlerhaft", "stableMessageId", "idempotenzschluessel"]) assert.ok(source.includes(expected));
