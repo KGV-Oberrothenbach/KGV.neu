@@ -18,6 +18,27 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 - `KGV.Core`
 - `KGV.Maui`
 
+## 2026-10-28 – Phase 10 E2E Wartungsvertrag
+
+- Die vorbereiteten Phase-10-Änderungen für Retry mit tatsächlicher
+  Vertragspartei, idempotenten Abschluss derselben Verlängerungsmitteilung und
+  Abbruch-/Neustart-Historie grundlegender Änderungen geprüft und beibehalten.
+- Der erneute E2E-Test ist 5/5 grün; die bestehenden Wartungsvertrags-
+  Contracttests sind 10/10 grün; gezieltes ESLint blieb ohne Befund. Die
+  Abbruchregression prüft ausdrücklich separate Vertragsdefinition und
+  Folge-90xxx; die Nummer des abgebrochenen Versuchs bleibt erhalten.
+- Aus dem unmittelbar vorausgegangenen CX-Lauf übernommen: 10 fokussierte
+  .NET-Tests sowie Web-Build erfolgreich; MAUI-Build mit 48 fachfremden
+  Fehlern, kein bekannter Fehler in geänderten Wartungsvertragsdateien.
+- Die vier lokalen v2-PDF-/Field-Spec-SHAs stimmen mit den bestehenden
+  Katalogwerten überein. Die neue Migration ist ausschließlich versioniert;
+  kein Migration Push, kein Upload, keine Templateaktivierung und kein
+  Deployment.
+- `supabase db push --linked --dry-run` listete ausstehende Migrationen und
+  wendete keine an. `supabase migration list --linked` scheiterte an der
+  Datenbank-Passwortauthentifizierung; der Remote-Migrationsstand war daher
+  nicht separat abrufbar.
+
 ## 2026-10-27 – MAUI-Biometrieangebot vor App-Wechsel
 
 - Den Passwortloginablauf eng korrigiert: nach gültiger User-ID, geladenem

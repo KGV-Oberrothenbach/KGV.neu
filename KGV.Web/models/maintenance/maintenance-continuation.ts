@@ -7,7 +7,7 @@ export type ExpiringMaintenanceAssignment = {
 };
 
 export type MaintenanceContinuationDetail = {
-  vorgaenger_zuordnung_id: number; hauptmitglied_id: number; wartungsvertrag_id: number; vertragsnummer: number | null; gueltig_ab: string; gueltig_bis: string;
+  vorgaenger_zuordnung_id: number; hauptmitglied_id: number; vertragspartei_mitglied_id: number; wartungsvertrag_id: number; vertragsnummer: number | null; gueltig_ab: string; gueltig_bis: string;
   folgeentscheidung_id: number | null; entscheidung: "verlaengern" | "nicht_verlaengern" | null; entscheidungsdatum: string | null;
   vorstandsbeschlussdatum: string | null; initiator: MaintenanceDecisionInitiator | null; begruendung: string | null;
   folgezuordnung_id: number | null; folge_wartungsvertrag_id: number | null; folge_wartungsvertrag_titel: string | null;

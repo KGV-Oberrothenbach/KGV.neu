@@ -14,9 +14,9 @@ export function displayContinuationStart(validUntil: string) {
   const date = new Date(`${validUntil}T00:00:00`); date.setDate(date.getDate() + 1);
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
-export async function retryMaintenanceExtensionDocument(club: ClubContext, session: BrowserSession, detail: { hauptmitglied_id: number; kommunikationsvorgang_id: number | null }) {
+export async function retryMaintenanceExtensionDocument(club: ClubContext, session: BrowserSession, detail: { vertragspartei_mitglied_id: number; kommunikationsvorgang_id: number | null }) {
   if (!detail.kommunikationsvorgang_id) throw new Error("Für diese Verlängerung wurde kein Dokumentvorgang bestätigt.");
-  return generateContract(club, session, { action: "finalize", type: "wartungsvertrag_verlaengerung", member_id: detail.hauptmitglied_id, start_date: "", kommunikationsvorgang_id: detail.kommunikationsvorgang_id });
+  return generateContract(club, session, { action: "finalize", type: "wartungsvertrag_verlaengerung", member_id: detail.vertragspartei_mitglied_id, start_date: "", kommunikationsvorgang_id: detail.kommunikationsvorgang_id });
 }
 
 export function maintenanceContinuationError(cause: unknown) {

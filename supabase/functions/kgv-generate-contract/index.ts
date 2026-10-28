@@ -533,11 +533,12 @@ Deno.serve(async (req) => {
       title = `Pachtvertrag${fachnummer ? ` · Vertrags-Nr. ${fachnummer}` : ""} (${action === "finalize" ? "Signiert" : "Unsigniert"})`; owner = { kind: "parzelle", id: parcelId };
     } else if (type === "wartungsvertrag_verlaengerung") {
       const { data: process, error: processError } = await auth.admin.from("kommunikationsvorgang").select("id,status,vorgangstyp,dokumenttyp,mitglied_id,wartungsvertrag_id,revision,entwurf_daten,final_dokument_id").eq("id", sourceKommunikationsvorgangId).maybeSingle();
-      if (processError || !process || process.vorgangstyp !== "dokument_erzeugung" || process.dokumenttyp !== "wartungsvertrag_verlaengerung" || process.status !== "vorbereitet" || Number(process.mitglied_id) !== memberId) throw new Error("Die Verlängerungsmitteilung ist nicht erzeugungsbereit.");
+      if (processError || !process || process.vorgangstyp !== "dokument_erzeugung" || process.dokumenttyp !== "wartungsvertrag_verlaengerung" || !["vorbereitet", "erledigt"].includes(process.status) || Number(process.mitglied_id) !== memberId) throw new Error("Die Verlängerungsmitteilung ist nicht erzeugungsbereit.");
       sourceRevision = Number(process.revision);
       const { data: existing, error: existingError } = await auth.admin.from("dokument").select("id").eq("source_kommunikationsvorgang_id", sourceKommunikationsvorgangId).eq("source_revision", sourceRevision).is("archiviert_at", null).maybeSingle();
       if (existingError) throw existingError;
       if (existing) { const { error: completeError } = await auth.admin.rpc("complete_wartungsvertrag_verlaengerungsmitteilung", { p_kommunikationsvorgang_id: sourceKommunikationsvorgangId, p_dokument_id: existing.id }); if (completeError) throw completeError; return json(200, { success: true, document_id: existing.id, message: "Vorhandene Verlängerungsmitteilung wurde wiederverwendet." }); }
+      if (process.status === "erledigt") throw new Error("Der abgeschlossenen Verlängerungsmitteilung fehlt ihr Finaldokument.");
       const draft = process.entwurf_daten as Record<string, unknown>;
       if (Number(draft.member_id) !== memberId || !safe(draft.template_key) || !safe(draft.template_version)) throw new Error("Der unveränderliche Verlängerungssnapshot ist unvollständig.");
       const membershipNumber = Number(member.mitgliedsnummer);

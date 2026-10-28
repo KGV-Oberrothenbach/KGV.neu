@@ -5492,16 +5492,16 @@ namespace KGV.Infrastructure.Services
             });
         }
 
-        public async Task DokumenterzeugungWartungsvertragVerlaengerungWiederholenAsync(long hauptmitgliedId, long kommunikationsvorgangId)
+        public async Task DokumenterzeugungWartungsvertragVerlaengerungWiederholenAsync(long vertragsparteiMitgliedId, long kommunikationsvorgangId)
         {
-            if (hauptmitgliedId <= 0 || kommunikationsvorgangId <= 0)
+            if (vertragsparteiMitgliedId <= 0 || kommunikationsvorgangId <= 0)
                 throw new ArgumentOutOfRangeException(nameof(kommunikationsvorgangId));
             var token = await _authService.GetAccessTokenAsync();
             if (string.IsNullOrWhiteSpace(token)) throw new InvalidOperationException("Für die Dokumenterzeugung ist eine gültige Anmeldung erforderlich.");
             using var request = new HttpRequestMessage(HttpMethod.Post, $"{_supabaseUrl.TrimEnd('/')}/functions/v1/kgv-generate-contract");
             request.Headers.Add("apikey", _publishableKey);
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-            request.Content = new StringContent(JsonSerializer.Serialize(new { action = "finalize", type = "wartungsvertrag_verlaengerung", member_id = hauptmitgliedId, start_date = "", kommunikationsvorgang_id = kommunikationsvorgangId }), Encoding.UTF8, "application/json");
+            request.Content = new StringContent(JsonSerializer.Serialize(new { action = "finalize", type = "wartungsvertrag_verlaengerung", member_id = vertragsparteiMitgliedId, start_date = "", kommunikationsvorgang_id = kommunikationsvorgangId }), Encoding.UTF8, "application/json");
             using var response = await _documentUploadHttpClient.SendAsync(request);
             if (!response.IsSuccessStatusCode)
                 throw new InvalidOperationException($"Dokumenterzeugung fehlgeschlagen ({(int)response.StatusCode}).");

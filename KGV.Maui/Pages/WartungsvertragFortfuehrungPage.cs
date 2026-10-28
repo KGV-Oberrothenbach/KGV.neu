@@ -1,5 +1,6 @@
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
+using Microsoft.Maui;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
 
@@ -133,7 +134,7 @@ public sealed class WartungsvertragFortfuehrungPage : ContentPage, IQueryAttribu
     }
 
     private Task RetryDocumentAsync() => RunAsync(RetryDocumentIfPossibleAsync);
-    private async Task RetryDocumentIfPossibleAsync() { if (_detail?.KommunikationsvorgangId is > 0) await _service.DokumenterzeugungWartungsvertragVerlaengerungWiederholenAsync(_detail.HauptmitgliedId, _detail.KommunikationsvorgangId.Value); }
+    private async Task RetryDocumentIfPossibleAsync() { if (_detail?.KommunikationsvorgangId is > 0) await _service.DokumenterzeugungWartungsvertragVerlaengerungWiederholenAsync(_detail.VertragsparteiMitgliedId, _detail.KommunikationsvorgangId.Value); }
     private async Task OpenDocumentAsync() { if (_detail?.DokumentId is not > 0) return; var doc = await _service.GetDokumentByIdAsync(_detail.DokumentId.Value); if (doc == null) throw new InvalidOperationException("Das finale Dokument konnte nicht geladen werden."); var content = await _service.DownloadDokumentContentAsync(doc); if (content is not { Length: > 0 }) throw new InvalidOperationException("Das finale Dokument konnte nicht geladen werden."); await Navigation.PushAsync(new PdfViewerPage(doc.Title, content)); }
     private async Task RunAsync(Func<Task> action) { if (_busy) return; _busy = true; try { _status.Text = "Wird gespeichert."; await action(); _status.Text = "Gespeichert."; } catch (Exception ex) { _status.Text = FriendlyError(ex); } finally { _busy = false; await LoadAsync(); } }
     private static Label Text(string value) => new() { Text = value, LineBreakMode = LineBreakMode.WordWrap };

@@ -2,6 +2,29 @@
 
 ---
 
+## 2026-10-28 – Phase 10 E2E Wartungsvertrag abgeschlossen
+
+- CX-Änderungen zu tatsächlicher Vertragspartei bei Verlängerungs-Retry,
+  idempotenter Verlängerungsmitteilungs-Finalisierung und wiederholbarer,
+  abbruchsicherer Grundänderung übernommen. Normale Verlängerung und
+  90xxx-Zuordnung bleiben unverändert.
+- Der E2E-Test wurde erneut ausgeführt: 5/5 bestanden; zusätzlich 10
+  Wartungsvertrags-Contracttests und gezieltes ESLint ohne Befund. Der
+  Abbruchtest prüft nun ausdrücklich, dass der neue Versuch eine neue
+  Vertragsdefinition und Nummer erhält, während die Nummer des abgebrochenen
+  Versuchs erhalten bleibt.
+- Web-Build, 10 fokussierte .NET-Tests und MAUI-Buildstatus aus dem
+  unmittelbaren CX-Lauf übernommen: Web erfolgreich, .NET 10/10 erfolgreich;
+  MAUI weiterhin 48 fachfremde Fehler. Die geänderten Wartungsvertragsdateien
+  waren laut Lauf fehlerfrei.
+- Vier lokale Template-/Field-Spec-SHAs stimmen mit den B4-Katalogwerten
+  überein. Migration erstellt, nicht ausgeführt; Templates weder hochgeladen
+  noch aktiviert; kein Deployment.
+- `db push --linked --dry-run` war erfolgreich und zeigte noch nicht remote
+  angewandte Migrationen. `migration list --linked` war wegen
+  fehlgeschlagener DB-Passwortauthentifizierung nicht verfügbar. Kein
+  Migrationslauf ausgeführt.
+
 ## 2026-10-27 – MAUI-Biometrieangebot vor App-Wechsel
 
 - Nach erfolgreichem Passwortlogin wird das Biometrieangebot nun nach
