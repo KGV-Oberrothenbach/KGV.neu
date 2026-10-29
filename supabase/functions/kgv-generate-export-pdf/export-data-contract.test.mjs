@@ -17,12 +17,18 @@ test("export-allgemein v2 replaces the meter report embedded in v1", () => {
   assert.match(migration, /'export-allgemein', 'v2'/);
 });
 
-test("Arbeitsstunden rows are restricted to their own source and schema", () => {
+const workHoursRow = (extra = {}) => ({
+  mitglied_id: 12, mitgliedsnummer: 1012, garten_nr: "019", nachname: "Müller", vorname: "Erika", jahr: 2026,
+  pflichtstunden_soll: 9, geleistete_stunden: 3, wartungsvertrag_gutschrift_stunden: 0, offene_stunden: 6, status: "Stunden offen",
+  ...extra,
+});
+
+test("Arbeitsstunden uses its source contract while projecting additional RPC fields away", () => {
   const rows = isolateExportRows(
     "arbeitsstunden_uebersicht",
     "rpc_export_arbeitsstunden_uebersicht_json",
     [{ column_key: "garten_nr" }, { column_key: "pflichtstunden_soll" }],
-    [{ garten_nr: "019", pflichtstunden_soll: 9, status: "Stunden offen" }],
+    [workHoursRow({ technische_diagnose: "ignored" })],
   );
 
   assert.deepEqual(rows, [{ garten_nr: "019", pflichtstunden_soll: 9 }]);
@@ -49,10 +55,16 @@ test("Arbeitsstunden rows are restricted to their own source and schema", () => 
       "arbeitsstunden_uebersicht",
       "rpc_export_arbeitsstunden_uebersicht_json",
       [{ column_key: "garten_nr" }],
-      [{ garten_nr: "019", zaehlernummer: "Z-19" }],
+      [{ garten_nr: "019" }],
     ),
-    /fremde Felder/,
+    /erforderliche Felder nicht/,
   );
+});
+
+test("member list only accepts its JSON source and projects the visible blocks", () => {
+  const rows = isolateExportRows("mitgliederliste", "rpc_export_mitgliederliste_json", [{ column_key: "mitglied" }, { column_key: "adresse_block" }, { column_key: "kontakt_block" }], [{ mitgliedsnummer: "1001", mitglied: "Müller, Erika", adresse_block: "Straße 1\n12345 Ort", kontakt_block: "Tel\nMobil", internal_only: true }]);
+  assert.deepEqual(rows, [{ mitglied: "Müller, Erika", adresse_block: "Straße 1\n12345 Ort", kontakt_block: "Tel\nMobil" }]);
+  assert.throws(() => isolateExportRows("mitgliederliste", "rpc_export_arbeitsstunden_uebersicht_json", [{ column_key: "mitglied" }], []), /Exportquelle passt nicht/);
 });
 
 test("Zähler Eichfälligkeit remains bound to its own source and fields", () => {

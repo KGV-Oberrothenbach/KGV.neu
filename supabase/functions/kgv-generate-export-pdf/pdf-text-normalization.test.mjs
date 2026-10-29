@@ -21,7 +21,7 @@ test("PDF text normalization makes single-line fields safe and removes other con
 
 test("central renderer wraps multiline values and records a safe rendering context", () => {
   const source = readFileSync(new URL("./index.ts", import.meta.url), "utf8");
-  assert.match(source, /value\.split\("\\n"\)/);
+  assert.match(source, /wrapTableText\(value/);
   assert.match(source, /new PdfRenderError\(fieldName, rowIndex/);
   assert.match(source, /export_key: exportKey, field_name: error\.fieldName, row_index: error\.rowIndex, row_reference: error\.rowReference, exception_type: error\.causeType/);
   assert.match(source, /genericValue\(row\[column\.column_key\]\)/);

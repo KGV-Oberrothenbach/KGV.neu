@@ -1,16 +1,19 @@
 export type ExportRow = Record<string, unknown>;
 export type ExportColumn = { column_key: string };
 
-type ReportContract = {
-  sourceName: string;
-  fields: ReadonlySet<string>;
-};
+type ReportContract = { sourceName: string; requiredFields: ReadonlySet<string>; optionalFields: ReadonlySet<string> };
 
 const reportContracts: Readonly<Record<string, ReportContract>> = {
+  mitgliederliste: {
+    sourceName: "rpc_export_mitgliederliste_json",
+    requiredFields: new Set(["mitgliedsnummer", "mitglied"]),
+    optionalFields: new Set(["id", "mitglied_id", "mitgliedsnr", "mitgliedsnummer", "mitglied", "name", "vorname", "adresse_block", "kontakt_block", "strasse_hsnr", "plz", "ort", "telefon", "handy", "email", "bemerkung", "gartennummern", "pachtgaerten", "aktiv_export", "app", "app_vorhanden"]),
+  },
   arbeitsstunden_uebersicht: {
     sourceName: "rpc_export_arbeitsstunden_uebersicht_json",
-    fields: new Set([
+    requiredFields: new Set([
       "mitglied_id",
+      "mitgliedsnummer",
       "garten_nr",
       "nachname",
       "vorname",
@@ -19,9 +22,11 @@ const reportContracts: Readonly<Record<string, ReportContract>> = {
       "geleistete_stunden",
       "wartungsvertrag_gutschrift_stunden",
       "offene_stunden",
+      "status",
+    ]),
+    optionalFields: new Set([
       "hat_wartungsvertrag",
       "wartungsvertraege",
-      "status",
       "regelgrund",
       "zeilentyp",
       "leistendes_mitglied",
@@ -33,7 +38,8 @@ const reportContracts: Readonly<Record<string, ReportContract>> = {
   },
   zaehler_eichfaelligkeit: {
     sourceName: "rpc_export_zaehler_eichfaelligkeit_json",
-    fields: new Set([
+    requiredFields: new Set(),
+    optionalFields: new Set([
       "parzelle",
       "medium",
       "zaehler_id",
@@ -62,14 +68,11 @@ export function isolateExportRows(
   }
 
   const selectedKeys = columns.map((column) => column.column_key);
-  if (contract && selectedKeys.some((key) => !contract.fields.has(key))) {
-    throw new Error(`PARAM:Spalten passen nicht zum Export ${normalizedKey}.`);
-  }
+  const allowedFields = contract ? new Set([...contract.requiredFields, ...contract.optionalFields]) : null;
+  if (allowedFields && selectedKeys.some((key) => !allowedFields.has(key))) throw new Error(`PARAM:Spalten passen nicht zum Export ${normalizedKey}.`);
 
   return rows.map((row) => {
-    if (contract && Object.keys(row).some((key) => !contract.fields.has(key))) {
-      throw new Error(`PARAM:Datensatz enthält fremde Felder für den Export ${normalizedKey}.`);
-    }
+    if (contract && [...contract.requiredFields].some((key) => !Object.hasOwn(row, key))) throw new Error(`PARAM:Datensatz enthält erforderliche Felder nicht für den Export ${normalizedKey}.`);
 
     const isolated: ExportRow = {};
     for (const key of selectedKeys) {
