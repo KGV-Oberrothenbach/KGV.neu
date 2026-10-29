@@ -22,6 +22,7 @@ export type NavigationCapabilities = {
   canManageAdministration: boolean;
   canManageProcesses: boolean;
   canAccessCommunication: boolean;
+  openProcessCount: number;
   canManageSeasonConfiguration: boolean;
   canPerformYearEndClosing: boolean;
   canManageClubConfiguration: boolean;
