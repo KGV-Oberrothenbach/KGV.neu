@@ -149,14 +149,17 @@ public sealed class AdminShell : Shell, IAppShellInitializer
         Items.Add(CreateItem("Startseite", "home", () => _services.GetRequiredService<HomePage>()));
         Items.Add(CreateItem("Impressum", "impressum", () => _services.GetRequiredService<ImpressumPage>()));
         if (_userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand)
+        {
+            var communicationPages = _services.GetRequiredService<KommunikationPageFactory>();
             Items.Add(CreateManagementItem("Vorgänge",
-                ("Signaturen", "process_signatures", () => _services.GetRequiredService<KommunikationPage>()),
-                ("Dokumente", "process_documents", () => _services.GetRequiredService<KommunikationPage>()),
+                ("Signaturen", CommunicationAreaRoutes.Signatures, () => communicationPages.Create(CommunicationArea.Signatures)),
+                ("Dokumente", CommunicationAreaRoutes.Documents, () => communicationPages.Create(CommunicationArea.Documents)),
                 ("Vorstand", "process_board", () => _services.GetRequiredService<KommunikationPage>()),
-                ("Mailausgang", "process_mail", () => _services.GetRequiredService<KommunikationPage>()),
-                ("Versendet", "process_sent", () => _services.GetRequiredService<KommunikationPage>()),
-                ("Druckausgabe", "process_print", () => _services.GetRequiredService<KommunikationPage>()),
-                ("Verlauf", "process_history", () => _services.GetRequiredService<KommunikationPage>())));
+                ("Mailausgang", CommunicationAreaRoutes.MailOutbox, () => communicationPages.Create(CommunicationArea.MailOutbox)),
+                ("Versendet", CommunicationAreaRoutes.Sent, () => communicationPages.Create(CommunicationArea.Sent)),
+                ("Druckausgabe", CommunicationAreaRoutes.Print, () => communicationPages.Create(CommunicationArea.Print)),
+                ("Verlauf", CommunicationAreaRoutes.History, () => communicationPages.Create(CommunicationArea.History))));
+        }
         if (PermissionChecks.HasAnyMeterAccess(_userContextState.CurrentUserContext))
         {
             Items.Add(CreateManagementItem("Ablesen",

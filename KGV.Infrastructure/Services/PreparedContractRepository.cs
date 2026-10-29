@@ -45,6 +45,27 @@ public sealed class PreparedContractRepository : IPreparedContractRepository
         return items;
     }
 
+    public async Task<IReadOnlyList<KommunikationsvorgangDto>> ListForAreaAsync(CommunicationArea area, bool includeAllHistory = false, CancellationToken cancellationToken = default)
+    {
+        var filter = area switch
+        {
+            CommunicationArea.Signatures => $"vorgangstyp=eq.{PreparedContractConstants.ContractSignatureProcess}&dokumenttyp=in.({PreparedContractConstants.MembershipApplication},{PreparedContractConstants.LeaseContract},{PreparedContractConstants.MaintenanceContract})&status=in.({PreparedContractConstants.Prepared},{PreparedContractConstants.ReadyForSignature},{PreparedContractConstants.FinalReview})",
+            CommunicationArea.Documents => "vorgangstyp=eq.dokument_erzeugung&status=in.(vorbereitet,fehler)",
+            CommunicationArea.MailOutbox => "vorgangstyp=eq.mail&status=in.(mail_bereit,wird_versendet,fehler)",
+            CommunicationArea.Sent => "vorgangstyp=eq.mail&status=eq.erledigt&versendet_am=not.is.null",
+            CommunicationArea.Print => "vorgangstyp=eq.druck&status=in.(druck_bereit,fehler)",
+            CommunicationArea.History => "status=in.(erledigt,abgebrochen,verworfen)",
+            _ => throw new ArgumentOutOfRangeException(nameof(area), area, "The board area has no generic communication list.")
+        };
+        var historyPeriod = area == CommunicationArea.History && !includeAllHistory
+            ? $"&bearbeitet_am=gte.{Uri.EscapeDataString(DateTimeOffset.UtcNow.AddDays(-90).ToString("O"))}"
+            : string.Empty;
+        var items = await SendAsync(HttpMethod.Get, $"kommunikationsvorgang?{filter}{historyPeriod}&order=bearbeitet_am.desc,erstellt_am.desc,id.desc&limit=500&select=*", null, cancellationToken);
+        if (area == CommunicationArea.History)
+            items = items.Where(item => item.Vorgangstyp != "mail" || item.VersendetAm is null).ToList();
+        return items;
+    }
+
     public async Task<KommunikationsvorgangDto?> FindActiveAsync(string documentType, int memberId, int? parcelId, CancellationToken cancellationToken = default)
     {
         var parcelFilter = parcelId is null ? "parzelle_id=is.null" : $"parzelle_id=eq.{parcelId}";
@@ -72,6 +93,13 @@ public sealed class PreparedContractRepository : IPreparedContractRepository
     {
         var records = await PatchAsync($"kommunikationsvorgang?id=eq.{id}&zugewiesen_an=eq.{CurrentUserId()}", new { zugewiesen_an = (Guid?)null }, cancellationToken);
         if (records.Count == 0) throw new PreparedContractConflictException("Der Vorgang ist nicht Ihnen zugewiesen.");
+    }
+
+    public async Task CompletePrintAsync(long id, CancellationToken cancellationToken = default)
+    {
+        var records = await PatchAsync($"kommunikationsvorgang?id=eq.{id}&vorgangstyp=eq.druck&status=eq.druck_bereit&zugewiesen_an=eq.{CurrentUserId()}", new { status = PreparedContractConstants.Completed, gedruckt_am = DateTimeOffset.UtcNow }, cancellationToken);
+        if (records.Count != 1)
+            throw new PreparedContractConflictException("Der Druckauftrag wurde zwischenzeitlich geändert oder ist nicht Ihnen zugewiesen.");
     }
 
     public async Task<KommunikationsvorgangDto> UpdateDraftAsync(long id, int expectedRevision, JsonElement draft, CancellationToken cancellationToken = default)

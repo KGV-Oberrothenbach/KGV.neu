@@ -33,6 +33,11 @@ public sealed record KommunikationsvorgangDto
     [JsonPropertyName("wartungsvertrag_zuordnung_id")] public long? WartungsvertragZuordnungId { get; init; }
     [JsonPropertyName("wartungsvertrag_id")] public long? WartungsvertragId { get; init; }
     [JsonPropertyName("zugewiesen_an")] public Guid? ZugewiesenAn { get; init; }
+    [JsonPropertyName("empfaenger_email")] public string? EmpfaengerEmail { get; init; }
+    [JsonPropertyName("betreff")] public string? Betreff { get; init; }
+    [JsonPropertyName("versendet_am")] public DateTimeOffset? VersendetAm { get; init; }
+    [JsonPropertyName("gedruckt_am")] public DateTimeOffset? GedrucktAm { get; init; }
+    [JsonPropertyName("fehlertext")] public string? Fehlertext { get; init; }
     [JsonPropertyName("erstellt_am")] public DateTimeOffset ErstelltAm { get; init; }
     [JsonPropertyName("bearbeitet_am")] public DateTimeOffset BearbeitetAm { get; init; }
 }

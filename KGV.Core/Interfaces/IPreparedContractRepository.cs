@@ -7,6 +7,8 @@ public interface IPreparedContractRepository
 {
     Task<IReadOnlyList<KommunikationsvorgangDto>> ListActiveAsync(CancellationToken cancellationToken = default)
         => throw new NotSupportedException();
+    Task<IReadOnlyList<KommunikationsvorgangDto>> ListForAreaAsync(CommunicationArea area, bool includeAllHistory = false, CancellationToken cancellationToken = default)
+        => throw new NotSupportedException();
     Task<KommunikationsvorgangDto> LoadAsync(long id, CancellationToken cancellationToken = default);
     Task<KommunikationsvorgangDto?> FindActiveAsync(string documentType, int memberId, int? parcelId, CancellationToken cancellationToken = default);
     Task<KommunikationsvorgangDto> CreateAsync(string documentType, int memberId, int? parcelId, JsonElement draft, CancellationToken cancellationToken = default);
@@ -19,6 +21,8 @@ public interface IPreparedContractRepository
     Task<KommunikationsvorgangDto> MarkFinalDocumentReadyForReviewAsync(long id, int expectedRevision, long finalDocumentId, CancellationToken cancellationToken = default)
         => throw new NotSupportedException();
     Task<KommunikationsvorgangDto> CompleteAsync(long id, CancellationToken cancellationToken = default);
+    Task CompletePrintAsync(long id, CancellationToken cancellationToken = default)
+        => throw new NotSupportedException();
     Task<KommunikationsvorgangDto> DiscardAsync(long id, int expectedRevision, CancellationToken cancellationToken = default)
         => throw new NotSupportedException();
 }
