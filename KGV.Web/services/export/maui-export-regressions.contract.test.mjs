@@ -9,6 +9,9 @@ const migration = readFileSync(new URL("../../../supabase/migrations/20261029110
 test("MAUI materializes export parameters entirely from metadata", () => {
   assert.match(vm, /GetDefaultFilterValue/);
   assert.match(vm, /\$currentSeason/);
+  assert.match(vm, /using Newtonsoft\.Json\.Linq;/);
+  assert.match(vm, /JTokenType\.Float => token\.ToObject<decimal>\(\)/);
+  assert.match(vm, /type is "number" or "decimal" or "float"/);
   assert.match(vm, /CoerceFilterValue\(f, val\)/);
   assert.doesNotMatch(vm, /isArbeitsstundenUebersicht/);
   assert.doesNotMatch(vm, /GetRfidScanContextRecordsAsync/);

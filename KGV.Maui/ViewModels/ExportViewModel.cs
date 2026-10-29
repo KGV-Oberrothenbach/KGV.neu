@@ -5,9 +5,11 @@ using KGV.Maui.State;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Newtonsoft.Json.Linq;
 
 namespace KGV.Maui.ViewModels
 {
@@ -651,13 +653,13 @@ namespace KGV.Maui.ViewModels
         {
             var token = filter.StandardwertJson;
             if (token == null || token.Type == JTokenType.Null) return null;
-            if (token.Type == JTokenType.String && string.Equals(token.Value<string>(), "$currentSeason", StringComparison.Ordinal)) return currentSeason;
+            if (token.Type == JTokenType.String && string.Equals(token.ToObject<string>(), "$currentSeason", StringComparison.Ordinal)) return currentSeason;
             return token.Type switch
             {
-                JTokenType.Boolean => token.Value<bool>(),
-                JTokenType.Integer => token.Value<int>(),
-                JTokenType.Float => token.Value<decimal>(),
-                JTokenType.String => token.Value<string>(),
+                JTokenType.Boolean => token.ToObject<bool>(),
+                JTokenType.Integer => token.ToObject<int>(),
+                JTokenType.Float => token.ToObject<decimal>(),
+                JTokenType.String => token.ToObject<string>(),
                 _ => null
             };
         }
@@ -666,8 +668,15 @@ namespace KGV.Maui.ViewModels
         {
             if (value == null) return null;
             var type = filter.WertTyp?.Trim().ToLowerInvariant();
-            if (type is "integer" or "int" && int.TryParse(value.ToString(), out var integer)) return integer;
+            if (type is "integer" or "int" && int.TryParse(Convert.ToString(value, CultureInfo.InvariantCulture), NumberStyles.Integer, CultureInfo.InvariantCulture, out var integer)) return integer;
             if (type is "boolean" or "bool" && bool.TryParse(value.ToString(), out var boolean)) return boolean;
+            if (type is "number" or "decimal" or "float")
+            {
+                var text = Convert.ToString(value, CultureInfo.CurrentCulture);
+                if (decimal.TryParse(text, NumberStyles.Number, CultureInfo.CurrentCulture, out var decimalValue)
+                    || decimal.TryParse(text, NumberStyles.Number, CultureInfo.InvariantCulture, out decimalValue))
+                    return decimalValue;
+            }
             return value;
         }
 
