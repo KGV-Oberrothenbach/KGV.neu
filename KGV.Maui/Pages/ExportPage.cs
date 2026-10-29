@@ -299,8 +299,10 @@ public sealed class ExportPage : ContentPage
 
             var hasDef = _vm.SelectedDefinition != null;
             _runButton.IsEnabled = hasDef;
-            _exportCsvButton.IsEnabled = hasDef && (_vm.Columns.Count > 0);
-            _exportPdfButton.IsEnabled = hasDef && (_vm.Columns.Count > 0);
+            _exportCsvButton.IsVisible = hasDef && def.ErlaubtCsv;
+            _exportPdfButton.IsVisible = hasDef && def.ErlaubtPdf;
+            _exportCsvButton.IsEnabled = hasDef && def.ErlaubtCsv && (_vm.Columns.Count > 0);
+            _exportPdfButton.IsEnabled = hasDef && def.ErlaubtPdf && (_vm.Columns.Count > 0);
         }
         finally
         {
@@ -320,6 +322,9 @@ public sealed class ExportPage : ContentPage
             var filterKey = f.FilterKey ?? string.Empty;
             if (string.IsNullOrWhiteSpace(filterKey))
                 continue;
+
+            var defaultValue = _vm.GetDefaultFilterValue(f, DateTime.Now.Year);
+            _vm.FilterValues[filterKey] = defaultValue;
 
             if (!renderedFilterKeys.Add(filterKey))
             {
@@ -468,7 +473,10 @@ public sealed class ExportPage : ContentPage
                                 picker.ItemsSource = optionItems.Select(item => item.Label).ToList();
 
                                 if (optionItems.Count > 0)
-                                    picker.SelectedIndex = 0;
+                                {
+                                    var defaultIndex = defaultValue == null ? -1 : optionItems.FindIndex(item => string.Equals(item.Value, defaultValue.ToString(), StringComparison.OrdinalIgnoreCase));
+                                    picker.SelectedIndex = defaultIndex >= 0 ? defaultIndex : 0;
+                                }
                             });
                         }
                         catch (Exception ex)
@@ -523,7 +531,7 @@ public sealed class ExportPage : ContentPage
             }
             else if (string.Equals(f.Typ, "boolean", StringComparison.OrdinalIgnoreCase))
             {
-                var sw = new Switch();
+                var sw = new Switch { IsToggled = defaultValue is bool boolDefault && boolDefault };
                 sw.Toggled += (_, e) => _vm.FilterValues[filterKey] = e.Value;
 
                 _filtersStack.Children.Add(
@@ -560,6 +568,16 @@ public sealed class ExportPage : ContentPage
             _statusLabel.Text = "Lade Daten...";
             await _vm.ExecuteAsync();
 
+            if (!string.IsNullOrWhiteSpace(_vm.LastRpcError))
+            {
+                _statusLabel.Text = $"Export-Fehler: {_vm.LastRpcError}";
+                _tableView.IsVisible = false;
+                _recordView.IsVisible = true;
+                _recordView.Children.Clear();
+                _recordView.Children.Add(new Label { Text = "Der Export konnte nicht ausgeführt werden.", TextColor = Colors.Gray });
+                return;
+            }
+
             if (_vm.ProcessedResults.Count == 0)
             {
                 _statusLabel.Text = "Keine Ergebnisse.";
@@ -570,14 +588,7 @@ public sealed class ExportPage : ContentPage
                 return;
             }
 
-            if (!string.IsNullOrWhiteSpace(_vm.LastRpcError))
-            {
-                _statusLabel.Text = $"Export-Fehler: {_vm.LastRpcError}";
-            }
-            else
-            {
-                _statusLabel.Text = $"Ergebnisse: {_vm.ProcessedResults.Count} (RPC={_vm.LastRpcName ?? "?"})";
-            }
+            _statusLabel.Text = $"Ergebnisse: {_vm.ProcessedResults.Count} (RPC={_vm.LastRpcName ?? "?"})";
 
             UpdateLayoutForDevice();
 
@@ -623,8 +634,8 @@ public sealed class ExportPage : ContentPage
 
                 try
                 {
-                    _exportCsvButton.IsEnabled = _vm.ProcessedResults.Count > 0;
-                    _exportPdfButton.IsEnabled = _vm.ProcessedResults.Count > 0;
+                    _exportCsvButton.IsEnabled = _vm.ProcessedResults.Count > 0 && _vm.SelectedDefinition?.ErlaubtCsv == true;
+                    _exportPdfButton.IsEnabled = _vm.ProcessedResults.Count > 0 && _vm.SelectedDefinition?.ErlaubtPdf == true;
                     Console.WriteLine($"EXPORTDBG: CSV/PDF enabled state: CSV={_exportCsvButton.IsEnabled}, PDF={_exportPdfButton.IsEnabled}");
                     System.Diagnostics.Debug.WriteLine($"EXPORTDBG: CSV/PDF enabled state: CSV={_exportCsvButton.IsEnabled}, PDF={_exportPdfButton.IsEnabled}");
                 }

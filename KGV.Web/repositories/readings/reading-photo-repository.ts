@@ -6,7 +6,7 @@ import { invokeEdgeFunctionRaw } from "../../lib/supabase/edge-client";
 export type MeterPhotoKind = "ablesung" | "einbau" | "ausbau";
 export type ReadingPhotoKind = MeterPhotoKind;
 export type ReadingPhotoDetails = { datum: string; medium: string; anlage: string; garten: string; zaehlernummer: string; kind?: ReadingPhotoKind };
-export type UploadedReadingPhoto = { fileId: string; fileName: string };
+export type UploadedReadingPhoto = { fileId: string; fileName: string; relativePath: string };
 
 export async function uploadReadingPhoto(club: ClubContext, session: BrowserSession, file: File, details: ReadingPhotoDetails): Promise<UploadedReadingPhoto> {
   const form = new FormData();
@@ -18,13 +18,13 @@ export async function uploadReadingPhoto(club: ClubContext, session: BrowserSess
   form.set("garten", details.garten);
   form.set("zaehlernummer", details.zaehlernummer);
   const response = await invokeEdgeFunctionRaw({ club, session }, "kgv-upload-photo", { method: "POST", body: form });
-  const payload = await response.json().catch(() => null) as { file_id?: string; file_name?: string; message?: string } | null;
-  if (!response.ok || !payload?.file_id) throw new Error(payload?.message ?? "Das Ablesefoto konnte nicht hochgeladen werden.");
-  return { fileId: payload.file_id, fileName: payload.file_name ?? file.name };
+  const payload = await response.json().catch(() => null) as { file_id?: string; file_name?: string; relative_path?: string; message?: string } | null;
+  if (!response.ok || !payload?.file_id || !payload.relative_path) throw new Error(payload?.message ?? "Das Ablesefoto konnte nicht hochgeladen werden.");
+  return { fileId: payload.file_id, fileName: payload.file_name ?? file.name, relativePath: payload.relative_path };
 }
 
 export const linkReadingPhoto = (club: ClubContext, session: BrowserSession, readingId: number, photo: UploadedReadingPhoto) =>
-  writeWithBrowserEditLock({ club, session }, "zaehler_ablesung", "PATCH", { foto_drive_file_id: photo.fileId, foto_dateiname: photo.fileName }, { id: `eq.${readingId}` });
+  writeWithBrowserEditLock({ club, session }, "zaehler_ablesung", "PATCH", { foto_pfad: photo.relativePath, foto_drive_file_id: photo.fileId, foto_dateiname: photo.fileName }, { id: `eq.${readingId}` });
 
 export async function openReadingPhoto(club: ClubContext, session: BrowserSession, readingId: number) {
   const response = await invokeEdgeFunctionRaw({ club, session }, "kgv-upload-photo", { method: "POST", contentType: "application/json", body: JSON.stringify({ action: "download", ablesung_id: readingId }) });

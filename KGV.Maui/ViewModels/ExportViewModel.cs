@@ -286,11 +286,6 @@ namespace KGV.Maui.ViewModels
                 return;
 
             var mapped = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
-            var isArbeitsstundenUebersicht = string.Equals(
-                definition.ExportKey,
-                "arbeitsstunden_uebersicht",
-                StringComparison.OrdinalIgnoreCase);
-
             foreach (var f in Filters)
             {
                 if (f == null)
@@ -317,32 +312,8 @@ namespace KGV.Maui.ViewModels
                 }
 
                 var explicitParameterName = (f.ParameterName ?? string.Empty).Trim();
-                string paramName = !string.IsNullOrWhiteSpace(explicitParameterName)
-                    ? explicitParameterName
-                    : isArbeitsstundenUebersicht
-                    ? key.ToLowerInvariant() switch
-                    {
-                        "jahr" => "p_jahr",
-                        "stunden_offen" => "p_stunden_offen",
-                        "stunden_fertig" => "p_stunden_fertig",
-                        "wartungsvertraege" => "p_wartungsvertraege",
-                        "ansicht" => "p_ansicht",
-                        _ => key
-                    }
-                    : key.ToLowerInvariant() switch
-                    {
-                        "sortierung" => "p_sortierung",
-                        "aktiv_filter" => "p_aktiv_filter",
-                        "anlage_filter" => "p_anlage_filter",
-                        "status_filter" => "p_status_filter",
-                        _ => key.EndsWith("_filter", StringComparison.OrdinalIgnoreCase) ? "p_" + key : key
-                    };
-
-                if (paramName == "p_jahr" && val is string jahrText && int.TryParse(jahrText, out var jahr))
-                    val = jahr;
-
-                if (paramName is "p_stunden_offen" or "p_stunden_fertig" or "p_wartungsvertraege" && val == null)
-                    val = false;
+                var paramName = !string.IsNullOrWhiteSpace(explicitParameterName) ? explicitParameterName : key;
+                val = CoerceFilterValue(f, val);
 
                 mapped[paramName] = val;
             }
@@ -388,47 +359,13 @@ namespace KGV.Maui.ViewModels
                         minimalParams[kv.Key] = kv.Value;
                     }
                 }
-                if (string.Equals(SelectedDefinition?.ExportKey ?? string.Empty, "rfid_status", StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(rpcName ?? string.Empty, "rpc_export_rfid_status", StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(rpcName ?? string.Empty, "rfid_status", StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(definition.QuelleTyp, "view", StringComparison.OrdinalIgnoreCase))
                 {
-                    var rfidRecords = await _supabaseService.GetRfidScanContextRecordsAsync();
-                    var builtRfid = new List<System.Collections.Generic.Dictionary<string, string>>();
-                    foreach (var r in rfidRecords)
-                    {
-                        var dict = new System.Collections.Generic.Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-                        {
-                            ["parzelle_id"] = r.ParzelleId.ToString(),
-                            ["garten_nr"] = r.GartenNr ?? string.Empty,
-                            ["anlage"] = r.Anlage ?? string.Empty,
-                            ["medium"] = r.Medium ?? string.Empty,
-                            ["rfid_tag_uid"] = r.RfidTagUid ?? string.Empty,
-                            ["aktiver_zaehler_id"] = r.AktiverZaehlerId?.ToString() ?? string.Empty,
-                            ["zaehlernummer"] = r.Zaehlernummer ?? string.Empty,
-                            ["eichdatum"] = r.Eichdatum?.ToString("yyyy-MM-dd") ?? string.Empty,
-                            ["eichfaellig_am"] = r.EichfaelligAm?.ToString("yyyy-MM-dd") ?? string.Empty,
-                            ["eingebaut_am"] = r.EingebautAm?.ToString("yyyy-MM-dd") ?? string.Empty,
-                            ["ausgebaut_am"] = r.AusgebautAm?.ToString("yyyy-MM-dd") ?? string.Empty,
-                            ["status"] = r.Status ?? string.Empty,
-                            ["parzelle_display"] = r.ParzelleDisplayName,
-                            ["medium_display"] = r.MediumDisplay,
-                            ["rfid_display"] = r.RfidDisplay,
-                            ["zaehlernummer_display"] = r.ZaehlernummerDisplay,
-                            ["status_display"] = r.StatusDisplay,
-                            ["eichdatum_display"] = r.EichdatumDisplay,
-                            ["eichfaellig_display"] = r.EichfaelligDisplay,
-                            ["active_meter_display"] = r.ActiveMeterDisplay
-                        };
-
-                        builtRfid.Add(dict);
-                    }
-
-                    rows = builtRfid;
+                    rows = await _supabaseService.RunExportRpcAsync("rpc_execute_table_or_view_export", new { p_source_name = rpcName });
                 }
-
                 else
                 {
-                    rows = await _supabaseService.RunProtectedExportRpcAsync(SelectedDefinition?.ExportKey ?? string.Empty, minimalParams.Count == 0 ? null : (object)minimalParams);
+                    rows = await _supabaseService.RunProtectedExportRpcAsync(definition.ExportKey ?? string.Empty, minimalParams.Count == 0 ? null : (object)minimalParams);
 
                     try
                     {
@@ -710,6 +647,30 @@ namespace KGV.Maui.ViewModels
             LastRpcRowCount = Results.Count;
         }
 
+        public object? GetDefaultFilterValue(AppExportFilterDefinitionRecord filter, int currentSeason)
+        {
+            var token = filter.StandardwertJson;
+            if (token == null || token.Type == JTokenType.Null) return null;
+            if (token.Type == JTokenType.String && string.Equals(token.Value<string>(), "$currentSeason", StringComparison.Ordinal)) return currentSeason;
+            return token.Type switch
+            {
+                JTokenType.Boolean => token.Value<bool>(),
+                JTokenType.Integer => token.Value<int>(),
+                JTokenType.Float => token.Value<decimal>(),
+                JTokenType.String => token.Value<string>(),
+                _ => null
+            };
+        }
+
+        private static object? CoerceFilterValue(AppExportFilterDefinitionRecord filter, object? value)
+        {
+            if (value == null) return null;
+            var type = filter.WertTyp?.Trim().ToLowerInvariant();
+            if (type is "integer" or "int" && int.TryParse(value.ToString(), out var integer)) return integer;
+            if (type is "boolean" or "bool" && bool.TryParse(value.ToString(), out var boolean)) return boolean;
+            return value;
+        }
+
         public async Task<string> ExportToCsvAsync()
         {
             if (ProcessedResults.Count == 0 || ColumnsVisibleOrdered.Count == 0)
@@ -768,8 +729,11 @@ namespace KGV.Maui.ViewModels
             {
                 var filterKey = filter.FilterKey;
                 var parameterName = string.IsNullOrWhiteSpace(filter.ParameterName) ? filterKey : filter.ParameterName;
-                if (!string.IsNullOrWhiteSpace(filterKey) && !string.IsNullOrWhiteSpace(parameterName) && FilterValues.TryGetValue(filterKey, out var value))
-                    parameters[parameterName] = value;
+                if (!string.IsNullOrWhiteSpace(filterKey) && !string.IsNullOrWhiteSpace(parameterName))
+                {
+                    FilterValues.TryGetValue(filterKey, out var value);
+                    parameters[parameterName] = CoerceFilterValue(filter, value ?? GetDefaultFilterValue(filter, DateTime.Now.Year));
+                }
             }
 
             return new CentralExportRequest

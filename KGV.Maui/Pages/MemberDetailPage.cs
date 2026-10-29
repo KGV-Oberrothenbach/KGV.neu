@@ -4,6 +4,7 @@ using KGV.Core.Security;
 using KGV.Core.Services;
 using KGV.Core.Utilities;
 using KGV.Maui.State;
+using KGV.Maui.Services.Diagnostics;
 using Microsoft.Maui;
 using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Controls;
@@ -289,15 +290,12 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
                 return;
             }
 
+            // The member record is the primary result of this page.  Render it before
+            // querying optional, independent sections so one unavailable integration
+            // cannot make the master data disappear.
             _memberRecord = member;
-            _hasSignedMitgliedsantrag = await _supabaseService.HasSignedMitgliedsantragAsync(member.Id);
-            _activeMembershipApplicationContract = await _preparedContractRepository.FindActiveAsync(PreparedContractConstants.MembershipApplication, member.Id, null);
-            await UpdateMitgliedschaftStatusAsync(member);
             var memberDto = MapMember(member);
-            var permissionSettings = await _supabaseService.GetUserPermissionSettingsAsync(member.Id);
-            memberDto.Role = NormalizeRole(permissionSettings?.Role ?? UserRoles.User);
             _memberContextState.SetSelectedMember(memberDto);
-            _hasLinkedAppUser = member.AuthUserId.HasValue || await HasLinkedAppUserAsync(member.Id);
 
             _headlineLabel.Text = FormatMemberDisplayName(member);
 
@@ -324,16 +322,51 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
 
             UpdateArbeitsstundenAltersregelVisibility(memberDto);
             UpdateAdminActions(memberDto);
-            await _clubDocumentsSection.LoadAsync(member);
+            await LoadOptionalMemberDetailsAsync(member, memberDto);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            _statusLabel.Text = "Nutzer hinzufügen fehlgeschlagen. Bitte später erneut versuchen.";
+            AppFileLog.Error(nameof(MemberDetailPage), "Mitgliedsstammdaten konnten nicht geladen werden.", ex);
+            _statusLabel.Text = "Die Stammdaten konnten nicht geladen werden. Bitte versuchen Sie es später erneut.";
         }
         finally
         {
             _isBusy = false;
         }
+    }
+
+    private async Task LoadOptionalMemberDetailsAsync(MitgliedRecord member, MemberDTO memberDto)
+    {
+        var failedSections = new List<string>();
+
+        async Task LoadSectionAsync(string section, Func<Task> load)
+        {
+            try { await load(); }
+            catch (Exception ex)
+            {
+                failedSections.Add(section);
+                AppFileLog.Error(nameof(MemberDetailPage), $"Optionale Mitgliedsdetaildaten konnten nicht geladen werden: {section}.", ex);
+            }
+        }
+
+        await LoadSectionAsync("Mitgliedsantrag", async () =>
+            _hasSignedMitgliedsantrag = await _supabaseService.HasSignedMitgliedsantragAsync(member.Id));
+        await LoadSectionAsync("Antragsentwurf", async () =>
+            _activeMembershipApplicationContract = await _preparedContractRepository.FindActiveAsync(PreparedContractConstants.MembershipApplication, member.Id, null));
+        await LoadSectionAsync("Mitgliedschaftsstatus", () => UpdateMitgliedschaftStatusAsync(member));
+        await LoadSectionAsync("Berechtigungen", async () =>
+        {
+            var permissionSettings = await _supabaseService.GetUserPermissionSettingsAsync(member.Id);
+            memberDto.Role = NormalizeRole(permissionSettings?.Role ?? UserRoles.User);
+            _rolleLabel.Text = FormatValue(memberDto.Role);
+            _memberContextState.SetSelectedMember(memberDto);
+        });
+        await LoadSectionAsync("App-Nutzer-Verknüpfung", async () =>
+            _hasLinkedAppUser = member.AuthUserId.HasValue || await HasLinkedAppUserAsync(member.Id));
+        await LoadSectionAsync("Vereinsunterlagen", () => _clubDocumentsSection.LoadAsync(member));
+
+        if (failedSections.Count > 0)
+            _statusLabel.Text = "Einige Zusatzinformationen konnten nicht geladen werden.";
     }
 
     private void SetEmptyState()

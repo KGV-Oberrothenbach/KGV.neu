@@ -16,6 +16,7 @@ export type PendingMeterPhoto = {
   lastError: string | null;
   uploadedFileId?: string | null;
   uploadedFileName?: string | null;
+  uploadedRelativePath?: string | null;
   retryLeaseOwnerId?: string | null;
   retryLeaseUntil?: string | null;
 };
@@ -38,9 +39,9 @@ export function belongsToOwner(item: Pick<PendingMeterPhoto, "clubId" | "ownerUs
   return item.clubId === clubId && item.ownerUserId === ownerUserId;
 }
 
-export async function enqueuePendingMeterPhoto(input: Omit<PendingMeterPhoto, "id" | "status" | "createdAt" | "lastAttemptAt" | "attemptCount" | "lastError" | "uploadedFileId" | "uploadedFileName"> & { ownerUserId: string }) {
+export async function enqueuePendingMeterPhoto(input: Omit<PendingMeterPhoto, "id" | "status" | "createdAt" | "lastAttemptAt" | "attemptCount" | "lastError" | "uploadedFileId" | "uploadedFileName" | "uploadedRelativePath"> & { ownerUserId: string }) {
   if (!input.ownerUserId.trim()) throw new Error("Lokale Fotos benötigen einen angemeldeten Benutzer.");
-  const item: PendingMeterPhoto = { ...input, ownerUserId: input.ownerUserId.trim(), id: crypto.randomUUID(), status: "pending", createdAt: new Date().toISOString(), lastAttemptAt: null, attemptCount: 0, lastError: null, uploadedFileId: null, uploadedFileName: null };
+  const item: PendingMeterPhoto = { ...input, ownerUserId: input.ownerUserId.trim(), id: crypto.randomUUID(), status: "pending", createdAt: new Date().toISOString(), lastAttemptAt: null, attemptCount: 0, lastError: null, uploadedFileId: null, uploadedFileName: null, uploadedRelativePath: null };
   await putPendingMeterPhoto(item);
   return item;
 }

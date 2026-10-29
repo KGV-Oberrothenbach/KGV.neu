@@ -479,6 +479,7 @@ namespace KGV.Infrastructure.Services
                 if (!response.IsSuccessStatusCode)
                 {
                     var body = await response.Content.ReadAsStringAsync();
+                    _logger?.LogWarning("GenerateExportPdfAsync failed with HTTP {StatusCode}: {ServerDiagnostic}", (int)response.StatusCode, ExtractExportPdfDiagnostic(body));
                     throw new InvalidOperationException(DescribeExportPdfFailure(response.StatusCode, body));
                 }
 
@@ -531,6 +532,19 @@ namespace KGV.Infrastructure.Services
                 System.Net.HttpStatusCode.BadRequest => string.IsNullOrWhiteSpace(serverMessage) ? "Die Exportparameter sind ungültig." : serverMessage,
                 _ => "Der zentrale PDF-Export konnte nicht erzeugt werden. Bitte versuchen Sie es später erneut."
             };
+        }
+
+        private static string ExtractExportPdfDiagnostic(string responseBody)
+        {
+            try
+            {
+                using var document = JsonDocument.Parse(responseBody);
+                var root = document.RootElement;
+                var message = root.TryGetProperty("message", out var m) ? m.GetString() : null;
+                var detail = root.TryGetProperty("detail", out var d) ? d.GetString() : null;
+                return TruncateSafe(string.Join(" | ", new[] { message, detail }.Where(value => !string.IsNullOrWhiteSpace(value))), 500);
+            }
+            catch { return TruncateSafe(responseBody, 500); }
         }
 
         // Local small helpers to avoid depending on ViewModel helpers

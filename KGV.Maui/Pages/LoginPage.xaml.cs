@@ -38,9 +38,9 @@ public class LoginPage : ContentPage
     private readonly Label _statusLabel;
     private readonly Label _otpDiagnosticLabel;
     private readonly Button _copyOtpDiagnosticButton;
-    private readonly Button _biometricLoginButton;
     private string? _lastOtpDiagnosticCode;
     private bool _biometricPromptStarted;
+    private bool _biometricAutoAttempted;
 
     public LoginPage(
         IAuthService authService,
@@ -127,9 +127,7 @@ public class LoginPage : ContentPage
         var forgotPasswordButton = new Button { Text = "Passwort vergessen" };
         var changeClubButton = new Button { Text = "Anderen Verein auswählen" };
         changeClubButton.Clicked += async (_, _) => await ChangeClubAsync();
-        _biometricLoginButton = new Button { Text = "Mit Biometrie anmelden", IsVisible = false };
-        _biometricLoginButton.Clicked += async (_, _) => await LoginWithBiometricsAsync();
-        Loaded += async (_, _) => await RefreshBiometricLoginAvailabilityAsync();
+        Loaded += async (_, _) => await StartBiometricLoginIfAvailableAsync();
 
         void UpdatePasswordHintState()
         {
@@ -358,7 +356,6 @@ public class LoginPage : ContentPage
                 _emailEntry,
                 passwordField,
                 loginButton,
-                _biometricLoginButton,
                 requestOtpButton,
                 forgotPasswordButton,
                 changeClubButton,
@@ -505,9 +502,15 @@ public class LoginPage : ContentPage
            && await _biometricSessionStore.GetAsync(scope) != null
            && await _biometricAuthenticationService.IsAvailableAsync();
 
-    private async Task RefreshBiometricLoginAvailabilityAsync()
+    private async Task StartBiometricLoginIfAvailableAsync()
     {
-        _biometricLoginButton.IsVisible = await CanUseBiometricLoginAsync();
+        // Loaded/Appearing can be raised again after the Android prompt returns.  A
+        // cancelled prompt must leave the ordinary login form usable, not reopen it.
+        if (_biometricAutoAttempted || _biometricPromptStarted || !await CanUseBiometricLoginAsync())
+            return;
+
+        _biometricAutoAttempted = true;
+        await LoginWithBiometricsAsync();
     }
 
     private async Task LoginWithBiometricsAsync()

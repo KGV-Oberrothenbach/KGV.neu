@@ -50,7 +50,7 @@ export async function handleReadingPhoto(club: ClubContext, session: BrowserSess
       return { status: "uploaded", message: "Foto wurde hochgeladen und mit der Ablesung verknüpft." };
     } catch (cause) {
       const item = await enqueuePendingMeterPhoto({ clubId: input.clubId, ownerUserId: owner, readingId: input.readingId, fileName: input.file.name || `ablesung-${input.readingId}.jpg`, contentType: input.file.type || "image/jpeg", content: input.file, details: input.details });
-      await failed({ ...item, uploadedFileId: photo.fileId, uploadedFileName: photo.fileName }, cause instanceof Error ? cause.message : "Foto konnte nicht mit der Ablesung verknüpft werden.", true);
+      await failed({ ...item, uploadedFileId: photo.fileId, uploadedFileName: photo.fileName, uploadedRelativePath: photo.relativePath }, cause instanceof Error ? cause.message : "Foto konnte nicht mit der Ablesung verknüpft werden.", true);
       return { status: "failed", message: "Foto wurde hochgeladen, die Verknüpfung wird später erneut versucht." };
     }
   } catch (cause) {
@@ -79,9 +79,11 @@ export async function retryPendingReadingPhoto(club: ClubContext, session: Brows
     try {
       attempted = { ...claim.item, status: "uploading" as const, lastError: null, lastAttemptAt: now(), attemptCount: claim.item.attemptCount + 1 };
       await putPendingMeterPhoto(attempted);
-      const photo = attempted.uploadedFileId ? { fileId: attempted.uploadedFileId, fileName: attempted.uploadedFileName || attempted.fileName } : await uploadReadingPhoto(club, session, pendingPhotoFile(attempted), attempted.details);
+      const photo = attempted.uploadedFileId && attempted.uploadedRelativePath
+        ? { fileId: attempted.uploadedFileId, fileName: attempted.uploadedFileName || attempted.fileName, relativePath: attempted.uploadedRelativePath }
+        : await uploadReadingPhoto(club, session, pendingPhotoFile(attempted), attempted.details);
       if (!attempted.uploadedFileId) {
-        attempted = { ...attempted, uploadedFileId: photo.fileId, uploadedFileName: photo.fileName };
+        attempted = { ...attempted, uploadedFileId: photo.fileId, uploadedFileName: photo.fileName, uploadedRelativePath: photo.relativePath };
         await putPendingMeterPhoto(attempted);
       }
       await completeLink(club, session, attempted, photo);
