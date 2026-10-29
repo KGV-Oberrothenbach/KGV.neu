@@ -238,7 +238,7 @@ namespace KGV.Infrastructure.Authentication
                     currentSession = await AwaitMethodResultAsync(retrieveSessionMethod.Invoke(auth, null));
             }
 
-            return ExtractAccessToken(currentSession);
+            return SupabaseHeaderValue.NormalizeOptional(ExtractAccessToken(currentSession), "Supabase Access Token");
         }
 
         public async Task<BiometricSessionTokens?> GetSessionTokensAsync()

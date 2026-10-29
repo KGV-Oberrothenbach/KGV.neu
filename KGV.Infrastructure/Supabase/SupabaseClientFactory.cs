@@ -23,13 +23,14 @@ namespace KGV.Infrastructure.Supabase
             _config = config;
             _vereinskontext = vereinskontext;
 
-            Url = _vereinskontext.Aktuell?.SupabaseUrl
-                  ?? _config["Supabase:Url"]
-                  ?? throw new InvalidOperationException("Supabase URL fehlt in appsettings.json");
-            Key = _vereinskontext.Aktuell?.SupabasePublishableKey
-                  ?? _config["Supabase:PublishableKey"]
-                  ?? _config["Supabase:Key"]
-                  ?? throw new InvalidOperationException("Supabase Publishable Key fehlt in appsettings.json");
+            Url = SupabaseHeaderValue.NormalizeRequired(
+                _vereinskontext.Aktuell?.SupabaseUrl ?? _config["Supabase:Url"],
+                "Supabase URL");
+            Key = SupabaseHeaderValue.NormalizeRequired(
+                _vereinskontext.Aktuell?.SupabasePublishableKey
+                ?? _config["Supabase:PublishableKey"]
+                ?? _config["Supabase:Key"],
+                "Supabase Publishable Key");
         }
 
         public async Task<SupabaseClient> CreateAsync()

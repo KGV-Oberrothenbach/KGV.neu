@@ -18,3 +18,10 @@ test("member master data is mapped before optional integrations", () => {
   assert.match(member, /Optionale Mitgliedsdetaildaten konnten nicht geladen werden/);
   assert.match(member, /catch \(Exception ex\)[\s\S]*?Die Stammdaten konnten nicht geladen werden/);
 });
+
+test("membership-application lookup failures cannot enable a duplicate application", () => {
+  assert.match(member, /_mitgliedsantragPruefungFehlgeschlagen = true/);
+  assert.match(member, /&& !_mitgliedsantragPruefungFehlgeschlagen/);
+  assert.match(member, /Erstellung ist vorsorglich gesperrt/);
+  assert.match(member, /await LoadOptionalMemberDetailsAsync\(member, memberDto\);[\s\S]*?UpdateFormActions\(memberDto\);/);
+});

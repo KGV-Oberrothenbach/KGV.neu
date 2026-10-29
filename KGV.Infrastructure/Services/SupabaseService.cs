@@ -3772,22 +3772,19 @@ namespace KGV.Infrastructure.Services
             return new AktivesPachtverhaeltnisStatus(active[0].Id, versions?.Models?.Count ?? 0);
         }
 
-        public Task<bool> HasSignedMitgliedsantragAsync(int mitgliedId) => ExecuteAsync(
-            "HasSignedMitgliedsantragAsync",
-            async () =>
-            {
-                if (mitgliedId <= 0)
-                    return false;
+        public async Task<bool> HasSignedMitgliedsantragAsync(int mitgliedId)
+        {
+            if (mitgliedId <= 0)
+                return false;
 
-                var client = await EnsureClientAsync();
-                var response = await client
-                    .From<DokumentRecord>()
-                    .Where(x => x.MitgliedId == mitgliedId)
-                    .Get();
+            var client = await EnsureClientAsync();
+            var response = await client
+                .From<DokumentRecord>()
+                .Where(x => x.MitgliedId == mitgliedId)
+                .Get();
 
-                return HasSignedFormularDokument(response?.Models, FormularDokumentTyp.Mitgliedsantrag);
-            },
-            false);
+            return HasSignedFormularDokument(response?.Models, FormularDokumentTyp.Mitgliedsantrag);
+        }
 
         public async Task<DokumentUploadResult> CreateMitgliedsantragDokumentAsync(int mitgliedId, string status = FormularDokumentStatus.Unsigniert)
         {

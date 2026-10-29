@@ -32,6 +32,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
     private KommunikationsvorgangDto? _activeMembershipApplicationContract;
     private bool _hasLinkedAppUser;
     private bool _hasSignedMitgliedsantrag;
+    private bool _mitgliedsantragPruefungFehlgeschlagen;
     private bool _isBusy;
     private bool _isCreateMode;
 
@@ -339,18 +340,22 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
     {
         var failedSections = new List<string>();
 
-        async Task LoadSectionAsync(string section, Func<Task> load)
+        async Task LoadSectionAsync(string section, Func<Task> load, Action? onFailure = null)
         {
             try { await load(); }
             catch (Exception ex)
             {
+                onFailure?.Invoke();
                 failedSections.Add(section);
                 AppFileLog.Error(nameof(MemberDetailPage), $"Optionale Mitgliedsdetaildaten konnten nicht geladen werden: {section}.", ex);
             }
         }
 
         await LoadSectionAsync("Mitgliedsantrag", async () =>
-            _hasSignedMitgliedsantrag = await _supabaseService.HasSignedMitgliedsantragAsync(member.Id));
+        {
+            _mitgliedsantragPruefungFehlgeschlagen = false;
+            _hasSignedMitgliedsantrag = await _supabaseService.HasSignedMitgliedsantragAsync(member.Id);
+        }, () => _mitgliedsantragPruefungFehlgeschlagen = true);
         await LoadSectionAsync("Antragsentwurf", async () =>
             _activeMembershipApplicationContract = await _preparedContractRepository.FindActiveAsync(PreparedContractConstants.MembershipApplication, member.Id, null));
         await LoadSectionAsync("Mitgliedschaftsstatus", () => UpdateMitgliedschaftStatusAsync(member));
@@ -365,6 +370,11 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
             _hasLinkedAppUser = member.AuthUserId.HasValue || await HasLinkedAppUserAsync(member.Id));
         await LoadSectionAsync("Vereinsunterlagen", () => _clubDocumentsSection.LoadAsync(member));
 
+        // The membership-application state is loaded asynchronously. Re-evaluate
+        // the action afterwards so a signed legacy document or a failed lookup can
+        // never leave the create button enabled from the initial master-data render.
+        UpdateFormActions(memberDto);
+
         if (failedSections.Count > 0)
             _statusLabel.Text = "Einige Zusatzinformationen konnten nicht geladen werden.";
     }
@@ -375,6 +385,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         _activeMembershipApplicationContract = null;
         _hasLinkedAppUser = false;
         _hasSignedMitgliedsantrag = false;
+        _mitgliedsantragPruefungFehlgeschlagen = false;
         _mitgliedschaftStatusLabel.Text = string.Empty;
         _mitgliedschaftStatusLabel.IsVisible = false;
         _zuHauptmitgliedMachenButton.IsVisible = false;
@@ -409,6 +420,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         _activeMembershipApplicationContract = null;
         _hasLinkedAppUser = false;
         _hasSignedMitgliedsantrag = false;
+        _mitgliedsantragPruefungFehlgeschlagen = false;
         _mitgliedschaftStatusLabel.Text = string.Empty;
         _mitgliedschaftStatusLabel.IsVisible = false;
         _zuHauptmitgliedMachenButton.IsVisible = false;
@@ -545,6 +557,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
             && member?.Id is > 0
             && member.IstHauptmitglied
             && canCreateMitglied
+            && !_mitgliedsantragPruefungFehlgeschlagen
             && !_hasSignedMitgliedsantrag
             && _activeMembershipApplicationContract is null;
 
@@ -558,6 +571,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
             PreparedContractConstants.ReadyForSignature => "Mitgliedsantrag: Signatur läuft",
             PreparedContractConstants.FinalReview => "Mitgliedsantrag: Letzte Prüfung",
             _ when _hasSignedMitgliedsantrag => "Signierter Mitgliedsantrag liegt vor.",
+            _ when _mitgliedsantragPruefungFehlgeschlagen => "Mitgliedsantrag konnte nicht geprüft werden; Erstellung ist vorsorglich gesperrt.",
             _ => string.Empty
         };
     }
