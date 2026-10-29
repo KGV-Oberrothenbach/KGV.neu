@@ -14,11 +14,19 @@ if (-not (Test-Path -LiteralPath $fieldSpec -PathType Leaf)) { throw "Field-Spec
 
 npx supabase link --project-ref $ProjectRef
 if ($LASTEXITCODE -ne 0) { throw 'Supabase-Projekt konnte nicht verknüpft werden.' }
-$existing = @(npx supabase storage ls $target --experimental --linked)
-if ($LASTEXITCODE -ne 0) { throw 'Der Storage-Zielpfad konnte nicht geprüft werden.' }
-if ($existing.Count -gt 0) { throw 'export-allgemein/v3 existiert bereits im Storage und wird nicht überschrieben.' }
+Push-Location -LiteralPath $templateDirectory
+try {
+    $existing = @(npx supabase storage ls $target --experimental --linked)
+    if ($LASTEXITCODE -ne 0) { throw 'Der Storage-Zielpfad konnte nicht geprüft werden.' }
+    if ($existing.Count -gt 0) { throw 'export-allgemein/v3 existiert bereits im Storage und wird nicht überschrieben.' }
 
-npx supabase storage cp $pdf "$target/template.pdf" --content-type application/pdf --experimental --linked
-if ($LASTEXITCODE -ne 0) { throw 'PDF-Vorlage konnte nicht hochgeladen werden.' }
-npx supabase storage cp $fieldSpec "$target/field-spec.json" --content-type application/json --experimental --linked
-if ($LASTEXITCODE -ne 0) { throw 'Field-Spec konnte nicht hochgeladen werden.' }
+    # The CLI accepts a relative local source reliably on Windows. Keep the
+    # destination as an explicit Storage URI, never a local path.
+    npx supabase storage cp 'template.pdf' "$target/template.pdf" --content-type application/pdf --experimental --linked
+    if ($LASTEXITCODE -ne 0) { throw 'PDF-Vorlage konnte nicht hochgeladen werden.' }
+    npx supabase storage cp 'field-spec.json' "$target/field-spec.json" --content-type application/json --experimental --linked
+    if ($LASTEXITCODE -ne 0) { throw 'Field-Spec konnte nicht hochgeladen werden.' }
+}
+finally {
+    Pop-Location
+}

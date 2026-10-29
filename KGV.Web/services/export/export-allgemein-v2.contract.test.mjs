@@ -9,6 +9,7 @@ const migration = readFileSync(new URL("supabase/migrations/20261023123000_publi
 const v3 = readFileSync(new URL("KGV.Core/Templates/export-allgemein/v3/field-spec.json", root));
 const publishV3 = readFileSync(new URL("supabase/migrations/20261029112000_repair_export_allgemein_v2_field_spec_checksum.sql", root), "utf8");
 const renderer = readFileSync(new URL("supabase/functions/kgv-generate-export-pdf/index.ts", root), "utf8");
+const uploadScript = readFileSync(new URL("KGV.Core/Templates/export-allgemein/PUBLISH_v3.ps1", root), "utf8");
 
 test("export-allgemein v2 stays immutable while v3 publishes the corrected artifact", () => {
   const checksum = createHash("sha256").update(spec).digest("hex");
@@ -23,4 +24,12 @@ test("export-allgemein v2 stays immutable while v3 publishes the corrected artif
   assert.doesNotMatch(publishV3, /set field_spec_checksum/);
   assert.match(renderer, /\.eq\("status", "published"\)\.eq\("aktiv", true\)/);
   for (const field of ["exporttitel", "stand", "exporttabelle"]) assert.match(spec.toString("utf8"), new RegExp(`\\"name\\": \\"${field}\\"`));
+});
+
+test("v3 upload uses relative local sources and explicit immutable Storage URIs", () => {
+  assert.match(uploadScript, /Push-Location -LiteralPath \$templateDirectory/);
+  assert.match(uploadScript, /storage cp 'template\.pdf' "\$target\/template\.pdf" --content-type application\/pdf/);
+  assert.match(uploadScript, /storage cp 'field-spec\.json' "\$target\/field-spec\.json" --content-type application\/json/);
+  assert.match(uploadScript, /Pop-Location/);
+  assert.doesNotMatch(uploadScript, /storage cp \$pdf/);
 });
