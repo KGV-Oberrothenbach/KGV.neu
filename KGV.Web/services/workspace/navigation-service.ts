@@ -14,12 +14,14 @@ export type NavigationCapabilities = {
   canAccessMeters: boolean;
   canReadMeterPhotos: boolean;
   canAccessMeterChanges: boolean;
+  canApproveMeterReadings: boolean;
   canAccessParcels: boolean;
   canManageMaintenance: boolean;
   canApproveWorkHours: boolean;
   canExport: boolean;
+  canManageAdministration: boolean;
+  canManageProcesses: boolean;
   canAccessCommunication: boolean;
-  openProcessCount: number;
   canManageSeasonConfiguration: boolean;
   canPerformYearEndClosing: boolean;
   canManageClubConfiguration: boolean;
@@ -29,10 +31,7 @@ export type NavigationCapabilities = {
   canSearchMembers: boolean;
 };
 
-export type WorkspaceNavigation = {
-  memberItems: NavigationItem[];
-  navigationGroups: NavigationGroup[];
-};
+export type WorkspaceNavigation = { memberItems: NavigationItem[]; navigationGroups: NavigationGroup[] };
 
 export function buildNavigation(capabilities: NavigationCapabilities): WorkspaceNavigation {
   const memberItems: NavigationItem[] = capabilities.creatingMember
@@ -54,28 +53,37 @@ export function buildNavigation(capabilities: NavigationCapabilities): Workspace
     { ...navigationConfig.groups.home, items: [], target: { ...navigationConfig.groups.home.target, detail: `${navigationConfig.groups.home.target.detail} ${capabilities.season}` } },
     { ...navigationConfig.groups.imprint, items: [] },
     {
+      ...navigationConfig.groups.processes,
+      items: capabilities.canAccessCommunication ? Object.values(navigationConfig.groups.processes.items) : [],
+    },
+    {
       ...navigationConfig.groups.meters,
-      target: capabilities.canAccessMeters ? navigationConfig.groups.meters.target : undefined,
       items: [
-        ...(capabilities.canReadMeterPhotos ? [navigationConfig.groups.meters.items.photoUploads] : []),
-        ...(capabilities.canAccessMeterChanges ? [navigationConfig.groups.meters.items.meterChanges] : []),
+        ...(capabilities.canAccessMeters ? [navigationConfig.groups.meters.items.capture, navigationConfig.groups.meters.items.annualCapture] : []),
+        ...(capabilities.canAccessMeterChanges ? [navigationConfig.groups.meters.items.meterChanges, navigationConfig.groups.meters.items.rfidSetup] : []),
+        ...(capabilities.canApproveMeterReadings ? [navigationConfig.groups.meters.items.approve] : []),
       ],
     },
-    { ...navigationConfig.groups.parcels, items: [], target: capabilities.canAccessParcels ? navigationConfig.groups.parcels.target : undefined },
-    { ...navigationConfig.groups.maintenance, items: [], target: capabilities.canManageMaintenance ? navigationConfig.groups.maintenance.target : undefined },
+    {
+      ...navigationConfig.groups.administration,
+      items: [
+        ...(capabilities.canAccessParcels ? [navigationConfig.groups.administration.items.parcels] : []),
+        ...(capabilities.canManageMaintenance ? [navigationConfig.groups.administration.items.maintenance] : []),
+        ...(capabilities.canManageAdministration ? [
+          navigationConfig.groups.administration.items.seasons,
+          navigationConfig.groups.administration.items.annualClosing,
+          navigationConfig.groups.administration.items.club,
+          navigationConfig.groups.administration.items.clubDocuments,
+          navigationConfig.groups.administration.items.clubFunctions,
+          navigationConfig.groups.administration.items.documentTypes,
+          navigationConfig.groups.administration.items.backfillContracts,
+        ] : []),
+      ],
+    },
     { ...navigationConfig.groups.workhours, items: [], target: capabilities.canApproveWorkHours ? navigationConfig.groups.workhours.target : undefined },
     { ...navigationConfig.groups.export, items: [], target: capabilities.canExport ? navigationConfig.groups.export.target : undefined },
-    { ...navigationConfig.groups.communication, items: [], target: capabilities.canAccessCommunication ? { ...navigationConfig.groups.communication.target, badge: capabilities.openProcessCount } : undefined },
-    { ...navigationConfig.groups.administration, items: [
-      ...(capabilities.canManageSeasonConfiguration ? [navigationConfig.groups.administration.items.seasons] : []),
-      ...(capabilities.canPerformYearEndClosing ? [navigationConfig.groups.administration.items.annualClosing] : []),
-      ...(capabilities.canManageClubConfiguration ? [navigationConfig.groups.administration.items.club] : []),
-      ...(capabilities.canManageClubDocuments ? [navigationConfig.groups.administration.items.clubDocuments] : []),
-      ...(capabilities.canReadDocumentTypes ? [navigationConfig.groups.administration.items.documentTypes] : []),
-      ...(capabilities.canManageClubFunctions ? [navigationConfig.groups.administration.items.clubFunctions] : []),
-    ] },
-    { ...navigationConfig.groups.members, target: capabilities.canSearchMembers ? navigationConfig.groups.members.target : undefined, items: memberItems },
-  ] as NavigationGroup[]).filter((group) => Boolean(group.target) || group.items.length > 0);
+    { ...navigationConfig.groups.members, items: memberItems, target: capabilities.canSearchMembers ? navigationConfig.groups.members.target : undefined },
+  ] as NavigationGroup[]).filter((group) => group.kind === "item" ? Boolean(group.target) : group.items.length > 0);
 
   return { memberItems, navigationGroups };
 }

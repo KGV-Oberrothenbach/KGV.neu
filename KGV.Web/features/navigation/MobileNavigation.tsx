@@ -8,7 +8,7 @@ export default function MobileNavigation({ groups, activeId, onNavigate, selecte
       <label htmlFor="mobile-page">Bereich</label>
       <select id="mobile-page" value={activeId} onChange={(event) => onNavigate(event.target.value)}>
         {groups.map((group) =>
-          group.standalone && group.target ? (
+          group.kind === "item" && group.target ? (
             <option key={group.id} value={group.target.id}>{group.label}</option>
           ) : (
             <optgroup key={group.id} label={group.label}>
