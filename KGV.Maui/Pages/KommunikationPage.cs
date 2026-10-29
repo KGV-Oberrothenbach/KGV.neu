@@ -27,6 +27,12 @@ public sealed class KommunikationPage : ContentPage
     private SignatureFilter _filter = SignatureFilter.Mine;
     private bool _isLoading;
 
+    /// <summary>
+    /// The area supplied by a future dedicated route. A null value keeps the
+    /// existing combined communication page and its current navigation.
+    /// </summary>
+    public CommunicationArea? FixedArea { get; }
+
     public KommunikationPage(
         IPreparedContractRepository repository,
         IContractGenerationClient contractClient,
@@ -35,7 +41,36 @@ public sealed class KommunikationPage : ContentPage
         ILeaseContractCompletionClient leaseCompletionClient,
         IPreparedContractSignatureService preparedSignatures,
         UserContextState userContext)
+        : this(repository, contractClient, authService, supabaseService, leaseCompletionClient, preparedSignatures, userContext, null)
     {
+    }
+
+    public KommunikationPage(
+        CommunicationArea fixedArea,
+        IPreparedContractRepository repository,
+        IContractGenerationClient contractClient,
+        IAuthService authService,
+        ISupabaseService supabaseService,
+        ILeaseContractCompletionClient leaseCompletionClient,
+        IPreparedContractSignatureService preparedSignatures,
+        UserContextState userContext)
+        : this(repository, contractClient, authService, supabaseService, leaseCompletionClient, preparedSignatures, userContext, fixedArea)
+    {
+    }
+
+    private KommunikationPage(
+        IPreparedContractRepository repository,
+        IContractGenerationClient contractClient,
+        IAuthService authService,
+        ISupabaseService supabaseService,
+        ILeaseContractCompletionClient leaseCompletionClient,
+        IPreparedContractSignatureService preparedSignatures,
+        UserContextState userContext,
+        CommunicationArea? fixedArea)
+    {
+        if (fixedArea is { } area && !Enum.IsDefined(area))
+            throw new ArgumentOutOfRangeException(nameof(fixedArea), fixedArea, "Unknown communication area.");
+
         _repository = repository ?? throw new ArgumentNullException(nameof(repository));
         _contractClient = contractClient ?? throw new ArgumentNullException(nameof(contractClient));
         _authService = authService ?? throw new ArgumentNullException(nameof(authService));
@@ -43,6 +78,7 @@ public sealed class KommunikationPage : ContentPage
         _leaseCompletionClient = leaseCompletionClient ?? throw new ArgumentNullException(nameof(leaseCompletionClient));
         _preparedSignatures = preparedSignatures ?? throw new ArgumentNullException(nameof(preparedSignatures));
         _userContext = userContext ?? throw new ArgumentNullException(nameof(userContext));
+        FixedArea = fixedArea;
         Title = "Vorgänge";
 
         var mine = FilterButton("Meine", SignatureFilter.Mine);
