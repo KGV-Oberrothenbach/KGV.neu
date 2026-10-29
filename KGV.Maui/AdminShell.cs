@@ -149,10 +149,22 @@ public sealed class AdminShell : Shell, IAppShellInitializer
         Items.Add(CreateItem("Startseite", "home", () => _services.GetRequiredService<HomePage>()));
         Items.Add(CreateItem("Impressum", "impressum", () => _services.GetRequiredService<ImpressumPage>()));
         if (_userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand)
-            Items.Add(CreateItem("Vorgänge", "kommunikation", () => _services.GetRequiredService<KommunikationPage>()));
+            Items.Add(CreateManagementItem("Vorgänge",
+                ("Signaturen", "process_signatures", () => _services.GetRequiredService<KommunikationPage>()),
+                ("Dokumente", "process_documents", () => _services.GetRequiredService<KommunikationPage>()),
+                ("Vorstand", "process_board", () => _services.GetRequiredService<KommunikationPage>()),
+                ("Mailausgang", "process_mail", () => _services.GetRequiredService<KommunikationPage>()),
+                ("Versendet", "process_sent", () => _services.GetRequiredService<KommunikationPage>()),
+                ("Druckausgabe", "process_print", () => _services.GetRequiredService<KommunikationPage>()),
+                ("Verlauf", "process_history", () => _services.GetRequiredService<KommunikationPage>())));
         if (PermissionChecks.HasAnyMeterAccess(_userContextState.CurrentUserContext))
         {
-            Items.Add(CreateItem("Ablesen", "ablesen", () => _services.GetRequiredService<AblesenOverviewPage>()));
+            Items.Add(CreateManagementItem("Ablesen",
+                ("Ablesung erfassen", "reading_capture", () => _services.GetRequiredService<AblesungErfassenPage>()),
+                ("JAE erfassen", "annual_reading_capture", () => _services.GetRequiredService<AblesungErfassenPage>()),
+                ("Zählerwechsel", "meter_change", () => _services.GetRequiredService<ZaehlerwechselPage>()),
+                ("RFID einrichten", "rfid_setup", () => _services.GetRequiredService<RfidEinrichtenPage>()),
+                ("Ablesungen freigeben", "reading_review", () => _services.GetRequiredService<AblesungenFreigabePage>())));
 
             _pendingPhotoMenuState.Refresh();
             _pendingPhotoUploadsItem = CreateItem(
@@ -163,11 +175,6 @@ public sealed class AdminShell : Shell, IAppShellInitializer
             Items.Add(_pendingPhotoUploadsItem);
         }
 
-        if (PermissionChecks.CanReadParzellen(_userContextState.CurrentUserContext))
-            Items.Add(CreateItem("Parzellenverwaltung", "parzellen", () => _services.GetRequiredService<ParzellenPage>()));
-
-        if (PermissionChecks.CanEditAllMembers(_userContextState.CurrentUserContext))
-            Items.Add(CreateItem("Wartungsverträge", "wartungsvertraege", () => _services.GetRequiredService<WartungsvertraegePage>()));
 
         if (PermissionChecks.CanManageWorkHours(_userContextState.CurrentUserContext))
         {
@@ -178,8 +185,12 @@ public sealed class AdminShell : Shell, IAppShellInitializer
         if (PermissionChecks.CanSearchMembers(_userContextState.CurrentUserContext))
             Items.Add(CreateItem("Export", "export", () => _services.GetRequiredService<ExportPage>()));
 
-        var managementEntries = new List<(string ContentTitle, string Route, Func<Page> PageFactory)>();
         var managementContext = _userContextState.CurrentUserContext;
+        var managementEntries = new List<(string ContentTitle, string Route, Func<Page> PageFactory)>();
+        if (PermissionChecks.CanReadParzellen(managementContext))
+            managementEntries.Add(("Parzellenverwaltung", "parzellen", () => _services.GetRequiredService<ParzellenPage>()));
+        if (PermissionChecks.CanEditAllMembers(managementContext))
+            managementEntries.Add(("Wartungsverträge", "wartungsvertraege", () => _services.GetRequiredService<WartungsvertraegePage>()));
         if (PermissionChecks.CanManageClubSeasonConfiguration(managementContext))
             managementEntries.Add(("Saisonverwaltung", "season_management", () => _services.GetRequiredService<SaisonverwaltungPage>()));
         if (PermissionChecks.CanPerformYearEndClosing(managementContext))
