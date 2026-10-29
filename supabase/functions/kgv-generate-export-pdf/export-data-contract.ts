@@ -1,13 +1,28 @@
 export type ExportRow = Record<string, unknown>;
 export type ExportColumn = { column_key: string };
 
+export class ExportContractError extends Error {
+  readonly exportKey: string;
+  readonly requestedColumns: string[];
+  readonly allowedColumns: string[];
+  readonly invalidColumns: string[];
+  constructor(exportKey: string, requestedColumns: string[], allowedColumns: string[], invalidColumns: string[]) {
+    super(`PARAM:Spalten passen nicht zum Export ${exportKey}.`);
+    this.name = "ExportContractError";
+    this.exportKey = exportKey;
+    this.requestedColumns = requestedColumns;
+    this.allowedColumns = allowedColumns;
+    this.invalidColumns = invalidColumns;
+  }
+}
+
 type ReportContract = { sourceName: string; requiredFields: ReadonlySet<string>; optionalFields: ReadonlySet<string> };
 
 const reportContracts: Readonly<Record<string, ReportContract>> = {
   mitgliederliste: {
     sourceName: "rpc_export_mitgliederliste_json",
     requiredFields: new Set(["mitgliedsnummer", "mitglied"]),
-    optionalFields: new Set(["id", "mitglied_id", "mitgliedsnr", "mitgliedsnummer", "mitglied", "name", "vorname", "adresse_block", "kontakt_block", "strasse_hsnr", "plz", "ort", "telefon", "handy", "email", "bemerkung", "gartennummern", "pachtgaerten", "aktiv_export", "app", "app_vorhanden"]),
+    optionalFields: new Set(["id", "mitglied_id", "mitgliedsnr", "mitgliedsnummer", "mitglied", "name", "vorname", "adresse_block", "kontakt_block", "strasse_hsnr", "plz", "ort", "telefon", "handy", "email", "geburtsdatum", "mitglied_seit", "bemerkung", "gartennummern", "pachtgaerten", "wa", "re", "info", "aktiv_export", "app", "app_vorhanden"]),
   },
   arbeitsstunden_uebersicht: {
     sourceName: "rpc_export_arbeitsstunden_uebersicht_json",
@@ -69,7 +84,8 @@ export function isolateExportRows(
 
   const selectedKeys = columns.map((column) => column.column_key);
   const allowedFields = contract ? new Set([...contract.requiredFields, ...contract.optionalFields]) : null;
-  if (allowedFields && selectedKeys.some((key) => !allowedFields.has(key))) throw new Error(`PARAM:Spalten passen nicht zum Export ${normalizedKey}.`);
+  const invalidColumns = allowedFields ? selectedKeys.filter((key) => !allowedFields.has(key)) : [];
+  if (allowedFields && invalidColumns.length) throw new ExportContractError(normalizedKey, selectedKeys, [...allowedFields].sort(), invalidColumns);
 
   return rows.map((row) => {
     if (contract && [...contract.requiredFields].some((key) => !Object.hasOwn(row, key))) throw new Error(`PARAM:Datensatz enthält erforderliche Felder nicht für den Export ${normalizedKey}.`);

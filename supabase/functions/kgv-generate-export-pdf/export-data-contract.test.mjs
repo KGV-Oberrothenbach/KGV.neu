@@ -61,9 +61,10 @@ test("Arbeitsstunden uses its source contract while projecting additional RPC fi
   );
 });
 
-test("member list only accepts its JSON source and projects the visible blocks", () => {
-  const rows = isolateExportRows("mitgliederliste", "rpc_export_mitgliederliste_json", [{ column_key: "mitglied" }, { column_key: "adresse_block" }, { column_key: "kontakt_block" }], [{ mitgliedsnummer: "1001", mitglied: "Müller, Erika", adresse_block: "Straße 1\n12345 Ort", kontakt_block: "Tel\nMobil", internal_only: true }]);
-  assert.deepEqual(rows, [{ mitglied: "Müller, Erika", adresse_block: "Straße 1\n12345 Ort", kontakt_block: "Tel\nMobil" }]);
+test("member list accepts the current 13 visible metadata columns and projects internal fields away", () => {
+  const currentVisibleColumns = ["mitgliedsnr", "mitglied", "adresse_block", "kontakt_block", "email", "geburtsdatum", "mitglied_seit", "gartennummern", "wa", "re", "info", "app", "aktiv_export"];
+  const rows = isolateExportRows("mitgliederliste", "rpc_export_mitgliederliste_json", currentVisibleColumns.map((column_key) => ({ column_key })), [{ mitgliedsnummer: "1001", mitgliedsnr: "1001", mitglied: "Müller, Erika", adresse_block: "Straße 1\n12345 Ort", kontakt_block: "Tel\nMobil", email: "e@example.test", geburtsdatum: "1980-01-01", mitglied_seit: "2020-01-01", gartennummern: "1", wa: true, re: false, info: true, app: true, aktiv_export: true, internal_only: true }]);
+  assert.deepEqual(Object.keys(rows[0]), currentVisibleColumns);
   assert.throws(() => isolateExportRows("mitgliederliste", "rpc_export_arbeitsstunden_uebersicht_json", [{ column_key: "mitglied" }], []), /Exportquelle passt nicht/);
 });
 
