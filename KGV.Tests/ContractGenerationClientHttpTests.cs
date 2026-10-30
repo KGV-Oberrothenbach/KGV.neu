@@ -28,7 +28,7 @@ public sealed class ContractGenerationClientHttpTests
     [Fact]
     public async Task MinorExistingRepresentative_MapsExistingAndDisablesSecondaryMember()
     {
-        var handler = new RecordingHandler(Pdf()); var request = Request(); request.IstMinderjaehrig = true; request.GesetzlicherVertreterAusBestehendemMitglied = true; request.GesetzlicherVertreterMitgliedId = 77;
+        var handler = new RecordingHandler(Pdf()); var request = Request(); request.IstMinderjaehrig = true; request.NebenmitgliedEinbeziehen = false; request.GesetzlicherVertreterAusBestehendemMitglied = true; request.GesetzlicherVertreterMitgliedId = 77;
         await Client(handler).PreviewMembershipApplicationAsync(request, 0);
         using var body = JsonDocument.Parse(handler.Requests.Single().Body); var rep = body.RootElement.GetProperty("representative");
         Assert.Equal("existing", rep.GetProperty("mode").GetString()); Assert.Equal(77, rep.GetProperty("member_id").GetInt32()); Assert.False(rep.GetProperty("adresse_abweichend").GetBoolean()); Assert.False(body.RootElement.GetProperty("include_secondary_member").GetBoolean());
@@ -37,7 +37,7 @@ public sealed class ContractGenerationClientHttpTests
     [Fact]
     public async Task MinorManualRepresentative_MapsManualAddress()
     {
-        var handler = new RecordingHandler(Pdf()); var request = Request(); request.IstMinderjaehrig = true; request.GesetzlicherVertreterAdresseAbweichend = true; request.GesetzlicherVertreterSnapshot = new() { Vorname = "Ada", Nachname = "Lovelace", Adresse = "Str. 1", Plz = "12345", Ort = "Ort" };
+        var handler = new RecordingHandler(Pdf()); var request = Request(); request.IstMinderjaehrig = true; request.NebenmitgliedEinbeziehen = false; request.GesetzlicherVertreterAdresseAbweichend = true; request.GesetzlicherVertreterSnapshot = new() { Vorname = "Ada", Nachname = "Lovelace", Adresse = "Str. 1", Plz = "12345", Ort = "Ort" };
         await Client(handler).PreviewMembershipApplicationAsync(request, 0);
         using var body = JsonDocument.Parse(handler.Requests.Single().Body); var rep = body.RootElement.GetProperty("representative");
         Assert.Equal("manual", rep.GetProperty("mode").GetString()); Assert.Equal("Ada", rep.GetProperty("vorname").GetString()); Assert.Equal("Lovelace", rep.GetProperty("nachname").GetString()); Assert.True(rep.GetProperty("adresse_abweichend").GetBoolean()); Assert.Equal("Str. 1", rep.GetProperty("adresse").GetString()); Assert.Equal("12345", rep.GetProperty("plz").GetString()); Assert.Equal("Ort", rep.GetProperty("ort").GetString());
@@ -80,9 +80,8 @@ public sealed class ContractGenerationClientHttpTests
         Assert.Equal("preview", root.GetProperty("action").GetString()); Assert.Equal("pachtvertrag", root.GetProperty("type").GetString());
         Assert.Equal(101, root.GetProperty("member_id").GetInt32()); Assert.Equal(202, root.GetProperty("parcel_id").GetInt32()); Assert.Equal("2026-11-01", root.GetProperty("start_date").GetString());
         Assert.True(root.GetProperty("has_previous_contract").GetBoolean()); Assert.Equal("2020-02-03", root.GetProperty("previous_contract_date").GetString()); Assert.True(root.GetProperty("include_secondary_member").GetBoolean());
-        Assert.Equal("2026-11-04", root.GetProperty("handover_date").GetString()); Assert.Equal("2027-05-06", root.GetProperty("fixed_until").GetString()); Assert.Equal("Fassung 2026", root.GetProperty("garden_rules_version").GetString());
-        Assert.Equal("2026-07-08", root.GetProperty("garden_rules_handed_over_at").GetString()); Assert.Equal("Zusatz", root.GetProperty("additional_agreements").GetString());
-        Assert.True(root.GetProperty("attachment_1").GetBoolean()); Assert.False(root.GetProperty("attachment_2").GetBoolean()); Assert.True(root.GetProperty("attachment_3").GetBoolean()); Assert.True(root.GetProperty("attachment_4").GetBoolean()); Assert.Equal("Vorstand", root.GetProperty("club_signatory").GetString());
+        Assert.Equal("2026-11-04", root.GetProperty("handover_date").GetString()); Assert.Equal("Zusatz", root.GetProperty("additional_agreements").GetString()); Assert.Equal("Vorstand", root.GetProperty("club_signatory").GetString());
+        foreach (var name in new[] { "fixed_until", "garden_rules_version", "garden_rules_handed_over_at", "attachment_1", "attachment_2", "attachment_3", "attachment_4" }) Assert.False(root.TryGetProperty(name, out _));
     }
 
     [Fact]
@@ -201,7 +200,7 @@ public sealed class ContractGenerationClientHttpTests
     [Fact]
     public async Task Membership_finalize_sends_representative_signatures_for_minor()
     {
-        var handler = new RecordingHandler(Json("{}")); var finalize = FinalizeRequest(); finalize.Application.IstMinderjaehrig = true; finalize.Application.GesetzlicherVertreterAusBestehendemMitglied = true; finalize.Application.GesetzlicherVertreterMitgliedId = 77;
+        var handler = new RecordingHandler(Json("{}")); var finalize = FinalizeRequest(); finalize.Application.IstMinderjaehrig = true; finalize.Application.NebenmitgliedEinbeziehen = false; finalize.Application.GesetzlicherVertreterAusBestehendemMitglied = true; finalize.Application.GesetzlicherVertreterMitgliedId = 77;
         await Client(handler).FinalizeMembershipApplicationAsync(finalize);
         using var body = JsonDocument.Parse(handler.Requests.Single().Body); var root = body.RootElement; Assert.Equal("rep-app", root.GetProperty("signature_application_representative").GetString()); Assert.Equal("rep-privacy", root.GetProperty("signature_privacy_representative").GetString()); Assert.False(root.TryGetProperty("signature_application_secondary", out _));
     }
@@ -228,17 +227,18 @@ public sealed class ContractGenerationClientHttpTests
         using var body = JsonDocument.Parse(handler.Requests.Single().Body); var root = body.RootElement;
         Assert.Equal("finalize", root.GetProperty("action").GetString()); Assert.Equal("pachtvertrag", root.GetProperty("type").GetString());
         Assert.Equal(101, root.GetProperty("member_id").GetInt32()); Assert.Equal(202, root.GetProperty("parcel_id").GetInt32()); Assert.Equal("2026-11-01", root.GetProperty("start_date").GetString()); Assert.True(root.GetProperty("has_previous_contract").GetBoolean()); Assert.Equal("2020-02-03", root.GetProperty("previous_contract_date").GetString()); Assert.True(root.GetProperty("include_secondary_member").GetBoolean()); Assert.Equal("2026-11-04", root.GetProperty("handover_date").GetString());
-        Assert.Equal("2027-05-06", root.GetProperty("fixed_until").GetString()); Assert.Equal("Fassung 2026", root.GetProperty("garden_rules_version").GetString()); Assert.Equal("2026-07-08", root.GetProperty("garden_rules_handed_over_at").GetString()); Assert.Equal("Zusatz", root.GetProperty("additional_agreements").GetString()); Assert.True(root.GetProperty("attachment_1").GetBoolean()); Assert.False(root.GetProperty("attachment_2").GetBoolean()); Assert.True(root.GetProperty("attachment_3").GetBoolean()); Assert.True(root.GetProperty("attachment_4").GetBoolean()); Assert.Equal("Vorstand", root.GetProperty("club_signatory").GetString());
+        Assert.Equal("Zusatz", root.GetProperty("additional_agreements").GetString()); Assert.Equal("Vorstand", root.GetProperty("club_signatory").GetString());
         Assert.Equal("member", root.GetProperty("signature_member").GetString()); Assert.Equal("secondary", root.GetProperty("signature_secondary").GetString()); Assert.Equal("board", root.GetProperty("signature_board").GetString());
     }
 
     [Fact]
-    public async Task Lease_finalize_preserves_all_v1_fields()
+    public async Task Lease_finalize_sends_current_supported_fields()
     {
         var handler = new RecordingHandler(Json("{}")); await Client(handler).FinalizeLeaseContractAsync(LeaseFinalizeRequest());
         using var body = JsonDocument.Parse(handler.Requests.Single().Body); var root = body.RootElement;
-        Assert.Equal("2026-11-01", root.GetProperty("start_date").GetString()); Assert.Equal("2020-02-03", root.GetProperty("previous_contract_date").GetString()); Assert.Equal("2026-11-04", root.GetProperty("handover_date").GetString()); Assert.Equal("2027-05-06", root.GetProperty("fixed_until").GetString()); Assert.Equal("2026-07-08", root.GetProperty("garden_rules_handed_over_at").GetString()); Assert.Equal("Fassung 2026", root.GetProperty("garden_rules_version").GetString()); Assert.Equal("Zusatz", root.GetProperty("additional_agreements").GetString()); Assert.Equal("Vorstand", root.GetProperty("club_signatory").GetString());
-        Assert.Equal(101, root.GetProperty("member_id").GetInt32()); Assert.Equal(202, root.GetProperty("parcel_id").GetInt32()); Assert.True(root.GetProperty("has_previous_contract").GetBoolean()); Assert.True(root.GetProperty("include_secondary_member").GetBoolean()); Assert.True(root.GetProperty("attachment_1").GetBoolean()); Assert.False(root.GetProperty("attachment_2").GetBoolean()); Assert.True(root.GetProperty("attachment_3").GetBoolean()); Assert.True(root.GetProperty("attachment_4").GetBoolean());
+        Assert.Equal("2026-11-01", root.GetProperty("start_date").GetString()); Assert.Equal("2020-02-03", root.GetProperty("previous_contract_date").GetString()); Assert.Equal("2026-11-04", root.GetProperty("handover_date").GetString()); Assert.Equal("Zusatz", root.GetProperty("additional_agreements").GetString()); Assert.Equal("Vorstand", root.GetProperty("club_signatory").GetString());
+        Assert.Equal(101, root.GetProperty("member_id").GetInt32()); Assert.Equal(202, root.GetProperty("parcel_id").GetInt32()); Assert.True(root.GetProperty("has_previous_contract").GetBoolean()); Assert.True(root.GetProperty("include_secondary_member").GetBoolean());
+        foreach (var name in new[] { "fixed_until", "garden_rules_version", "garden_rules_handed_over_at", "attachment_1", "attachment_2", "attachment_3", "attachment_4" }) Assert.False(root.TryGetProperty(name, out _));
     }
 
     [Fact] public async Task Lease_finalize_without_previous_contract_omits_date() { var h = new RecordingHandler(Json("{}")); var r = LeaseFinalizeRequest(); r.Contract.HasPreviousContract = false; r.Contract.AltvertragDatum = new DateTime(2020, 2, 3); await Client(h).FinalizeLeaseContractAsync(r); using var b = JsonDocument.Parse(h.Requests.Single().Body); Assert.False(b.RootElement.GetProperty("has_previous_contract").GetBoolean()); Assert.False(b.RootElement.TryGetProperty("previous_contract_date", out _)); }

@@ -14,10 +14,10 @@ public sealed class DocumentTemplateRegressionTests
     {
         var preview = await MitgliedsantragDokumentFactory.CreateUploadRequestAsync(Member(), 120m, 25m, new DateTime(2026, 4, 1), null, MitgliedsantragZweitePrivateParteiArt.Keine, Club(), FormularDokumentStatus.Unsigniert, Provider);
 
-        AssertValidPdf(preview.FileContent, 1);
-        Assert.Equal(5, preview.SignaturePlaceholders.Count);
-        Assert.Equal(new[] { "unterschrift_antragsteller", "unterschrift_verein", "datenschutz_unterschrift_antragsteller" },
-            preview.SignaturePlaceholders.Where(x => x.Name is "unterschrift_antragsteller" or "unterschrift_verein" or "datenschutz_unterschrift_antragsteller").Select(x => x.Name));
+        AssertValidPdf(preview.FileContent, 2);
+        Assert.Equal(6, preview.SignaturePlaceholders.Count);
+        Assert.Contains(preview.SignaturePlaceholders, x => x.Name == "unterschrift_antragsteller_antrag");
+        Assert.Contains(preview.SignaturePlaceholders, x => x.Name == "unterschrift_antragsteller_datenschutz");
 
         var final = FinalFrom(preview);
         var signed = DocumentGenerationPipeline.ApplySignatures(preview, final, new[]
@@ -35,10 +35,10 @@ public sealed class DocumentTemplateRegressionTests
         var guardian = new MitgliedsantragVertreterSnapshot { Vorname = "Erika", Nachname = "Musterfrau", Adresse = "Nebenweg 2", Plz = "08000", Ort = "Zwickau" };
         var request = await MitgliedsantragDokumentFactory.CreateUploadRequestAsync(Member(), 120m, 25m, new DateTime(2026, 4, 1), guardian, MitgliedsantragZweitePrivateParteiArt.GesetzlicherVertreter, Club(), FormularDokumentStatus.Unsigniert, Provider);
 
-        AssertValidPdf(request.FileContent, 1);
-        Assert.All(request.SignaturePlaceholders, placeholder => Assert.Equal(1, placeholder.Page));
-        Assert.Contains(request.SignaturePlaceholders, x => x.Name == "unterschrift_vertreter");
-        Assert.Contains(request.SignaturePlaceholders, x => x.Name == "datenschutz_unterschrift_vertreter");
+        AssertValidPdf(request.FileContent, 2);
+        Assert.Contains(request.SignaturePlaceholders, x => x.Name == "unterschrift_zweite_partei_antrag");
+        Assert.Contains(request.SignaturePlaceholders, x => x.Name == "unterschrift_zweite_partei_datenschutz");
+        Assert.Contains(request.SignaturePlaceholders, placeholder => placeholder.Page == 2);
     }
 
     [Theory]
@@ -62,18 +62,18 @@ public sealed class DocumentTemplateRegressionTests
     [Fact]
     public async Task Canonical_signature_placeholders_are_unique_positive_and_inside_their_production_templates()
     {
-        var membership = await Provider.GetActiveAsync(new PdfTemplateRequest("mitgliedsantrag", "mitgliedsantrag-field-spec/v1", "pdfsharpcore-ma/v1"));
-        var lease = await Provider.GetActiveAsync(new PdfTemplateRequest("pachtvertrag", "pachtvertrag-field-spec/v8", "top-left/v1"));
-        AssertPlaceholders(ToPlaceholders(membership.Fields), 1);
-        AssertPlaceholders(ToPlaceholders(lease.Fields), 3);
+        var membership = await Provider.GetActiveAsync(new PdfTemplateRequest("mitgliedsantrag", "mitgliedsantrag-field-spec/v5", "top-left/v1"));
+        var lease = await Provider.GetActiveAsync(new PdfTemplateRequest("pachtvertrag", "pachtvertrag-field-spec/v9", "top-left/v1"));
+        AssertPlaceholderPages(ToPlaceholders(membership.Fields), 1, 1, 2, 2, 2, 2);
+        AssertPlaceholderPages(ToPlaceholders(lease.Fields), 3, 3, 3, 3);
     }
 
-    private static void AssertPlaceholders(IReadOnlyList<SignaturePlaceholder> placeholders, int expectedPage)
+    private static void AssertPlaceholderPages(IReadOnlyList<SignaturePlaceholder> placeholders, params int[] expectedPages)
     {
         Assert.Equal(placeholders.Count, placeholders.Select(x => x.Name).Distinct(StringComparer.OrdinalIgnoreCase).Count());
+        Assert.Equal(expectedPages.Order(), placeholders.Select(x => x.Page).Order());
         Assert.All(placeholders, placeholder =>
         {
-            Assert.Equal(expectedPage, placeholder.Page);
             Assert.True(placeholder.X >= 0 && placeholder.Y >= 0);
             Assert.True(placeholder.Width > 0 && placeholder.Height > 0);
         });
@@ -109,7 +109,7 @@ public sealed class DocumentTemplateRegressionTests
     };
 
     private static ParzelleRecord Parcel() => new() { Id = 42, GartenNr = "42", Anlage = "Nord", FlaecheQm = 300m };
-    private static SaisonRecord Season() => new() { Jahr = 2026, PachtProQm = .25m };
+    private static SaisonRecord Season() => new() { Jahr = 2026, PachtProQm = .25m, PachtFaelligAm = new DateTime(2026, 3, 31) };
     private static VereinskonfigurationSnapshot Club() => new()
     {
         VereinName = "KGV Musterverein", VereinRegisterangabe = "VR 123", DokumentOrt = "Zwickau",

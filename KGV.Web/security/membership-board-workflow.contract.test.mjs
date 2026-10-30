@@ -77,7 +77,8 @@ test("admission confirmation is linked to the completed original application and
   assert.match(sql, /if p_ergebnis='annehmen' then[\s\S]*?ensure_aufnahmebestaetigung_dokumentvorgang/);
   assert.doesNotMatch(sql.match(/else[\s\S]*?end if;[\s\S]*?update public\.mitgliedsaufnahme_vorstandsbearbeitung/)?.[0] ?? "", /aufnahmebestaetigung/);
   assert.match(edge, /sourceKommunikationsvorgangId, sourceRevision/);
-  assert.match(edge, /source_kommunikationsvorgang_id: provenance\.sourceKommunikationsvorgangId, source_revision: provenance\.sourceRevision/);
+  assert.match(edge, /form\.set\("source_kommunikationsvorgang_id", String\(provenance\.sourceKommunikationsvorgangId\)\)/);
+  assert.match(edge, /form\.set\("source_revision", String\(provenance\.sourceRevision\)\)/);
   assert.match(edge, /if \(existing\) \{[\s\S]*?complete_aufnahmebestaetigung[\s\S]*?Vorhandene Aufnahmebestätigung wurde wiederverwendet/);
   assert.match(sql, /v_vorgang\.status='erledigt' and v_vorgang\.final_dokument_id=v_dokument\.id/);
 });

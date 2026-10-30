@@ -1,19 +1,32 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 export type NavigationItem = { id: string; label: string; detail: string; depth?: number };
 export type NavigationGroup = { id: string; label: string; kind: "item" | "group"; items: NavigationItem[]; target?: NavigationItem };
 
 export default function Navigation({ groups, activeId, onNavigate, memberLabel }: { groups: NavigationGroup[]; activeId: string; onNavigate: (id: string) => void; memberLabel: string | null }) {
   const groupForActiveItem = groups.find((group) => group.items.some((item) => item.id === activeId))?.id;
-  const [expandedGroups, setExpandedGroups] = useState<string[]>(() => groupForActiveItem ? [groupForActiveItem] : []);
+  const [navigationState, setNavigationState] = useState(() => ({
+    activeGroup: groupForActiveItem,
+    expandedGroups: groupForActiveItem ? [groupForActiveItem] : [],
+  }));
+  if (navigationState.activeGroup !== groupForActiveItem) {
+    setNavigationState((current) => ({
+      activeGroup: groupForActiveItem,
+      expandedGroups: groupForActiveItem && !current.expandedGroups.includes(groupForActiveItem)
+        ? [...current.expandedGroups, groupForActiveItem]
+        : current.expandedGroups,
+    }));
+  }
+  const { expandedGroups } = navigationState;
 
-  useEffect(() => {
-    if (groupForActiveItem) setExpandedGroups((current) => current.includes(groupForActiveItem) ? current : [...current, groupForActiveItem]);
-  }, [groupForActiveItem]);
-
-  const toggleGroup = (groupId: string) => setExpandedGroups((current) => current.includes(groupId) ? current.filter((id) => id !== groupId) : [...current, groupId]);
+  const toggleGroup = (groupId: string) => setNavigationState((current) => ({
+    ...current,
+    expandedGroups: current.expandedGroups.includes(groupId)
+      ? current.expandedGroups.filter((id) => id !== groupId)
+      : [...current.expandedGroups, groupId],
+  }));
 
   return <nav className="navigation-list">{groups.map((group) => {
     const expanded = expandedGroups.includes(group.id);

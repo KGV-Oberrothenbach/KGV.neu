@@ -14,10 +14,11 @@ assert.match(app, /PermissionChecks\.HasAnyManagementWorkspaceAccess\(currentCon
 assert.doesNotMatch(app, /currentContext\.Role is Core\.Security\.UserRole\.Admin/);
 assert.match(shell, /CanPerformYearEndClosing\(managementContext\)/);
 assert.match(shell, /CanManageClubSeasonConfiguration\(managementContext\)/);
-assert.doesNotMatch(shell, /CurrentUserContext\?\.Role is UserRole\.Admin/);
+assert.match(shell, /CanRegisterHistoricalContracts\(managementContext\)/);
 assert.match(menu, /CanManageRoleManagement\(currentContext\)/);
 assert.doesNotMatch(menu, /Benutzerverwaltung ist nur für Admin/);
-assert.doesNotMatch(navigation, /canManageAdministration/);
+assert.match(navigation, /canManageAdministration/);
+assert.match(navigation, /canRegisterHistoricalContracts/);
 assert.match(navigation, /canManageSeasonConfiguration/);
 assert.match(navigation, /canPerformYearEndClosing/);
 assert.match(page, /allowedNavigationIds/);

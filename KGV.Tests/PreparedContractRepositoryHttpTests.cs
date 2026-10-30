@@ -92,9 +92,9 @@ public sealed class PreparedContractRepositoryHttpTests
         await repository.StartSignatureAsync(ItemId, 5);
         Assert.Contains("revision=eq.4&status=eq.vorbereitet&signatur_gestartet_am=is.null", handler.Requests[1].Uri);
         using var updateBody = JsonDocument.Parse(handler.Requests[1].Body); Assert.Equal(5, updateBody.RootElement.GetProperty("revision").GetInt32());
-        Assert.Contains("revision=eq.5&status=eq.vorbereitet", handler.Requests[2].Uri); Assert.Contains("signatur_revision=is.null", handler.Requests[2].Uri);
-        using var startBody = JsonDocument.Parse(handler.Requests[2].Body); Assert.Equal("zur_signatur", startBody.RootElement.GetProperty("status").GetString());
-        Assert.True(startBody.RootElement.TryGetProperty("signatur_gestartet_am", out _)); Assert.False(startBody.RootElement.TryGetProperty("signatur_revision", out _));
+        Assert.Contains("rpc/start_prepared_contract_signature", handler.Requests[2].Uri);
+        using var startBody = JsonDocument.Parse(handler.Requests[2].Body); Assert.Equal(ItemId, startBody.RootElement.GetProperty("p_kommunikationsvorgang_id").GetInt64()); Assert.Equal(5, startBody.RootElement.GetProperty("p_expected_revision").GetInt32());
+        Assert.True(startBody.RootElement.TryGetProperty("p_assigned_to", out _));
     }
 
     [Fact]
