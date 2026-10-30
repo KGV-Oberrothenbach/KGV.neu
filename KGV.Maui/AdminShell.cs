@@ -437,6 +437,11 @@ public sealed class AdminShell : Shell, IAppShellInitializer
             Text = $"{(expanded ? "▾" : "▸")} {title}",
             HorizontalOptions = LayoutOptions.Start,
             BackgroundColor = Colors.Transparent,
+            TextColor = Colors.Black,
+            HeightRequest = -1,
+            MinimumHeightRequest = 0,
+            CornerRadius = 0,
+            BorderWidth = 0,
             Padding = new Thickness(8, 10)
         };
         toggle.Clicked += (_, _) =>
@@ -462,6 +467,11 @@ public sealed class AdminShell : Shell, IAppShellInitializer
             Text = $"{(_memberSearchExpanded ? "▾" : "▸")} Mitgliedersuche",
             HorizontalOptions = LayoutOptions.Start,
             BackgroundColor = Colors.Transparent,
+            TextColor = Colors.Black,
+            HeightRequest = -1,
+            MinimumHeightRequest = 0,
+            CornerRadius = 0,
+            BorderWidth = 0,
             Padding = new Thickness(8, 10)
         };
         toggle.Clicked += (_, _) =>
@@ -501,6 +511,11 @@ public sealed class AdminShell : Shell, IAppShellInitializer
             Text = title,
             HorizontalOptions = LayoutOptions.Start,
             BackgroundColor = Colors.Transparent,
+            TextColor = Colors.Black,
+            HeightRequest = -1,
+            MinimumHeightRequest = 0,
+            CornerRadius = 0,
+            BorderWidth = 0,
             Padding = new Thickness(8 + indent, 8, 8, 8)
         };
         button.Clicked += (_, _) =>
@@ -511,4 +526,5 @@ public sealed class AdminShell : Shell, IAppShellInitializer
         menu.Children.Add(button);
     }
 }
+
 
