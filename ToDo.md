@@ -32,7 +32,7 @@
 
 ## Technische Qualität und Release
 
-- AWR.bat und A-WR.bat mit realen Releases und Versionsflüssen verifizieren.
+- AWR.bat mit realen Releases und Versionsflüssen verifizieren.
 - Google-Play-Test-/Release-Reife sowie reale Installations-, Update- und Gerätetests durchführen.
 - Funktional relevante technische Warnungen und Release-Restfehler nachziehen.
 - Responsive Bedienung, Barrierefreiheit und Parallelbearbeitung mit realen Geräten/Browsern testen.

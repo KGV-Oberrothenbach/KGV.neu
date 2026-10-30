@@ -133,6 +133,7 @@ set "VERSION_ROOT=%PUBLISH_ROOT%\%TARGET_VERSION%"
 set "ANDROID_OUT=%VERSION_ROOT%\Android"
 set "ANDROID_UPLOAD_OUT=%ANDROID_OUT%\Upload"
 set "ANDROID_DIAG_OUT=%ANDROID_OUT%\GooglePlay-Diagnose"
+set "ANDROID_PUBLISH=%REPO%\KGV.Maui\bin\Release\net10.0-android\publish"
 set "WEB_OUT=%VERSION_ROOT%\Web"
 set "WEB_DIST=%WEB_ROOT%\dist"
 set "WEB_CLIENT_DIST=%WEB_DIST%\client"
@@ -172,6 +173,32 @@ for /f "delims=" %%I in ('dir /b /a-d /o-d "%REPO%\KGV.Maui\bin\Release\net10.0-
 if not defined APK_FILE goto BUILD_FAILED
 if not defined AAB_FILE goto BUILD_FAILED
 
+REM The MAUI publish directory is the canonical hand-off location for Google
+REM Play.  The versioned publish archive below is a copy of these artifacts.
+copy /Y "%APK_FILE%" "%ANDROID_PUBLISH%\KGV-Android-%TARGET_VERSION%.apk" >nul || goto BUILD_FAILED
+copy /Y "%AAB_FILE%" "%ANDROID_PUBLISH%\KGV-Android-%TARGET_VERSION%.aab" >nul || goto BUILD_FAILED
+set "CENTRAL_APK=%ANDROID_PUBLISH%\KGV-Android-%TARGET_VERSION%.apk"
+set "CENTRAL_AAB=%ANDROID_PUBLISH%\KGV-Android-%TARGET_VERSION%.aab"
+set "SYMBOL_FILE=" & set "MAPPING_FILE="
+for /f "usebackq delims=" %%I in (`powershell -NoProfile -ExecutionPolicy Bypass -Command "$roots=@('%REPO%\KGV.Maui\bin\Release\net10.0-android','%REPO%\KGV.Maui\obj\Release\net10.0-android');Get-ChildItem $roots -Recurse -File -Filter '*native-debug-symbols*.zip' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1 -ExpandProperty FullName"`) do if not defined SYMBOL_FILE set "SYMBOL_FILE=%%I"
+if defined SYMBOL_FILE (
+  copy /Y "%SYMBOL_FILE%" "%ANDROID_PUBLISH%\KGV-Android-%TARGET_VERSION%-native-debug-symbols.zip" >nul || goto BUILD_FAILED
+  set "CENTRAL_SYMBOLS=%ANDROID_PUBLISH%\KGV-Android-%TARGET_VERSION%-native-debug-symbols.zip"
+)
+for /f "usebackq delims=" %%I in (`powershell -NoProfile -ExecutionPolicy Bypass -Command "$roots=@('%REPO%\KGV.Maui\bin\Release\net10.0-android','%REPO%\KGV.Maui\obj\Release\net10.0-android');Get-ChildItem $roots -Recurse -File -Filter 'mapping.txt' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1 -ExpandProperty FullName"`) do if not defined MAPPING_FILE set "MAPPING_FILE=%%I"
+if defined MAPPING_FILE (
+  copy /Y "%MAPPING_FILE%" "%ANDROID_PUBLISH%\KGV-Android-%TARGET_VERSION%-mapping.txt" >nul || goto BUILD_FAILED
+  set "CENTRAL_MAPPING=%ANDROID_PUBLISH%\KGV-Android-%TARGET_VERSION%-mapping.txt"
+)
+(
+  echo Google Play Upload - Version %TARGET_VERSION%
+  echo APK: KGV-Android-%TARGET_VERSION%.apk
+  echo AAB: KGV-Android-%TARGET_VERSION%.aab
+  if defined CENTRAL_SYMBOLS echo Native debug symbols: KGV-Android-%TARGET_VERSION%-native-debug-symbols.zip
+  if defined CENTRAL_MAPPING echo Mapping: KGV-Android-%TARGET_VERSION%-mapping.txt
+  if not defined CENTRAL_MAPPING echo Mapping: nicht erzeugt ^(R8 ist nicht aktiviert^)
+) > "%ANDROID_PUBLISH%\GooglePlay-Upload.txt"
+
 :BUILD_WEB
 pushd "%WEB_ROOT%" || goto BUILD_FAILED
 set "KGV_RELEASE_VERSION=%TARGET_VERSION%"
@@ -193,10 +220,20 @@ if defined WEB_ONLY goto COPY_WEB
 if not exist "%ANDROID_UPLOAD_OUT%" mkdir "%ANDROID_UPLOAD_OUT%" || goto BUILD_FAILED
 if not exist "%ANDROID_DIAG_OUT%" mkdir "%ANDROID_DIAG_OUT%" || goto BUILD_FAILED
 if not exist "%WEB_OUT%" mkdir "%WEB_OUT%" || goto BUILD_FAILED
-copy /Y "%APK_FILE%" "%ANDROID_OUT%\KGV-Android-%TARGET_VERSION%.apk" >nul || goto BUILD_FAILED
-copy /Y "%AAB_FILE%" "%ANDROID_OUT%\KGV-Android-%TARGET_VERSION%.aab" >nul || goto BUILD_FAILED
-copy /Y "%APK_FILE%" "%ANDROID_UPLOAD_OUT%\KGV-Android-%TARGET_VERSION%.apk" >nul || goto BUILD_FAILED
-copy /Y "%AAB_FILE%" "%ANDROID_UPLOAD_OUT%\KGV-Android-%TARGET_VERSION%.aab" >nul || goto BUILD_FAILED
+copy /Y "%CENTRAL_APK%" "%ANDROID_OUT%\KGV-Android-%TARGET_VERSION%.apk" >nul || goto BUILD_FAILED
+copy /Y "%CENTRAL_AAB%" "%ANDROID_OUT%\KGV-Android-%TARGET_VERSION%.aab" >nul || goto BUILD_FAILED
+copy /Y "%CENTRAL_APK%" "%ANDROID_UPLOAD_OUT%\KGV-Android-%TARGET_VERSION%.apk" >nul || goto BUILD_FAILED
+copy /Y "%CENTRAL_AAB%" "%ANDROID_UPLOAD_OUT%\KGV-Android-%TARGET_VERSION%.aab" >nul || goto BUILD_FAILED
+if defined CENTRAL_SYMBOLS (
+  copy /Y "%CENTRAL_SYMBOLS%" "%ANDROID_OUT%\KGV-Android-%TARGET_VERSION%-native-debug-symbols.zip" >nul || goto BUILD_FAILED
+  copy /Y "%CENTRAL_SYMBOLS%" "%ANDROID_UPLOAD_OUT%\KGV-Android-%TARGET_VERSION%-native-debug-symbols.zip" >nul || goto BUILD_FAILED
+)
+if defined CENTRAL_MAPPING (
+  copy /Y "%CENTRAL_MAPPING%" "%ANDROID_OUT%\KGV-Android-%TARGET_VERSION%-mapping.txt" >nul || goto BUILD_FAILED
+  copy /Y "%CENTRAL_MAPPING%" "%ANDROID_UPLOAD_OUT%\KGV-Android-%TARGET_VERSION%-mapping.txt" >nul || goto BUILD_FAILED
+)
+copy /Y "%ANDROID_PUBLISH%\GooglePlay-Upload.txt" "%ANDROID_OUT%\GooglePlay-Upload.txt" >nul || goto BUILD_FAILED
+copy /Y "%ANDROID_PUBLISH%\GooglePlay-Upload.txt" "%ANDROID_UPLOAD_OUT%\GooglePlay-Upload.txt" >nul || goto BUILD_FAILED
 :COPY_WEB
 if not exist "%WEB_OUT%" mkdir "%WEB_OUT%" || goto BUILD_FAILED
 robocopy "%WEB_DIST%" "%WEB_OUT%\dist" /E /NFL /NDL /NJH /NJS /NC /NS >nul
