@@ -155,7 +155,11 @@ public sealed class AdminShell : Shell, IAppShellInitializer
             Items.Add(CreateItem("Vorgänge", "kommunikation", () => _services.GetRequiredService<KommunikationPage>()));
         if (PermissionChecks.HasAnyMeterAccess(_userContextState.CurrentUserContext))
         {
-            Items.Add(CreateItem("Ablesen", "ablesen", () => _services.GetRequiredService<AblesenOverviewPage>()));
+            Items.Add(CreateItem("Ablesung erfassen", "reading_capture", () => _services.GetRequiredService<AblesungErfassenPage>()));
+            Items.Add(CreateItem("JAE erfassen", "annual_reading_capture", CreateAnnualReadingPage));
+            Items.Add(CreateItem("Zählerwechsel", "meter_changes", () => _services.GetRequiredService<ZaehlerwechselPage>()));
+            Items.Add(CreateItem("RFID einrichten", "rfid_setup", () => _services.GetRequiredService<RfidEinrichtenPage>()));
+            Items.Add(CreateItem("Ablesungen freigeben", "reading_review", () => _services.GetRequiredService<AblesungenFreigabePage>()));
 
             _pendingPhotoMenuState.Refresh();
             _pendingPhotoUploadsItem = CreateItem(
@@ -164,7 +168,6 @@ public sealed class AdminShell : Shell, IAppShellInitializer
                 () => _services.GetRequiredService<PendingPhotoUploadsPage>());
             _pendingPhotoUploadsItem.IsVisible = _pendingPhotoMenuState.HasOpenItems;
             Items.Add(_pendingPhotoUploadsItem);
-            Items.Add(CreateItem("Zählerwechsel", "meter_changes", () => _services.GetRequiredService<ZaehlerwechselPage>()));
         }
 
         if (PermissionChecks.CanReadParzellen(_userContextState.CurrentUserContext))
@@ -353,6 +356,13 @@ public sealed class AdminShell : Shell, IAppShellInitializer
         };
     }
 
+    private Page CreateAnnualReadingPage()
+    {
+        var page = _services.GetRequiredService<AblesungErfassenPage>();
+        page.ApplyQueryAttributes(new Dictionary<string, object> { ["art"] = AblesungArt.JahresEnde });
+        return page;
+    }
+
     public Task RefreshPendingPhotoUploadsMenu()
     {
         if (_pendingPhotoUploadsItem == null)
@@ -380,9 +390,12 @@ public sealed class AdminShell : Shell, IAppShellInitializer
         {
             AddNormalGroup(menu, "meters", "Ablesen", new[]
             {
-                ("Ablesen", "ablesen", true),
+                ("Ablesung erfassen", "reading_capture", true),
+                ("JAE erfassen", "annual_reading_capture", true),
+                ("Zählerwechsel", "meter_changes", true),
+                ("RFID einrichten", "rfid_setup", true),
+                ("Ablesungen freigeben", "reading_review", true),
                 (_pendingPhotoUploadsItem?.Title ?? "Foto-Uploads", "photo_uploads", _pendingPhotoUploadsItem?.IsVisible == true),
-                ("Zählerwechsel", "meter_changes", true)
             });
         }
 
@@ -422,8 +435,7 @@ public sealed class AdminShell : Shell, IAppShellInitializer
         var toggle = new Button
         {
             Text = $"{(expanded ? "▾" : "▸")} {title}",
-            HorizontalOptions = LayoutOptions.Fill,
-            HorizontalTextAlignment = TextAlignment.Start,
+            HorizontalOptions = LayoutOptions.Start,
             BackgroundColor = Colors.Transparent,
             Padding = new Thickness(8, 10)
         };
@@ -448,8 +460,7 @@ public sealed class AdminShell : Shell, IAppShellInitializer
         var toggle = new Button
         {
             Text = $"{(_memberSearchExpanded ? "▾" : "▸")} Mitgliedersuche",
-            HorizontalOptions = LayoutOptions.Fill,
-            HorizontalTextAlignment = TextAlignment.Start,
+            HorizontalOptions = LayoutOptions.Start,
             BackgroundColor = Colors.Transparent,
             Padding = new Thickness(8, 10)
         };
@@ -488,8 +499,7 @@ public sealed class AdminShell : Shell, IAppShellInitializer
         var button = new Button
         {
             Text = title,
-            HorizontalOptions = LayoutOptions.Fill,
-            HorizontalTextAlignment = TextAlignment.Start,
+            HorizontalOptions = LayoutOptions.Start,
             BackgroundColor = Colors.Transparent,
             Padding = new Thickness(8 + indent, 8, 8, 8)
         };
