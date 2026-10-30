@@ -25,6 +25,6 @@ export type Member = {
 
 export type MemberWorkspaceInfo = Pick<Member, "id" | "mitgliedsnummer" | "vorname" | "name">;
 
-export type MemberSearchResult = Pick<Member, "id" | "mitgliedsnummer" | "name" | "vorname" | "email" | "aktiv"> & {
+export type MemberSearchResult = Pick<Member, "id" | "mitgliedsnummer" | "name" | "vorname" | "email" | "aktiv" | "aufnahme_status" | "mitglied_seit" | "mitglied_ende"> & {
   gartenNummern: string[];
 };

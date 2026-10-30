@@ -11,11 +11,31 @@ export async function loadMemberSearchResults(club: ClubContext, session: Browse
   return members.map((member) => ({ ...member, gartenNummern: gardenNumbersByMemberId.get(member.id) ?? [] }));
 }
 
-export function filterMemberSearchResults(members: MemberSearchResult[], options: { query: string; includeInactive: boolean }) {
+function todayIsoDate() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+}
+
+function isFormerMember(member: MemberSearchResult, today: string) {
+  return Boolean(member.mitglied_ende && member.mitglied_ende < today);
+}
+
+function isCurrentMember(member: MemberSearchResult, today: string) {
+  return member.aufnahme_status === "aufgenommen"
+    && Boolean(member.mitglied_seit && member.mitglied_seit <= today)
+    && !isFormerMember(member, today);
+}
+
+function isOpenApplication(member: MemberSearchResult) {
+  return member.aufnahme_status === "antrag_offen";
+}
+
+export function filterMemberSearchResults(members: MemberSearchResult[], options: { query: string; includeFormer: boolean; today?: string }) {
   const normalizedQuery = options.query.trim().toLocaleLowerCase("de");
+  const today = options.today ?? todayIsoDate();
 
   return members
-    .filter((member) => options.includeInactive || member.aktiv)
+    .filter((member) => options.includeFormer || isCurrentMember(member, today) || isOpenApplication(member))
     .filter((member) => !normalizedQuery || [member.name, member.vorname, member.email, String(member.mitgliedsnummer), member.gartenNummern.join(" ")]
       .filter(Boolean)
       .join(" ")

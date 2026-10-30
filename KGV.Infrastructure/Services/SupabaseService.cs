@@ -718,6 +718,25 @@ namespace KGV.Infrastructure.Services
             },
             new List<MitgliedRecord>());
 
+        public Task<List<MitgliedRecord>> GetMitgliederForSearchAsync() => ExecuteAsync(
+            "GetMitgliederForSearchAsync",
+            async () =>
+            {
+                var client = await EnsureClientAsync();
+                var response = await client.From<MitgliedRecord>().Get();
+                var members = response?.Models?
+                    .Where(x => !x.IsDemo)
+                    .OrderBy(x => x.Name ?? string.Empty, StringComparer.CurrentCultureIgnoreCase)
+                    .ThenBy(x => x.Vorname ?? string.Empty, StringComparer.CurrentCultureIgnoreCase)
+                    .ThenBy(x => x.Email ?? string.Empty, StringComparer.CurrentCultureIgnoreCase)
+                    .ToList()
+                    ?? new List<MitgliedRecord>();
+
+                await ApplyAppUserRolesAsync(client, members);
+                return members;
+            },
+            new List<MitgliedRecord>());
+
         public Task<List<VereinsfunktionRecord>> GetVereinsfunktionenAsync() => ExecuteAsync("GetVereinsfunktionenAsync", async () =>
             (await (await EnsureClientAsync()).From<VereinsfunktionRecord>().Get()).Models?.OrderBy(x => x.Bezeichnung, StringComparer.CurrentCultureIgnoreCase).ToList() ?? new List<VereinsfunktionRecord>(), new List<VereinsfunktionRecord>());
         public Task<List<VereinsfunktionBesetzungRecord>> GetVereinsfunktionBesetzungenAsync() => ExecuteAsync("GetVereinsfunktionBesetzungenAsync", async () =>

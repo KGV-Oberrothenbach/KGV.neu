@@ -22,8 +22,8 @@
             </HorizontalStackLayout>
 
             <HorizontalStackLayout Spacing="8">
-                <CheckBox IsChecked="{Binding ShowInactiveMembers}" />
-                <Label Text="Inaktive Mitglieder anzeigen" VerticalTextAlignment="Center" />
+                <CheckBox IsChecked="{Binding ShowFormerMembers}" />
+                <Label Text="Ehemalige Mitglieder anzeigen" VerticalTextAlignment="Center" />
             </HorizontalStackLayout>
 
             <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" />

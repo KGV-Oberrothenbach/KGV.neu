@@ -13,6 +13,7 @@ assert.match(functionSource, /inviteMethod !== "otp"/);
 assert.match(functionSource, /UnsupportedInviteMethod/);
 assert.match(functionSource, /allowedRoles = new Set\(\["admin", "vorstand", "user"\]\)/);
 assert.match(functionSource, /supabaseAdmin\.rpc\("provision_app_user_link"/);
+assert.match(functionSource, /supabaseUser\.auth\.getUser\(bearerToken\)/);
 assert.doesNotMatch(functionSource, /\.from\("app_user"\)\s*\.upsert/);
 assert.match(functionSource, /SMTP_HOST"\) \?\? Deno\.env\.get\("SMTP_Host/);
 assert.match(functionSource, /SMTP_FROM"\) \?\? Deno\.env\.get\("SMTP_From/);

@@ -149,6 +149,7 @@ function json(body: JsonResponse, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
     headers: {
+      ...corsHeaders,
       "Content-Type": "application/json",
     },
   });
@@ -580,7 +581,20 @@ async function sendWelcomeMail(
   });
 }
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-kgv-client-request-id",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
 Deno.serve(async (req: Request) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, {
+      status: 204,
+      headers: corsHeaders,
+    });
+  }
   const requestId = newRequestId();
   const requestStartedAt = Date.now();
 
@@ -746,7 +760,8 @@ Deno.serve(async (req: Request) => {
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
 
     const getUserStartedAt = Date.now();
-    const { data: userData, error: userError } = await supabaseUser.auth.getUser();
+    const bearerToken = normalizedAuthHeader.slice("Bearer ".length).trim();
+    const { data: userData, error: userError } = await supabaseUser.auth.getUser(bearerToken);
 
     if (userError || !userData.user) {
       console.log("[kgv-invite-user] reject401: getUser failed", {

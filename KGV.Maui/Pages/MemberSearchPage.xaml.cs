@@ -80,19 +80,19 @@ public partial class MemberSearchPage : ContentPage
             Children = { searchByParzelleCheckBox, searchByParzelleLabel }
         };
 
-        var showInactiveCheckBox = new CheckBox();
-        showInactiveCheckBox.SetBinding(CheckBox.IsCheckedProperty, nameof(MemberSearchViewModel.ShowInactiveMembers));
+        var showFormerCheckBox = new CheckBox();
+        showFormerCheckBox.SetBinding(CheckBox.IsCheckedProperty, nameof(MemberSearchViewModel.ShowFormerMembers));
 
-        var showInactiveLabel = new Label
+        var showFormerLabel = new Label
         {
-            Text = "Inaktive Mitglieder anzeigen",
+            Text = "Ehemalige Mitglieder anzeigen",
             VerticalTextAlignment = TextAlignment.Center
         };
 
-        var showInactiveLayout = new HorizontalStackLayout
+        var showFormerLayout = new HorizontalStackLayout
         {
             Spacing = 8,
-            Children = { showInactiveCheckBox, showInactiveLabel }
+            Children = { showFormerCheckBox, showFormerLabel }
         };
 
         var activityIndicator = new ActivityIndicator();
@@ -112,7 +112,7 @@ public partial class MemberSearchPage : ContentPage
                     Command = new Command(async () => await Shell.Current.GoToAsync($"{nameof(MemberDetailPage)}?mode=new"))
                 },
                 optionsLayout,
-                showInactiveLayout,
+                showFormerLayout,
                 activityIndicator
             }
         };

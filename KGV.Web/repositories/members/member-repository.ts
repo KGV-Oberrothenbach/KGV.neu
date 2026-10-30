@@ -8,7 +8,7 @@ export type MemberName = { id: number; mitgliedsnummer: number; vorname: string 
 export const listMemberNames = (club: ClubContext, session: BrowserSession, ids: number[]) => ids.length ? readSupabaseRest<MemberName>({ club, session }, "mitglied", { select: "id,mitgliedsnummer,vorname,name", id: `in.(${ids.join(",")})`, limit: "500" }) : Promise.resolve([] as MemberName[]);
 
 export const listMembersForSearch = (club: ClubContext, session: BrowserSession) => readSupabaseRest<Omit<MemberSearchResult, "gartenNummern">>({ club, session }, "mitglied", {
-  select: "id,mitgliedsnummer,name,vorname,email,aktiv",
+  select: "id,mitgliedsnummer,name,vorname,email,aktiv,aufnahme_status,mitglied_seit,mitglied_ende",
   order: "name.asc,vorname.asc",
   limit: "1000",
 });

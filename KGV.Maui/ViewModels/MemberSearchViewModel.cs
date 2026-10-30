@@ -26,7 +26,7 @@ public class MemberSearchViewModel : INotifyPropertyChanged
     private bool _isRefreshing;
     private bool _hasLoaded;
     private bool _searchByParzelle;
-    private bool _showInactiveMembers;
+    private bool _showFormerMembers;
 
     public MemberSearchViewModel(ISupabaseService supabaseService)
     {
@@ -112,15 +112,15 @@ public class MemberSearchViewModel : INotifyPropertyChanged
         }
     }
 
-    public bool ShowInactiveMembers
+    public bool ShowFormerMembers
     {
-        get => _showInactiveMembers;
+        get => _showFormerMembers;
         set
         {
-            if (_showInactiveMembers == value)
+            if (_showFormerMembers == value)
                 return;
 
-            _showInactiveMembers = value;
+            _showFormerMembers = value;
             OnPropertyChanged();
             ApplyFilter();
         }
@@ -154,7 +154,7 @@ public class MemberSearchViewModel : INotifyPropertyChanged
             DebugMessages.Clear();
             StatusMessage = "Mitglieder werden geladen...";
 
-            var members = await _supabaseService.GetMitgliederAsync();
+            var members = await _supabaseService.GetMitgliederForSearchAsync();
             _allMembers.Clear();
             _membersById.Clear();
 
@@ -218,9 +218,9 @@ public class MemberSearchViewModel : INotifyPropertyChanged
         }
         else
         {
-            var selectableMembers = ShowInactiveMembers
+            var selectableMembers = ShowFormerMembers
                 ? _allMembers
-                : _allMembers.Where(m => m.IsActive);
+                : _allMembers.Where(m => m.IsCurrentMember || m.IsOpenApplication);
 
             filtered = string.IsNullOrWhiteSpace(term)
                 ? selectableMembers
@@ -292,8 +292,22 @@ public class MemberSearchViewModel : INotifyPropertyChanged
             !member.HauptmitgliedId.HasValue || member.HauptmitgliedId.Value <= 0,
             true,
             false,
-            member.Aktiv && (!member.MitgliedEnde.HasValue || member.MitgliedEnde.Value.Date >= DateTime.Today));
+            member.Aktiv,
+            IsCurrentMember(member),
+            IsOpenApplication(member));
     }
+
+    private static bool IsFormerMember(MitgliedRecord member)
+        => member.MitgliedEnde.HasValue && member.MitgliedEnde.Value.Date < DateTime.Today;
+
+    private static bool IsCurrentMember(MitgliedRecord member)
+        => string.Equals(member.AufnahmeStatus, "aufgenommen", StringComparison.OrdinalIgnoreCase)
+            && member.MitgliedSeit.HasValue
+            && member.MitgliedSeit.Value.Date <= DateTime.Today
+            && !IsFormerMember(member);
+
+    private static bool IsOpenApplication(MitgliedRecord member)
+        => string.Equals(member.AufnahmeStatus, "antrag_offen", StringComparison.OrdinalIgnoreCase);
 
     private MemberSearchResultItem MapToMemberResultWithDetails(MitgliedRecord member)
     {
@@ -354,7 +368,9 @@ public class MemberSearchViewModel : INotifyPropertyChanged
             false,
             false,
             false,
-            true);
+            true,
+            false,
+            false);
     }
 
     private static Dictionary<int, List<GartenDTO>> BuildGartenLookup(IReadOnlyCollection<ParzelleRecord> parzellen, IReadOnlyCollection<ParzellenBelegungRecord> belegungen)
@@ -395,7 +411,7 @@ public class MemberSearchViewModel : INotifyPropertyChanged
     }
 }
 
-public sealed record MemberSearchResultItem(int? MemberId, int? ParzelleId, string DisplayName, string Email, string Title, string Subtitle, string GartenNummernText, bool IstHauptmitglied, bool IsMemberResult, bool HasGartenNummern, bool IsActive)
+public sealed record MemberSearchResultItem(int? MemberId, int? ParzelleId, string DisplayName, string Email, string Title, string Subtitle, string GartenNummernText, bool IstHauptmitglied, bool IsMemberResult, bool HasGartenNummern, bool IsActive, bool IsCurrentMember, bool IsOpenApplication)
 {
     public bool HasSubtitle => !string.IsNullOrWhiteSpace(Subtitle);
 };
