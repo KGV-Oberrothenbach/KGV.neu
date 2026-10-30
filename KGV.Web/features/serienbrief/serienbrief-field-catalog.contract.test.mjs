@@ -15,8 +15,9 @@ test("groups metadata fields and keeps the active editor cursor while selecting 
 test("inserts stable placeholders into subject or HTML text without interpreting them",()=>{
   const editor=read("./SerienbriefEditor.tsx");
   const textEditor=read("./SerienbriefTextEditor.tsx");
-  assert.match(editor,/const placeholder=`\{\{\$\{feld\.schluessel\}\}\}`/);
+  assert.match(editor,/serienbriefPlaceholder\(feld\.schluessel\)/);
   assert.match(editor,/target==="betreff"/);
   assert.match(editor,/textRef\.current\?\.insert\(placeholder\)/);
   assert.match(textEditor,/document\.execCommand\("insertText",false,placeholder\)/);
+  assert.match(textEditor,/normalizeSerienbriefPlaceholderHtml/);
 });

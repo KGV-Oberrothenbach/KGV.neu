@@ -10,7 +10,7 @@ Für den Referenzexport `zaehler_eichfaelligkeit` stammen die Felder damit aus `
 
 - Die Felder werden nach `serienbrief_gruppe` gruppiert. Eine fehlende oder leere Gruppe erscheint als **Sonstiges**.
 - Innerhalb einer Gruppe gilt die bestehende fachliche Spaltensortierung `sortierung`.
-- Angezeigt wird ausschließlich die Metadatenbezeichnung `label_kurz` (im Frontend als `anzeigename`).
+- Angezeigt wird die fachliche Metadatenbezeichnung `label_lang`, mit `label_kurz` als Rückfall (im Frontend als `anzeigename`).
 
 ## Platzhalter
 
@@ -19,6 +19,6 @@ Ein Klick auf ein Feld fügt den stabilen Schlüssel als `{{feldschluessel}}` an
 - in den Betreff, wenn dieser zuletzt aktiv war;
 - in den Rich-Text, wenn der Text zuletzt aktiv war.
 
-Die Auswahl im aktiven Eingabefeld bleibt beim Klick auf den Feldkatalog erhalten. Im Rich-Text wird der Platzhalter über den Text-Einfügebefehl eingefügt; dadurch wird er nicht als HTML interpretiert oder verändert.
+Die Auswahl im aktiven Eingabefeld bleibt beim Klick auf den Feldkatalog erhalten. Im Rich-Text wird der Platzhalter über den Text-Einfügebefehl eingefügt; dadurch wird er nicht als HTML interpretiert oder verändert. Die sichtbare Darstellung verwendet bewusst ebenfalls das lesbare Format `{{feldschluessel}}`; es gibt keine zusätzliche Editorbibliothek für Chips. Beim Eingeben und nach Formatierungsaktionen normalisiert der Editor Platzhalter, sodass etwa `{{zae<strong>hler</strong>nummer}}` wieder als zusammenhängendes `{{zaehlernummer}}` gespeichert wird.
 
 Ist noch kein Ziel gewählt, weist der Editor darauf hin. Der Katalog enthält keine freien G6-Felder und erzeugt keine persistierten Vorlagenänderungen.
