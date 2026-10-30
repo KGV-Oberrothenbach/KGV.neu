@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 const repository = await readFile(new URL("../../repositories/documents/historical-contract-registration-repository.ts", import.meta.url), "utf8");
 const workflow = await readFile(new URL("../../features/documents/HistoricalContractRegistrationWorkflow.tsx", import.meta.url), "utf8");
 const navigation = await readFile(new URL("../workspace/navigation-service.ts", import.meta.url), "utf8");
+const generalImport = await readFile(new URL("../../../KGV.Maui/Pages/HistoricalDocumentImportPage.cs", import.meta.url), "utf8");
 
 assert.match(repository, /register_historischen_pachtvertrag/);
 assert.doesNotMatch(repository, /"register_historisches_dokument"/);
@@ -20,3 +21,7 @@ assert.match(workflow, /Altvertrag übernehmen/);
 assert.match(workflow, /reserveHistoricalContractNumber/);
 assert.match(workflow, /partyMemberIds/);
 assert.match(navigation, /canRegisterHistoricalContracts/);
+assert.match(generalImport, /HistoricalDocumentRegistrationQueue/);
+assert.match(generalImport, /RegisterHistorischesDokumentAsync/);
+assert.match(generalImport, /IsHistoricalCombinedContract/);
+assert.doesNotMatch(generalImport, /ReserveHistorischeVertragsnummerAsync|Nummer zuweisen/);

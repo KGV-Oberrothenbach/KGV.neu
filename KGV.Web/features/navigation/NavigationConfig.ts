@@ -50,7 +50,6 @@ export const navigationConfig = {
     documents: item("mitglied-dokumente", "Dokumente", "Dokumente dieses Mitglieds", 2),
     protocols: item("mitglied-protokolle", "Protokolle", "Protokolle dieses Mitglieds", 2),
     maintenance: item("mitglied-wartung", "Wartungsverträge", "Zugeordnete Verträge", 2),
-    secondaryMember: item("mitglied-nebenmitglied", "Nebenmitglied", "Nebenmitglied verwalten", 2),
     gardens: item("mitglied-gaerten", "Gärten des Mitglieds", "Zugeordnete Gärten", 2),
     administration: item("mitglied-admin", "Admin-Menü", "Rollen und Rechte", 2),
     workHours: item("mitglied-arbeitsstunden", "Arbeitsstunden", "Arbeitsstunden dieses Mitglieds", 2),

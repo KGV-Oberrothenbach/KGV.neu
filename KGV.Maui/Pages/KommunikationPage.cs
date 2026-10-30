@@ -29,23 +29,7 @@ public sealed class KommunikationPage : ContentPage
     private bool _showAllHistory;
     private bool _isLoading;
 
-    /// <summary>
-    /// The area supplied by a future dedicated route. A null value keeps the
-    /// existing combined communication page and its current navigation.
-    /// </summary>
-    public CommunicationArea? FixedArea { get; }
-
-    public KommunikationPage(
-        IPreparedContractRepository repository,
-        IContractGenerationClient contractClient,
-        IAuthService authService,
-        ISupabaseService supabaseService,
-        ILeaseContractCompletionClient leaseCompletionClient,
-        IPreparedContractSignatureService preparedSignatures,
-        UserContextState userContext)
-        : this(repository, contractClient, authService, supabaseService, leaseCompletionClient, preparedSignatures, userContext, null)
-    {
-    }
+    public CommunicationArea FixedArea { get; }
 
     public KommunikationPage(
         CommunicationArea fixedArea,
@@ -56,21 +40,8 @@ public sealed class KommunikationPage : ContentPage
         ILeaseContractCompletionClient leaseCompletionClient,
         IPreparedContractSignatureService preparedSignatures,
         UserContextState userContext)
-        : this(repository, contractClient, authService, supabaseService, leaseCompletionClient, preparedSignatures, userContext, fixedArea)
     {
-    }
-
-    private KommunikationPage(
-        IPreparedContractRepository repository,
-        IContractGenerationClient contractClient,
-        IAuthService authService,
-        ISupabaseService supabaseService,
-        ILeaseContractCompletionClient leaseCompletionClient,
-        IPreparedContractSignatureService preparedSignatures,
-        UserContextState userContext,
-        CommunicationArea? fixedArea)
-    {
-        if (fixedArea is { } area && !Enum.IsDefined(area))
+        if (!Enum.IsDefined(fixedArea))
             throw new ArgumentOutOfRangeException(nameof(fixedArea), fixedArea, "Unknown communication area.");
 
         _repository = repository ?? throw new ArgumentNullException(nameof(repository));
@@ -156,14 +127,13 @@ public sealed class KommunikationPage : ContentPage
                 throw new InvalidOperationException("Vorgänge sind nur für Admin und Vorstand verfügbar.");
             var currentUserId = CurrentUserId();
 
-            var area = FixedArea ?? CommunicationArea.Signatures;
-            var contracts = await _repository.ListForAreaAsync(area, _showAllHistory);
+            var contracts = await _repository.ListForAreaAsync(FixedArea, _showAllHistory);
             var members = (await _supabaseService.GetMitgliederAsync()).ToDictionary(member => member.Id);
             var parcels = (await _supabaseService.GetAllParzellenAsync()).ToDictionary(parcel => parcel.Id);
             var filtered = contracts.Where(contract => MatchesFilter(contract, currentUserId)).OrderByDescending(contract => contract.BearbeitetAm).ToList();
             _items.Clear();
             foreach (var contract in filtered)
-                _items.Add(new SignatureListItem(contract, MemberName(contract.MitgliedId, members), GardenNumber(contract.ParzelleId, parcels), currentUserId, area));
+                _items.Add(new SignatureListItem(contract, MemberName(contract.MitgliedId, members), GardenNumber(contract.ParzelleId, parcels), currentUserId, FixedArea));
             _emptyLabel.IsVisible = _items.Count == 0;
             _statusLabel.IsVisible = false;
         }
@@ -181,7 +151,7 @@ public sealed class KommunikationPage : ContentPage
 
     private async Task OpenAsync(SignatureListItem item)
     {
-        if ((FixedArea ?? CommunicationArea.Signatures) != CommunicationArea.Signatures)
+        if (FixedArea != CommunicationArea.Signatures)
             return;
         if (!item.IsMine)
         {
@@ -452,7 +422,7 @@ public sealed class KommunikationPage : ContentPage
 
     private async Task CompletePrintAsync(SignatureListItem item)
     {
-        if ((FixedArea ?? CommunicationArea.Signatures) != CommunicationArea.Print || !item.CanCompletePrint)
+        if (FixedArea != CommunicationArea.Print || !item.CanCompletePrint)
             return;
         try { await _repository.CompletePrintAsync(item.Contract.Id); await LoadAsync(); }
         catch (Exception ex) { await DisplayAlertAsync("Druckausgabe", ex.Message, "OK"); await LoadAsync(); }
@@ -516,7 +486,7 @@ public sealed class KommunikationPage : ContentPage
     private Guid CurrentUserId() => Guid.TryParse(_authService.CurrentUserId, out var userId) && userId != Guid.Empty
         ? userId
         : throw new InvalidOperationException("Es ist kein angemeldeter Benutzer vorhanden.");
-    private static string AreaTitle(CommunicationArea? area) => area switch
+    private static string AreaTitle(CommunicationArea area) => area switch
     {
         CommunicationArea.Signatures => "Signaturen",
         CommunicationArea.Documents => "Dokumente",
@@ -526,7 +496,7 @@ public sealed class KommunikationPage : ContentPage
         CommunicationArea.History => "Verlauf",
         _ => "Vorgänge"
     };
-    private static string AreaHint(CommunicationArea? area) => area switch
+    private static string AreaHint(CommunicationArea area) => area switch
     {
         CommunicationArea.History => "Die letzten 90 Tage werden angezeigt.",
         CommunicationArea.Signatures => "Vorbereitete Vertrags- und Prüfvorgänge",

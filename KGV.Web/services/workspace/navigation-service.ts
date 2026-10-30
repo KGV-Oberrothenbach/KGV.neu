@@ -44,7 +44,6 @@ export function buildNavigation(capabilities: NavigationCapabilities): Workspace
           ...(capabilities.canReadMemberDocuments ? [navigationConfig.memberItems.documents] : []),
           ...(capabilities.canEditMemberProtocols ? [navigationConfig.memberItems.protocols] : []),
           navigationConfig.memberItems.maintenance,
-          ...(capabilities.canReadStammdaten ? [navigationConfig.memberItems.secondaryMember] : []),
           ...(capabilities.canReadMemberGardens ? [navigationConfig.memberItems.gardens] : []),
           ...(capabilities.canManageMemberRoles ? [navigationConfig.memberItems.administration] : []),
           ...(capabilities.canReadMemberWorkHours ? [navigationConfig.memberItems.workHours] : []),

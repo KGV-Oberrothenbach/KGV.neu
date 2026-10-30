@@ -12,7 +12,6 @@ const memberParcelDetail = await read("KGV.Web/features/parcels/MemberParcelDeta
 const communicationCenter = await read("KGV.Web/features/communication/CommunicationCenter.tsx");
 const contractDispatch = await read("KGV.Web/features/communication/ContractDispatchPanel.tsx");
 const historicalUpload = await read("KGV.Web/features/documents/HistoricalDocumentUploadDialog.tsx");
-const pendingPhotos = await read("KGV.Web/features/readings/PendingPhotoUploads.tsx");
 const mauiParcels = await read("KGV.Maui/Pages/ParzellenPage.cs");
 const mauiMemberParcels = await read("KGV.Maui/Pages/MemberParzellenDetailPage.cs");
 const mauiGardenAssign = await read("KGV.Maui/Pages/MemberGardenAssignPage.cs");
@@ -52,8 +51,8 @@ test("Parzellendetail und Ablesehistorie nutzen neutrale Fallbacks", () => {
   assert.doesNotMatch(memberParcelDetail, /#\$\{assignment\.parzelle_id\}/);
 });
 
-test("aktiver Parzellenfilter zeigt die Gartendarstellung", () => {
-  assert.match(webPage, /Parzellenfilter aktiv: \{parcelName\(selectedParcelId\)\}/);
+test("Ablesehistorie zeigt die Gartendarstellung ohne technische Parzellen-ID", () => {
+  assert.match(webPage, /<td>\{meter \? parcelName\(meter\.parzelle_id\) : "–"\}<\/td>/);
   assert.doesNotMatch(webPage, /Parzellenfilter aktiv: #\{selectedParcelId\}/);
 });
 
@@ -79,9 +78,8 @@ test("historischer Upload zeigt keine Dokument-ID", () => {
   assert.doesNotMatch(historicalUpload, /Bereits hochgeladenes Dokument:[^\n]*documentId/);
 });
 
-test("offene Foto-Uploads zeigen keine Ablesungs-ID", () => {
-  assert.match(pendingPhotos, /· Ablesung<\/span>/);
-  assert.doesNotMatch(pendingPhotos, /Ablesung #\{item\.readingId\}/);
+test("der ersetzte Web-Foto-Upload-Hub ist nicht mehr aktiv", () => {
+  assert.doesNotMatch(webPage, /PendingPhotoUploads|foto-uploads/);
 });
 
 test("MAUI-Parzellendetails enthalten keine technische ID-Zeile", () => {

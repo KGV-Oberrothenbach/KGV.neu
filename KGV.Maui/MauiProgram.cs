@@ -142,7 +142,6 @@ public static class MauiProgram
         // create/update invalidates the page that the user returns to.
         services.AddSingleton<HomeViewModel>();
         services.AddTransient<HomePage>();
-        services.AddTransient<AblesenOverviewPage>();
         services.AddTransient<PendingPhotoUploadsPage>();
         services.AddTransient<HomeSectionDetailPage>();
         services.AddTransient<HomeManagementPage>();
@@ -156,7 +155,6 @@ public static class MauiProgram
         services.AddTransient<ExportPage>();
         services.AddTransient<ExportViewModel>();
         services.AddTransient<ImpressumPage>();
-        services.AddTransient<KommunikationPage>();
         services.AddSingleton<KommunikationPageFactory>();
         services.AddTransient<MembershipBoardReviewPage>();
         services.AddSingleton<MemberSearchRefreshState>();
@@ -194,6 +192,9 @@ public static class MauiProgram
         services.AddTransient<ArbeitsstundenReviewPage>();
         services.AddTransient<ArbeitsstundenReviewDetailPage>();
         services.AddTransient<ParzellenAblesungenPage>();
+        services.AddTransient<AblesungErfassenPage>();
+        services.AddTransient<ZaehlerwechselPage>();
+        services.AddTransient<RfidEinrichtenPage>();
         services.AddTransient<ZaehlerwechselAusbauPage>();
         services.AddTransient<ZaehlerwechselEinbauPage>();
         services.AddTransient<AblesungenFreigabePage>();

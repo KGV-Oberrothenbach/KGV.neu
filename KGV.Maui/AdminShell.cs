@@ -164,7 +164,7 @@ public sealed class AdminShell : Shell, IAppShellInitializer
         {
             Items.Add(CreateManagementItem("Ablesen",
                 ("Ablesung erfassen", "reading_capture", () => _services.GetRequiredService<AblesungErfassenPage>()),
-                ("JAE erfassen", "annual_reading_capture", () => _services.GetRequiredService<AblesungErfassenPage>()),
+                ("JAE erfassen", "annual_reading_capture", CreateAnnualReadingPage),
                 ("Zählerwechsel", "meter_change", () => _services.GetRequiredService<ZaehlerwechselPage>()),
                 ("RFID einrichten", "rfid_setup", () => _services.GetRequiredService<RfidEinrichtenPage>()),
                 ("Ablesungen freigeben", "reading_review", () => _services.GetRequiredService<AblesungenFreigabePage>())));
@@ -350,6 +350,13 @@ public sealed class AdminShell : Shell, IAppShellInitializer
                 }
             }
         };
+    }
+
+    private Page CreateAnnualReadingPage()
+    {
+        var page = _services.GetRequiredService<AblesungErfassenPage>();
+        page.ApplyQueryAttributes(new Dictionary<string, object> { ["art"] = AblesungArt.JahresEnde });
+        return page;
     }
 
     private static FlyoutItem CreateManagementItem(string flyoutTitle, params (string ContentTitle, string Route, Func<Page> PageFactory)[] entries)

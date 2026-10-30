@@ -25,5 +25,9 @@ test("member master data loads active server contracts and opens communication w
   assert.match(source, /In Vorgängen öffnen/);
   assert.match(source, /kgv:open-communication/);
   const openCommunication = source.match(/const openCommunication[\s\S]*?;/)?.[0] ?? "";
+  assert.match(openCommunication, /new Event\("kgv:open-communication"\)/);
+  assert.doesNotMatch(openCommunication, /detail|contractId/);
   assert.doesNotMatch(openCommunication, /startPreparedContractSigning|Signatur/);
+  const page = await readFile(new URL("../../app/page.tsx", import.meta.url), "utf8");
+  assert.match(page, /openCommunication = \(\) => setActiveId\("signaturen"\)/);
 });
