@@ -14,3 +14,17 @@ export function loadHistoricalContractPreview(club: ClubContext, session: Browse
 export function registerHistoricalContract(club: ClubContext, session: BrowserSession, input: HistoricalContractRegistrationInput) {
   return callSupabaseRpc<HistoricalContractRegistrationRow[]>({ club, session }, "register_historischen_pachtvertrag", { p_dokument_id: input.documentId, p_dokumenttyp_code: input.documentTypeCode, p_vertragsdatum: input.contractDate, p_unterzeichnet: input.signed, p_pachtverhaeltnis_ids: input.leaseRelationshipIds, p_vorherige_enddaten: input.previousEndDates, p_mitglied_seit_korrektur_mitglied_id: input.membershipSinceCorrection?.memberId ?? null, p_mitglied_seit_korrektur_datum: input.membershipSinceCorrection?.date ?? null, p_vertragspartei_mitglied_ids: input.partyMemberIds, p_mitgliedschaftsenden: input.membershipEnds, p_aktiv_status_aenderungen: input.activityStatusChanges });
 }
+
+export type HistoricalContractLookupMember = { id: number; mitgliedsnummer?: number; vorname: string | null; name: string | null; mitglied_seit: string | null; aktiv: boolean };
+export type HistoricalContractLookupLease = import("../../models/documents/document-type").HistoricalLeaseRelationship;
+export function loadHistoricalContractMembers(club: ClubContext, session: BrowserSession) {
+  return callSupabaseRpc<HistoricalContractLookupMember[]>({ club, session }, "get_historical_contract_members", {});
+}
+export function loadHistoricalContractLeaseRelationships(club: ClubContext, session: BrowserSession, memberId: number) {
+  return callSupabaseRpc<HistoricalContractLookupLease[]>({ club, session }, "get_historical_contract_lease_relationships", { p_mitglied_id: memberId });
+}
+
+export type HistoricalContractDocumentLink = { documentId: number; title: string | null; number: number | null; date: string | null; mimeType: string | null };
+export function loadHistoricalContractDocuments(club: ClubContext, session: BrowserSession, memberId: number) {
+  return callSupabaseRpc<HistoricalContractDocumentLink[]>({ club, session }, "get_historical_contract_documents", { p_mitglied_id: memberId });
+}

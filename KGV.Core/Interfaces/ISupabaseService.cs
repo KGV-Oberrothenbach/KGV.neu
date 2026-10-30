@@ -156,6 +156,10 @@ namespace KGV.Core.Interfaces
         Task<DocumentInfo?> GetDokumentByIdAsync(long dokumentId);
         Task<List<DokumenttypItem>> GetAktiveDokumenttypenAsync();
         Task<List<HistorischePachtbeziehung>> GetPachtbeziehungenForMitgliedAsync(int mitgliedId);
+        Task<List<HistoricalContractLookupMember>> GetHistoricalContractMembersAsync();
+        Task<List<HistorischePachtbeziehung>> GetHistoricalContractLeaseRelationshipsAsync(int mitgliedId);
+        Task<List<HistoricalContractDocumentLink>> GetHistoricalContractDocumentsAsync(int mitgliedId);
+        Task<LoadedDocument> LoadHistoricalContractDocumentAsync(long documentId);
         Task<List<HistoricalContractHistoryEntry>> GetHistoricalContractHistoryAsync(IReadOnlyList<long> pachtverhaeltnisIds, DateOnly vertragsdatum);
         Task<List<HistorischeWartungsvertragZuordnung>> GetHistorischeWartungsvertragZuordnungenForMitgliedAsync(int mitgliedId);
         Task<HistorischesDokumentRegistrierungResult> RegisterHistorischesDokumentAsync(HistorischesDokumentRegistrierungRequest request);

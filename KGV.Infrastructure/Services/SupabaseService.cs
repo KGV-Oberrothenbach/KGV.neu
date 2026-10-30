@@ -3543,6 +3543,47 @@ namespace KGV.Infrastructure.Services
                 }).OrderByDescending(x => x.GueltigAb).ToList();
             }, new List<HistorischePachtbeziehung>());
 
+        private async Task<List<T>> LoadHistoricalContractLookupAsync<T>(string rpc, object parameters)
+        {
+            var token = await _authService.GetAccessTokenAsync();
+            if (string.IsNullOrWhiteSpace(token)) throw new InvalidOperationException("Die aktuelle Anmeldung ist abgelaufen.");
+            var endpoint = new Uri(new Uri(_supabaseUrl.TrimEnd('/') + "/"), $"rest/v1/rpc/{rpc}");
+            using var request = new HttpRequestMessage(HttpMethod.Post, endpoint)
+            { Content = new StringContent(JsonSerializer.Serialize(parameters), Encoding.UTF8, "application/json") };
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            request.Headers.Add("apikey", _publishableKey);
+            using var response = await _documentUploadHttpClient.SendAsync(request);
+            if (!response.IsSuccessStatusCode) throw new HttpRequestException($"Historischer Vertragsbereich konnte nicht geladen werden (HTTP {(int)response.StatusCode}).");
+            return JsonSerializer.Deserialize<List<T>>(await response.Content.ReadAsStringAsync(), new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
+                ?? throw new InvalidOperationException("Der Server lieferte keinen historischen Vertragsbereich.");
+        }
+
+        public Task<List<HistoricalContractLookupMember>> GetHistoricalContractMembersAsync()
+            => LoadHistoricalContractLookupAsync<HistoricalContractLookupMember>("get_historical_contract_members", new { });
+
+        public async Task<List<HistorischePachtbeziehung>> GetHistoricalContractLeaseRelationshipsAsync(int mitgliedId)
+        {
+            if (mitgliedId <= 0) throw new ArgumentOutOfRangeException(nameof(mitgliedId));
+            var rows = await LoadHistoricalContractLookupAsync<HistoricalContractLookupLease>("get_historical_contract_lease_relationships", new { p_mitglied_id = mitgliedId });
+            return rows.Select(row => new HistorischePachtbeziehung(row.PachtverhaeltnisId, row.ParzelleId, row.GartenNr ?? "–", row.Anlage ?? string.Empty,
+                row.Rolle, row.GueltigAb, row.GueltigBis, row.UrspruenglicherPachtbeginn, row.BeendetAm)).ToList();
+        }
+
+        public Task<List<HistoricalContractDocumentLink>> GetHistoricalContractDocumentsAsync(int mitgliedId)
+        {
+            if (mitgliedId <= 0) throw new ArgumentOutOfRangeException(nameof(mitgliedId));
+            return LoadHistoricalContractLookupAsync<HistoricalContractDocumentLink>("get_historical_contract_documents", new { p_mitglied_id = mitgliedId });
+        }
+
+        public async Task<LoadedDocument> LoadHistoricalContractDocumentAsync(long documentId)
+        {
+            if (documentId <= 0) throw new ArgumentOutOfRangeException(nameof(documentId));
+            var document = await LoadDokumentInfoByIdAsync(documentId);
+            var bytes = await DownloadDokumentFromDriveProxyAsync(documentId, "download_historical_contract");
+            if (bytes is not { Length: > 0 }) throw new InvalidOperationException("Das historische Vertragsdokument konnte nicht geöffnet werden.");
+            return new LoadedDocument(document, bytes);
+        }
+
         public async Task<List<HistoricalContractHistoryEntry>> GetHistoricalContractHistoryAsync(IReadOnlyList<long> pachtverhaeltnisIds, DateOnly vertragsdatum)
         {
             if (pachtverhaeltnisIds.Count == 0) return [];
@@ -4657,6 +4698,11 @@ namespace KGV.Infrastructure.Services
         {
             if (request == null)
                 return DokumentUploadResult.Fail("Dokumentdaten fehlen.", "VALIDATION");
+
+            if (request.HistoricalContractType != null &&
+                (request.HistoricalContractType is not (HistoricalContractDocumentTypes.MembershipAndLeaseInitialContract or HistoricalContractDocumentTypes.LeaseFollowUpContract)
+                 || request.MitgliedId is not > 0 || request.ParzelleId.HasValue))
+                return DokumentUploadResult.Fail("Historischer Upload benötigt eine gültige Vertragsart und ein Mitglied.", "VALIDATION");
 
             var normalizedTitle = CleanRequiredText(request.Titel);
             if (string.IsNullOrWhiteSpace(normalizedTitle))
@@ -8330,7 +8376,7 @@ namespace KGV.Infrastructure.Services
             return await _documentUploadHttpClient.GetByteArrayAsync(url);
         }
 
-        private async Task<byte[]?> DownloadDokumentFromDriveProxyAsync(long documentId)
+        private async Task<byte[]?> DownloadDokumentFromDriveProxyAsync(long documentId, string action = "download")
         {
             if (documentId <= 0 || string.IsNullOrWhiteSpace(_supabaseUrl) || string.IsNullOrWhiteSpace(_publishableKey))
                 return null;
@@ -8343,7 +8389,7 @@ namespace KGV.Infrastructure.Services
             using var message = new HttpRequestMessage(HttpMethod.Post, endpoint)
             {
                 Content = new StringContent(
-                    JsonSerializer.Serialize(new { action = "download", document_id = documentId }),
+                    JsonSerializer.Serialize(new { action, document_id = documentId }),
                     Encoding.UTF8,
                     "application/json")
             };
@@ -8484,6 +8530,8 @@ namespace KGV.Infrastructure.Services
                 multipart.Add(new StringContent(ownerKind), "owner_kind");
                 multipart.Add(new StringContent(ownerId.ToString()), "owner_id");
                 multipart.Add(new StringContent(normalizedTitle), "titel");
+                if (request.HistoricalContractType != null)
+                    multipart.Add(new StringContent(request.HistoricalContractType), "historical_contract_type");
 
                 using var message = new HttpRequestMessage(HttpMethod.Post, endpoint)
                 {

@@ -3,9 +3,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test historical-contract-registration.test.mjs"
+    "test": "node --test"
   },
   "devDependencies": {
-    "@electric-sql/pglite": "0.5.13"
+    "@electric-sql/pglite": "0.5.13",
+    "pdf-lib": "1.17.1",
+    "typescript": "5.9.3"
   }
 }

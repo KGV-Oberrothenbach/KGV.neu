@@ -1,5 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { PDFDocument, StandardFonts, rgb } from "npm:pdf-lib@1.17.1";
+import { stampHistoricalContractPdf } from "./historical-contract-pdf.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -22,6 +22,7 @@ type DriveUploadResult = {
 };
 
 type ApiErrorCode =
+  | "PDF_STAMP_ERROR"
   | "BAD_REQUEST"
   | "UNAUTHORIZED"
   | "FORBIDDEN"
@@ -549,11 +550,13 @@ async function authenticateDocumentUser(authHeader: string) {
     permissionGrants: Number(appUser?.permission_grants ?? 0),
     permissionRevocations: Number(appUser?.permission_revocations ?? 0),
     supabaseAdmin,
+    // Authenticated RPCs reuse the database permission evaluator, including revocations.
+    supabaseUser: createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY") ?? serviceRoleKey, { global: { headers: { Authorization: authHeader } }, auth: { persistSession: false } }),
   };
 }
 
-async function requireAdminOrVorstand(authHeader: string) {
-  const auth = await authenticateDocumentUser(authHeader);
+async function requireAdminOrVorstand(authHeader: string, existingAuth?: Awaited<ReturnType<typeof authenticateDocumentUser>>) {
+  const auth = existingAuth ?? await authenticateDocumentUser(authHeader);
   if (!auth.ok)
     return auth;
 
@@ -577,14 +580,14 @@ async function requireAdmin(authHeader: string) {
   return auth;
 }
 
-async function requireHistoricalContractRegistration(authHeader: string) {
-  const auth = await authenticateDocumentUser(authHeader);
+async function requireHistoricalContractRegistration(authHeader: string, existingAuth?: Awaited<ReturnType<typeof authenticateDocumentUser>>) {
+  const auth = existingAuth ?? await authenticateDocumentUser(authHeader);
   if (!auth.ok)
     return auth;
 
-  const roleBase = auth.role === "admin" ? 16769015 : auth.role === "vorstand" ? 7855607 : 10;
-  const effectivePermissions = (roleBase | auth.permissionGrants) & ~auth.permissionRevocations;
-  if ((effectivePermissions & 16777216) !== 16777216)
+  const { data: permitted, error } = await auth.supabaseUser.rpc("can_register_historical_contracts");
+  if (error) throw new Error("Altvertragsberechtigung konnte nicht geprüft werden.");
+  if (permitted !== true)
     return { ok: false as const, status: 403, message: "Für die Nacherfassung historischer Verträge fehlt die Berechtigung." };
 
   return auth;
@@ -636,7 +639,7 @@ function hasAllowedDocumentType(file: File): boolean {
   return !mimeType || mimeType === "application/octet-stream" || allowedMimes.includes(mimeType);
 }
 
-async function mayReadDocument(auth: AuthenticatedDocumentUser & { supabaseAdmin: ReturnType<typeof createClient> }, documentId: number): Promise<DriveDocumentRecord | null> {
+async function mayReadDocument(auth: AuthenticatedDocumentUser & { supabaseAdmin: ReturnType<typeof createClient>; supabaseUser: ReturnType<typeof createClient> }, documentId: number): Promise<DriveDocumentRecord | null> {
   const { data: document, error: documentError } = await auth.supabaseAdmin
     .from("dokument")
     .select("id,mitglied_id,parzelle_id,drive_file_id,dateiname,mime_type,archiviert_at")
@@ -656,6 +659,10 @@ async function mayReadDocument(auth: AuthenticatedDocumentUser & { supabaseAdmin
   // The service-role client bypasses RLS, so scope parity must precede role checks.
   if (await isDocumentInDemoScope(auth, document as DriveDocumentRecord) !== auth.isDemoAccount)
     return null;
+
+  const { data: historicalAccess, error: historicalError } = await auth.supabaseUser.rpc("can_access_historical_contract_document", { p_dokument_id: documentId, p_require_registered: false });
+  if (historicalError) throw new Error("Historischer Dokumentkontext konnte nicht geprüft werden.");
+  if (historicalAccess === true) return document as DriveDocumentRecord;
 
   // This RPC owns the same narrowly scoped rule as the document SELECT policy.
   // It is evaluated before the legacy role/owner checks because the service-role
@@ -731,16 +738,16 @@ async function replaceDriveFileContent(accessToken: string, driveFileId: string,
   if (!response.ok) throw new Error(`Drive PDF update failed: ${await response.text()}`);
 }
 
-async function stampHistoricalContractPdf(bytes: ArrayBuffer, nummer: number, memberNumbers: number[]): Promise<Uint8Array> {
-  const pdf = await PDFDocument.load(bytes);
-  const page = pdf.getPages()[0];
-  if (!page) throw new Error("Das PDF enthält keine Seite.");
-  const font = await pdf.embedFont(StandardFonts.HelveticaBold);
-  const text = `Mgl.-Nr. ${[...new Set(memberNumbers)].sort((a, b) => a - b).join(" / ")}\nVertrags-Nr. ${nummer}`;
-  const width = font.widthOfTextAtSize(text, 11);
-  page.drawRectangle({ x: page.getWidth() - width - 42, y: page.getHeight() - 58, width: width + 14, height: 36, color: rgb(1, 1, 1), opacity: 0.92 });
-  page.drawText(text, { x: page.getWidth() - width - 35, y: page.getHeight() - 51, size: 11, font, color: rgb(0.05, 0.05, 0.05), lineHeight: 13 });
-  return await pdf.save();
+class HistoricalPdfStampError extends Error {}
+
+async function mayUseHistoricalContractDocument(auth: { supabaseAdmin: ReturnType<typeof createClient>; supabaseUser: ReturnType<typeof createClient> }, documentId: number, registered: boolean): Promise<DriveDocumentRecord | null> {
+  const { data: allowed, error } = await auth.supabaseUser.rpc("can_access_historical_contract_document", { p_dokument_id: documentId, p_require_registered: registered });
+  if (error) throw new Error("Historischer Dokumentkontext konnte nicht geprüft werden.");
+  if (allowed !== true) return null;
+  const { data, error: documentError } = await auth.supabaseAdmin.from("dokument")
+    .select("id,mitglied_id,parzelle_id,drive_file_id,dateiname,mime_type,archiviert_at").eq("id", documentId).is("archiviert_at", null).maybeSingle();
+  if (documentError) throw new Error("Historisches Dokument konnte nicht geladen werden.");
+  return data as DriveDocumentRecord | null;
 }
 
 async function reserveHistoricalContractNumber(auth: { supabaseAdmin: ReturnType<typeof createClient>; role: string }, document: DriveDocumentRecord, documentId: number) {
@@ -762,7 +769,11 @@ async function reserveHistoricalContractNumber(auth: { supabaseAdmin: ReturnType
     const { data: parties, error: partyError } = await auth.supabaseAdmin.from("pachtverhaeltnis_beteiligung").select("pachtverhaeltnis_id,gueltig_ab,gueltig_bis,mitglied:mitglied_id(mitgliedsnummer)").in("pachtverhaeltnis_id", [...starts.keys()]);
     if (partyError) throw new Error(`Vertragsparteien für PDF-Stempel konnten nicht geladen werden: ${partyError.message}`);
     const memberNumbers = (parties ?? []).filter((row: { pachtverhaeltnis_id: number; gueltig_ab: string; gueltig_bis?: string | null }) => { const start = starts.get(row.pachtverhaeltnis_id); return !!start && row.gueltig_ab <= start && (!row.gueltig_bis || row.gueltig_bis >= start); }).map((row: { mitglied?: { mitgliedsnummer?: number | null } }) => Number(row.mitglied?.mitgliedsnummer)).filter(Number.isInteger);
-    await replaceDriveFileContent(accessToken, driveFileId, await stampHistoricalContractPdf(await source.arrayBuffer(), nummer, memberNumbers));
+    let stampedBytes: Uint8Array;
+    try { stampedBytes = await stampHistoricalContractPdf(await source.arrayBuffer(), nummer, memberNumbers); }
+    catch (error) { throw new HistoricalPdfStampError(error instanceof Error ? error.message : String(error)); }
+    // Only complete, valid pdf-lib output reaches the existing Drive replacement.
+    await replaceDriveFileContent(accessToken, driveFileId, stampedBytes);
     const { error: markError } = await auth.supabaseAdmin.rpc("mark_historische_vertragsnummer_pdf_gestempelt", { p_dokument_id: documentId, p_nummer: nummer });
     if (markError) throw new Error(`PDF-Stempel konnte nicht bestätigt werden: ${markError.message}`);
   }
@@ -830,13 +841,13 @@ Deno.serve(async (req) => {
           return errorResponse(400, "BAD_REQUEST", "document_id fehlt oder ist ungültig.", requestId);
         const auth = await requireHistoricalContractRegistration(authHeader);
         if (!auth.ok) return errorResponse(auth.status, "FORBIDDEN", auth.message, requestId);
-        const document = await mayReadDocument(auth, documentId);
+        const document = await mayUseHistoricalContractDocument(auth, documentId, true);
         if (!document) return errorResponse(403, "FORBIDDEN", "Dieses Dokument ist für den aktuellen Benutzer nicht freigegeben.", requestId);
         const result = await reserveHistoricalContractNumber(auth, document, documentId);
         return json(200, { success: true, ...result, request_id: requestId });
       }
 
-      if (action !== "download") {
+      if (action !== "download" && action !== "download_historical_contract") {
         return errorResponse(400, "BAD_REQUEST", "Unbekannte Dokumentaktion.", requestId);
       }
 
@@ -845,12 +856,14 @@ Deno.serve(async (req) => {
         return errorResponse(400, "BAD_REQUEST", "document_id fehlt oder ist ungültig.", requestId);
       }
 
-      const auth = await authenticateDocumentUser(authHeader);
+      const auth = action === "download_historical_contract"
+        ? await requireHistoricalContractRegistration(authHeader) : await authenticateDocumentUser(authHeader);
       if (!auth.ok) {
         return errorResponse(auth.status, "UNAUTHORIZED", auth.message, requestId);
       }
 
-      const document = await mayReadDocument(auth, documentId);
+      const document = action === "download_historical_contract"
+        ? await mayUseHistoricalContractDocument(auth, documentId, false) : await mayReadDocument(auth, documentId);
       if (!document) {
         return errorResponse(403, "FORBIDDEN", "Dieses Dokument ist für den aktuellen Benutzer nicht freigegeben.", requestId);
       }
@@ -877,12 +890,9 @@ Deno.serve(async (req) => {
       });
     }
 
-    const auth = await requireAdminOrVorstand(authHeader);
-    if (!auth.ok) {
-      return errorResponse(auth.status, "UNAUTHORIZED", auth.message, requestId);
-    }
-
     if (req.method === "DELETE") {
+      const auth = await requireAdminOrVorstand(authHeader);
+      if (!auth.ok) return errorResponse(auth.status, "UNAUTHORIZED", auth.message, requestId);
       const payload = await req.json() as DeleteDocumentRequest;
       const driveFileId = (payload.drive_file_id ?? payload.fileId ?? "").trim();
       if (!driveFileId) {
@@ -900,7 +910,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    const rootFolderId = readGoogleDriveRootFolderId();
+    const uploadIdentity = await authenticateDocumentUser(authHeader);
+    if (!uploadIdentity.ok) return errorResponse(uploadIdentity.status, "UNAUTHORIZED", uploadIdentity.message, requestId);
     const contentType = req.headers.get("content-type") ?? "";
     if (!contentType.toLowerCase().includes("multipart/form-data")) {
       return errorResponse(400, "BAD_REQUEST", "Erwartet multipart/form-data mit Datei und Metadaten.", requestId);
@@ -908,6 +919,12 @@ Deno.serve(async (req) => {
 
     logStep("formData start");
     const form = await req.formData();
+    const historicalUpload = form.has("historical_contract_type");
+    const historicalType = String(form.get("historical_contract_type") ?? "");
+    const auth = historicalUpload ? await requireHistoricalContractRegistration(authHeader, uploadIdentity) : await requireAdminOrVorstand(authHeader, uploadIdentity);
+    if (!auth.ok) return errorResponse(auth.status, "FORBIDDEN", auth.message, requestId);
+    if (historicalUpload && !["historischer_ma_pv_erstvertrag", "historischer_pv_folgevertrag"].includes(historicalType))
+      return errorResponse(400, "BAD_REQUEST", "Unzulässige historische Vertragsart.", requestId);
     logStep("formData parsed", {
       hasFile: form.get("file") instanceof File,
       hasOwnerKind: form.has("owner_kind"),
@@ -944,6 +961,14 @@ Deno.serve(async (req) => {
       return errorResponse(403, "FORBIDDEN", "Dokument-Provenienz darf nur durch die Vertragsbearbeitung gesetzt werden.", requestId);
     }
 
+    if (historicalUpload) {
+      if (ownerKind !== "mitglied" || hasProvenance || !/\.(pdf|jpe?g|png|webp)$/i.test(file.name))
+        return errorResponse(403, "FORBIDDEN", "Altvertragsupload benötigt ein Mitglied und einen eigenständigen Vertragsnachweis als PDF oder Bildscan.", requestId);
+      const { data: memberAccess, error: memberError } = await auth.supabaseUser.rpc("can_access_historical_contract_member", { p_mitglied_id: ownerId });
+      if (memberError) throw new Error("Historischer Mitgliedskontext konnte nicht geprüft werden.");
+      if (memberAccess !== true) return errorResponse(403, "FORBIDDEN", "Mitglied liegt außerhalb des historischen Vertragsbereichs.", requestId);
+    }
+
     const ownerIsDemo = await resolveUploadOwnerScope(auth, ownerKind, ownerId);
     if (ownerIsDemo === null || ownerIsDemo !== auth.isDemoAccount) {
       return errorResponse(403, "FORBIDDEN", "Dieses Dokument ist für den aktuellen Benutzer nicht freigegeben.", requestId);
@@ -967,6 +992,9 @@ Deno.serve(async (req) => {
       return errorResponse(400, "BAD_REQUEST", "Der Dateityp wird nicht unterstützt.", requestId);
     }
 
+    const rootFolderId = readGoogleDriveRootFolderId();
+    const historicalMimes: Record<string,string> = { pdf: "application/pdf", jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", webp: "image/webp" };
+    const uploadMime = historicalUpload ? historicalMimes[file.name.split(".").pop()!.toLowerCase()] : (file.type || "application/octet-stream");
     const fileName = buildFileName(titel, file);
     const storageSegments = buildStorageSegments(ownerKind, ownerId);
 
@@ -1002,9 +1030,10 @@ Deno.serve(async (req) => {
         drive_file_id: upload.id,
         titel,
         dateiname: upload.name,
-        mime_type: file.type || "application/octet-stream",
+        mime_type: uploadMime,
         size_bytes: file.size,
         created_by: auth.userId,
+        ...(historicalUpload ? { historical_contract_type: historicalType } : {}),
         source_kommunikationsvorgang_id: sourceProcessId,
         source_revision: sourceRevision,
         source_wartungsvertrag_zuordnung_id: sourceAssignmentId,
@@ -1026,8 +1055,8 @@ Deno.serve(async (req) => {
       relativePath: storagePath,
       dateiname: upload.name,
       fileName: upload.name,
-      mime_type: file.type || "application/octet-stream",
-      mimeType: file.type || "application/octet-stream",
+      mime_type: uploadMime,
+      mimeType: uploadMime,
       size_bytes: file.size,
       sizeBytes: file.size,
       uploaded_by_user_id: auth.userId,
@@ -1045,6 +1074,11 @@ Deno.serve(async (req) => {
       }
     }
     logError("return error", error);
+
+    if (error instanceof HistoricalPdfStampError)
+      return errorResponse(422, "PDF_STAMP_ERROR", "PDF-Stempel konnte nicht erstellt werden. Die Originaldatei bleibt unverändert. " + message, requestId);
+    if (message.startsWith("PDF-Stempel konnte nicht bestätigt werden"))
+      return errorResponse(502, "PDF_STAMP_ERROR", "Das PDF wurde gespeichert, sein Stempelstatus konnte jedoch nicht bestätigt werden.", requestId);
 
     if (message.includes("Google-Drive-Secrets fehlen")) {
       return errorResponse(503, "CONFIG_MISSING", "Cloud-Dokumentdienst ist nicht konfiguriert. Bitte Serverkonfiguration prüfen.", requestId);
