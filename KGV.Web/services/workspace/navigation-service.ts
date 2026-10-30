@@ -29,6 +29,7 @@ export type NavigationCapabilities = {
   canManageClubDocuments: boolean;
   canReadDocumentTypes: boolean;
   canManageClubFunctions: boolean;
+  canRegisterHistoricalContracts: boolean;
   canSearchMembers: boolean;
 };
 
@@ -77,8 +78,8 @@ export function buildNavigation(capabilities: NavigationCapabilities): Workspace
           navigationConfig.groups.administration.items.clubDocuments,
           navigationConfig.groups.administration.items.clubFunctions,
           navigationConfig.groups.administration.items.documentTypes,
-          navigationConfig.groups.administration.items.backfillContracts,
         ] : []),
+        ...(capabilities.canRegisterHistoricalContracts ? [navigationConfig.groups.administration.items.backfillContracts] : []),
       ],
     },
     { ...navigationConfig.groups.workhours, items: [], target: capabilities.canApproveWorkHours ? navigationConfig.groups.workhours.target : undefined },

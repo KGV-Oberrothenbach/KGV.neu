@@ -64,7 +64,8 @@ import { MemberMaintenanceContracts } from "../features/maintenance/MemberMainte
 import { ExpiringMaintenanceContracts } from "../features/maintenance/ExpiringMaintenanceContracts";
 import { maintenanceAccess } from "../services/maintenance/maintenance-access-service";
 import { getEffectivePermissions, getRolePermissions, hasPermission, Permission, PermissionAreas, preserveUncontrolledPermissions } from "../security/permissions";
-import { canArchiveDocuments, canExportData, canManageClubConfiguration, canManageClubSeasonConfiguration, canManageDocuments, canPerformYearEndClosing, canReadDocuments, createWebCapabilityContext } from "../security/capabilities";
+import { canArchiveDocuments, canExportData, canManageClubConfiguration, canManageClubSeasonConfiguration, canManageDocuments, canPerformYearEndClosing, canReadDocuments, canRegisterHistoricalContracts, createWebCapabilityContext } from "../security/capabilities";
+import { HistoricalContractRegistrationWorkflow } from "../features/documents/HistoricalContractRegistrationWorkflow";
 import { ClubConfiguration } from "../features/configuration/ClubConfiguration";
 import { ExportCenter } from "../features/export/ExportCenter";
 import { CommunicationCenter } from "../features/communication/CommunicationCenter";
@@ -247,6 +248,7 @@ function WorkspaceContent({ session, email, club, context, onLogout, onChangeClu
     canManageClubDocuments: context.role === "admin" || context.role === "vorstand",
     canReadDocumentTypes: context.role === "admin" || context.role === "vorstand",
     canManageClubFunctions: context.role === "admin" || context.role === "vorstand",
+    canRegisterHistoricalContracts: canRegisterHistoricalContracts(capabilityContext),
     canSearchMembers: has(Permission.searchMembers),
     canAccessCommunication,
     openProcessCount,
@@ -267,7 +269,8 @@ function WorkspaceContent({ session, email, club, context, onLogout, onChangeClu
         <article className="content-area">
           <MobileNavigation groups={navigationGroups} activeId={effectiveActiveId} onNavigate={setActiveId} selectedMemberLabel={selectedMemberId ? selectedMemberLabel : null} />
           <p className="eyebrow">Saison {season}</p><h1>{active.label}</h1><p className="content-intro">{active.detail}</p>
-          {!new Set(["start", "impressum", "mitglieder", "parzellen", "ablesen", "ablesen-erfassen", "jae-erfassen", "ablesungen-freigeben", "rfid-einrichten", "foto-uploads", "zaehlerwechsel", "arbeitsstunden-pruefen", "arbeitseinsaetze", "wartung", "termine", "bekanntmachungen", "export", "signaturen", "dokumente", "vorstand", "mailausgang", "versendet", "druckausgabe", "verlauf", "benutzer", "saisons", "verein", "vereinsunterlagen", "dokumenttypen", "vereinsfunktionen", "mitglied-arbeitsstunden", "mitglied-wartung", "mitglied-dokumente", "mitglied-admin", "mitglied-gaerten", "mitglied-protokolle", "mitglied-stammdaten"]).has(effectiveActiveId) && <section className="coming-soon"><span aria-hidden="true">◌</span><div><strong>Bereich vorbereitet</strong><p>Die Navigation und Zugriffsrechte stehen. Die fachliche Oberfläche wird in den nächsten Umsetzungsschritten ergänzt.</p></div></section>}
+          {effectiveActiveId === "vertraege-nacherfassen" && <HistoricalContractRegistrationWorkflow session={session} />}
+          {!new Set(["start", "impressum", "mitglieder", "parzellen", "ablesen", "ablesen-erfassen", "jae-erfassen", "ablesungen-freigeben", "rfid-einrichten", "foto-uploads", "zaehlerwechsel", "arbeitsstunden-pruefen", "arbeitseinsaetze", "wartung", "termine", "bekanntmachungen", "export", "signaturen", "dokumente", "vorstand", "mailausgang", "versendet", "druckausgabe", "verlauf", "benutzer", "saisons", "verein", "vereinsunterlagen", "dokumenttypen", "vereinsfunktionen", "vertraege-nacherfassen", "mitglied-arbeitsstunden", "mitglied-wartung", "mitglied-dokumente", "mitglied-admin", "mitglied-gaerten", "mitglied-protokolle", "mitglied-stammdaten"]).has(effectiveActiveId) && <section className="coming-soon"><span aria-hidden="true">◌</span><div><strong>Bereich vorbereitet</strong><p>Die Navigation und Zugriffsrechte stehen. Die fachliche Oberfläche wird in den nächsten Umsetzungsschritten ergänzt.</p></div></section>}
           {effectiveActiveId === "start" && <HomeDashboard session={session} isManager={has(Permission.manageWorkAssignments) || has(Permission.manageAppointments) || has(Permission.manageAnnouncements)} canManageWorkAssignments={has(Permission.manageWorkAssignments)} canManageAppointments={has(Permission.manageAppointments)} canManageAnnouncements={has(Permission.manageAnnouncements)} memberId={context.mitgliedId} saisonId={workspaceContext.saisonId} season={season} onNavigate={setActiveId} onOpenWorkHours={openOwnWorkHours} />}
           {effectiveActiveId === "mitglieder" && <MemberSearch session={session} selectedMemberId={selectedMemberId} onSelect={(memberId) => { selectMember(memberId); setActiveId("mitglied-stammdaten"); }} canCreate={has(Permission.createMember)} onCreate={() => { setCreatingMember(true); setActiveId("mitglied-stammdaten"); }} />}
           {effectiveActiveId === "parzellen" && <ParcelWorkspace key={`${club.vereinId}:${session.user.id}`} session={session} selectedParcelId={selectedParcelId} onSelect={selectParcel} canEdit={has(Permission.writeParzellen)} documentAccessContext={documentAccessContext} onOpenMember={(memberId) => { selectMember(memberId); setActiveId("mitglied-gaerten"); }} />}

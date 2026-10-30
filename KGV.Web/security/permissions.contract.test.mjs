@@ -14,7 +14,7 @@ const expectedBits = [
   ["CanManageWorkHours", 8], ["CanManageRoles", 9], ["CanShowStammdaten", 10], ["CanReadStammdaten", 11],
   ["CanWriteStammdaten", 12], ["CanShowParzellen", 13], ["CanReadParzellen", 14], ["CanWriteParzellen", 15],
   ["CanReadDocuments", 16], ["CanReadWorkHours", 17], ["CanReadRoles", 18], ["CanCreateMitglied", 19],
-  ["CanManageWorkAssignments", 20], ["CanManageAppointments", 21], ["CanManageAnnouncements", 22], ["CanPerformYearEndClosing", 23],
+  ["CanManageWorkAssignments", 20], ["CanManageAppointments", 21], ["CanManageAnnouncements", 22], ["CanPerformYearEndClosing", 23], ["CanRegisterHistoricalContracts", 24],
 ];
 
 for (const [name, bit] of expectedBits) assert.equal(Permission[name], 1 << bit, `${name} must match Core bit ${bit}`);
@@ -26,7 +26,10 @@ assert.equal(hasPermission(getEffectivePermissions("vorstand", Permission.CanPer
 assert.equal(hasPermission(getEffectivePermissions("admin", 0, Permission.CanPerformYearEndClosing), Permission.CanPerformYearEndClosing), false);
 assert.equal(hasPermission(getEffectivePermissions("user", Permission.CanPerformYearEndClosing, Permission.CanPerformYearEndClosing), Permission.CanPerformYearEndClosing), false);
 
-const unknownFutureBit = 1 << 24;
+assert.equal(Permission.CanRegisterHistoricalContracts, 16777216);
+assert.equal(hasPermission(getEffectivePermissions("user", Permission.CanRegisterHistoricalContracts, 0), Permission.CanRegisterHistoricalContracts), true);
+assert.equal(hasPermission(getEffectivePermissions("admin", 0, Permission.CanRegisterHistoricalContracts), Permission.CanRegisterHistoricalContracts), false);
+const unknownFutureBit = 1 << 25;
 const preservedGrants = preserveUncontrolledPermissions(unknownFutureBit, Permission.CanManageRoles);
 const preservedRevocations = preserveUncontrolledPermissions(unknownFutureBit, Permission.CanManageRoles);
 assert.equal(preservedGrants, unknownFutureBit | Permission.CanManageRoles, "unknown grant bits must survive an editor save");
