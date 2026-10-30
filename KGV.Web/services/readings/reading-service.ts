@@ -2,6 +2,7 @@ import type { ClubContext } from "../../models/auth/club";
 import { type BrowserSession } from "../../lib/supabase-auth";
 import { isParcelAssignmentActiveOn } from "../parcels/parcel-service";
 import {
+  captureMeterReading,
   createMeterReading,
   getBooleanSetting,
   listMemberReadingAssignments,
@@ -10,6 +11,7 @@ import {
   listReadingParcels,
   listReadingParcelsByIds,
   listReadingsForMeter,
+  submitOwnMeterReading,
   type MeterReading,
 } from "../../repositories/readings/reading-repository";
 import type { ParcelOverviewAssignment } from "../../repositories/parcels/parcel-repository";
@@ -125,9 +127,12 @@ export async function saveMeterReading(club: ClubContext, session: BrowserSessio
   if (plausibility.blockingErrors.length) throw new Error(plausibility.blockingErrors[0].message);
   if (plausibility.warnings.length && !input.confirmWarnings) return { requiresConfirmation: true, plausibility };
   const isSubmission = !scope.isDirectCapture;
-  const created = await createMeterReading(club, session, { zaehler_id: meter.id, stand: input.value, ablesedatum: input.date, art: input.art, freigegeben: !isSubmission, pruefstatus: isSubmission ? "eingereicht" : "freigegeben" });
-  if (!created[0]) throw new Error("Die Ablesung konnte nicht gespeichert werden.");
-  return { reading: created[0], isSubmission };
+  const payload = { zaehler_id: meter.id, stand: input.value, ablesedatum: input.date, art: input.art, freigegeben: !isSubmission, pruefstatus: isSubmission ? "eingereicht" : "freigegeben" } as const;
+  const created = isSubmission
+    ? await submitOwnMeterReading(club, session, payload)
+    : await captureMeterReading(club, session, payload);
+  if (!created?.id) throw new Error("Die Ablesung konnte nicht gespeichert werden.");
+  return { reading: created, isSubmission };
 }
 
 export async function getMeterInstallationPhotoRequired(club: ClubContext, session: BrowserSession) {

@@ -16,7 +16,7 @@ public sealed class ZaehlerwechselPage : RfidScanWorkflowPage
     public ZaehlerwechselPage()
         : base(
             "Zählerwechsel",
-            "RFID-Tag an das Gerät halten. Der produktive 3-Fall-Flow öffnet danach direkt RFID hinzufügen, Zählereinbau oder nach Bestätigung den Ausbaupfad.",
+            "RFID beschleunigt den Einstieg. Alternativ kann der Kontext über Parzelle und Medium geladen werden; beide Wege führen zum selben Zählerwechsel.",
             "Einordnung für Zählerwechsel",
             CreateViewModel(),
             GetDecisionText)

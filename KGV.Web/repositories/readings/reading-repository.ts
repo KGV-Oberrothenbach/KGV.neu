@@ -1,4 +1,5 @@
 import { readSupabaseRest } from "../../lib/supabase/rest-client";
+import { callSupabaseRpc } from "../../lib/supabase/rpc-client";
 import { writeWithBrowserEditLock } from "../../services/concurrency/edit-lock-service";
 import type { ClubContext } from "../../models/auth/club";
 import { type BrowserSession } from "../../lib/supabase-auth";
@@ -42,3 +43,12 @@ export const getBooleanSetting = (club: ClubContext, session: BrowserSession, se
   limit: "1",
 }).then((rows) => rows[0]?.bool_value ?? fallback);
 export const createMeterReading = (club: ClubContext, session: BrowserSession, input: MeterReadingInsert) => writeWithBrowserEditLock<MeterReading>({ club, session }, "zaehler_ablesung", "POST", input);
+
+/** All new captures use server-side authorization.  The legacy REST writer remains for old review tooling. */
+export const captureMeterReading = (club: ClubContext, session: BrowserSession, input: MeterReadingInsert) => callSupabaseRpc<MeterReading>({ club, session }, "capture_meter_reading", {
+  p_zaehler_id: input.zaehler_id, p_ablesedatum: input.ablesedatum, p_stand: input.stand, p_art: input.art,
+});
+
+export const submitOwnMeterReading = (club: ClubContext, session: BrowserSession, input: MeterReadingInsert) => callSupabaseRpc<MeterReading>({ club, session }, "submit_own_meter_reading", {
+  p_zaehler_id: input.zaehler_id, p_ablesedatum: input.ablesedatum, p_stand: input.stand, p_art: input.art,
+});

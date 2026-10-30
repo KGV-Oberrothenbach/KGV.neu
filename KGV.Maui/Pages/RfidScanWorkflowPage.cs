@@ -128,6 +128,8 @@ public abstract class RfidScanWorkflowPage : ContentPage
                         }
                     },
                     statusLabel,
+                    CreateFallbackSection(),
+                    CreateManualEmergencySection(),
                     contextBorder,
                     decisionBorder,
                     actionSection ?? new ContentView { IsVisible = false }
