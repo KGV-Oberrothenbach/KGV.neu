@@ -37,6 +37,11 @@ test("meter workflow RPCs are connected from productive Web and MAUI screens", a
   assert.match(page, /<MeterChangeRequestReview/);
   assert.match(navigation, /requestMeterChange[\s\S]*reviewMeterChanges/);
   assert.match(webRequests, /submit_own_meter_change_request/);
+  assert.match(webRequests, /<label>Parzelle<select/);
+  assert.match(webRequests, /const media=useMemo/);
+  assert.match(webRequests, /const candidates=useMemo/);
+  assert.match(webRequests, /candidates\.length>1/);
+  assert.doesNotMatch(webRequests, /<label>Aktiver Zähler<select/);
   assert.match(webRequests, /correct_meter_change_request/);
   assert.match(webRequests, /review_meter_change_request/);
 
@@ -45,6 +50,10 @@ test("meter workflow RPCs are connected from productive Web and MAUI screens", a
   assert.match(mauiChange, /ExecuteMeterChangeAsync\(/);
   assert.match(mauiRequests, /SubmitOwnMeterChangeRequestAsync\(/);
   assert.match(mauiRequests, /CorrectMeterChangeRequestAsync\(/);
+  assert.match(mauiRequests, /MeterChangeRequestCorrectionPage/);
+  assert.match(mauiRequests, /new DatePicker \{ Date = request\.Ausbaudatum \}/);
+  assert.match(mauiRequests, /new DatePicker \{ Date = request\.Eichdatum \}/);
+  assert.match(mauiRequests, /new DatePicker \{ Date = request\.Einbaudatum \}/);
   assert.match(mauiRequests, /ReviewMeterChangeRequestAsync\(/);
   assert.match(mauiRequests, /GetPachtbeziehungenForMitgliedAsync/);
   assert.match(mauiRequests, /GetActiveMeterCandidatesAsync/);

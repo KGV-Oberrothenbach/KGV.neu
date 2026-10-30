@@ -131,11 +131,92 @@ public sealed class MeterChangeRequestReviewPage : ContentPage
     }
     async Task Correct(MeterChangeRequestRecord request)
     {
-        var number = await DisplayPromptAsync("Korrigieren", "Neue Zählernummer", initialValue: request.NeueZaehlernummer);
-        var end = await DisplayPromptAsync("Korrigieren", "Endstand", initialValue: request.Endstand.ToString(CultureInfo.CurrentCulture));
-        var initial = await DisplayPromptAsync("Korrigieren", "Anfangsstand", initialValue: request.Anfangsstand.ToString(CultureInfo.CurrentCulture));
-        if (number is null || !decimal.TryParse(end, NumberStyles.Number, CultureInfo.CurrentCulture, out var endValue) || !decimal.TryParse(initial, NumberStyles.Number, CultureInfo.CurrentCulture, out var initialValue)) return;
-        request.NeueZaehlernummer = number; request.Endstand = endValue; request.Anfangsstand = initialValue;
-        await _db.CorrectMeterChangeRequestAsync(request, await DisplayPromptAsync("Kommentar", "Prüfkommentar"));
+        var editor = new MeterChangeRequestCorrectionPage(_db, request);
+        await Navigation.PushModalAsync(new NavigationPage(editor));
+        if (await editor.Completion)
+            await Load();
+    }
+}
+
+public sealed class MeterChangeRequestCorrectionPage : ContentPage
+{
+    readonly ISupabaseService _db;
+    readonly MeterChangeRequestRecord _request;
+    readonly DatePicker _out;
+    readonly Entry _end;
+    readonly Entry _number;
+    readonly DatePicker _calibration;
+    readonly DatePicker _installation;
+    readonly Entry _initial;
+    readonly Editor _comment;
+    readonly Label _status = new();
+    readonly TaskCompletionSource<bool> _completion = new();
+    public Task<bool> Completion => _completion.Task;
+
+    public MeterChangeRequestCorrectionPage(ISupabaseService db, MeterChangeRequestRecord request)
+    {
+        _db = db;
+        _request = request;
+        Title = "Zählerwechsel korrigieren";
+        _out = new DatePicker { Date = request.Ausbaudatum };
+        _end = new Entry { Text = request.Endstand.ToString(CultureInfo.CurrentCulture), Keyboard = Keyboard.Numeric };
+        _number = new Entry { Text = request.NeueZaehlernummer };
+        _calibration = new DatePicker { Date = request.Eichdatum };
+        _installation = new DatePicker { Date = request.Einbaudatum };
+        _initial = new Entry { Text = request.Anfangsstand.ToString(CultureInfo.CurrentCulture), Keyboard = Keyboard.Numeric };
+        _comment = new Editor { Text = request.Pruefkommentar, AutoSize = EditorAutoSizeOption.TextChanges };
+        var save = new Button { Text = "Korrektur speichern" };
+        var cancel = new Button { Text = "Abbrechen" };
+        save.Clicked += async (_, _) => await Save();
+        cancel.Clicked += async (_, _) => await Close(false);
+        Content = new ScrollView { Content = new VerticalStackLayout { Padding = 24, Spacing = 10, Children =
+        {
+            new Label { Text = "Zählerwechsel korrigieren", FontSize = 24 },
+            new Label { Text = $"Parzelle {_request.ParzelleId} · {_request.Medium}" },
+            new Label { Text = "Ausbaudatum" }, _out,
+            new Label { Text = "Endstand" }, _end,
+            new Label { Text = "Neue Zählernummer" }, _number,
+            new Label { Text = "Eichdatum" }, _calibration,
+            new Label { Text = "Einbaudatum" }, _installation,
+            new Label { Text = "Anfangsstand" }, _initial,
+            new Label { Text = "Prüfkommentar" }, _comment, _status, save, cancel
+        } } };
+    }
+
+    async Task Save()
+    {
+        if (string.IsNullOrWhiteSpace(_number.Text) ||
+            !decimal.TryParse(_end.Text, NumberStyles.Number, CultureInfo.CurrentCulture, out var end) ||
+            !decimal.TryParse(_initial.Text, NumberStyles.Number, CultureInfo.CurrentCulture, out var initial))
+        {
+            _status.Text = "Bitte alle fachlichen Angaben gültig eingeben.";
+            return;
+        }
+        if (_installation.Date!.Value.Date < _out.Date!.Value.Date)
+        {
+            _status.Text = "Das Einbaudatum darf nicht vor dem Ausbaudatum liegen.";
+            return;
+        }
+        _request.Ausbaudatum = _out.Date!.Value;
+        _request.Endstand = end;
+        _request.NeueZaehlernummer = _number.Text.Trim();
+        _request.Eichdatum = _calibration.Date!.Value;
+        _request.Einbaudatum = _installation.Date!.Value;
+        _request.Anfangsstand = initial;
+        var saved = await _db.CorrectMeterChangeRequestAsync(_request, _comment.Text);
+        if (!saved) { _status.Text = "Korrektur konnte nicht gespeichert werden."; return; }
+        await Close(true);
+    }
+
+    async Task Close(bool saved)
+    {
+        _completion.TrySetResult(saved);
+        await Navigation.PopModalAsync();
+    }
+
+    protected override void OnDisappearing()
+    {
+        _completion.TrySetResult(false);
+        base.OnDisappearing();
     }
 }
