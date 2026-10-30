@@ -511,3 +511,4 @@ public sealed class AdminShell : Shell, IAppShellInitializer
         menu.Children.Add(button);
     }
 }
+
