@@ -24,6 +24,7 @@ public sealed class CommunicationAreaTests
     [Theory]
     [InlineData(CommunicationAreaRoutes.Signatures, CommunicationArea.Signatures)]
     [InlineData(CommunicationAreaRoutes.Documents, CommunicationArea.Documents)]
+    [InlineData(CommunicationAreaRoutes.Board, CommunicationArea.Board)]
     [InlineData(CommunicationAreaRoutes.MailOutbox, CommunicationArea.MailOutbox)]
     [InlineData(CommunicationAreaRoutes.Sent, CommunicationArea.Sent)]
     [InlineData(CommunicationAreaRoutes.Print, CommunicationArea.Print)]

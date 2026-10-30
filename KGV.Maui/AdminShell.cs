@@ -154,7 +154,7 @@ public sealed class AdminShell : Shell, IAppShellInitializer
             Items.Add(CreateManagementItem("Vorgänge",
                 ("Signaturen", CommunicationAreaRoutes.Signatures, () => communicationPages.Create(CommunicationArea.Signatures)),
                 ("Dokumente", CommunicationAreaRoutes.Documents, () => communicationPages.Create(CommunicationArea.Documents)),
-                ("Vorstand", "process_board", () => _services.GetRequiredService<KommunikationPage>()),
+                ("Vorstand", CommunicationAreaRoutes.Board, () => _services.GetRequiredService<MembershipBoardReviewPage>()),
                 ("Mailausgang", CommunicationAreaRoutes.MailOutbox, () => communicationPages.Create(CommunicationArea.MailOutbox)),
                 ("Versendet", CommunicationAreaRoutes.Sent, () => communicationPages.Create(CommunicationArea.Sent)),
                 ("Druckausgabe", CommunicationAreaRoutes.Print, () => communicationPages.Create(CommunicationArea.Print)),

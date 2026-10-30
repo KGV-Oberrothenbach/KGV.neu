@@ -122,7 +122,6 @@ public sealed class KommunikationPage : ContentPage
             {
                 new Label { Text = AreaTitle(FixedArea), FontSize = 24, FontAttributes = FontAttributes.Bold },
                 new Label { Text = AreaHint(FixedArea), TextColor = Colors.Gray },
-                CreateBoardReviewButton(),
                 new FlexLayout { Direction = FlexDirection.Row, Wrap = FlexWrap.Wrap, Children = { mine, unassigned, all } },
                 (View?)_historyRangeButton ?? new Label { IsVisible = false },
                 _statusLabel,
@@ -142,13 +141,6 @@ public sealed class KommunikationPage : ContentPage
     {
         var button = new Button { Text = text };
         button.Clicked += async (_, _) => { _filter = filter; await LoadAsync(); };
-        return button;
-    }
-
-    private Button CreateBoardReviewButton()
-    {
-        var button = new Button { Text = "Vorstand · Mitgliedsanträge", HorizontalOptions = LayoutOptions.Start, IsVisible = FixedArea is null };
-        button.Clicked += async (_, _) => await Navigation.PushAsync(new MembershipBoardReviewPage(_supabaseService, _userContext));
         return button;
     }
 
