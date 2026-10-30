@@ -167,9 +167,7 @@ dotnet publish ".\KGV.Maui\KGV.Maui.csproj" -f net10.0-android -c Release -p:And
 
 set "APK_FILE=" & set "AAB_FILE="
 for /f "delims=" %%I in ('dir /b /a-d /o-d "%REPO%\KGV.Maui\bin\Release\net10.0-android\publish\*-Signed.apk" 2^>nul') do if not defined APK_FILE set "APK_FILE=%REPO%\KGV.Maui\bin\Release\net10.0-android\publish\%%I"
-for /f "delims=" %%I in ('dir /b /a-d /o-d "%REPO%\KGV.Maui\bin\Release\net10.0-android\publish\*.apk" 2^>nul') do if not defined APK_FILE set "APK_FILE=%REPO%\KGV.Maui\bin\Release\net10.0-android\publish\%%I"
 for /f "delims=" %%I in ('dir /b /a-d /o-d "%REPO%\KGV.Maui\bin\Release\net10.0-android\publish\*-Signed.aab" 2^>nul') do if not defined AAB_FILE set "AAB_FILE=%REPO%\KGV.Maui\bin\Release\net10.0-android\publish\%%I"
-for /f "delims=" %%I in ('dir /b /a-d /o-d "%REPO%\KGV.Maui\bin\Release\net10.0-android\publish\*.aab" 2^>nul') do if not defined AAB_FILE set "AAB_FILE=%REPO%\KGV.Maui\bin\Release\net10.0-android\publish\%%I"
 if not defined APK_FILE goto BUILD_FAILED
 if not defined AAB_FILE goto BUILD_FAILED
 
@@ -179,25 +177,39 @@ copy /Y "%APK_FILE%" "%ANDROID_PUBLISH%\KGV-Android-%TARGET_VERSION%.apk" >nul |
 copy /Y "%AAB_FILE%" "%ANDROID_PUBLISH%\KGV-Android-%TARGET_VERSION%.aab" >nul || goto BUILD_FAILED
 set "CENTRAL_APK=%ANDROID_PUBLISH%\KGV-Android-%TARGET_VERSION%.apk"
 set "CENTRAL_AAB=%ANDROID_PUBLISH%\KGV-Android-%TARGET_VERSION%.aab"
-set "SYMBOL_FILE=" & set "MAPPING_FILE="
-for /f "usebackq delims=" %%I in (`powershell -NoProfile -ExecutionPolicy Bypass -Command "$roots=@('%REPO%\KGV.Maui\bin\Release\net10.0-android','%REPO%\KGV.Maui\obj\Release\net10.0-android');Get-ChildItem $roots -Recurse -File -Filter '*native-debug-symbols*.zip' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1 -ExpandProperty FullName"`) do if not defined SYMBOL_FILE set "SYMBOL_FILE=%%I"
-if defined SYMBOL_FILE (
-  copy /Y "%SYMBOL_FILE%" "%ANDROID_PUBLISH%\KGV-Android-%TARGET_VERSION%-native-debug-symbols.zip" >nul || goto BUILD_FAILED
-  set "CENTRAL_SYMBOLS=%ANDROID_PUBLISH%\KGV-Android-%TARGET_VERSION%-native-debug-symbols.zip"
+set "CENTRAL_SYMBOLS=%ANDROID_PUBLISH%\KGV-Android-%TARGET_VERSION%-native-debug-symbols.zip"
+set "CENTRAL_MAPPING=%ANDROID_PUBLISH%\KGV-Android-%TARGET_VERSION%-mapping.txt"
+if exist "%CENTRAL_SYMBOLS%" (
+  del /q "%CENTRAL_SYMBOLS%" || goto BUILD_FAILED
 )
+if exist "%CENTRAL_MAPPING%" (
+  del /q "%CENTRAL_MAPPING%" || goto BUILD_FAILED
+)
+set "SYMBOL_RESULT="
+powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+ "$ErrorActionPreference='Stop';Add-Type -AssemblyName System.IO.Compression.FileSystem;$root='%REPO%\KGV.Maui\obj\Release\net10.0-android\app_shared_libraries';$dest='%ANDROID_PUBLISH%\KGV-Android-%TARGET_VERSION%-native-debug-symbols.zip';$files=@();if(Test-Path -LiteralPath $root){foreach($abi in Get-ChildItem -LiteralPath $root -Directory){foreach($file in Get-ChildItem -LiteralPath $abi.FullName -Recurse -File -Filter '*.so'){$files+=,[pscustomobject]@{Path=$file.FullName;Entry=($abi.Name+'/'+$file.Name)}}}};if($files.Count -eq 0){Write-Output 'NO_SYMBOLS';exit 0};$duplicates=@($files|Group-Object Entry|Where-Object {$_.Count -gt 1});if($duplicates.Count -gt 0){throw 'Native-Symbol-Dateinamen sind innerhalb einer ABI nicht eindeutig'};$archive=[IO.Compression.ZipFile]::Open($dest,[IO.Compression.ZipArchiveMode]::Create);try{foreach($file in $files){[IO.Compression.ZipFileExtensions]::CreateEntryFromFile($archive,$file.Path,$file.Entry,[IO.Compression.CompressionLevel]::Optimal)|Out-Null}}finally{$archive.Dispose()};$check=[IO.Compression.ZipFile]::OpenRead($dest);try{$entries=@($check.Entries);$invalid=@($entries|Where-Object {$parts=$_.FullName.Split('/');$parts.Count -ne 2 -or -not $parts[1].EndsWith('.so')});if($entries.Count -lt 1 -or $invalid.Count -gt 0){throw 'Native-Symbol-ZIP hat eine ungueltige Struktur'};$abis=@($entries|ForEach-Object {$_.FullName.Split('/')[0]}|Sort-Object -Unique);Write-Output ('SYMBOLS|'+$entries.Count+'|'+($abis -join ','))}finally{$check.Dispose()}" > "%PS_RESULT%"
+if errorlevel 1 goto BUILD_FAILED
+set /p SYMBOL_RESULT=<"%PS_RESULT%"
+if /I "%SYMBOL_RESULT%"=="NO_SYMBOLS" (
+  set "CENTRAL_SYMBOLS="
+  echo WARNUNG: Keine nativen .so-Dateien fuer das Google-Play-Symbol-ZIP gefunden.
+) else (
+  for /f "tokens=1,2,3 delims=|" %%A in ("%SYMBOL_RESULT%") do (
+    echo Native Debugsymbole: %%B .so-Dateien ^(ABIs: %%C^)
+  )
+)
+set "MAPPING_FILE="
 for /f "usebackq delims=" %%I in (`powershell -NoProfile -ExecutionPolicy Bypass -Command "$roots=@('%REPO%\KGV.Maui\bin\Release\net10.0-android','%REPO%\KGV.Maui\obj\Release\net10.0-android');Get-ChildItem $roots -Recurse -File -Filter 'mapping.txt' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1 -ExpandProperty FullName"`) do if not defined MAPPING_FILE set "MAPPING_FILE=%%I"
 if defined MAPPING_FILE (
-  copy /Y "%MAPPING_FILE%" "%ANDROID_PUBLISH%\KGV-Android-%TARGET_VERSION%-mapping.txt" >nul || goto BUILD_FAILED
-  set "CENTRAL_MAPPING=%ANDROID_PUBLISH%\KGV-Android-%TARGET_VERSION%-mapping.txt"
+  copy /Y "%MAPPING_FILE%" "%CENTRAL_MAPPING%" >nul || goto BUILD_FAILED
+  echo Offenlegungsdatei: KGV-Android-%TARGET_VERSION%-mapping.txt
+) else (
+  set "CENTRAL_MAPPING="
+  echo Keine Offenlegungsdatei erzeugt - R8/Code Shrinker ist nicht aktiviert.
 )
-(
-  echo Google Play Upload - Version %TARGET_VERSION%
-  echo APK: KGV-Android-%TARGET_VERSION%.apk
-  echo AAB: KGV-Android-%TARGET_VERSION%.aab
-  if defined CENTRAL_SYMBOLS echo Native debug symbols: KGV-Android-%TARGET_VERSION%-native-debug-symbols.zip
-  if defined CENTRAL_MAPPING echo Mapping: KGV-Android-%TARGET_VERSION%-mapping.txt
-  if not defined CENTRAL_MAPPING echo Mapping: nicht erzeugt ^(R8 ist nicht aktiviert^)
-) > "%ANDROID_PUBLISH%\GooglePlay-Upload.txt"
+powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+ "$ErrorActionPreference='Stop';$symbols=if(Test-Path -LiteralPath '%ANDROID_PUBLISH%\KGV-Android-%TARGET_VERSION%-native-debug-symbols.zip'){'KGV-Android-%TARGET_VERSION%-native-debug-symbols.zip'}else{'nicht erzeugt - keine nativen .so-Dateien gefunden'};$mapping=if(Test-Path -LiteralPath '%ANDROID_PUBLISH%\KGV-Android-%TARGET_VERSION%-mapping.txt'){'KGV-Android-%TARGET_VERSION%-mapping.txt'}else{'nicht erzeugt - R8 nicht aktiviert'};$lines=@('KGV Android Release','','Version: %TARGET_VERSION%','VersionCode: %NEW_ANDROID_CODE%','Branch: %CURRENT_BRANCH%','Commit: %CURRENT_COMMIT%','','AAB:','KGV-Android-%TARGET_VERSION%.aab','','APK:','KGV-Android-%TARGET_VERSION%.apk','','Native Debugsymbole:',$symbols,'','Offenlegungsdatei:',$mapping,'','Erzeugt: '+[DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ'));Set-Content -LiteralPath '%ANDROID_PUBLISH%\GooglePlay-Upload.txt' -Value $lines -Encoding UTF8"
+if errorlevel 1 goto BUILD_FAILED
 
 :BUILD_WEB
 pushd "%WEB_ROOT%" || goto BUILD_FAILED
@@ -224,9 +236,25 @@ copy /Y "%CENTRAL_APK%" "%ANDROID_OUT%\KGV-Android-%TARGET_VERSION%.apk" >nul ||
 copy /Y "%CENTRAL_AAB%" "%ANDROID_OUT%\KGV-Android-%TARGET_VERSION%.aab" >nul || goto BUILD_FAILED
 copy /Y "%CENTRAL_APK%" "%ANDROID_UPLOAD_OUT%\KGV-Android-%TARGET_VERSION%.apk" >nul || goto BUILD_FAILED
 copy /Y "%CENTRAL_AAB%" "%ANDROID_UPLOAD_OUT%\KGV-Android-%TARGET_VERSION%.aab" >nul || goto BUILD_FAILED
+if not defined CENTRAL_SYMBOLS (
+  if exist "%ANDROID_OUT%\KGV-Android-%TARGET_VERSION%-native-debug-symbols.zip" (
+    del /q "%ANDROID_OUT%\KGV-Android-%TARGET_VERSION%-native-debug-symbols.zip" || goto BUILD_FAILED
+  )
+  if exist "%ANDROID_UPLOAD_OUT%\KGV-Android-%TARGET_VERSION%-native-debug-symbols.zip" (
+    del /q "%ANDROID_UPLOAD_OUT%\KGV-Android-%TARGET_VERSION%-native-debug-symbols.zip" || goto BUILD_FAILED
+  )
+)
 if defined CENTRAL_SYMBOLS (
   copy /Y "%CENTRAL_SYMBOLS%" "%ANDROID_OUT%\KGV-Android-%TARGET_VERSION%-native-debug-symbols.zip" >nul || goto BUILD_FAILED
   copy /Y "%CENTRAL_SYMBOLS%" "%ANDROID_UPLOAD_OUT%\KGV-Android-%TARGET_VERSION%-native-debug-symbols.zip" >nul || goto BUILD_FAILED
+)
+if not defined CENTRAL_MAPPING (
+  if exist "%ANDROID_OUT%\KGV-Android-%TARGET_VERSION%-mapping.txt" (
+    del /q "%ANDROID_OUT%\KGV-Android-%TARGET_VERSION%-mapping.txt" || goto BUILD_FAILED
+  )
+  if exist "%ANDROID_UPLOAD_OUT%\KGV-Android-%TARGET_VERSION%-mapping.txt" (
+    del /q "%ANDROID_UPLOAD_OUT%\KGV-Android-%TARGET_VERSION%-mapping.txt" || goto BUILD_FAILED
+  )
 )
 if defined CENTRAL_MAPPING (
   copy /Y "%CENTRAL_MAPPING%" "%ANDROID_OUT%\KGV-Android-%TARGET_VERSION%-mapping.txt" >nul || goto BUILD_FAILED

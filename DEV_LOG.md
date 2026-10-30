@@ -2,6 +2,24 @@
 
 ---
 
+## 2026-10-30 – G13b Google-Play-Artefakte zentralisiert
+
+- `AWR.bat` nimmt nur noch als `-Signed` erzeugte APK/AAB-Dateien an und legt
+  beide zusätzlich unter versionsbezogenen Namen im MAUI-Publish-Ordner ab.
+- Native `.so`-Dateien werden ABI-weise aus
+  `obj\Release\net10.0-android\app_shared_libraries` in ein geprüftes ZIP ohne
+  zusätzliche äußere Ebene übernommen. Das Manifest enthält Version, Code,
+  Branch, Commit und UTC-Zeit; eine echte Mappingdatei wird nur übernommen,
+  wenn sie erzeugt wurde.
+- Lokale Android-Release-Publishes für APK und AAB waren erfolgreich; beide
+  Signaturen wurden geprüft. Im Test enthielt das Symbols-ZIP sechs `.so` für
+  `arm64-v8a` und `x86_64`; `mapping.txt` wurde bei unverändertem
+  `AndroidLinkMode=None` nicht erzeugt. MAUI-Publish-Dateien und
+  Releasearchiv-Kopien stimmen überein.
+- Der vollständige AWR-Release wurde wegen des daran gekoppelten Web-
+  Deployments und Git-Push nicht ausgeführt. Kein Play-Upload, Deployment oder
+  Push.
+
 ## 2026-10-28 – Phase 10 E2E Wartungsvertrag abgeschlossen
 
 - CX-Änderungen zu tatsächlicher Vertragspartei bei Verlängerungs-Retry,

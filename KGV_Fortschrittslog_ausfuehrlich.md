@@ -12,6 +12,27 @@ Nicht mehr einzeln aufgeführt sind die vielen wiederholten Zwischenstände wie:
 - mehrfach gleiche Buildaufrufe
 - schrittweise Diagnose-Iterationen, wenn das Ergebnis später sauber zusammengeführt werden konnte
 
+## 2026-10-30 – G13b Google-Play-Artefakte
+
+- `AWR.bat` verwendet ausschließlich signierte `*-Signed.apk`- und
+  `*-Signed.aab`-Ergebnisse und benennt die zentralen Publish-Kopien als
+  `KGV-Android-<Version>.apk/.aab`.
+- Das Native-Symbolarchiv wird aus vorhandenen `.so` im
+  `app_shared_libraries`-Ordner erstellt. Die ZIP-Prüfung verlangt ABI-Ordner
+  direkt am ZIP-Root und mindestens eine `.so`; bei fehlenden nativen Dateien
+  bleibt es bei einer Warnung. Im lokalen Test wurden sechs `.so` für
+  `arm64-v8a` und `x86_64` gefunden.
+- `GooglePlay-Upload.txt` führt Versionsdaten, Branch, Commit, Dateinamen und
+  UTC-Zeit auf. `mapping.txt` wird nur bei tatsächlichem Vorhandensein kopiert;
+  ohne R8 wird keine Dummy-Datei erzeugt. `AndroidLinkMode=None`,
+  `PublishTrimmed=false` und `RunAOTCompilation=false` blieben unverändert.
+- APK- und AAB-Release-Publishes wurden lokal getrennt ausgeführt und ihre
+  Signaturen verifiziert. Das Manifest sowie ZIP und Archivkopien wurden
+  geprüft; alle vier zentralisierten Dateien stimmten mit den Kopien unter
+  `publish\<Version>\Android` überein. Kein Play-Upload, Web-Deployment oder
+  Push. Der komplette AWR-Pfad wurde wegen seiner gekoppelten
+  Deployment-/Push-Schritte nicht gestartet.
+
 ## Validierungsstandard
 
 Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils relevanten Builds abgeschlossen, typischerweise über:
