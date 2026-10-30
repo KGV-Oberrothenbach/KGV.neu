@@ -8,5 +8,7 @@ assert.match(migration, /p_mitgliedschaftsenden jsonb/);
 assert.match(migration, /p_aktiv_status_aenderungen jsonb/);
 assert.match(migration, /pachtverhaeltnis_beteiligung/);
 assert.match(migration, /p_vertragsdatum - 1/);
+assert.match(migration, /to_regprocedure\('public\.register_historischen_pachtvertrag\(/);
+assert.match(migration, /create or replace function public\.register_historischen_pachtvertrag/);
 assert.match(migration, /register_historischen_pachtvertrag_g6a/);
 assert.match(migration, /return query select \* from public\.register_historischen_pachtvertrag_g6a/);

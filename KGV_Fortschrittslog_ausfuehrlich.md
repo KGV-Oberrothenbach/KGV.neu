@@ -1083,3 +1083,12 @@ Für die tägliche Arbeit reicht diese Fassung in der Regel aus, weil sie die fo
 - Als konkreter Unterschied ist dokumentiert, dass die Web-Navigation „Dokumenttypen“ anbietet, die MAUI-AdminShell jedoch keinen eigenen Eintrag registriert. Die Vergleichsmatrix stellt dies als offenen Paritätsunterschied dar.
 - Präzisierung der Atomarität: Die relationale Registrierungs-RPC ist atomar; Datei-Upload geht voraus und PDF-Stempel/Statusmarkierung erfolgen nachgelagert. Eine frische lokale Supabase-/Storage-Testumgebung stand nicht zur Verfügung; deshalb wird keine transaktionsweite Datei-/DB-Atomarität behauptet.
 - G10 änderte ausschließlich Markdown-Dokumentation und Projektlogs. Keine Produktivcode-, SQL-, Datenbank- oder Fachfunktionsänderung; G9-Test-/Buildläufe werden nicht als erneut ausgeführt ausgewiesen.
+
+## 2026-10-30 – G11 Integrations- und Merge-Abnahme
+
+- Branch-Head vor der Abnahme `495152bfcbc1941088274f64d7a3d8559d459388`; `origin/main` wurde aktualisiert und ist zugleich Merge-Base. Die 16 G1–G10-Commits liegen ohne nachgelagerte Main-Commits vor; kein Merge-Konflikt festgestellt. Kein Merge nach `main` ausgeführt.
+- Geänderte Bereiche und Dateiarten geprüft. Keine private Vergleichsdatei, Build-Artefakte, temporären Logs oder wahrscheinlichen Secrets im Branch-Diff.
+- Dokumentation mit Navigation, MAUI-CommunicationAreas, Core-/Web-Permission Bit 24, RPC-Namen, historischem Import und Online-only-MAUI-Seite abgeglichen. Der MAUI-Menüunterschied bei Dokumenttypen bleibt dokumentiert.
+- Migrationsprüfung in Zeitstempelreihenfolge: G6a-Fundament, G6b2-Parteien-/Statusänderungen und G7-Vorschau. Der G6a-Policy fehlte die idempotente Vorabentfernung; ergänzt. G6b2-Umbenennung war nicht wiederholbar; abgesicherte Existenzprüfung und `CREATE OR REPLACE` ergänzt. Contracttests decken diese Bedingungen ab. Keine Migration lokal oder remote ausgeführt.
+- Test/Bau: .NET **412/418** mit den sechs bekannten G8-Baselinefehlern; Web-Build erfolgreich; globales Web-Lint **7 Fehler / 10 Warnungen**; MAUI-Build erfolgreich, 0 Fehler, bestehende ImageSharp-NU1902/NU1903-Warnungen.
+- Supabase: keine lokale testfähige Instanz verfügbar. SQL-/RPC-Verträge statisch und durch Contracttests geprüft; frische Test-DB-Migration plus RPC-/Storage-E2E bleiben offen. Keine Produktionsdatenbank verwendet.

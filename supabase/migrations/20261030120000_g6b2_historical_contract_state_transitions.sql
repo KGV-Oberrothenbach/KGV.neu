@@ -1,10 +1,16 @@
 -- G6b2: completes the G6a transaction with contract parties and explicitly
 -- confirmed membership/status consequences. No automatic membership end exists.
 
-alter function public.register_historischen_pachtvertrag(bigint, text, date, boolean, bigint[], jsonb, bigint, date)
-  rename to register_historischen_pachtvertrag_g6a;
+do $$
+begin
+  if to_regprocedure('public.register_historischen_pachtvertrag(bigint,text,date,boolean,bigint[],jsonb,bigint,date)') is not null
+     and to_regprocedure('public.register_historischen_pachtvertrag_g6a(bigint,text,date,boolean,bigint[],jsonb,bigint,date)') is null then
+    execute 'alter function public.register_historischen_pachtvertrag(bigint, text, date, boolean, bigint[], jsonb, bigint, date) rename to register_historischen_pachtvertrag_g6a';
+  end if;
+end;
+$$;
 
-create function public.register_historischen_pachtvertrag(
+create or replace function public.register_historischen_pachtvertrag(
   p_dokument_id bigint,
   p_dokumenttyp_code text,
   p_vertragsdatum date,

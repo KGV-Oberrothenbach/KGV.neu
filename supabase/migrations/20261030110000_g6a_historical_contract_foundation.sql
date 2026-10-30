@@ -84,6 +84,8 @@ create table if not exists public.mitglied_historische_korrektur (
 );
 
 alter table public.mitglied_historische_korrektur enable row level security;
+drop policy if exists mitglied_historische_korrektur_select_historical_contract_registration
+  on public.mitglied_historische_korrektur;
 create policy mitglied_historische_korrektur_select_historical_contract_registration
   on public.mitglied_historische_korrektur for select to authenticated
   using (public.can_register_historical_contracts());

@@ -5,6 +5,7 @@ const repository = await readFile(new URL("../../repositories/documents/historic
 const workflow = await readFile(new URL("../../features/documents/HistoricalContractRegistrationWorkflow.tsx", import.meta.url), "utf8");
 const navigation = await readFile(new URL("../workspace/navigation-service.ts", import.meta.url), "utf8");
 const generalImport = await readFile(new URL("../../../KGV.Maui/Pages/HistoricalDocumentImportPage.cs", import.meta.url), "utf8");
+const foundation = await readFile(new URL("../../../supabase/migrations/20261030110000_g6a_historical_contract_foundation.sql", import.meta.url), "utf8");
 
 assert.match(repository, /register_historischen_pachtvertrag/);
 assert.doesNotMatch(repository, /"register_historisches_dokument"/);
@@ -21,6 +22,7 @@ assert.match(workflow, /Altvertrag übernehmen/);
 assert.match(workflow, /reserveHistoricalContractNumber/);
 assert.match(workflow, /partyMemberIds/);
 assert.match(navigation, /canRegisterHistoricalContracts/);
+assert.match(foundation, /drop policy if exists mitglied_historische_korrektur_select_historical_contract_registration[\s\S]*create policy mitglied_historische_korrektur_select_historical_contract_registration/);
 assert.match(generalImport, /HistoricalDocumentRegistrationQueue/);
 assert.match(generalImport, /RegisterHistorischesDokumentAsync/);
 assert.match(generalImport, /IsHistoricalCombinedContract/);
