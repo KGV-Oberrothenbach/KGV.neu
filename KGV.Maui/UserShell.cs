@@ -188,8 +188,11 @@ public sealed class UserShell : Shell, IAppShellInitializer
         if (PermissionChecks.CanManageMeterChanges(meterContext))
         {
             Items.Add(CreateItem("Zählerwechsel", "meter_change", () => _services.GetRequiredService<ZaehlerwechselPage>()));
+            Items.Add(CreateItem("Zählerwechsel prüfen", "meter_change_review", () => _services.GetRequiredService<MeterChangeRequestReviewPage>()));
             Items.Add(CreateItem("RFID einrichten", "rfid_setup", () => _services.GetRequiredService<RfidEinrichtenPage>()));
         }
+        else if (PermissionChecks.CanSubmitOwnMeterReadings(meterContext))
+            Items.Add(CreateItem("Zählerwechsel melden", "meter_change_request", () => _services.GetRequiredService<MeterChangeRequestPage>()));
         if (PermissionChecks.CanApproveMeterReadings(meterContext))
             Items.Add(CreateItem("Ablesungen freigeben", "reading_review", () => _services.GetRequiredService<AblesungenFreigabePage>()));
 

@@ -503,7 +503,7 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
 
             var savesAsSubmission = IsOwnSubmissionMode && !IsDirectApprovalMode;
 
-            var readingSaved = await _supabaseService.AddAblesungAsync(new AblesungInsertRecord
+            var readingSaved = await _supabaseService.CaptureMeterReadingAsync(new AblesungInsertRecord
             {
                 ZaehlerId = context.AktiverZaehlerId.Value,
                 Ablesedatum = _ablesedatumPicker.Date!.Value,
@@ -514,7 +514,7 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
                 FotoDriveFileId = string.IsNullOrWhiteSpace(photoResult?.FileId) ? null : photoResult.FileId,
                 Freigegeben = !savesAsSubmission,
                 Pruefstatus = savesAsSubmission ? AblesungPruefstatus.Eingereicht : AblesungPruefstatus.Freigegeben
-            });
+            }, savesAsSubmission);
 
             if (!readingSaved)
             {

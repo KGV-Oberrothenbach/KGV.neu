@@ -20,6 +20,9 @@ public sealed class ZaehlerwechselAusbauPage : ContentPage
     private readonly Label _statusLabel;
     private readonly DatePicker _ausbauDatumPicker;
     private readonly Entry _standEntry;
+    private readonly Entry _neueZaehlernummerEntry;
+    private readonly Entry _eichjahrEntry;
+    private readonly Entry _anfangsstandEntry;
     private readonly Label _photoLabel;
     private readonly Button _capturePhotoButton;
     private readonly Button _pickPhotoButton;
@@ -42,6 +45,9 @@ public sealed class ZaehlerwechselAusbauPage : ContentPage
         _statusLabel = new Label { TextColor = Colors.DarkSlateBlue, LineBreakMode = LineBreakMode.WordWrap };
         _ausbauDatumPicker = new DatePicker { Date = DateTime.Today };
         _standEntry = new Entry { Placeholder = "Ausbau-Zählerstand", Keyboard = Keyboard.Numeric };
+        _neueZaehlernummerEntry = new Entry { Placeholder = "Neue Zählernummer" };
+        _eichjahrEntry = new Entry { Placeholder = "Eichjahr", Keyboard = Keyboard.Numeric, Text = DateTime.Today.Year.ToString(CultureInfo.InvariantCulture) };
+        _anfangsstandEntry = new Entry { Placeholder = "Anfangs-Zählerstand", Keyboard = Keyboard.Numeric };
 
         _photoLabel = new Label { Text = "Noch kein Foto gewählt.", LineBreakMode = LineBreakMode.WordWrap, TextColor = Colors.Gray };
         _capturePhotoButton = new Button { Text = "Foto aufnehmen" };
@@ -54,7 +60,7 @@ public sealed class ZaehlerwechselAusbauPage : ContentPage
         var cancelButton = new Button { Text = "Zurück zum Zählerwechsel" };
         cancelButton.Clicked += async (_, _) => await Shell.Current.GoToAsync(nameof(ZaehlerwechselPage));
 
-        var saveButton = new Button { Text = "Ausbau speichern" };
+        var saveButton = new Button { Text = "Zählerwechsel ausführen" };
         saveButton.Clicked += OnSaveClicked;
 
         Content = new ScrollView
@@ -68,7 +74,7 @@ public sealed class ZaehlerwechselAusbauPage : ContentPage
                     new Label { Text = "Zählerausbau", FontSize = 24, FontAttributes = FontAttributes.Bold },
                     new Label
                     {
-                        Text = "Der gescannte aktive Zähler wird ausgebaut. Zuerst wird die Schlussablesung gespeichert, danach wird der Zähler mit `ausgebaut_am` beendet.",
+                        Text = "Der vollständige Wechsel wird erst mit Ausführen als eine serverseitige Transaktion gespeichert: Ausbauablesung, Ausbau, neuer Zähler und Anfangsablesung.",
                         LineBreakMode = LineBreakMode.WordWrap
                     },
                     CreateSection("Scan-Kontext", _contextLabel),
@@ -76,6 +82,9 @@ public sealed class ZaehlerwechselAusbauPage : ContentPage
                         "Ausbau",
                         CreateField("Ausbau-Datum", _ausbauDatumPicker),
                         CreateField("Ausbau-Zählerstand", _standEntry),
+                        CreateField("Neue Zählernummer", _neueZaehlernummerEntry),
+                        CreateField("Eichjahr", _eichjahrEntry),
+                        CreateField("Anfangs-Zählerstand", _anfangsstandEntry),
                         CreateField("Foto", _photoLabel),
                         new FlexLayout
                         {
@@ -187,6 +196,14 @@ public sealed class ZaehlerwechselAusbauPage : ContentPage
             return;
         }
 
+        if (string.IsNullOrWhiteSpace(_neueZaehlernummerEntry.Text)
+            || !TryParseYear(_eichjahrEntry.Text, out var eichjahr)
+            || !TryParseDecimal(_anfangsstandEntry.Text, out var anfangsstand) || anfangsstand < 0)
+        {
+            await DisplayAlertAsync("Validierung", "Bitte neue Zählernummer, Eichjahr und einen gültigen Anfangsstand eingeben.", "OK");
+            return;
+        }
+
         var context = _context.Context;
         _isBusy = true;
         try
@@ -217,37 +234,19 @@ public sealed class ZaehlerwechselAusbauPage : ContentPage
                 return;
             }
 
-            var ablesung = new AblesungInsertRecord
+            var changed = await _supabaseService.ExecuteMeterChangeAsync(new MeterChangeExecutionRequest(
+                context.AktiverZaehlerId!.Value, context.ParzelleId, NormalizeMedium(context.Medium),
+                _ausbauDatumPicker.Date!.Value, stand, photoResult.RelativePath,
+                _neueZaehlernummerEntry.Text.Trim(), new DateTime(eichjahr, 1, 1),
+                _ausbauDatumPicker.Date!.Value, anfangsstand, null));
+            if (!changed)
             {
-                ZaehlerId = context.AktiverZaehlerId!.Value,
-                Ablesedatum = _ausbauDatumPicker.Date!.Value,
-                Stand = stand,
-                Art = AblesungArt.Ausbau,
-                FotoPfad = photoResult.RelativePath,
-                FotoDateiname = string.IsNullOrWhiteSpace(photoResult.FileName) ? null : photoResult.FileName,
-                FotoDriveFileId = string.IsNullOrWhiteSpace(photoResult.FileId) ? null : photoResult.FileId,
-                Freigegeben = true
-            };
-
-            var readingSaved = await _supabaseService.AddAblesungAsync(ablesung);
-            if (!readingSaved)
-            {
-                _statusLabel.Text = "Schlussablesung konnte nicht gespeichert werden.";
-                return;
-            }
-
-            var meterStopped = string.Equals(context.Medium, "wasser", StringComparison.OrdinalIgnoreCase)
-                ? await _supabaseService.SetWasserzaehlerAusgebautAmAsync(context.AktiverZaehlerId.Value, _ausbauDatumPicker.Date!.Value)
-                : await _supabaseService.SetStromzaehlerAusgebautAmAsync(context.AktiverZaehlerId.Value, _ausbauDatumPicker.Date!.Value);
-
-            if (!meterStopped)
-            {
-                _statusLabel.Text = "Der aktive Zähler konnte nicht mit Ausbau-Datum beendet werden.";
+                _statusLabel.Text = "Der Zählerwechsel konnte nicht atomar ausgeführt werden.";
                 return;
             }
 
             _workflowState.Clear();
-            await DisplayAlertAsync("OK", "Zählerausbau erfolgreich gespeichert.", "OK");
+            await DisplayAlertAsync("OK", "Zählerwechsel erfolgreich atomar gespeichert.", "OK");
             await NavigateToFreshScanAsync();
         }
         catch (Exception ex)
@@ -265,6 +264,9 @@ public sealed class ZaehlerwechselAusbauPage : ContentPage
     {
         _ausbauDatumPicker.IsEnabled = !_isBusy;
         _standEntry.IsEnabled = !_isBusy;
+        _neueZaehlernummerEntry.IsEnabled = !_isBusy;
+        _eichjahrEntry.IsEnabled = !_isBusy;
+        _anfangsstandEntry.IsEnabled = !_isBusy;
         _capturePhotoButton.IsEnabled = !_isBusy && MediaPicker.Default.IsCaptureSupported;
         _pickPhotoButton.IsEnabled = !_isBusy;
         _clearPhotoButton.IsEnabled = !_isBusy;
@@ -289,6 +291,10 @@ public sealed class ZaehlerwechselAusbauPage : ContentPage
 
     private static bool TryParseDecimal(string? value, out decimal result)
         => decimal.TryParse((value ?? string.Empty).Trim().Replace(',', '.'), NumberStyles.Number, CultureInfo.InvariantCulture, out result);
+
+    private static bool TryParseYear(string? value, out int year)
+        => int.TryParse((value ?? string.Empty).Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out year)
+           && year is >= 1900 and <= 9999;
 
     private static Border CreateSection(string title, params View[] children)
     {

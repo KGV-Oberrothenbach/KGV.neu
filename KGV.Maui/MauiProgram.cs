@@ -194,6 +194,8 @@ public static class MauiProgram
         services.AddTransient<ParzellenAblesungenPage>();
         services.AddTransient<AblesungErfassenPage>();
         services.AddTransient<ZaehlerwechselPage>();
+        services.AddTransient<MeterChangeRequestPage>();
+        services.AddTransient<MeterChangeRequestReviewPage>();
         services.AddTransient<RfidEinrichtenPage>();
         services.AddTransient<ZaehlerwechselAusbauPage>();
         services.AddTransient<ZaehlerwechselEinbauPage>();

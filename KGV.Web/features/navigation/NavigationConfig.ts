@@ -22,6 +22,8 @@ export const navigationConfig = {
         capture: item("ablesen-erfassen", "Ablesung erfassen", "Zählerstände erfassen"),
         annualCapture: item("jae-erfassen", "JAE erfassen", "Jahresendablesung erfassen"),
         meterChanges: item("zaehlerwechsel", "Zählerwechsel", "Ausbau, Einbau und Historie"),
+        requestMeterChange: item("zaehlerwechsel-melden", "Zählerwechsel melden", "Eigenen Zählerwechsel zur Prüfung einreichen"),
+        reviewMeterChanges: item("zaehlerwechsel-pruefen", "Zählerwechsel prüfen", "Eingereichte Zählerwechsel prüfen und ausführen"),
         rfidSetup: item("rfid-einrichten", "RFID einrichten", "RFID für Parzellen einrichten"),
         approve: item("ablesungen-freigeben", "Ablesungen freigeben", "Eingereichte Ablesungen prüfen"),
       },

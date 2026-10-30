@@ -53,6 +53,8 @@ internal static class ShellRouteRegistrar
         Routing.RegisterRoute(nameof(AblesungErfassenPage), typeof(AblesungErfassenPage));
         Routing.RegisterRoute(nameof(PendingPhotoUploadsPage), typeof(PendingPhotoUploadsPage));
         Routing.RegisterRoute(nameof(ZaehlerwechselPage), typeof(ZaehlerwechselPage));
+        Routing.RegisterRoute(nameof(MeterChangeRequestPage), typeof(MeterChangeRequestPage));
+        Routing.RegisterRoute(nameof(MeterChangeRequestReviewPage), typeof(MeterChangeRequestReviewPage));
         Routing.RegisterRoute(nameof(ZaehlerwechselAusbauPage), typeof(ZaehlerwechselAusbauPage));
         Routing.RegisterRoute(nameof(ZaehlerwechselEinbauPage), typeof(ZaehlerwechselEinbauPage));
         Routing.RegisterRoute(nameof(RfidEinrichtenPage), typeof(RfidEinrichtenPage));

@@ -2128,6 +2128,29 @@ namespace KGV.Infrastructure.Services
             },
             null);
 
+        public Task<List<ActiveMeterCandidate>> GetActiveMeterCandidatesAsync(int parzelleId, string medium, DateTime onDate) => ExecuteAsync(
+            "GetActiveMeterCandidatesAsync",
+            async () =>
+            {
+                var normalizedMedium = NormalizeZaehlerMedium(medium);
+                if (string.IsNullOrWhiteSpace(normalizedMedium) || parzelleId <= 0)
+                    return new List<ActiveMeterCandidate>();
+
+                if (normalizedMedium == "strom")
+                    return (await GetStromzaehlerForParzelleAsync(parzelleId))
+                        .Where(x => IsMeterActiveOn(x.EingebautAm, x.AusgebautAm, onDate))
+                        .OrderByDescending(x => x.EingebautAm)
+                        .Select(x => new ActiveMeterCandidate(x.Id, x.Zaehlernummer, x.EingebautAm))
+                        .ToList();
+
+                return (await GetWasserzaehlerForParzelleAsync(parzelleId))
+                    .Where(x => IsMeterActiveOn(x.EingebautAm, x.AusgebautAm, onDate))
+                    .OrderByDescending(x => x.EingebautAm)
+                    .Select(x => new ActiveMeterCandidate(x.Id, x.Zaehlernummer, x.EingebautAm))
+                    .ToList();
+            },
+            new List<ActiveMeterCandidate>());
+
         public Task<bool> AddStromzaehlerAsync(StromzaehlerInsertRecord request)
             => AddZaehlerCoreAsync("strom", request?.ParzelleId ?? 0, request?.Zaehlernummer, request?.Eichdatum ?? default, request?.EingebautAm ?? default);
 
@@ -2186,6 +2209,37 @@ namespace KGV.Infrastructure.Services
             },
             false);
 
+        public Task<bool> ExecuteMeterChangeAsync(MeterChangeExecutionRequest request) => ExecuteAsync(
+            "ExecuteMeterChangeAsync",
+            async () =>
+            {
+                if (request is null || request.OldMeterId <= 0 || request.ParcelId <= 0 || string.IsNullOrWhiteSpace(request.Medium))
+                    return false;
+
+                var client = await EnsureClientAsync();
+                var rows = await client.Rpc<System.Text.Json.JsonElement[]>("execute_meter_change", new
+                {
+                    p_alter_zaehler_id = request.OldMeterId,
+                    p_parzelle_id = request.ParcelId,
+                    p_medium = request.Medium.Trim().ToLowerInvariant(),
+                    p_ausbaudatum = request.RemovalDate.ToString("yyyy-MM-dd"),
+                    p_endstand = request.FinalValue,
+                    p_ausbau_foto_pfad = request.RemovalPhotoPath,
+                    p_neue_zaehlernummer = request.NewMeterNumber.Trim(),
+                    p_eichdatum = request.CalibrationDate.ToString("yyyy-MM-dd"),
+                    p_einbaudatum = request.InstallationDate.ToString("yyyy-MM-dd"),
+                    p_anfangsstand = request.InitialValue,
+                    p_einbau_foto_pfad = request.InstallationPhotoPath
+                });
+                return rows is { Length: > 0 };
+            }, false);
+
+        public Task<bool> SubmitOwnMeterChangeRequestAsync(MeterChangeExecutionRequest request) => ExecuteAsync("SubmitOwnMeterChangeRequestAsync", async () =>
+        { var client=await EnsureClientAsync(); await client.Rpc<System.Text.Json.JsonElement>("submit_own_meter_change_request", new { p_alter_zaehler_id=request.OldMeterId,p_ausbaudatum=request.RemovalDate.ToString("yyyy-MM-dd"),p_endstand=request.FinalValue,p_ausbau_foto_pfad=request.RemovalPhotoPath,p_neue_zaehlernummer=request.NewMeterNumber,p_eichdatum=request.CalibrationDate.ToString("yyyy-MM-dd"),p_einbaudatum=request.InstallationDate.ToString("yyyy-MM-dd"),p_anfangsstand=request.InitialValue,p_einbau_foto_pfad=request.InstallationPhotoPath}); return true; },false);
+        public Task<List<MeterChangeRequestRecord>> GetOpenMeterChangeRequestsAsync() => ExecuteAsync("GetOpenMeterChangeRequestsAsync", async () => ((await (await EnsureClientAsync()).From<MeterChangeRequestRecord>().Where(x=>x.Status=="eingereicht").Get())?.Models??[]).ToList(), []);
+        public Task<bool> CorrectMeterChangeRequestAsync(MeterChangeRequestRecord r,string? comment) => ExecuteAsync("CorrectMeterChangeRequestAsync", async ()=> { await (await EnsureClientAsync()).Rpc<System.Text.Json.JsonElement>("correct_meter_change_request",new {p_antrag_id=r.Id,p_ausbaudatum=r.Ausbaudatum.ToString("yyyy-MM-dd"),p_endstand=r.Endstand,p_neue_zaehlernummer=r.NeueZaehlernummer,p_eichdatum=r.Eichdatum.ToString("yyyy-MM-dd"),p_einbaudatum=r.Einbaudatum.ToString("yyyy-MM-dd"),p_anfangsstand=r.Anfangsstand,p_kommentar=comment});return true;},false);
+        public Task<bool> ReviewMeterChangeRequestAsync(long id,string action,string? comment) => ExecuteAsync("ReviewMeterChangeRequestAsync", async ()=> { await (await EnsureClientAsync()).Rpc<System.Text.Json.JsonElement>("review_meter_change_request",new {p_antrag_id=id,p_action=action,p_kommentar=comment});return true;},false);
+
         public Task<bool> AddAblesungAsync(AblesungInsertRecord request) => ExecuteAsync(
             "AddAblesungAsync",
             async () =>
@@ -2224,6 +2278,26 @@ namespace KGV.Infrastructure.Services
                 return true;
             },
             false);
+
+        public Task<bool> CaptureMeterReadingAsync(AblesungInsertRecord request, bool ownSubmission) => ExecuteAsync(
+            "CaptureMeterReadingAsync",
+            async () =>
+            {
+                if (request is null || request.ZaehlerId <= 0)
+                    return false;
+                var client = await EnsureClientAsync();
+                await client.Rpc<System.Text.Json.JsonElement>(ownSubmission ? "submit_own_meter_reading" : "capture_meter_reading", new
+                {
+                    p_zaehler_id = request.ZaehlerId,
+                    p_ablesedatum = NormalizeDateTime(request.Ablesedatum).ToString("yyyy-MM-dd"),
+                    p_stand = request.Stand,
+                    p_art = AblesungArt.ToDatabaseValue(request.Art),
+                    p_foto_pfad = CleanOptionalText(request.FotoPfad),
+                    p_foto_dateiname = CleanOptionalText(request.FotoDateiname),
+                    p_foto_drive_file_id = CleanOptionalText(request.FotoDriveFileId)
+                });
+                return true;
+            }, false);
 
         public Task<bool> UpdateAblesungAsync(long ablesungId, DateTime ablesedatum, decimal stand, string? fotoPfad) => ExecuteAsync(
             "UpdateAblesungAsync",

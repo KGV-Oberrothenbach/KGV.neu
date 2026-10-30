@@ -64,6 +64,7 @@ namespace KGV.Core.Interfaces
 
         Task<StromzaehlerRecord?> GetActiveStromzaehlerAsync(int parzelleId, DateTime onDate);
         Task<WasserzaehlerRecord?> GetActiveWasserzaehlerAsync(int parzelleId, DateTime onDate);
+        Task<List<ActiveMeterCandidate>> GetActiveMeterCandidatesAsync(int parzelleId, string medium, DateTime onDate);
 
         Task<bool> AddStromzaehlerAsync(StromzaehlerInsertRecord request);
         Task<bool> AddWasserzaehlerAsync(WasserzaehlerInsertRecord request);
@@ -74,8 +75,14 @@ namespace KGV.Core.Interfaces
         Task<bool> SetStromzaehlerAusgebautAmAsync(long stromzaehlerId, DateTime ausgebautAm);
         Task<bool> SetWasserzaehlerAusgebautAmAsync(long wasserzaehlerId, DateTime ausgebautAm);
         Task<bool> SetZaehlerDefektAsync(long zaehlerId, bool defekt);
+        Task<bool> ExecuteMeterChangeAsync(MeterChangeExecutionRequest request);
+        Task<bool> SubmitOwnMeterChangeRequestAsync(MeterChangeExecutionRequest request);
+        Task<List<MeterChangeRequestRecord>> GetOpenMeterChangeRequestsAsync();
+        Task<bool> CorrectMeterChangeRequestAsync(MeterChangeRequestRecord request, string? comment);
+        Task<bool> ReviewMeterChangeRequestAsync(long requestId, string action, string? comment);
 
         Task<bool> AddAblesungAsync(AblesungInsertRecord request);
+        Task<bool> CaptureMeterReadingAsync(AblesungInsertRecord request, bool ownSubmission);
         Task<bool> UpdateAblesungAsync(long ablesungId, DateTime ablesedatum, decimal stand, string? fotoPfad);
         Task<List<AblesungReviewItem>> GetOffeneAblesungenZurFreigabeAsync();
         Task<bool> UpdateAblesungPruefstatusAsync(long ablesungId, string pruefstatus, string? pruefkommentar, int? geprueftVon, DateTime? geprueftAm = null);

@@ -14,6 +14,7 @@ export type NavigationCapabilities = {
   canAccessMeters: boolean;
   canReadMeterPhotos: boolean;
   canAccessMeterChanges: boolean;
+  canSubmitOwnMeterChanges: boolean;
   canApproveMeterReadings: boolean;
   canAccessParcels: boolean;
   canManageMaintenance: boolean;
@@ -62,6 +63,8 @@ export function buildNavigation(capabilities: NavigationCapabilities): Workspace
       items: [
         ...(capabilities.canAccessMeters ? [navigationConfig.groups.meters.items.capture, navigationConfig.groups.meters.items.annualCapture] : []),
         ...(capabilities.canAccessMeterChanges ? [navigationConfig.groups.meters.items.meterChanges, navigationConfig.groups.meters.items.rfidSetup] : []),
+        ...(capabilities.canSubmitOwnMeterChanges ? [navigationConfig.groups.meters.items.requestMeterChange] : []),
+        ...(capabilities.canAccessMeterChanges ? [navigationConfig.groups.meters.items.reviewMeterChanges] : []),
         ...(capabilities.canApproveMeterReadings ? [navigationConfig.groups.meters.items.approve] : []),
       ],
     },
