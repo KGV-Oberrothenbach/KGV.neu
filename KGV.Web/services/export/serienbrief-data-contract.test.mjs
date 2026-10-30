@@ -10,6 +10,7 @@ const coreTemplates = readFileSync(resolve(root, "KGV.Core/Models/SerienbriefVor
 const definitionModel = readFileSync(resolve(root, "KGV.Web/models/export/export-definition.ts"), "utf8");
 const columnModel = readFileSync(resolve(root, "KGV.Web/models/export/export-column.ts"), "utf8");
 const repository = readFileSync(resolve(root, "KGV.Web/repositories/export/export-definition-repository.ts"), "utf8");
+const meterMigration = readFileSync(resolve(root, "supabase/migrations/20261031110000_serienbrief_zaehler_eichfaelligkeit.sql"), "utf8");
 
 test("G2 defines an opt-in serial-letter export contract with stable technical IDs", () => {
   assert.match(migration, /serienbrief_erlaubt boolean not null default false/i);
@@ -39,4 +40,13 @@ test("G2 stores export-independent templates and typed free-field definitions on
   assert.match(coreTemplates, /class SerienbriefVorlageRecord/);
   assert.match(coreTemplates, /class SerienbriefVorlageFreifeldRecord/);
   assert.doesNotMatch(migration, /create table[^;]*serienbrief_(lauf|empfaenger|zustellung)/i);
+});
+
+test("G3 activates only the calibration export with explicit recipient priority", () => {
+  assert.match(meterMigration, /serienbrief_erlaubt=true/);
+  assert.match(meterMigration, /serienbrief_mitglied_id_feld='mitglied_id'/);
+  assert.match(meterMigration, /hauptpaechter/);
+  assert.match(meterMigration, /legacy_eindeutig/);
+  assert.match(meterMigration, /mehrdeutig/);
+  assert.match(meterMigration, /not coalesce\(current_lease\.hat_aktive_beteiligung,false\).*legacy\.anzahl=1/s);
 });
