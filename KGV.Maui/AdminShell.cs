@@ -32,7 +32,6 @@ public sealed class AdminShell : Shell, IAppShellInitializer
     private FlyoutItem? _memberAdminMenuItem;
     private FlyoutItem? _memberWorkhoursItem;
     private string? _expandedNormalGroup;
-    private bool _memberSearchExpanded;
     private bool _backNavigationInProgress;
     private bool _exitConfirmationInProgress;
     private string? _preferredStartupRoute;
@@ -152,7 +151,18 @@ public sealed class AdminShell : Shell, IAppShellInitializer
         Items.Add(CreateItem("Startseite", "home", () => _services.GetRequiredService<HomePage>()));
         Items.Add(CreateItem("Impressum", "impressum", () => _services.GetRequiredService<ImpressumPage>()));
         if (_userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand)
-            Items.Add(CreateItem("Vorgänge", "kommunikation", () => _services.GetRequiredService<KommunikationPage>()));
+        {
+            var communicationPages = _services.GetRequiredService<KommunikationPageFactory>();
+
+            Items.Add(CreateManagementItem("Vorgänge",
+                ("Signaturen", CommunicationAreaRoutes.Signatures, () => communicationPages.Create(CommunicationArea.Signatures)),
+                ("Dokumente", CommunicationAreaRoutes.Documents, () => communicationPages.Create(CommunicationArea.Documents)),
+                ("Vorstand", CommunicationAreaRoutes.Board, () => _services.GetRequiredService<MembershipBoardReviewPage>()),
+                ("Mailausgang", CommunicationAreaRoutes.MailOutbox, () => communicationPages.Create(CommunicationArea.MailOutbox)),
+                ("Versendet", CommunicationAreaRoutes.Sent, () => communicationPages.Create(CommunicationArea.Sent)),
+                ("Druckausgabe", CommunicationAreaRoutes.Print, () => communicationPages.Create(CommunicationArea.Print)),
+                ("Verlauf", CommunicationAreaRoutes.History, () => communicationPages.Create(CommunicationArea.History))));
+        }
         if (PermissionChecks.HasAnyMeterAccess(_userContextState.CurrentUserContext))
         {
             Items.Add(CreateItem("Ablesung erfassen", "reading_capture", () => _services.GetRequiredService<AblesungErfassenPage>()));
@@ -240,13 +250,6 @@ public sealed class AdminShell : Shell, IAppShellInitializer
         if (_memberGardensItem != null) _memberGardensItem.IsVisible = hasMember && PermissionChecks.CanShowParzellen(_userContextState.CurrentUserContext);
         if (_memberAdminMenuItem != null) _memberAdminMenuItem.IsVisible = hasMember && PermissionChecks.CanReadRoleManagement(_userContextState.CurrentUserContext);
         if (_memberWorkhoursItem != null) _memberWorkhoursItem.IsVisible = hasMember && PermissionChecks.CanReadWorkHours(_userContextState.CurrentUserContext);
-
-        // Eine Auswahl hält den Mitgliederbereich geöffnet; ohne Auswahl darf er
-        // wieder wie eine normale, manuell öffnbare Gruppe behandelt werden.
-        if (hasMember)
-            _memberSearchExpanded = true;
-        else
-            _memberSearchExpanded = false;
 
         if (_menuBuilt)
             RebuildFlyoutMenu();
@@ -356,6 +359,21 @@ public sealed class AdminShell : Shell, IAppShellInitializer
         };
     }
 
+    private static FlyoutItem CreateManagementItem(string title, params (string ContentTitle, string Route, Func<Page> PageFactory)[] entries)
+    {
+        var item = new FlyoutItem { Title = title };
+        foreach (var entry in entries)
+        {
+            item.Items.Add(new ShellContent
+            {
+                Title = entry.ContentTitle,
+                Route = entry.Route,
+                ContentTemplate = new DataTemplate(entry.PageFactory)
+            });
+        }
+        return item;
+    }
+
     private Page CreateAnnualReadingPage()
     {
         var page = _services.GetRequiredService<AblesungErfassenPage>();
@@ -408,7 +426,16 @@ public sealed class AdminShell : Shell, IAppShellInitializer
         if (PermissionChecks.CanSearchMembers(_userContextState.CurrentUserContext))
             AddNavigationButton(menu, "Export", "export");
         if (_userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand)
-            AddNormalGroup(menu, "communication", "Vorgänge", new[] { ("Vorgänge", "kommunikation", true) });
+            AddNormalGroup(menu, "processes", "Vorgänge", new[]
+            {
+                ("Signaturen", CommunicationAreaRoutes.Signatures, true),
+                ("Dokumente", CommunicationAreaRoutes.Documents, true),
+                ("Vorstand", CommunicationAreaRoutes.Board, true),
+                ("Mailausgang", CommunicationAreaRoutes.MailOutbox, true),
+                ("Versendet", CommunicationAreaRoutes.Sent, true),
+                ("Druckausgabe", CommunicationAreaRoutes.Print, true),
+                ("Verlauf", CommunicationAreaRoutes.History, true),
+            });
 
         var managementEntries = new List<(string Title, string Route, bool Visible)>();
         var context = _userContextState.CurrentUserContext;
@@ -462,35 +489,13 @@ public sealed class AdminShell : Shell, IAppShellInitializer
     {
         var selectedMember = _memberContextState.SelectedMember;
         var hasMember = selectedMember?.Id is > 0;
-        var toggle = new Button
-        {
-            Text = $"{(_memberSearchExpanded ? "▾" : "▸")} Mitgliedersuche",
-            HorizontalOptions = LayoutOptions.Start,
-            BackgroundColor = Colors.Transparent,
-            TextColor = Colors.Black,
-            HeightRequest = -1,
-            MinimumHeightRequest = 0,
-            CornerRadius = 0,
-            BorderWidth = 0,
-            Padding = new Thickness(8, 10)
-        };
-        toggle.Clicked += (_, _) =>
-        {
-            // Bei gewähltem Mitglied darf der Bereich nicht versehentlich
-            // geschlossen werden; er bleibt parallel zu einer Hauptgruppe offen.
-            if (!hasMember)
-                _memberSearchExpanded = !_memberSearchExpanded;
-            RebuildFlyoutMenu();
-        };
-        menu.Children.Add(toggle);
+        AddNavigationButton(menu, "Mitgliedersuche", "membersearch");
 
-        if (!_memberSearchExpanded)
+        if (!hasMember)
             return;
 
-        if (hasMember)
-            menu.Children.Add(new Label { Text = $"Ausgewähltes Mitglied: {selectedMember!.DisplayName}", Margin = new Thickness(28, 0, 8, 4), TextColor = Colors.Gray, LineBreakMode = LineBreakMode.WordWrap });
+        menu.Children.Add(new Label { Text = $"Ausgewähltes Mitglied: {selectedMember!.DisplayName}", Margin = new Thickness(28, 0, 8, 4), TextColor = Colors.Gray, LineBreakMode = LineBreakMode.WordWrap });
 
-        AddNavigationButton(menu, "Mitgliedersuche", "membersearch", 28);
         AddNavigationButton(menu, "Stammdaten", "memberdetails", 28, _memberDetailsItem?.IsVisible == true);
         AddNavigationButton(menu, "Dokumente", "member_documents", 28, _memberDocumentsItem?.IsVisible == true);
         AddNavigationButton(menu, "Protokolle", "member_protocols", 28, _memberProtokolleItem?.IsVisible == true);
