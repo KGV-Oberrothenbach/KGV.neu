@@ -6,4 +6,6 @@ export type ExportColumn = {
   sortierung: number;
   standard_sichtbar: boolean;
   ist_sortierspalte: boolean;
+  serienbrief_freigegeben: boolean;
+  serienbrief_gruppe: string | null;
 };

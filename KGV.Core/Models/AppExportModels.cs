@@ -51,6 +51,18 @@ namespace KGV.Core.Models
         [JsonPropertyName("erlaubt_pdf")]
         public bool ErlaubtPdf { get; set; }
 
+        [Column("serienbrief_erlaubt")]
+        [JsonPropertyName("serienbrief_erlaubt")]
+        public bool SerienbriefErlaubt { get; set; }
+
+        [Column("serienbrief_mitglied_id_feld")]
+        [JsonPropertyName("serienbrief_mitglied_id_feld")]
+        public string? SerienbriefMitgliedIdFeld { get; set; }
+
+        [Column("serienbrief_parzelle_id_feld")]
+        [JsonPropertyName("serienbrief_parzelle_id_feld")]
+        public string? SerienbriefParzelleIdFeld { get; set; }
+
         // Display helper
         [System.Text.Json.Serialization.JsonIgnore]
         public string DisplayText => !string.IsNullOrWhiteSpace(Titel) ? Titel! : (ExportKey ?? string.Empty);
@@ -163,6 +175,14 @@ namespace KGV.Core.Models
         [Column("ist_sortierspalte")]
         [JsonPropertyName("ist_sortierspalte")]
         public bool IstSortierspalte { get; set; }
+
+        [Column("serienbrief_freigegeben")]
+        [JsonPropertyName("serienbrief_freigegeben")]
+        public bool SerienbriefFreigegeben { get; set; }
+
+        [Column("serienbrief_gruppe")]
+        [JsonPropertyName("serienbrief_gruppe")]
+        public string? SerienbriefGruppe { get; set; }
 
         [System.Text.Json.Serialization.JsonIgnore]
         public string? Name => ColumnKey;

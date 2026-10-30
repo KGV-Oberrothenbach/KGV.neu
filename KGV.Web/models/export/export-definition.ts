@@ -9,4 +9,7 @@ export type ExportDefinition = {
   standard_ausgabe: string | null;
   erlaubt_csv: boolean;
   erlaubt_pdf: boolean;
+  serienbrief_erlaubt: boolean;
+  serienbrief_mitglied_id_feld: string | null;
+  serienbrief_parzelle_id_feld: string | null;
 };
