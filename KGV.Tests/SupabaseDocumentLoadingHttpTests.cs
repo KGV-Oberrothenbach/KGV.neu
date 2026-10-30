@@ -119,12 +119,12 @@ public sealed class SupabaseDocumentLoadingHttpTests
         var handler = new RecordingHandler(Json(HttpStatusCode.OK,
             """{"document_id":42,"drive_file_id":"drive-42","storage_path":"KGV-APP/Dokumente/Mitglieder/2/Vertrag_2026-10-30_12-00-00.pdf","dateiname":"Vertrag_2026-10-30_12-00-00.pdf","mime_type":"application/pdf","size_bytes":3}"""));
         var result = await Service(handler).CreateDokumentAsync(new DokumentUploadRequest {
-            MitgliedId = 2, Titel = "Vertrag", FileName = "vertrag.pdf", MimeType = "application/pdf", FileContent = [1, 2, 3], HistoricalContractType = contractType });
+            MitgliedId = 2, Titel = "Vertrag", FileName = "vertrag.pdf", MimeType = "application/pdf", FileContent = [1, 2, 3], HistoricalOperationId = contractType == null ? null : Guid.Parse("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"), HistoricalContractType = contractType });
         Assert.True(result.Success, result.Message);
         var request = Assert.Single(handler.Requests);
         Assert.Equal("Bearer token", request.Authorization);
-        if (contractType == null) Assert.DoesNotContain("historical_contract_type", request.Body);
-        else { Assert.Contains("historical_contract_type", request.Body); Assert.Contains(contractType, request.Body); }
+        if (contractType == null) { Assert.DoesNotContain("historical_contract_type", request.Body); Assert.DoesNotContain("operation_id", request.Body); }
+        else { Assert.Contains("historical_contract_type", request.Body); Assert.Contains(contractType, request.Body); Assert.Contains("operation_id", request.Body); Assert.Contains("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", request.Body); }
     }
 
     [Fact]
@@ -132,11 +132,11 @@ public sealed class SupabaseDocumentLoadingHttpTests
     {
         var empty = new RecordingHandler();
         var invalid = await Service(empty).CreateDokumentAsync(new DokumentUploadRequest {
-            ParzelleId = 12, HistoricalContractType = HistoricalContractDocumentTypes.LeaseFollowUpContract });
+            ParzelleId = 12, HistoricalOperationId = Guid.Parse("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"), HistoricalContractType = HistoricalContractDocumentTypes.LeaseFollowUpContract });
         Assert.False(invalid.Success); Assert.Empty(empty.Requests);
         var handler = new RecordingHandler(Json(HttpStatusCode.Forbidden, """{"message":"Altvertragsberechtigung fehlt","error_code":"FORBIDDEN","request_id":"test-request"}"""));
         var denied = await Service(handler).CreateDokumentAsync(new DokumentUploadRequest {
-            MitgliedId = 2, Titel = "Vertrag", FileName = "vertrag.pdf", FileContent = [1], HistoricalContractType = HistoricalContractDocumentTypes.LeaseFollowUpContract });
+            MitgliedId = 2, Titel = "Vertrag", FileName = "vertrag.pdf", FileContent = [1], HistoricalOperationId = Guid.Parse("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"), HistoricalContractType = HistoricalContractDocumentTypes.LeaseFollowUpContract });
         Assert.False(denied.Success); Assert.Contains("Altvertragsberechtigung", denied.Message);
     }
 
@@ -147,6 +147,40 @@ public sealed class SupabaseDocumentLoadingHttpTests
         var item = Assert.Single(await Service(handler).GetHistoricalContractDocumentsAsync(2));
         Assert.Equal(42, item.DocumentId); Assert.Equal(80037, item.Number); Assert.Equal(new DateTime(2010, 1, 1), item.Date);
         Assert.Equal("/rest/v1/rpc/get_historical_contract_documents", Assert.Single(handler.Requests).PathAndQuery);
+    }
+
+    [Fact]
+    public async Task HistoricalRegistration_RetrySendsTheSameOperationAndMapsStoredIdentifiers()
+    {
+        const string json = """[{"dokument_id":42,"dokumenttyp_id":5,"pachtverhaeltnis_id":12,"pachtvertragsfassung_id":99,"historische_vertragsnummer":80037}]""";
+        var handler = new RecordingHandler(Json(HttpStatusCode.OK, json), Json(HttpStatusCode.OK, json));
+        var service = Service(handler);
+        var id = Guid.Parse("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
+        var original = new HistoricalContractRegistrationRequest(42, HistoricalContractDocumentTypes.LeaseFollowUpContract, new DateTime(2010,1,1), true, new long[] {12}, new Dictionary<long,DateTime>(), null, null, new long[] {2}, Array.Empty<HistoricalMembershipEnd>(), Array.Empty<HistoricalActivityStatusChange>(), id);
+        var restored = JsonSerializer.Deserialize<HistoricalContractRegistrationRequest>(JsonSerializer.Serialize(original))!;
+        var first = Assert.Single(await service.RegisterHistoricalContractAsync(original));
+        var retry = Assert.Single(await service.RegisterHistoricalContractAsync(restored));
+        Assert.Equal(first, retry); Assert.Equal(80037, first.HistorischeVertragsnummer); Assert.Equal(99, first.PachtvertragsfassungId);
+        Assert.Equal(handler.Requests[0].Body, handler.Requests[1].Body);
+        Assert.All(handler.Requests, request => { Assert.Contains(id.ToString(), request.Body); Assert.Equal("Bearer token", request.Authorization); });
+    }
+
+    [Fact]
+    public async Task HistoricalOperation_ResolvesUnknownUploadResultWithOriginalId()
+    {
+        var handler = new RecordingHandler(Json(HttpStatusCode.OK, "null"), Json(HttpStatusCode.OK, """{"documentId":42,"registered":true}"""));
+        var service = Service(handler); var id = Guid.Parse("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
+        Assert.Null(await service.GetHistoricalContractOperationAsync(id));
+        Assert.Equal(new HistoricalContractOperationState(42,true), await service.GetHistoricalContractOperationAsync(id));
+        Assert.All(handler.Requests, request => { Assert.Equal("/rest/v1/rpc/get_historical_contract_operation", request.PathAndQuery); Assert.Contains(id.ToString(), request.Body); });
+    }
+
+    [Fact]
+    public async Task HistoricalUpload_RejectsMissingOperationIdWithoutNetworkCall()
+    {
+        var handler = new RecordingHandler();
+        var result = await Service(handler).CreateDokumentAsync(new DokumentUploadRequest { MitgliedId=2, Titel="Original", FileName="original.pdf", FileContent=[1], HistoricalContractType=HistoricalContractDocumentTypes.LeaseFollowUpContract });
+        Assert.False(result.Success); Assert.Empty(handler.Requests);
     }
 
     private static SupabaseService Service(RecordingHandler handler) => new(

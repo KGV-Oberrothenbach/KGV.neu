@@ -36,7 +36,7 @@ await test("Bit 24 historical document scope executes with the real central perm
   for(const name of ["permission_role_base","known_permission_mask"])await db.exec(await actualFunction("20261011130000_g13_permission_contract.sql",name));
   for(const name of ["current_app_user_context","current_effective_permissions"])await db.exec(await actualFunction("20261011160000_g13_valid_app_user_access.sql",name));
   await db.exec(await actualFunction("20261011130000_g13_permission_contract.sql","has_effective_permission"));
-  for(const name of ["20261019125000_pachtverhaeltnis_contract_versions.sql","20261030110000_g6a_historical_contract_foundation.sql","20261030120000_g6b2_historical_contract_state_transitions.sql","20261030130000_g7_historical_contract_preview.sql","20261030140000_g11b1_historical_contract_validation.sql","20261030150000_g11b2_historical_document_access.sql"])await db.exec(await read("supabase/migrations/"+name));
+  for(const name of ["20261019125000_pachtverhaeltnis_contract_versions.sql","20261030110000_g6a_historical_contract_foundation.sql","20261030120000_g6b2_historical_contract_state_transitions.sql","20261030130000_g7_historical_contract_preview.sql","20261030140000_g11b1_historical_contract_validation.sql","20261030150000_g11b2_historical_document_access.sql","20261030160000_g11b3_historical_contract_idempotency.sql"])await db.exec(await read("supabase/migrations/"+name));
   await db.exec(`alter table public.dokument enable row level security;grant select on public.dokument to authenticated;
    create policy ordinary_owner_read on public.dokument for select to authenticated using(mitglied_id=(select c.mitglied_id from public.current_app_user_context() c));`);
   const scenario=async(name,fn)=>t.test(name,async()=>{await db.exec("begin;");try{await db.exec(seed);await fn(db);}finally{await db.exec("rollback;");}});
@@ -91,6 +91,16 @@ await test("Bit 24 historical document scope executes with the real central perm
   await scenario("normal user completes real registration and number reservation without manager role",async db=>{
    const result=await asUser(db,"select * from public.register_historischen_pachtvertrag(30,'historischer_pv_folgevertrag',date '2015-01-01',true,array[12]::bigint[],'{}',null,null,array[2]::bigint[],'[]','[]')");assert.equal(result.length,1);assert.equal(await access(db,30,true),true);
    assert.equal((await asUser(db,"select * from public.reserve_historische_vertragsnummer(30)")).length,1);
+  });
+  await scenario("operation replay uses the real Bit 24 evaluator and respects later revocation",async db=>{
+   const id="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+   await db.exec("select set_config('test.jwt_role','service_role',true)");
+   await db.query("select public.begin_historical_contract_upload($1,'11111111-1111-1111-1111-111111111111',2,'historischer_pv_folgevertrag','{}','drive-op','op.pdf')",[id]);
+   await db.query("update public.historical_contract_operation set document_id=30 where operation_id=$1",[id]);
+   await db.exec("select set_config('test.jwt_role','authenticated',true)");
+   const sql="select * from public.register_historischen_pachtvertrag($1::uuid,30::bigint,'historischer_pv_folgevertrag',date '2015-01-01',true,array[12]::bigint[],'{}',null,null,array[2]::bigint[],'[]','[]')";
+   const first=await asUser(db,sql,[id]);assert.equal(first.length,1);assert.deepEqual(await asUser(db,sql,[id]),first);
+   await db.exec("update public.app_user set permission_revocations=16777216");await denied(db,sql,[id]);
   });
  }finally{await db.close();}
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { useSelectedClub } from "../auth/AuthProvider";
 import type { BrowserSession } from "../../lib/supabase-auth";
 
@@ -9,11 +9,14 @@ import type { HistoricalLeaseRelationship } from "../../models/documents/documen
 import { uploadHistoricalContractDocument, loadHistoricalContractDocument, reserveHistoricalContractNumber } from "../../services/documents/document-upload-service";
 
 import { registerHistoricalContractForWeb } from "../../services/documents/historical-contract-registration-service";
-import { loadHistoricalContractDocuments, type HistoricalContractDocumentLink, loadHistoricalContractMembers, loadHistoricalContractLeaseRelationships, type HistoricalContractLookupMember, loadHistoricalContractPreview, type HistoricalContractHistoryEntry } from "../../repositories/documents/historical-contract-registration-repository";
+import { loadHistoricalContractOperation, type HistoricalContractRegistrationInput, loadHistoricalContractDocuments, type HistoricalContractDocumentLink, loadHistoricalContractMembers, loadHistoricalContractLeaseRelationships, type HistoricalContractLookupMember, loadHistoricalContractPreview, type HistoricalContractHistoryEntry } from "../../repositories/documents/historical-contract-registration-repository";
 
 import { buildHistoricalMembershipEnds } from "../../services/documents/historical-contract-membership-commands";
 
 type ContractKind = "historischer_ma_pv_erstvertrag" | "historischer_pv_folgevertrag";
+const newOperationId = () => crypto.randomUUID();
+
+type PendingContract = { input: HistoricalContractRegistrationInput; memberId: number; title: string };
 const steps = ["Vertragsart", "Parteien / Parzellen", "Dokument", "Vertragsdaten / Historie", "Änderungen und Hinweise", "Zusammenfassung", "Übernehmen"];
 const today = () => new Date().toISOString().slice(0, 10);
 const label = (member: Pick<HistoricalContractLookupMember, "mitgliedsnummer" | "vorname" | "name">) => `Mgl.-Nr. ${member.mitgliedsnummer ?? "–"} – ${[member.vorname, member.name].filter(Boolean).join(" ")}`;
@@ -44,6 +47,37 @@ export function HistoricalContractRegistrationWorkflow({ session }: { session: B
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
   const [result, setResult] = useState<{ number: number; stamped: boolean; documentId: number } | null>(null);
+  const pending = useRef<PendingContract | null>(null);
+  const operationId = useRef<string | null>(null);
+  const submitting = useRef(false);
+  const [hasPending, setHasPending] = useState(false);
+  const [pendingReady, setPendingReady] = useState(false);
+  const pendingKey = "kgv.historical-contract.v1:" + club.supabaseUrl + ":" + club.vereinId + ":" + session.user.id;
+  useEffect(() => {
+    let active = true;
+    // Hydrate browser storage after mounting; the wizard stays disabled until
+    // the original operation has been loaded for this club and actor.
+    Promise.resolve().then(() => {
+      if (!active) return;
+      pending.current = null;
+      setPendingReady(false);
+      try {
+        const stored = window.localStorage.getItem(pendingKey);
+        if (stored) {
+          const item = JSON.parse(stored) as PendingContract;
+          if (!item.input?.operationId) throw new Error("Vorgangs-ID fehlt.");
+          pending.current = item;
+        }
+      } catch {
+        setMessage("Der gespeicherte Altvertragsvorgang ist nicht lesbar. Bitte vor einem neuen Vorgang den gespeicherten Stand prüfen lassen.");
+        return;
+      }
+      operationId.current = pending.current?.input.operationId ?? operationId.current ?? newOperationId();
+      setHasPending(pending.current !== null);
+      setPendingReady(true);
+    });
+    return () => { active = false; };
+  }, [pendingKey]);
   const selectedLeaseKey = selectedLeaseIds.join(",");
 
   useEffect(() => { let active = true; loadHistoricalContractMembers(club, session).then((items) => { if (active) setMembers(items); }).catch(() => { if (active) setMessage("Mitglieder konnten nicht geladen werden."); }); return () => { active = false; }; }, [club, session]);
@@ -69,18 +103,36 @@ export function HistoricalContractRegistrationWorkflow({ session }: { session: B
     setStep((current) => Math.min(current + 1, steps.length - 1));
   }
   async function submit() {
-    if (!primaryId || !file || selectedLeaseIds.length === 0) return;
+    if (!pendingReady || submitting.current || result) return;
+    if (!pending.current && (!primaryId || !file || selectedLeaseIds.length === 0)) return;
+    submitting.current = true;
     setSaving(true); setMessage("");
     try {
-      const title = `${kind === "historischer_ma_pv_erstvertrag" ? "MA + PV – Erstvertrag" : "PV – Folgevertrag"} – ${contractDate}`;
-      const document = await uploadHistoricalContractDocument(club, session, primaryId, file, title, kind);
-      const rows = await registerHistoricalContractForWeb(club, session, { documentId: document.id, documentTypeCode: kind, contractDate, signed, leaseRelationshipIds: selectedLeaseIds, previousEndDates: previousEnds, membershipSinceCorrection: kind === "historischer_ma_pv_erstvertrag" && correctMembershipSince && membershipSince ? { memberId: primaryId, date: membershipSince } : null, partyMemberIds: [primaryId, secondaryId].filter((id): id is number => id !== null), membershipEnds: buildHistoricalMembershipEnds(kind, removedPartyIds, confirmedMembershipEnds), activityStatusChanges: activityChange ? [{ mitglied_id: primaryId, aktiv: activityChange === "active" }] : [] });
+      if (!pending.current) {
+        const title = `${kind === "historischer_ma_pv_erstvertrag" ? "MA + PV – Erstvertrag" : "PV – Folgevertrag"} – ${contractDate}`;
+        pending.current = { memberId: primaryId!, title, input: { operationId: operationId.current!, documentId: 0, documentTypeCode: kind, contractDate, signed, leaseRelationshipIds: selectedLeaseIds, previousEndDates: previousEnds, membershipSinceCorrection: kind === "historischer_ma_pv_erstvertrag" && correctMembershipSince && membershipSince ? { memberId: primaryId!, date: membershipSince } : null, partyMemberIds: [primaryId, secondaryId].filter((id): id is number => id !== null), membershipEnds: buildHistoricalMembershipEnds(kind, removedPartyIds, confirmedMembershipEnds), activityStatusChanges: activityChange ? [{ mitglied_id: primaryId!, aktiv: activityChange === "active" }] : [] } };
+      }
+      // Persist the immutable request before any network call. Failed persistence
+      // aborts the attempt; retries never silently switch to a fresh operation.
+      window.localStorage.setItem(pendingKey, JSON.stringify(pending.current));
+      setHasPending(true);
+      const draft = pending.current;
+      const state = await loadHistoricalContractOperation(club, session, draft.input.operationId);
+      let documentId = state?.documentId ?? draft.input.documentId;
+      if (!documentId) {
+        if (!file) { setStep(2); throw new Error("Bitte die ursprüngliche Datei für diesen offenen Vorgang erneut auswählen."); }
+        const document = await uploadHistoricalContractDocument(club, session, draft.memberId, file, draft.title, draft.input.documentTypeCode, draft.input.operationId);
+        documentId = document.id;
+        draft.input.documentId = documentId;
+        window.localStorage.setItem(pendingKey, JSON.stringify(draft));
+      }
+      const rows = await registerHistoricalContractForWeb(club, session, { ...draft.input, documentId });
       if (!rows.length) throw new Error("Der Server hat keine Vertragsfassung bestätigt.");
-      const number = await reserveHistoricalContractNumber(club, session, document.id);
-      setResult({ number: number.nummer, stamped: number.pdfGestempelt, documentId: document.id });
+      const number = await reserveHistoricalContractNumber(club, session, documentId);
+      setResult({ number: number.nummer, stamped: number.pdfGestempelt, documentId });
       setStep(steps.length - 1);
     } catch (cause) { setMessage(cause instanceof Error ? cause.message : "Der Altvertrag konnte nicht übernommen werden."); }
-    finally { setSaving(false); }
+    finally { submitting.current = false; setSaving(false); }
   }
 
   async function openResult(documentId = result?.documentId) {
@@ -98,6 +150,7 @@ export function HistoricalContractRegistrationWorkflow({ session }: { session: B
 
   return <section className="data-workspace" aria-label="Altvertrag nacherfassen">
     <div className="data-toolbar"><strong>Schritt {step + 1} von {steps.length}: {steps[step]}</strong><span>{kind === "historischer_ma_pv_erstvertrag" ? "MA + PV – Erstvertrag" : "PV – Folgevertrag"}</span></div>
+    {hasPending && !result && <p className="notice">Ein begonnener Altvertrag ist gespeichert. Wiederholungsversuche verwenden dessen ursprüngliche Angaben. Falls der Upload noch offen ist, bitte dieselbe Datei auswählen. <button disabled={saving} onClick={() => void submit()}>Offenen Vorgang fortsetzen</button></p>}
     {message && <p className="notice" role="alert">{message}</p>}
     {primaryId && existingDocuments.length > 0 && <details><summary>Vorhandene historische Vertragsdokumente</summary>{existingDocuments.map(item => <p key={item.documentId}><button onClick={() => void openResult(item.documentId)}>{item.title || "Historischer Vertrag"} · {item.date || "–"} · Vertrags-Nr. {item.number ?? "–"}</button></p>)}</details>}
     {step === 0 && <fieldset><legend>Welche historische Vertragsart liegt vor?</legend><label><input type="radio" checked={kind === "historischer_ma_pv_erstvertrag"} onChange={() => setKind("historischer_ma_pv_erstvertrag")} /> <strong>MA + PV – Erstvertrag</strong><small>Ein gemeinsames ursprüngliches Dokument für Mitgliedsaufnahme und ersten Pachtvertrag.</small></label><label><input type="radio" checked={kind === "historischer_pv_folgevertrag"} onChange={() => setKind("historischer_pv_folgevertrag")} /> <strong>PV – Folgevertrag</strong><small>Ein späterer Pachtvertragsstand eines vorhandenen Mitglieds.</small></label></fieldset>}
@@ -107,7 +160,8 @@ export function HistoricalContractRegistrationWorkflow({ session }: { session: B
     {step === 4 && <fieldset><legend>Änderungen und Hinweise</legend>{kind === "historischer_ma_pv_erstvertrag" && primary?.mitglied_seit && contractDate < primary.mitglied_seit && <><label><input type="checkbox" checked={correctMembershipSince} onChange={(event) => setCorrectMembershipSince(event.target.checked)} /> Mitglied seit bewusst anhand dieses Erstvertrags korrigieren</label>{correctMembershipSince && <label>Neues Mitglied-seit-Datum<input type="date" value={membershipSince} onChange={(event) => setMembershipSince(event.target.value)} /></label>}</>}<p>Ein Wegfall einer Vertragspartei beendet keine Mitgliedschaft automatisch.</p>{removedPartyIds.length > 0 && <p className="context-note">Automatisch erkannt: {removedPartyIds.map(id => members.find(member => member.id === id)).filter((member): member is HistoricalContractLookupMember => !!member).map(label).join(", ")} fällt bei den ausgewählten Parzellen heraus.</p>}{kind === "historischer_pv_folgevertrag" && removedPartyIds.map(id => { const member = members.find(item => item.id === id); return <div key={id}><label><input type="checkbox" checked={confirmedMembershipEnds[id] !== undefined} onChange={(event) => { const checked = event.target.checked; setConfirmedMembershipEnds(current => { const next = { ...current }; if (checked) next[id] = contractDate; else delete next[id]; return next; }); }} /> Mitgliedschaft von {member ? label(member) : "herausfallender Vertragspartei"} ebenfalls beenden</label>{confirmedMembershipEnds[id] !== undefined && <label>Mitgliedschaft endet am<input type="date" value={confirmedMembershipEnds[id]} onChange={(event) => { const value = event.target.value; setConfirmedMembershipEnds(current => ({ ...current, [id]: value })); }} /></label>}</div>; })}<label>Bestätigte Statusänderung des Hauptmitglieds<select value={activityChange} onChange={(event) => setActivityChange(event.target.value as "" | "active" | "passive")}><option value="">Keine Statusänderung übernehmen</option><option value="active">aktiv setzen</option><option value="passive">passiv setzen</option></select></label></fieldset>}
     {step === 5 && <section><h2>Zusammenfassung</h2><dl><dt>Vertragsart</dt><dd>{kind === "historischer_ma_pv_erstvertrag" ? "MA + PV – Erstvertrag" : "PV – Folgevertrag"}</dd><dt>Vertragsdatum</dt><dd>{contractDate}</dd><dt>Pächter</dt><dd>{primarySearch ? label(primarySearch) : "–"}{secondary ? ` / ${label(secondary)}` : ""}</dd><dt>Parzellen</dt><dd>{selectedLeases.map(leaseLabel).join(", ") || "–"}</dd><dt>Dokument</dt><dd>{file?.name ?? "–"}</dd><dt>Historische Vertragsnummer</dt><dd>wird beim Übernehmen automatisch vergeben</dd><dt>PDF-Stempel</dt><dd>Mgl.-Nr. {[primarySearch?.mitgliedsnummer, secondary?.mitgliedsnummer].filter(Boolean).join(" / ")}<br />Vertrags-Nr. wird automatisch vergeben</dd></dl></section>}
     {result && <p className="notice" role="status">Altvertrag übernommen. Vertrags-Nr. {result.number}{result.stamped ? " wurde im PDF gestempelt." : " wurde vergeben; der Scan ist kein PDF."}</p>}
+    {result && <button onClick={() => { window.localStorage.removeItem(pendingKey); pending.current = null; operationId.current = newOperationId(); setHasPending(false); setResult(null); setFile(null); setStep(0); }}>Neuen Altvertrag beginnen</button>}
     {result && <button onClick={() => void openResult()}>Vertragsdokument öffnen</button>}
-    <div className="editor-actions">{step > 0 && !result && <button className="secondary-action" disabled={saving} onClick={() => setStep((current) => current - 1)}>Zurück</button>}{step < 5 && <button disabled={saving} onClick={next}>Weiter</button>}{step === 5 && <button disabled={saving} onClick={() => void submit()}>{saving ? "Altvertrag wird übernommen …" : "Altvertrag übernehmen"}</button>}</div>
+    <div className="editor-actions">{step > 0 && !result && <button className="secondary-action" disabled={saving} onClick={() => setStep((current) => current - 1)}>Zurück</button>}{step < 5 && <button disabled={saving} onClick={next}>Weiter</button>}{step === 5 && <button disabled={saving || !pendingReady} onClick={() => void submit()}>{saving ? "Altvertrag wird übernommen …" : "Altvertrag übernehmen"}</button>}</div>
   </section>;
 }

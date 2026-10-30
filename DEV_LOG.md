@@ -12420,3 +12420,12 @@ Note: PdfSharpCore bietet eingeschränkte AcroForm-Unterstützung; die Implement
 - PDF-Ursache: Helvetica/WinAnsi kann den Zeilenumbruch beim Messen nicht kodieren. Gemeinsamer Backendhelper misst und zeichnet beide Zeilen getrennt, mit kontrollierten Baselines und kompakter Position oben rechts, einschließlich CropBox/Rotation. Nur vollständige PDF-Ausgabe wird geschrieben, danach wird der Status bestätigt; Fehler melden keinen Erfolg.
 - Tests: 55/55 SQL-/Edge-/PDF-Tests, zehn betroffene Web-/Permission-/Dokumentcontracts erfolgreich. Vollständige .NET-Suite 419/425 mit exakt den sechs bekannten Altfehlern; alle sieben neuen HTTP-Vertragsfälle bestanden. Web-Build und gezielter Lint erfolgreich; Diff-Prüfung sauber.
 - MAUI-Build an fehlender Android-SDK-Plattform 36 (APT2000/APT2096: android.jar fehlt) gescheitert, kein erfolgreicher Android-Build behauptet. Echte Supabase-/Drive-/Storage-E2E und vollständige frische Supabase-Migration weiterhin offen; keine Produktionsdatenbank, kein Deployment. Allgemeiner Retry/Idempotenz bleibt ausdrücklich G11b3, G11b1-Parteienlogik unverändert, kein main-Merge.
+
+
+## 2026-10-30 – G11b3 historische Vertragsvorgänge idempotent
+
+- Forward-Migration 20261030160000: stabile UUID, geschützter Uploadkontext, Unique Constraints und gesperrter Registrierungs-Replay mit gespeichertem Request/Resultat; G11b1-Fachvalidierung und G11b2-Capability bleiben maßgeblich.
+- Historischer Upload nutzt eine persistierte vorab erzeugte Drive-ID, SHA-256 und vorhandene Mitgliedsablage; unklarer Netzwerkzustand wird fortgesetzt, nicht durch Löschen kompensiert.
+- PDF-Stempel: backendseitige Lease, Statusprüfung unter Sperre und dokument-/nummerngebundener, dauerhaft gespeicherter Zufallsmarker für das Fenster zwischen Datei-Schreiben und Statusbestätigung.
+- Web und MAUI halten dieselbe Vorgangs-ID und den ursprünglichen Request; Wiederaufnahme erfolgt explizit online, ohne historische Importqueue.
+- Prüfungen: echte SQL-/Edge-/PDF-Tests und HTTP-Tests ergänzt; native PostgreSQL-17-Paralleltests verwenden einen eigenen temporären Loopback-Cluster mit getrennten Verbindungen. Keine Produktivdaten, kein Live-Storage und kein Merge nach main. Vollständige Ergebnisse im G11b3-Abschlussbericht.

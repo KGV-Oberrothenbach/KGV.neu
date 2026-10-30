@@ -36,13 +36,17 @@ export class DocumentUploadError extends Error {
   }
 }
 
-export async function uploadDocumentForOwnerRequest(club: ClubContext, session: BrowserSession, owner: DocumentOwner, file: File, title: string, historicalContractType?: "historischer_ma_pv_erstvertrag" | "historischer_pv_folgevertrag"): Promise<Document> {
+export async function uploadDocumentForOwnerRequest(club: ClubContext, session: BrowserSession, owner: DocumentOwner, file: File, title: string, historicalContractType?: "historischer_ma_pv_erstvertrag" | "historischer_pv_folgevertrag", operationId?: string): Promise<Document> {
   const form = new FormData();
   form.set("file", file);
   form.set("owner_kind", owner.kind === "member" ? "mitglied" : "parzelle");
   form.set("owner_id", String(owner.id));
   form.set("titel", title);
-  if (historicalContractType !== undefined) form.set("historical_contract_type", historicalContractType);
+  if (historicalContractType !== undefined) {
+    if (!operationId) throw new Error("Die Vorgangs-ID des Altvertrags fehlt.");
+    form.set("historical_contract_type", historicalContractType);
+    form.set("operation_id", operationId);
+  }
 
   const response = await invokeEdgeFunctionRaw({ club, session }, "kgv-upload-document", { method: "POST", body: form });
   const payload = await response.json().catch(() => null) as DocumentUploadResponse | null;

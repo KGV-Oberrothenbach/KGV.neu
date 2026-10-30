@@ -3543,7 +3543,7 @@ namespace KGV.Infrastructure.Services
                 }).OrderByDescending(x => x.GueltigAb).ToList();
             }, new List<HistorischePachtbeziehung>());
 
-        private async Task<List<T>> LoadHistoricalContractLookupAsync<T>(string rpc, object parameters)
+        private async Task<string> SendHistoricalContractRpcAsync(string rpc, object parameters)
         {
             var token = await _authService.GetAccessTokenAsync();
             if (string.IsNullOrWhiteSpace(token)) throw new InvalidOperationException("Die aktuelle Anmeldung ist abgelaufen.");
@@ -3554,9 +3554,13 @@ namespace KGV.Infrastructure.Services
             request.Headers.Add("apikey", _publishableKey);
             using var response = await _documentUploadHttpClient.SendAsync(request);
             if (!response.IsSuccessStatusCode) throw new HttpRequestException($"Historischer Vertragsbereich konnte nicht geladen werden (HTTP {(int)response.StatusCode}).");
-            return JsonSerializer.Deserialize<List<T>>(await response.Content.ReadAsStringAsync(), new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
-                ?? throw new InvalidOperationException("Der Server lieferte keinen historischen Vertragsbereich.");
+            var body = await response.Content.ReadAsStringAsync();
+            return body;
         }
+
+        private async Task<List<T>> LoadHistoricalContractLookupAsync<T>(string rpc, object parameters)
+            => JsonSerializer.Deserialize<List<T>>(await SendHistoricalContractRpcAsync(rpc, parameters), new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
+                ?? throw new InvalidOperationException("Der Server lieferte keinen historischen Vertragsbereich.");
 
         public Task<List<HistoricalContractLookupMember>> GetHistoricalContractMembersAsync()
             => LoadHistoricalContractLookupAsync<HistoricalContractLookupMember>("get_historical_contract_members", new { });
@@ -3616,14 +3620,20 @@ namespace KGV.Infrastructure.Services
             return rows?.SingleOrDefault() ?? throw new InvalidOperationException("Die fachliche Dokumentzuordnung wurde nicht bestätigt.");
         }
 
+        public async Task<HistoricalContractOperationState?> GetHistoricalContractOperationAsync(Guid operationId)
+        {
+            if (operationId == Guid.Empty) throw new ArgumentException("Vorgangs-ID fehlt.", nameof(operationId));
+            return JsonSerializer.Deserialize<HistoricalContractOperationState>(await SendHistoricalContractRpcAsync("get_historical_contract_operation", new { p_operation_id = operationId }), new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        }
+
         public async Task<List<HistoricalContractRegistrationResult>> RegisterHistoricalContractAsync(HistoricalContractRegistrationRequest request)
         {
-            if (request.DokumentId <= 0 || request.PachtverhaeltnisIds.Count == 0 || request.VertragsparteiMitgliedIds.Count == 0)
+            if (request.OperationId is null || request.OperationId == Guid.Empty || request.DokumentId <= 0 || request.PachtverhaeltnisIds.Count == 0 || request.VertragsparteiMitgliedIds.Count == 0)
                 throw new ArgumentException("Historischer Vertrag benötigt Dokument, Pachtbeziehung und Vertragspartei.");
-            var client = await EnsureClientAsync();
-            var rows = await client.Rpc<List<HistoricalContractRegistrationResult>>("register_historischen_pachtvertrag", new
+            var body = await SendHistoricalContractRpcAsync("register_historischen_pachtvertrag", new
             {
                 p_dokument_id = request.DokumentId,
+                p_operation_id = request.OperationId,
                 p_dokumenttyp_code = request.DokumenttypCode,
                 p_vertragsdatum = request.Vertragsdatum.ToString("yyyy-MM-dd"),
                 p_unterzeichnet = request.Unterzeichnet,
@@ -3635,7 +3645,7 @@ namespace KGV.Infrastructure.Services
                 p_mitgliedschaftsenden = request.Mitgliedschaftsenden.Select(x => new { mitglied_id = x.MitgliedId, mitglied_ende = x.MitgliedEnde.ToString("yyyy-MM-dd") }).ToArray(),
                 p_aktiv_status_aenderungen = request.AktivStatusAenderungen.Select(x => new { mitglied_id = x.MitgliedId, aktiv = x.Aktiv }).ToArray()
             });
-            return rows?.ToList() ?? throw new InvalidOperationException("Die historische Vertragsregistrierung wurde nicht bestätigt.");
+            return JsonSerializer.Deserialize<List<HistoricalContractRegistrationResult>>(body, new JsonSerializerOptions { PropertyNameCaseInsensitive = true, PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower }) ?? throw new InvalidOperationException("Die historische Vertragsregistrierung wurde nicht bestätigt.");
         }
 
         public async Task<HistorischeVertragsnummerResult> ReserveHistorischeVertragsnummerAsync(long dokumentId)
@@ -4700,7 +4710,8 @@ namespace KGV.Infrastructure.Services
                 return DokumentUploadResult.Fail("Dokumentdaten fehlen.", "VALIDATION");
 
             if (request.HistoricalContractType != null &&
-                (request.HistoricalContractType is not (HistoricalContractDocumentTypes.MembershipAndLeaseInitialContract or HistoricalContractDocumentTypes.LeaseFollowUpContract)
+                (request.HistoricalOperationId is null || request.HistoricalOperationId == Guid.Empty
+                 || request.HistoricalContractType is not (HistoricalContractDocumentTypes.MembershipAndLeaseInitialContract or HistoricalContractDocumentTypes.LeaseFollowUpContract)
                  || request.MitgliedId is not > 0 || request.ParzelleId.HasValue))
                 return DokumentUploadResult.Fail("Historischer Upload benötigt eine gültige Vertragsart und ein Mitglied.", "VALIDATION");
 
@@ -8531,7 +8542,10 @@ namespace KGV.Infrastructure.Services
                 multipart.Add(new StringContent(ownerId.ToString()), "owner_id");
                 multipart.Add(new StringContent(normalizedTitle), "titel");
                 if (request.HistoricalContractType != null)
+                {
                     multipart.Add(new StringContent(request.HistoricalContractType), "historical_contract_type");
+                    multipart.Add(new StringContent(request.HistoricalOperationId!.Value.ToString()), "operation_id");
+                }
 
                 using var message = new HttpRequestMessage(HttpMethod.Post, endpoint)
                 {

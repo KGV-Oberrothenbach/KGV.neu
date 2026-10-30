@@ -17,7 +17,7 @@ export function reserveHistoricalContractNumber(club: ClubContext, session: Brow
 
 export { downloadHistoricalContractDocumentRequest as loadHistoricalContractDocument } from "../../repositories/documents/document-upload-repository";
 
-export function uploadHistoricalContractDocument(club: ClubContext, session: BrowserSession, memberId: number, file: File, title: string, contractType: "historischer_ma_pv_erstvertrag" | "historischer_pv_folgevertrag") {
+export function uploadHistoricalContractDocument(club: ClubContext, session: BrowserSession, memberId: number, file: File, title: string, contractType: "historischer_ma_pv_erstvertrag" | "historischer_pv_folgevertrag", operationId: string) {
   if (!title.trim()) return Promise.reject(new Error("Titel ist erforderlich."));
-  return uploadDocumentForOwnerRequest(club, session, { kind: "member", id: memberId }, file, title.trim(), contractType);
+  return uploadDocumentForOwnerRequest(club, session, { kind: "member", id: memberId }, file, title.trim(), contractType, operationId);
 }

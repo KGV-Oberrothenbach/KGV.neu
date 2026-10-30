@@ -1,3 +1,7 @@
+using System.Text.Json;
+using System.Security.Cryptography;
+using System.Text;
+using KGV.Maui.Settings;
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
 using Microsoft.Maui;
@@ -11,6 +15,43 @@ namespace KGV.Maui.Pages;
 public sealed class HistoricalContractRegistrationPage : ContentPage
 {
     private readonly ISupabaseService _supabase;
+    private readonly IAuthService _auth;
+    private PendingContract? _pending;
+    private Guid _operationId = Guid.NewGuid();
+    private readonly Button _submit = new() { Text = "7. Altvertrag übernehmen" };
+    private readonly Button _newContract = new() { Text = "Neuen Altvertrag beginnen", IsVisible = false };
+    private sealed record PendingContract(DokumentUploadRequest Upload, HistoricalContractRegistrationRequest Registration, bool Completed = false);
+    private string PendingPath
+    {
+        get
+        {
+            var context = AppSettings.Vereinskontext ?? throw new InvalidOperationException("Vereinskontext fehlt.");
+            var user = _auth.CurrentUserId ?? throw new InvalidOperationException("Benutzerkontext fehlt.");
+            var scope = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(context.SupabaseUrl + ":" + context.VereinId + ":" + user)));
+            return Path.Combine(FileSystem.AppDataDirectory, "historical-contract-" + scope + ".json");
+        }
+    }
+    private async Task SavePendingAsync()
+    {
+        var path = PendingPath;
+        await File.WriteAllTextAsync(path + ".tmp", JsonSerializer.Serialize(_pending));
+        File.Move(path + ".tmp", path, true);
+    }
+    private async Task RestorePendingAsync()
+    {
+        if (_pending is not null) return;
+        var path = PendingPath;
+        if (!File.Exists(path)) return;
+        _pending = JsonSerializer.Deserialize<PendingContract>(await File.ReadAllTextAsync(path))
+            ?? throw new InvalidOperationException("Gespeicherter Vorgang ist nicht lesbar.");
+        _operationId = _pending.Registration.OperationId ?? throw new InvalidOperationException("Gespeicherte Vorgangs-ID fehlt.");
+        _status.Text = _pending.Completed ? "Altvertrag bereits abgeschlossen. Für einen weiteren Vertrag bitte einen neuen Vorgang beginnen." : "Offener Altvertrag vorhanden. Erneutes Übernehmen setzt ihn mit den ursprünglichen Angaben fort.";
+        _file.Text = "3. Gespeicherte Datei: " + _pending.Upload.FileName;
+        _submit.Text = "Offenen Vorgang fortsetzen";
+        _submit.IsEnabled = !_pending.Completed;
+        _newContract.IsVisible = _pending.Completed;
+        if (_pending.Completed) { _resultDocumentId = _pending.Registration.DokumentId; _openResult.IsVisible = true; }
+    }
     private readonly Picker _kind = new() { Title = "1. Vertragsart" };
     private readonly Picker _primary = new() { Title = "2. Hauptpächter" };
     private readonly Picker _secondary = new() { Title = "Optionaler zweiter Pächter" };
@@ -35,16 +76,22 @@ public sealed class HistoricalContractRegistrationPage : ContentPage
     private readonly Button _openResult = new() { Text = "Vertragsdokument öffnen", IsVisible = false };
     private byte[]? _content; private string _fileName = string.Empty; private string _mimeType = "application/octet-stream"; private bool _busy;
 
-    public HistoricalContractRegistrationPage(ISupabaseService supabase)
+    public HistoricalContractRegistrationPage(ISupabaseService supabase, IAuthService auth)
     {
-        _supabase = supabase; Title = "Verträge nacherfassen";
+        _supabase = supabase; _auth = auth; Title = "Verträge nacherfassen";
         _kind.ItemsSource = new[] { "MA + PV – Erstvertrag", "PV – Folgevertrag" }; _kind.SelectedIndex = 0;
         _activity.ItemsSource = new[] { "Keine Statusänderung", "aktiv setzen", "passiv setzen" }; _activity.SelectedIndex = 0;
         _primary.SelectedIndexChanged += async (_, _) => await LoadLeasesAsync();
         _date.DateSelected += async (_, _) => await RefreshHistoryAsync();
         var choose = new Button { Text = "Datei auswählen" }; choose.Clicked += async (_, _) => await SelectFileAsync();
         _openResult.Clicked += async (_, _) => await OpenResultAsync();
-        var submit = new Button { Text = "7. Altvertrag übernehmen" }; submit.Clicked += async (_, _) => await SubmitAsync();
+        _submit.Clicked += async (_, _) => await SubmitAsync();
+        _newContract.Clicked += (_, _) => {
+            if (_busy || _pending?.Completed != true) return;
+            File.Delete(PendingPath); _pending = null; _operationId = Guid.NewGuid(); _content = null; _file.Text = "3. Keine Datei ausgewählt.";
+            _resultDocumentId = null; _openResult.IsVisible = false; _newContract.IsVisible = false;
+            _submit.IsEnabled = true; _submit.Text = "7. Altvertrag übernehmen"; _status.Text = "Neuer Altvertrag.";
+        };
         Content = new ScrollView { Content = new VerticalStackLayout { Padding = 20, Spacing = 12, Children =
         {
             new Label { Text = "Historischen Vertrag nacherfassen", FontSize = 22, FontAttributes = FontAttributes.Bold },
@@ -54,9 +101,9 @@ public sealed class HistoricalContractRegistrationPage : ContentPage
             new Label { Text = "5. Änderungen und Hinweise" }, new HorizontalStackLayout { Children = { new Label { Text = "Mitglied seit bewusst korrigieren" }, _correctSince } }, _memberSince,
             new Label { Text = "Vorhandene Vertragsstände der ausgewählten Parzellen" }, _history, _existingDocuments,
             new Label { Text = "Herausfallende Parteien (Mitgliedschaft nur bewusst beenden)" }, _removedPartyChoices, _membershipEnd, _activity,
-            new Label { Text = "6. Zusammenfassung: Die 80xxx-Vertragsnummer und der PDF-Stempel werden beim Übernehmen automatisch erzeugt." }, submit, _status, _openResult
+            new Label { Text = "6. Zusammenfassung: Die 80xxx-Vertragsnummer und der PDF-Stempel werden beim Übernehmen automatisch erzeugt." }, _submit, _status, _openResult, _newContract
         } } };
-        Appearing += async (_, _) => await LoadMembersAsync();
+        Appearing += async (_, _) => { try { await RestorePendingAsync(); await LoadMembersAsync(); } catch (Exception ex) { _submit.IsEnabled = false; _status.Text = ex.Message; } };
     }
 
     private async Task LoadMembersAsync()
@@ -127,27 +174,49 @@ public sealed class HistoricalContractRegistrationPage : ContentPage
 
     private async Task SubmitAsync()
     {
-        if (_busy || _primary.SelectedIndex < 0 || _content is not { Length: > 0 }) { _status.Text = "Bitte Hauptpächter, mindestens eine Parzelle und eine Datei wählen."; return; }
-        var relations = _leaseChecks.Where(x => x.Value.IsChecked).Select(x => x.Key).ToList(); if (relations.Count == 0) { _status.Text = "Bitte mindestens eine Pachtbeziehung auswählen."; return; }
-        _busy = true;
+        if (_busy || _pending?.Completed == true) return;
+        if (_pending is null && (_primary.SelectedIndex < 0 || _content is not { Length: > 0 })) { _status.Text = "Bitte Hauptpächter, mindestens eine Parzelle und eine Datei wählen."; return; }
+        var relations = _leaseChecks.Where(x => x.Value.IsChecked).Select(x => x.Key).ToList(); if (_pending is null && relations.Count == 0) { _status.Text = "Bitte mindestens eine Pachtbeziehung auswählen."; return; }
+        _busy = true; _submit.IsEnabled = false;
         try
         {
-            var primary = _members[_primary.SelectedIndex]; var second = _secondary.SelectedIndex > 0 ? _members[_secondary.SelectedIndex - 1] : null;
-            var code = _kind.SelectedIndex == 0 ? HistoricalContractDocumentTypes.MembershipAndLeaseInitialContract : HistoricalContractDocumentTypes.LeaseFollowUpContract;
-            var upload = await _supabase.CreateDokumentAsync(new DokumentUploadRequest { HistoricalContractType = code, MitgliedId = primary.Id, Titel = $"Historischer Vertrag – {_date.Date:yyyy-MM-dd}", FileName = _fileName, MimeType = _mimeType, FileContent = _content });
-            if (!upload.Success || upload.Document?.Id is not > 0) throw new InvalidOperationException(upload.Message);
-            var partyIds = second == null ? new List<long> { primary.Id } : new List<long> { primary.Id, second.Id };
-            var contractDate = _date.Date ?? DateTime.Today;
-            var ends = _removedPartyMembershipEnds.Where(item => item.Value.IsToggled).Select(item => new HistoricalMembershipEnd(item.Key, _membershipEnd.Date ?? contractDate)).ToArray();
-            var status = _activity.SelectedIndex switch { 1 => new[] { new HistoricalActivityStatusChange(primary.Id, true) }, 2 => new[] { new HistoricalActivityStatusChange(primary.Id, false) }, _ => [] };
-            var previousEnds = relations.ToDictionary(id => id, id => _contractHistory.FirstOrDefault(item => item.PachtverhaeltnisId == id && item.IstVorgaenger)?.VorgeschlagenesVorgaengerende is DateOnly end ? end.ToDateTime(TimeOnly.MinValue) : contractDate.AddDays(-1));
-            var result = await _supabase.RegisterHistoricalContractAsync(new HistoricalContractRegistrationRequest(upload.Document.Id, code, contractDate, _signed.IsToggled, relations, previousEnds, _correctSince.IsToggled ? primary.Id : null, _correctSince.IsToggled ? _memberSince.Date ?? contractDate : null, partyIds, ends, status));
-            var number = await _supabase.ReserveHistorischeVertragsnummerAsync(upload.Document.Id);
-            _resultDocumentId = upload.Document.Id; _openResult.IsVisible = true;
+            if (_pending is null)
+            {
+                var operationId = _operationId;
+                var primary = _members[_primary.SelectedIndex]; var second = _secondary.SelectedIndex > 0 ? _members[_secondary.SelectedIndex - 1] : null;
+                var code = _kind.SelectedIndex == 0 ? HistoricalContractDocumentTypes.MembershipAndLeaseInitialContract : HistoricalContractDocumentTypes.LeaseFollowUpContract;
+                var partyIds = second == null ? new List<long> { primary.Id } : new List<long> { primary.Id, second.Id };
+                var contractDate = _date.Date ?? DateTime.Today;
+                var ends = _removedPartyMembershipEnds.Where(item => item.Value.IsToggled).Select(item => new HistoricalMembershipEnd(item.Key, _membershipEnd.Date ?? contractDate)).ToArray();
+                var status = _activity.SelectedIndex switch { 1 => new[] { new HistoricalActivityStatusChange(primary.Id, true) }, 2 => new[] { new HistoricalActivityStatusChange(primary.Id, false) }, _ => [] };
+                var previousEnds = relations.ToDictionary(id => id, id => _contractHistory.FirstOrDefault(item => item.PachtverhaeltnisId == id && item.IstVorgaenger)?.VorgeschlagenesVorgaengerende is DateOnly end ? end.ToDateTime(TimeOnly.MinValue) : contractDate.AddDays(-1));
+                var request = new HistoricalContractRegistrationRequest(0, code, contractDate, _signed.IsToggled, relations, previousEnds, _correctSince.IsToggled ? primary.Id : null, _correctSince.IsToggled ? _memberSince.Date ?? contractDate : null, partyIds, ends, status, operationId);
+                _pending = new PendingContract(new DokumentUploadRequest { HistoricalOperationId = operationId, HistoricalContractType = code, MitgliedId = primary.Id, Titel = $"Historischer Vertrag – {contractDate:yyyy-MM-dd}", FileName = _fileName, MimeType = _mimeType, FileContent = _content! }, request);
+            }
+            // Durable snapshot before networking; this is explicitly resumed online,
+            // never enqueued in HistoricalDocumentRegistrationQueue.
+            await SavePendingAsync();
+            var state = await _supabase.GetHistoricalContractOperationAsync(_pending.Registration.OperationId!.Value);
+            var documentId = state?.DocumentId ?? _pending.Registration.DokumentId;
+            if (documentId <= 0)
+            {
+                var upload = await _supabase.CreateDokumentAsync(_pending.Upload);
+                if (!upload.Success || upload.Document?.Id is not > 0) throw new InvalidOperationException(upload.Message);
+                documentId = upload.Document.Id;
+            }
+            _pending = _pending with { Registration = _pending.Registration with { DokumentId = documentId } };
+            await SavePendingAsync();
+            var result = await _supabase.RegisterHistoricalContractAsync(_pending.Registration);
+            if (result.Count == 0) throw new InvalidOperationException("Der Server hat keine Vertragsfassung bestätigt.");
+            var number = await _supabase.ReserveHistorischeVertragsnummerAsync(documentId);
+            _pending = _pending with { Completed = true, Upload = new DokumentUploadRequest() };
+            await SavePendingAsync();
+            _newContract.IsVisible = true;
+            _resultDocumentId = documentId; _openResult.IsVisible = true;
             _status.Text = $"Altvertrag übernommen. Vertrags-Nr. {result.First().HistorischeVertragsnummer}{(number.PdfGestempelt ? " wurde im PDF gestempelt." : " wurde vergeben.")}";
         }
-        catch (Exception ex) { _status.Text = $"Altvertrag konnte nicht atomar übernommen werden: {ex.Message}"; }
-        finally { _busy = false; }
+        catch (Exception ex) { if (_pending?.Completed == true) _pending = _pending with { Completed = false }; _status.Text = $"Vorgang noch nicht vollständig bestätigt. Bitte denselben Vorgang erneut versuchen: {ex.Message}"; }
+        finally { _busy = false; _submit.IsEnabled = _pending?.Completed != true; }
     }
 
     private async Task OpenResultAsync()

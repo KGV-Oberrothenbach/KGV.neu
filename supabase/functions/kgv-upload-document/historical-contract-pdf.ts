@@ -1,4 +1,4 @@
-import { PDFDocument, StandardFonts, rgb, degrees, type PDFFont } from "npm:pdf-lib@1.17.1";
+import { PDFDocument, StandardFonts, rgb, degrees, PDFName, PDFString, type PDFFont } from "npm:pdf-lib@1.17.1";
 
 export function historicalContractStampLayout(width: number, height: number, font: PDFFont, nummer: number, memberNumbers: readonly number[]) {
   if (!Number.isInteger(nummer) || nummer < 80000 || nummer > 89999) throw new Error("Ungültige historische Vertragsnummer.");
@@ -17,8 +17,12 @@ export function historicalContractStampLayout(width: number, height: number, fon
     rectangle: { x: width - textWidth - 42, y: height - 58, width: textWidth + 14, height: 36 } };
 }
 
-export async function stampHistoricalContractPdf(bytes: ArrayBuffer | Uint8Array, nummer: number, memberNumbers: readonly number[]): Promise<Uint8Array> {
+export async function stampHistoricalContractPdf(bytes: ArrayBuffer | Uint8Array, nummer: number, memberNumbers: readonly number[], trustedMarker?: string): Promise<Uint8Array> {
   const pdf = await PDFDocument.load(bytes);
+  const markerKey = PDFName.of("KGVHistoricalContractStamp");
+  const marker = pdf.catalog.get(markerKey);
+  if (trustedMarker && marker instanceof PDFString && marker.decodeText() === trustedMarker)
+    return bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
   const page = pdf.getPages()[0];
   if (!page) throw new Error("Das PDF enthält keine Seite.");
   const font = await pdf.embedFont(StandardFonts.HelveticaBold);
@@ -41,5 +45,6 @@ export async function stampHistoricalContractPdf(bytes: ArrayBuffer | Uint8Array
     ...position(width - font.widthOfTextAtSize(line, layout.fontSize) - 35, layout.firstY - index * layout.lineHeight),
     rotate: degrees(angle), size: layout.fontSize, font, color: rgb(0.05,0.05,0.05),
   }));
+  if (trustedMarker) pdf.catalog.set(markerKey, PDFString.of(trustedMarker));
   return await pdf.save();
 }

@@ -3,7 +3,7 @@ import test from "node:test";
 import { PDFDocument } from "pdf-lib";
 import { edgeHarness } from "./edge-test-runtime.mjs";
 const bit=16777216;
-function uploadRequest(extra={}){const form=new FormData();form.set("file",new File([new Uint8Array([1,2,3])],extra.fileName??"vertrag.pdf",{type:extra.mime??"application/pdf"}));form.set("owner_kind","mitglied");form.set("owner_id","2");form.set("titel","Historischer Vertrag");form.set("historical_contract_type","historischer_pv_folgevertrag");for(const [k,v]of Object.entries(extra.fields??{}))v===null?form.delete(k):form.set(k,v);return new Request("https://synthetic.invalid",{method:"POST",headers:{Authorization:"Bearer user-token"},body:form});}
+function uploadRequest(extra={}){const form=new FormData();form.set("file",new File([new Uint8Array([1,2,3])],extra.fileName??"vertrag.pdf",{type:extra.mime??"application/pdf"}));form.set("owner_kind","mitglied");form.set("owner_id","2");form.set("titel","Historischer Vertrag");form.set("historical_contract_type","historischer_pv_folgevertrag");form.set("operation_id","aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");for(const [k,v]of Object.entries(extra.fields??{}))v===null?form.delete(k):form.set(k,v);return new Request("https://synthetic.invalid",{method:"POST",headers:{Authorization:"Bearer user-token"},body:form});}
 const jsonRequest=(action,id=77)=>new Request("https://synthetic.invalid",{method:"POST",headers:{Authorization:"Bearer user-token","Content-Type":"application/json"},body:JSON.stringify({action,document_id:id})});
 async function pdf(){const doc=await PDFDocument.create();doc.addPage();return doc.save();}
 test("A: user + grant uploads only an explicit historical context without document-admin rights",async()=>{

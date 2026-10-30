@@ -7,7 +7,7 @@ export function historicalContractErrorMessage(cause: unknown) {
   if (/Berechtigung|permission|42501/i.test(message)) return "Für die Nacherfassung historischer Verträge fehlt die Berechtigung.";
   if (/Pachtverhältnis|Pachtbeziehung|beteiligt/i.test(message)) return "Eine ausgewählte Pachtbeziehung passt nicht zum Vertragsdatum oder Hauptmitglied.";
   if (/klassifiziert|Prepared/i.test(message)) return "Dieses Dokument kann nicht als historischer Vertrag übernommen werden.";
-  return message || "Der Altvertrag konnte nicht vollständig übernommen werden. Es wurde kein Vertragsstand gespeichert.";
+  return message || "Der Altvertrag konnte nicht vollständig übernommen werden. Bitte denselben Vorgang erneut versuchen; der Serverzustand kann bereits gespeichert sein.";
 }
 
 export async function registerHistoricalContractForWeb(club: ClubContext, session: BrowserSession, input: HistoricalContractRegistrationInput) {
