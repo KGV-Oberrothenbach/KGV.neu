@@ -5,7 +5,6 @@ using KGV.Maui.Models;
 using KGV.Maui.Services.PendingPhotos;
 using KGV.Maui.State;
 using KGV.Maui.ViewModels;
-using KGV.Maui;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Maui;
 using Microsoft.Maui.Controls;
@@ -27,8 +26,6 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
     private readonly IPhotoUploadTestService _photoUploadService;
     private readonly ZaehlerwechselWorkflowState _workflowState;
     private readonly PendingPhotoService _pendingPhotoService;
-    private readonly PendingPhotoSyncService _pendingPhotoSyncService;
-    private readonly PendingPhotoMenuState _pendingPhotoMenuState;
     private readonly UserContextState _userContextState;
     private readonly RfidScanContextViewModel _scanContext;
     private readonly Label _introLabel;
@@ -37,8 +34,6 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
     private readonly Label _decisionLabel;
     private readonly Label _statusLabel;
     private readonly Label _photoLabel;
-    private readonly Label _photoSyncStatusLabel;
-    private readonly Switch _wifiOnlySwitch;
     private readonly Border _scanSection;
     private readonly View _fallbackSection;
     private readonly Border _contextSection;
@@ -76,8 +71,6 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
         _photoUploadService = services.GetRequiredService<IPhotoUploadTestService>();
         _workflowState = services.GetRequiredService<ZaehlerwechselWorkflowState>();
         _pendingPhotoService = services.GetRequiredService<PendingPhotoService>();
-        _pendingPhotoSyncService = services.GetRequiredService<PendingPhotoSyncService>();
-        _pendingPhotoMenuState = services.GetRequiredService<PendingPhotoMenuState>();
         _userContextState = services.GetRequiredService<UserContextState>();
         _scanContext = new RfidScanContextViewModel(
             _supabaseService,
@@ -100,9 +93,6 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
         _decisionLabel = new Label { LineBreakMode = LineBreakMode.WordWrap };
         _statusLabel = new Label { TextColor = Colors.DarkSlateBlue, LineBreakMode = LineBreakMode.WordWrap };
         _photoLabel = new Label { Text = "Noch kein Foto gewählt.", LineBreakMode = LineBreakMode.WordWrap, TextColor = Colors.Gray };
-        _photoSyncStatusLabel = new Label { TextColor = Colors.DarkSlateBlue, LineBreakMode = LineBreakMode.WordWrap, IsVisible = false };
-        _wifiOnlySwitch = new Switch { IsToggled = PhotoUploadPreferences.WifiOnly };
-        _wifiOnlySwitch.Toggled += (_, e) => PhotoUploadPreferences.WifiOnly = e.Value;
         _ablesedatumPicker = new DatePicker { Date = DateTime.Today };
         _standEntry = new Entry { Placeholder = "Zählerstand", Keyboard = Keyboard.Numeric };
         _defektCheckBox = new CheckBox();
@@ -205,23 +195,12 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
                 Children =
                 {
                     new Label { Text = "Ablesung erfassen", FontSize = 24, FontAttributes = FontAttributes.Bold },
-                    new HorizontalStackLayout
-                    {
-                        Spacing = 12,
-                        Children =
-                        {
-                            new Label { Text = "Fotos nur über WLAN hochladen", VerticalOptions = LayoutOptions.Center },
-                            _wifiOnlySwitch
-                        }
-                    },
-                    _photoSyncStatusLabel,
                     _introLabel,
                     _scanSection,
                     _fallbackSection,
                     _contextSection,
                     _decisionSection,
-                    _formSection,
-                    CreateNavigationSection()
+                    _formSection
                 }
             }
         };
@@ -230,7 +209,6 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
     protected override async void OnAppearing()
     {
         base.OnAppearing();
-        await SyncPendingPhotosAsync();
 
         if (!_initialized)
         {
@@ -294,28 +272,6 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
 
         await _scanContext.StartNfcSessionAsync();
         ApplyResolution(_scanContext.Resolution, _scanContext.StatusMessage);
-    }
-
-    private async Task SyncPendingPhotosAsync()
-    {
-        _photoSyncStatusLabel.Text = string.Empty;
-        _photoSyncStatusLabel.IsVisible = false;
-        try
-        {
-            var result = await _pendingPhotoSyncService.TrySyncOnceAsync();
-            _pendingPhotoMenuState.Refresh();
-            if (result.Failed > 0 || result.FileMissing > 0)
-            {
-                _photoSyncStatusLabel.Text = $"Foto-Synchronisierung: {result.Failed} Upload(s) fehlgeschlagen, {result.FileMissing} lokale Datei(en) fehlen.";
-                _photoSyncStatusLabel.IsVisible = true;
-            }
-        }
-        catch (Exception ex)
-        {
-            _photoSyncStatusLabel.Text = "Ausstehende Foto-Uploads konnten nicht synchronisiert werden.";
-            _photoSyncStatusLabel.IsVisible = true;
-            System.Diagnostics.Debug.WriteLine($"[AblesungErfassenPage] Foto-Synchronisierung fehlgeschlagen: {ex}");
-        }
     }
 
     public void ApplyQueryAttributes(IDictionary<string, object> query)
@@ -682,22 +638,6 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
             parzellePicker,
             mediumPicker,
             fallbackButton);
-    }
-
-    private View CreateNavigationSection()
-    {
-        var backToOverviewButton = new Button { Text = "Zur Startseite" };
-        backToOverviewButton.Clicked += async (_, _) =>
-        {
-            _workflowState.Clear();
-            await ShellNavigationHelper.NavigateBackAsync(Shell.Current, "home");
-        };
-
-        return new VerticalStackLayout
-        {
-            Spacing = 8,
-            Children = { backToOverviewButton }
-        };
     }
 
     private static string MapPhotoKind(string art)

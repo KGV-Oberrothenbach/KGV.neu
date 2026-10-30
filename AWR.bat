@@ -171,12 +171,10 @@ for /f "delims=" %%I in ('dir /b /a-d /o-d "%REPO%\KGV.Maui\bin\Release\net10.0-
 if not defined APK_FILE goto BUILD_FAILED
 if not defined AAB_FILE goto BUILD_FAILED
 
-REM The MAUI publish directory is the canonical hand-off location for Google
-REM Play.  The versioned publish archive below is a copy of these artifacts.
-copy /Y "%APK_FILE%" "%ANDROID_PUBLISH%\KGV-Android-%TARGET_VERSION%.apk" >nul || goto BUILD_FAILED
-copy /Y "%AAB_FILE%" "%ANDROID_PUBLISH%\KGV-Android-%TARGET_VERSION%.aab" >nul || goto BUILD_FAILED
-set "CENTRAL_APK=%ANDROID_PUBLISH%\KGV-Android-%TARGET_VERSION%.apk"
-set "CENTRAL_AAB=%ANDROID_PUBLISH%\KGV-Android-%TARGET_VERSION%.aab"
+REM Only the signed MAUI outputs are handed to the versioned release folder.
+REM Do not create additional version-named APK/AAB copies in the MAUI bin folder.
+set "CENTRAL_APK=%APK_FILE%"
+set "CENTRAL_AAB=%AAB_FILE%"
 set "CENTRAL_SYMBOLS=%ANDROID_PUBLISH%\KGV-Android-%TARGET_VERSION%-native-debug-symbols.zip"
 set "CENTRAL_MAPPING=%ANDROID_PUBLISH%\KGV-Android-%TARGET_VERSION%-mapping.txt"
 if exist "%CENTRAL_SYMBOLS%" (
@@ -208,7 +206,7 @@ if defined MAPPING_FILE (
   echo Keine Offenlegungsdatei erzeugt - R8/Code Shrinker ist nicht aktiviert.
 )
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
- "$ErrorActionPreference='Stop';$symbols=if(Test-Path -LiteralPath '%ANDROID_PUBLISH%\KGV-Android-%TARGET_VERSION%-native-debug-symbols.zip'){'KGV-Android-%TARGET_VERSION%-native-debug-symbols.zip'}else{'nicht erzeugt - keine nativen .so-Dateien gefunden'};$mapping=if(Test-Path -LiteralPath '%ANDROID_PUBLISH%\KGV-Android-%TARGET_VERSION%-mapping.txt'){'KGV-Android-%TARGET_VERSION%-mapping.txt'}else{'nicht erzeugt - R8 nicht aktiviert'};$lines=@('KGV Android Release','','Version: %TARGET_VERSION%','VersionCode: %NEW_ANDROID_CODE%','Branch: %CURRENT_BRANCH%','Commit: %CURRENT_COMMIT%','','AAB:','KGV-Android-%TARGET_VERSION%.aab','','APK:','KGV-Android-%TARGET_VERSION%.apk','','Native Debugsymbole:',$symbols,'','Offenlegungsdatei:',$mapping,'','Erzeugt: '+[DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ'));Set-Content -LiteralPath '%ANDROID_PUBLISH%\GooglePlay-Upload.txt' -Value $lines -Encoding UTF8"
+ "$ErrorActionPreference='Stop';$symbols=if(Test-Path -LiteralPath '%ANDROID_PUBLISH%\KGV-Android-%TARGET_VERSION%-native-debug-symbols.zip'){'KGV-Android-%TARGET_VERSION%-native-debug-symbols.zip'}else{'nicht erzeugt - keine nativen .so-Dateien gefunden'};$mapping=if(Test-Path -LiteralPath '%ANDROID_PUBLISH%\KGV-Android-%TARGET_VERSION%-mapping.txt'){'KGV-Android-%TARGET_VERSION%-mapping.txt'}else{'nicht erzeugt - R8 nicht aktiviert'};$lines=@('KGV Android Release','','Version: %TARGET_VERSION%','VersionCode: %NEW_ANDROID_CODE%','Branch: %CURRENT_BRANCH%','Commit: %CURRENT_COMMIT%','','AAB:','de.kgv.oberrothenbach-Signed.aab','','APK:','de.kgv.oberrothenbach-Signed.apk','','Native Debugsymbole:',$symbols,'','Offenlegungsdatei:',$mapping,'','Erzeugt: '+[DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ'));Set-Content -LiteralPath '%ANDROID_PUBLISH%\GooglePlay-Upload.txt' -Value $lines -Encoding UTF8"
 if errorlevel 1 goto BUILD_FAILED
 
 :BUILD_WEB
@@ -232,10 +230,12 @@ if defined WEB_ONLY goto COPY_WEB
 if not exist "%ANDROID_UPLOAD_OUT%" mkdir "%ANDROID_UPLOAD_OUT%" || goto BUILD_FAILED
 if not exist "%ANDROID_DIAG_OUT%" mkdir "%ANDROID_DIAG_OUT%" || goto BUILD_FAILED
 if not exist "%WEB_OUT%" mkdir "%WEB_OUT%" || goto BUILD_FAILED
-copy /Y "%CENTRAL_APK%" "%ANDROID_OUT%\KGV-Android-%TARGET_VERSION%.apk" >nul || goto BUILD_FAILED
-copy /Y "%CENTRAL_AAB%" "%ANDROID_OUT%\KGV-Android-%TARGET_VERSION%.aab" >nul || goto BUILD_FAILED
-copy /Y "%CENTRAL_APK%" "%ANDROID_UPLOAD_OUT%\KGV-Android-%TARGET_VERSION%.apk" >nul || goto BUILD_FAILED
-copy /Y "%CENTRAL_AAB%" "%ANDROID_UPLOAD_OUT%\KGV-Android-%TARGET_VERSION%.aab" >nul || goto BUILD_FAILED
+call :CLEAN_ANDROID_RELEASE_OUTPUT "%ANDROID_OUT%" || goto BUILD_FAILED
+call :CLEAN_ANDROID_RELEASE_OUTPUT "%ANDROID_UPLOAD_OUT%" || goto BUILD_FAILED
+copy /Y "%CENTRAL_APK%" "%ANDROID_OUT%\de.kgv.oberrothenbach-Signed.apk" >nul || goto BUILD_FAILED
+copy /Y "%CENTRAL_AAB%" "%ANDROID_OUT%\de.kgv.oberrothenbach-Signed.aab" >nul || goto BUILD_FAILED
+copy /Y "%CENTRAL_APK%" "%ANDROID_UPLOAD_OUT%\de.kgv.oberrothenbach-Signed.apk" >nul || goto BUILD_FAILED
+copy /Y "%CENTRAL_AAB%" "%ANDROID_UPLOAD_OUT%\de.kgv.oberrothenbach-Signed.aab" >nul || goto BUILD_FAILED
 if not defined CENTRAL_SYMBOLS (
   if exist "%ANDROID_OUT%\KGV-Android-%TARGET_VERSION%-native-debug-symbols.zip" (
     del /q "%ANDROID_OUT%\KGV-Android-%TARGET_VERSION%-native-debug-symbols.zip" || goto BUILD_FAILED
@@ -318,6 +318,25 @@ set "STOREPASS=" & exit /b 0
 :DELETE_TEMP
 if defined GIT_RESULT del /q "%GIT_RESULT%" >nul 2>&1
 if defined PS_RESULT del /q "%PS_RESULT%" >nul 2>&1
+exit /b 0
+
+
+:CLEAN_ANDROID_RELEASE_OUTPUT
+REM Only clean the finished versioned release directory. Never touch bin or obj.
+set "RELEASE_OUTPUT_DIR=%~1"
+for %%F in (
+  "%RELEASE_OUTPUT_DIR%\de.kgv.oberrothenbach.aab"
+  "%RELEASE_OUTPUT_DIR%\de.kgv.oberrothenbach.apk"
+  "%RELEASE_OUTPUT_DIR%\Microsoft.Android.Resource.Designer.dll"
+  "%RELEASE_OUTPUT_DIR%\_Microsoft.Android.Resource.Designer.dll"
+  "%RELEASE_OUTPUT_DIR%\KGV-Android-*.aab"
+  "%RELEASE_OUTPUT_DIR%\KGV-Android-*.apk"
+) do (
+  if exist "%%~F" (
+    del /q "%%~F" || exit /b 1
+  )
+)
+set "RELEASE_OUTPUT_DIR="
 exit /b 0
 
 

@@ -33,7 +33,6 @@ public sealed class ArbeitsstundenEditorPage : ContentPage, IQueryAttributable
     private readonly Label _readonlyApprovalLabel;
     private readonly Button _saveButton;
     private readonly Button _cancelButton;
-    private readonly Button _backToOverviewButton;
 
     private readonly List<MemberOption> _memberOptions = new();
 
@@ -78,9 +77,6 @@ public sealed class ArbeitsstundenEditorPage : ContentPage, IQueryAttributable
         _cancelButton = new Button { Text = "Abbrechen" };
         _cancelButton.Clicked += async (_, _) => await NavigateToOverviewAsync();
 
-        _backToOverviewButton = new Button { Text = "Zur Übersicht" };
-        _backToOverviewButton.Clicked += async (_, _) => await NavigateToOverviewAsync();
-
         _editableSection = new VerticalStackLayout
         {
             Spacing = 12,
@@ -115,8 +111,7 @@ public sealed class ArbeitsstundenEditorPage : ContentPage, IQueryAttributable
                 CreateReadonlyField("Stunden", _readonlyHoursLabel),
                 CreateReadonlyField("Art der Arbeit", _readonlyDescriptionLabel),
                 CreateReadonlyField("Status", _readonlyStatusValueLabel),
-                CreateReadonlyField("Freigabe", _readonlyApprovalLabel),
-                _backToOverviewButton
+                CreateReadonlyField("Freigabe", _readonlyApprovalLabel)
             }
         };
 

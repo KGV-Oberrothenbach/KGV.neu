@@ -9,6 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Maui;
 using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Controls;
+using Microsoft.Maui.Graphics;
 
 namespace KGV.Maui;
 
@@ -30,6 +31,8 @@ public sealed class AdminShell : Shell, IAppShellInitializer
     private FlyoutItem? _memberGardensItem;
     private FlyoutItem? _memberAdminMenuItem;
     private FlyoutItem? _memberWorkhoursItem;
+    private string? _expandedNormalGroup;
+    private bool _memberSearchExpanded;
     private bool _backNavigationInProgress;
     private bool _exitConfirmationInProgress;
     private string? _preferredStartupRoute;
@@ -149,25 +152,10 @@ public sealed class AdminShell : Shell, IAppShellInitializer
         Items.Add(CreateItem("Startseite", "home", () => _services.GetRequiredService<HomePage>()));
         Items.Add(CreateItem("Impressum", "impressum", () => _services.GetRequiredService<ImpressumPage>()));
         if (_userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand)
-        {
-            var communicationPages = _services.GetRequiredService<KommunikationPageFactory>();
-            Items.Add(CreateManagementItem("Vorgänge",
-                ("Signaturen", CommunicationAreaRoutes.Signatures, () => communicationPages.Create(CommunicationArea.Signatures)),
-                ("Dokumente", CommunicationAreaRoutes.Documents, () => communicationPages.Create(CommunicationArea.Documents)),
-                ("Vorstand", CommunicationAreaRoutes.Board, () => _services.GetRequiredService<MembershipBoardReviewPage>()),
-                ("Mailausgang", CommunicationAreaRoutes.MailOutbox, () => communicationPages.Create(CommunicationArea.MailOutbox)),
-                ("Versendet", CommunicationAreaRoutes.Sent, () => communicationPages.Create(CommunicationArea.Sent)),
-                ("Druckausgabe", CommunicationAreaRoutes.Print, () => communicationPages.Create(CommunicationArea.Print)),
-                ("Verlauf", CommunicationAreaRoutes.History, () => communicationPages.Create(CommunicationArea.History))));
-        }
+            Items.Add(CreateItem("Vorgänge", "kommunikation", () => _services.GetRequiredService<KommunikationPage>()));
         if (PermissionChecks.HasAnyMeterAccess(_userContextState.CurrentUserContext))
         {
-            Items.Add(CreateManagementItem("Ablesen",
-                ("Ablesung erfassen", "reading_capture", () => _services.GetRequiredService<AblesungErfassenPage>()),
-                ("JAE erfassen", "annual_reading_capture", CreateAnnualReadingPage),
-                ("Zählerwechsel", "meter_change", () => _services.GetRequiredService<ZaehlerwechselPage>()),
-                ("RFID einrichten", "rfid_setup", () => _services.GetRequiredService<RfidEinrichtenPage>()),
-                ("Ablesungen freigeben", "reading_review", () => _services.GetRequiredService<AblesungenFreigabePage>())));
+            Items.Add(CreateItem("Ablesen", "ablesen", () => _services.GetRequiredService<AblesenOverviewPage>()));
 
             _pendingPhotoMenuState.Refresh();
             _pendingPhotoUploadsItem = CreateItem(
@@ -176,8 +164,14 @@ public sealed class AdminShell : Shell, IAppShellInitializer
                 () => _services.GetRequiredService<PendingPhotoUploadsPage>());
             _pendingPhotoUploadsItem.IsVisible = _pendingPhotoMenuState.HasOpenItems;
             Items.Add(_pendingPhotoUploadsItem);
+            Items.Add(CreateItem("Zählerwechsel", "meter_changes", () => _services.GetRequiredService<ZaehlerwechselPage>()));
         }
 
+        if (PermissionChecks.CanReadParzellen(_userContextState.CurrentUserContext))
+            Items.Add(CreateItem("Parzellenverwaltung", "parzellen", () => _services.GetRequiredService<ParzellenPage>()));
+
+        if (PermissionChecks.CanEditAllMembers(_userContextState.CurrentUserContext))
+            Items.Add(CreateItem("Wartungsverträge", "wartungsvertraege", () => _services.GetRequiredService<WartungsvertraegePage>()));
 
         if (PermissionChecks.CanManageWorkHours(_userContextState.CurrentUserContext))
         {
@@ -188,26 +182,20 @@ public sealed class AdminShell : Shell, IAppShellInitializer
         if (PermissionChecks.CanSearchMembers(_userContextState.CurrentUserContext))
             Items.Add(CreateItem("Export", "export", () => _services.GetRequiredService<ExportPage>()));
 
-        var managementContext = _userContextState.CurrentUserContext;
         var managementEntries = new List<(string ContentTitle, string Route, Func<Page> PageFactory)>();
-        if (PermissionChecks.CanReadParzellen(managementContext))
-            managementEntries.Add(("Parzellenverwaltung", "parzellen", () => _services.GetRequiredService<ParzellenPage>()));
-        if (PermissionChecks.CanEditAllMembers(managementContext))
-            managementEntries.Add(("Wartungsverträge", "wartungsvertraege", () => _services.GetRequiredService<WartungsvertraegePage>()));
+        var managementContext = _userContextState.CurrentUserContext;
         if (PermissionChecks.CanManageClubSeasonConfiguration(managementContext))
             managementEntries.Add(("Saisonverwaltung", "season_management", () => _services.GetRequiredService<SaisonverwaltungPage>()));
         if (PermissionChecks.CanPerformYearEndClosing(managementContext))
             managementEntries.Add(("Jahresabschluss", "annual_closing", () => _services.GetRequiredService<JahresabschlussPage>()));
         if (PermissionChecks.CanManageClubSeasonConfiguration(managementContext))
             managementEntries.Add(("Vereinskonfiguration", "club_configuration", () => _services.GetRequiredService<VereinskonfigurationPage>()));
-        if (PermissionChecks.CanRegisterHistoricalContracts(managementContext))
-            managementEntries.Add(("Verträge nacherfassen", "historical_contract_registration", () => _services.GetRequiredService<HistoricalContractRegistrationPage>()));
         if (managementContext?.Role is UserRole.Admin or UserRole.Vorstand)
             managementEntries.Add(("Vereinsunterlagen", "club_documents", () => _services.GetRequiredService<VereinsunterlagenPage>()));
         if (managementContext?.Role is UserRole.Admin or UserRole.Vorstand)
             managementEntries.Add(("Vereinsfunktionen", "club_functions", () => _services.GetRequiredService<VereinsfunktionenPage>()));
-        if (managementEntries.Count > 0)
-            Items.Add(CreateManagementItem("Verwaltung", managementEntries.ToArray()));
+        foreach (var managementEntry in managementEntries)
+            Items.Add(CreateItem(managementEntry.ContentTitle, managementEntry.Route, managementEntry.PageFactory));
 
         if (PermissionChecks.CanSearchMembers(_userContextState.CurrentUserContext))
             Items.Add(CreateItem("Mitgliedersuche", "membersearch", () => _services.GetRequiredService<MemberSearchPage>()));
@@ -234,6 +222,7 @@ public sealed class AdminShell : Shell, IAppShellInitializer
         RefreshMemberContextMenu(BindingContext as MemberContextState);
 
         _menuBuilt = true;
+        RebuildFlyoutMenu();
     }
 
     private void RefreshMemberContextMenu(MemberContextState? state)
@@ -248,6 +237,16 @@ public sealed class AdminShell : Shell, IAppShellInitializer
         if (_memberGardensItem != null) _memberGardensItem.IsVisible = hasMember && PermissionChecks.CanShowParzellen(_userContextState.CurrentUserContext);
         if (_memberAdminMenuItem != null) _memberAdminMenuItem.IsVisible = hasMember && PermissionChecks.CanReadRoleManagement(_userContextState.CurrentUserContext);
         if (_memberWorkhoursItem != null) _memberWorkhoursItem.IsVisible = hasMember && PermissionChecks.CanReadWorkHours(_userContextState.CurrentUserContext);
+
+        // Eine Auswahl hält den Mitgliederbereich geöffnet; ohne Auswahl darf er
+        // wieder wie eine normale, manuell öffnbare Gruppe behandelt werden.
+        if (hasMember)
+            _memberSearchExpanded = true;
+        else
+            _memberSearchExpanded = false;
+
+        if (_menuBuilt)
+            RebuildFlyoutMenu();
 
         var currentRoute = ShellNavigationHelper.GetActiveShellContentRoute(this);
         if (currentRoute is "memberdetails" or "member_documents" or "member_protocols" or "member_wartungsvertraege" or "member_nebenmitglied" or "member_gardens" or "member_adminmenu" or "member_workhours")
@@ -333,6 +332,8 @@ public sealed class AdminShell : Shell, IAppShellInitializer
         {
             _workhoursReviewItem.Title = "Arbeitsstunden freigeben";
         }
+
+        RebuildFlyoutMenu();
     }
 
     private static FlyoutItem CreateItem(string title, string route, Func<Page> pageFactory)
@@ -352,33 +353,6 @@ public sealed class AdminShell : Shell, IAppShellInitializer
         };
     }
 
-    private Page CreateAnnualReadingPage()
-    {
-        var page = _services.GetRequiredService<AblesungErfassenPage>();
-        page.ApplyQueryAttributes(new Dictionary<string, object> { ["art"] = AblesungArt.JahresEnde });
-        return page;
-    }
-
-    private static FlyoutItem CreateManagementItem(string flyoutTitle, params (string ContentTitle, string Route, Func<Page> PageFactory)[] entries)
-    {
-        var item = new FlyoutItem
-        {
-            Title = flyoutTitle
-        };
-
-        foreach (var entry in entries)
-        {
-            item.Items.Add(new ShellContent
-            {
-                Title = entry.ContentTitle,
-                Route = entry.Route,
-                ContentTemplate = new DataTemplate(entry.PageFactory)
-            });
-        }
-
-        return item;
-    }
-
     public Task RefreshPendingPhotoUploadsMenu()
     {
         if (_pendingPhotoUploadsItem == null)
@@ -387,6 +361,143 @@ public sealed class AdminShell : Shell, IAppShellInitializer
         _pendingPhotoMenuState.Refresh();
         _pendingPhotoUploadsItem.Title = _pendingPhotoMenuState.MenuTitle;
         _pendingPhotoUploadsItem.IsVisible = _pendingPhotoMenuState.HasOpenItems;
+        RebuildFlyoutMenu();
         return Task.CompletedTask;
+    }
+
+    private void RebuildFlyoutMenu()
+    {
+        if (!_menuBuilt)
+            return;
+
+        var menu = new VerticalStackLayout { Padding = new Thickness(12, 24), Spacing = 2 };
+        menu.Children.Add(new Label { Text = "Menü", FontSize = 22, FontAttributes = FontAttributes.Bold, Margin = new Thickness(8, 0, 8, 8) });
+
+        AddNavigationButton(menu, "Startseite", "home");
+        AddNavigationButton(menu, "Impressum", "impressum");
+
+        if (PermissionChecks.HasAnyMeterAccess(_userContextState.CurrentUserContext))
+        {
+            AddNormalGroup(menu, "meters", "Ablesen", new[]
+            {
+                ("Ablesen", "ablesen", true),
+                (_pendingPhotoUploadsItem?.Title ?? "Foto-Uploads", "photo_uploads", _pendingPhotoUploadsItem?.IsVisible == true),
+                ("Zählerwechsel", "meter_changes", true)
+            });
+        }
+
+        if (PermissionChecks.CanReadParzellen(_userContextState.CurrentUserContext))
+            AddNavigationButton(menu, "Parzellenverwaltung", "parzellen");
+        if (PermissionChecks.CanEditAllMembers(_userContextState.CurrentUserContext))
+            AddNavigationButton(menu, "Wartungsverträge", "wartungsvertraege");
+        if (PermissionChecks.CanManageWorkHours(_userContextState.CurrentUserContext))
+            AddNavigationButton(menu, _workhoursReviewItem?.Title ?? "Arbeitsstunden freigeben", "workhours_review");
+        if (PermissionChecks.CanSearchMembers(_userContextState.CurrentUserContext))
+            AddNavigationButton(menu, "Export", "export");
+        if (_userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand)
+            AddNormalGroup(menu, "communication", "Vorgänge", new[] { ("Vorgänge", "kommunikation", true) });
+
+        var managementEntries = new List<(string Title, string Route, bool Visible)>();
+        var context = _userContextState.CurrentUserContext;
+        if (PermissionChecks.CanManageClubSeasonConfiguration(context)) managementEntries.Add(("Saisonverwaltung", "season_management", true));
+        if (PermissionChecks.CanPerformYearEndClosing(context)) managementEntries.Add(("Jahresabschluss", "annual_closing", true));
+        if (PermissionChecks.CanManageClubSeasonConfiguration(context)) managementEntries.Add(("Vereinskonfiguration", "club_configuration", true));
+        if (context?.Role is UserRole.Admin or UserRole.Vorstand)
+        {
+            managementEntries.Add(("Vereinsunterlagen", "club_documents", true));
+            managementEntries.Add(("Vereinsfunktionen", "club_functions", true));
+        }
+        if (managementEntries.Count > 0)
+            AddNormalGroup(menu, "administration", "Verwaltung", managementEntries);
+
+        if (PermissionChecks.CanSearchMembers(context))
+            AddMemberSearchGroup(menu);
+
+        FlyoutContent = new ScrollView { Content = menu };
+    }
+
+    private void AddNormalGroup(VerticalStackLayout menu, string id, string title, IEnumerable<(string Title, string Route, bool Visible)> entries)
+    {
+        var expanded = string.Equals(_expandedNormalGroup, id, StringComparison.Ordinal);
+        var toggle = new Button
+        {
+            Text = $"{(expanded ? "▾" : "▸")} {title}",
+            HorizontalOptions = LayoutOptions.Fill,
+            HorizontalTextAlignment = TextAlignment.Start,
+            BackgroundColor = Colors.Transparent,
+            Padding = new Thickness(8, 10)
+        };
+        toggle.Clicked += (_, _) =>
+        {
+            _expandedNormalGroup = expanded ? null : id;
+            RebuildFlyoutMenu();
+        };
+        menu.Children.Add(toggle);
+
+        if (!expanded)
+            return;
+
+        foreach (var entry in entries.Where(entry => entry.Visible))
+            AddNavigationButton(menu, entry.Title, entry.Route, 28);
+    }
+
+    private void AddMemberSearchGroup(VerticalStackLayout menu)
+    {
+        var selectedMember = _memberContextState.SelectedMember;
+        var hasMember = selectedMember?.Id is > 0;
+        var toggle = new Button
+        {
+            Text = $"{(_memberSearchExpanded ? "▾" : "▸")} Mitgliedersuche",
+            HorizontalOptions = LayoutOptions.Fill,
+            HorizontalTextAlignment = TextAlignment.Start,
+            BackgroundColor = Colors.Transparent,
+            Padding = new Thickness(8, 10)
+        };
+        toggle.Clicked += (_, _) =>
+        {
+            // Bei gewähltem Mitglied darf der Bereich nicht versehentlich
+            // geschlossen werden; er bleibt parallel zu einer Hauptgruppe offen.
+            if (!hasMember)
+                _memberSearchExpanded = !_memberSearchExpanded;
+            RebuildFlyoutMenu();
+        };
+        menu.Children.Add(toggle);
+
+        if (!_memberSearchExpanded)
+            return;
+
+        if (hasMember)
+            menu.Children.Add(new Label { Text = $"Ausgewähltes Mitglied: {selectedMember!.DisplayName}", Margin = new Thickness(28, 0, 8, 4), TextColor = Colors.Gray, LineBreakMode = LineBreakMode.WordWrap });
+
+        AddNavigationButton(menu, "Mitgliedersuche", "membersearch", 28);
+        AddNavigationButton(menu, "Stammdaten", "memberdetails", 28, _memberDetailsItem?.IsVisible == true);
+        AddNavigationButton(menu, "Dokumente", "member_documents", 28, _memberDocumentsItem?.IsVisible == true);
+        AddNavigationButton(menu, "Protokolle", "member_protocols", 28, _memberProtokolleItem?.IsVisible == true);
+        AddNavigationButton(menu, "Wartungsverträge", "member_wartungsvertraege", 28, _memberWartungsvertraegeItem?.IsVisible == true);
+        AddNavigationButton(menu, "Nebenmitglied", "member_nebenmitglied", 28, _memberNebenmitgliedItem?.IsVisible == true);
+        AddNavigationButton(menu, "Gärten des Mitglieds", "member_gardens", 28, _memberGardensItem?.IsVisible == true);
+        AddNavigationButton(menu, "Admin-Menü", "member_adminmenu", 28, _memberAdminMenuItem?.IsVisible == true);
+        AddNavigationButton(menu, "Arbeitsstunden", "member_workhours", 28, _memberWorkhoursItem?.IsVisible == true);
+    }
+
+    private void AddNavigationButton(VerticalStackLayout menu, string title, string route, double indent = 0, bool visible = true)
+    {
+        if (!visible)
+            return;
+
+        var button = new Button
+        {
+            Text = title,
+            HorizontalOptions = LayoutOptions.Fill,
+            HorizontalTextAlignment = TextAlignment.Start,
+            BackgroundColor = Colors.Transparent,
+            Padding = new Thickness(8 + indent, 8, 8, 8)
+        };
+        button.Clicked += (_, _) =>
+        {
+            ShellNavigationHelper.EnsureActiveShellItem(this, route);
+            FlyoutIsPresented = false;
+        };
+        menu.Children.Add(button);
     }
 }

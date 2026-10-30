@@ -1,6 +1,5 @@
 using KGV.Core.Models;
 using KGV.Maui.ViewModels;
-using KGV.Maui;
 using Microsoft.Maui;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
@@ -51,9 +50,6 @@ public abstract class RfidScanWorkflowPage : ContentPage
         var openNfcSettingsButton = new Button { Text = "NFC-Einstellungen öffnen" };
         openNfcSettingsButton.SetBinding(IsVisibleProperty, nameof(RfidScanContextViewModel.CanOpenNfcSettings));
         openNfcSettingsButton.Clicked += async (_, _) => await _scanContext.OpenNfcSettingsAsync();
-
-        var backToOverviewButton = new Button { Text = "Zurück" };
-        backToOverviewButton.Clicked += async (_, _) => await ShellNavigationHelper.NavigateBackAsync(Shell.Current, "home");
 
         var contextBorder = new Border
         {
@@ -134,8 +130,7 @@ public abstract class RfidScanWorkflowPage : ContentPage
                     statusLabel,
                     contextBorder,
                     decisionBorder,
-                    actionSection ?? new ContentView { IsVisible = false },
-                    backToOverviewButton
+                    actionSection ?? new ContentView { IsVisible = false }
                 }
             }
         };

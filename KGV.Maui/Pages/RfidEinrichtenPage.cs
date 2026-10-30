@@ -1,7 +1,6 @@
 using KGV.Core.Models;
 using KGV.Maui.Services;
 using KGV.Maui.ViewModels;
-using KGV.Maui;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Maui;
 using Microsoft.Maui.Controls;
@@ -96,9 +95,6 @@ public sealed class RfidEinrichtenPage : ContentPage, IQueryAttributable
         saveButton.SetBinding(IsEnabledProperty, nameof(RfidEinrichtenViewModel.CanSave));
         saveButton.Clicked += async (_, _) => await SaveAsync();
 
-        var backToOverviewButton = new Button { Text = "Zurück" };
-        backToOverviewButton.Clicked += async (_, _) => await ShellNavigationHelper.NavigateBackAsync(Shell.Current, "home");
-
         var statusLabel = new Label { TextColor = Colors.DarkSlateBlue, LineBreakMode = LineBreakMode.WordWrap };
         statusLabel.SetBinding(Label.TextProperty, nameof(RfidEinrichtenViewModel.StatusMessage));
         statusLabel.SetBinding(IsVisibleProperty, nameof(RfidEinrichtenViewModel.HasStatusMessage));
@@ -180,8 +176,7 @@ public sealed class RfidEinrichtenPage : ContentPage, IQueryAttributable
                     },
                     statusLabel,
                     existingTagBorder,
-                    assignmentBorder,
-                    backToOverviewButton
+                    assignmentBorder
                 }
             }
         };
@@ -246,7 +241,7 @@ public sealed class RfidEinrichtenPage : ContentPage, IQueryAttributable
         if (result.Success)
         {
             await DisplayAlertAsync("OK", result.Message, "OK");
-            await ShellNavigationHelper.NavigateBackAsync(Shell.Current, "home");
+            await Shell.Current.GoToAsync("//ablesen");
         }
     }
 
