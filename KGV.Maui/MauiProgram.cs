@@ -126,6 +126,7 @@ public static class MauiProgram
         services.AddSingleton<PendingPhotoSyncService>();
         services.AddSingleton<PendingPhotoMenuState>();
         services.AddSingleton<HistoricalDocumentRegistrationQueue>();
+        services.AddTransient<HistoricalContractRegistrationPage>();
         services.AddSingleton<BiometricSessionStore>();
         services.AddSingleton<IClientInstanceIdProvider, ClientInstanceIdProvider>();
         services.AddSingleton<IBiometricAuthenticationService, AndroidBiometricAuthenticationService>();
@@ -141,7 +142,6 @@ public static class MauiProgram
         // create/update invalidates the page that the user returns to.
         services.AddSingleton<HomeViewModel>();
         services.AddTransient<HomePage>();
-        services.AddTransient<AblesenOverviewPage>();
         services.AddTransient<PendingPhotoUploadsPage>();
         services.AddTransient<HomeSectionDetailPage>();
         services.AddTransient<HomeManagementPage>();
@@ -155,7 +155,7 @@ public static class MauiProgram
         services.AddTransient<ExportPage>();
         services.AddTransient<ExportViewModel>();
         services.AddTransient<ImpressumPage>();
-        services.AddTransient<KommunikationPage>();
+        services.AddSingleton<KommunikationPageFactory>();
         services.AddTransient<MembershipBoardReviewPage>();
         services.AddSingleton<MemberSearchRefreshState>();
         services.AddTransient<MemberSearchViewModel>();
@@ -192,6 +192,9 @@ public static class MauiProgram
         services.AddTransient<ArbeitsstundenReviewPage>();
         services.AddTransient<ArbeitsstundenReviewDetailPage>();
         services.AddTransient<ParzellenAblesungenPage>();
+        services.AddTransient<AblesungErfassenPage>();
+        services.AddTransient<ZaehlerwechselPage>();
+        services.AddTransient<RfidEinrichtenPage>();
         services.AddTransient<ZaehlerwechselAusbauPage>();
         services.AddTransient<ZaehlerwechselEinbauPage>();
         services.AddTransient<AblesungenFreigabePage>();

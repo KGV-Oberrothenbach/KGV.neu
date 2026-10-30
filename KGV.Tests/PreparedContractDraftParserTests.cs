@@ -9,7 +9,7 @@ public sealed class PreparedContractDraftParserTests
     [Fact]
     public void MembershipDraft_RoundTripsWithWebV1Names()
     {
-        var draft = new PreparedMembershipApplicationDraft { MemberId = 17, StartDate = "2026-11-01", MemberFee = 42.50m, IncludeSecondaryMember = true, Representative = new LegalRepresentativeDraft { Mode = "manual", Vorname = "Erika", Nachname = "Muster", AdresseAbweichend = true, Adresse = "Gartenweg 1", Plz = "01234", Ort = "Ort" } };
+        var draft = new PreparedMembershipApplicationDraft { MemberId = 17, StartDate = "2026-11-01", MemberFee = 42.50m, IncludeSecondaryMember = false, Representative = new LegalRepresentativeDraft { Mode = "manual", Vorname = "Erika", Nachname = "Muster", AdresseAbweichend = true, Adresse = "Gartenweg 1", Plz = "01234", Ort = "Ort" } };
         var parsed = Assert.IsType<PreparedMembershipApplicationDraft>(PreparedContractDraftParser.Parse(PreparedContractDraftParser.Serialize(draft)));
         Assert.Equal(draft, parsed);
     }

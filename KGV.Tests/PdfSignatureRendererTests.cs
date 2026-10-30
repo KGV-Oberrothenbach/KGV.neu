@@ -41,17 +41,18 @@ public sealed class PdfSignatureRendererTests
     public async Task Canonical_template_placeholders_cover_membership_and_lease_signature_counts()
     {
         var provider = new CanonicalPdfTemplateProvider();
-        var membership = ToPlaceholders((await provider.GetActiveAsync(new PdfTemplateRequest("mitgliedsantrag", "mitgliedsantrag-field-spec/v1", "pdfsharpcore-ma/v1"))).Fields);
-        var lease = ToPlaceholders((await provider.GetActiveAsync(new PdfTemplateRequest("pachtvertrag", "pachtvertrag-field-spec/v8", "top-left/v1"))).Fields);
+        var membership = ToPlaceholders((await provider.GetActiveAsync(new PdfTemplateRequest("mitgliedsantrag", "mitgliedsantrag-field-spec/v5", "top-left/v1"))).Fields);
+        var lease = ToPlaceholders((await provider.GetActiveAsync(new PdfTemplateRequest("pachtvertrag", "pachtvertrag-field-spec/v9", "top-left/v1"))).Fields);
 
-        var membershipAlone = new[] { "unterschrift_antragsteller", "unterschrift_verein", "datenschutz_unterschrift_antragsteller" };
-        var membershipWithSecondParty = membershipAlone.Concat(new[] { "unterschrift_vertreter", "datenschutz_unterschrift_vertreter" }).ToArray();
+        var membershipAlone = new[] { "unterschrift_antragsteller_antrag", "unterschrift_antragsteller_datenschutz", "unterschrift_vorstand_1" };
+        var membershipWithSecondParty = membershipAlone.Concat(new[] { "unterschrift_zweite_partei_antrag", "unterschrift_zweite_partei_datenschutz" }).ToArray();
         var leaseAlone = new[] { "unterschrift_paechter_1", "unterschrift_vorstand_1", "unterschrift_vorstand_2" };
         var leaseWithSecondParty = leaseAlone.Concat(new[] { "unterschrift_paechter_2" }).ToArray();
 
         Assert.Equal(3, BuildPlan(membership, membershipAlone).Count);
         Assert.Equal(5, BuildPlan(membership, membershipWithSecondParty).Count);
-        Assert.All(BuildPlan(membership, membershipWithSecondParty), operation => Assert.Equal(1, operation.Page));
+        Assert.Equal(new[] { 1, 2, 2 }, BuildPlan(membership, membershipAlone).Select(operation => operation.Page));
+        Assert.Equal(new[] { 1, 2, 2, 1, 2 }, BuildPlan(membership, membershipWithSecondParty).Select(operation => operation.Page));
         Assert.Equal(3, BuildPlan(lease, leaseAlone).Count);
         Assert.Equal(4, BuildPlan(lease, leaseWithSecondParty).Count);
         Assert.All(BuildPlan(lease, leaseWithSecondParty), operation => Assert.Equal(3, operation.Page));

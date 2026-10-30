@@ -31,7 +31,12 @@ assert.doesNotMatch(documentResolver, /BuildGoogleDriveFileViewUrl/);
 assert.match(edgeFunction, /select\("id,mitglied_id,parzelle_id,drive_file_id,dateiname,mime_type,archiviert_at"\)/);
 assert.match(edgeFunction, /if \(document\.archiviert_at\)\s*return null/);
 assert.match(edgeFunction, /authenticateDocumentUser\(authHeader\)[\s\S]*mayReadDocument\(auth, documentId\)[\s\S]*errorResponse\(403, "FORBIDDEN"/);
-const downloadStart = edgeFunction.indexOf('if (action !== "download")');
+const downloadStart = edgeFunction.indexOf('if (action !== "download" && action !== "download_historical_contract")');
 const downloadSection = edgeFunction.slice(downloadStart);
-assert.ok(downloadSection.indexOf("mayReadDocument(auth, documentId)") < downloadSection.indexOf("getGoogleAccessToken()"));
+assert.ok(downloadStart >= 0);
+for (const guard of ["mayReadDocument(auth, documentId)", "mayUseHistoricalContractDocument(auth, documentId, false)"]) {
+  assert.ok(downloadSection.indexOf(guard) >= 0);
+  assert.ok(downloadSection.indexOf(guard) < downloadSection.indexOf("getGoogleAccessToken()"));
+}
+assert.match(downloadSection, /action === "download_historical_contract"[\s\S]*requireHistoricalContractRegistration/);
 assert.doesNotMatch(edgeFunction, /webViewLink|web_view_link/);

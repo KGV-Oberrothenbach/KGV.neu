@@ -1,5 +1,5 @@
 import type { ClubContext } from "../../models/auth/club";
-import { claimPendingMeterPhotoRetry, countLegacyPendingMeterPhotos, countPendingMeterPhotos, enqueuePendingMeterPhoto, getPendingMeterPhoto, listPendingMeterPhotos, pendingPhotoFile, putPendingMeterPhoto, releasePendingMeterPhotoRetryLease, removeLegacyPendingMeterPhotos, removeOwnedPendingMeterPhoto, removePendingMeterPhoto, type PendingMeterPhoto } from "../offline/pending-media-store";
+import { claimPendingMeterPhotoRetry, countPendingMeterPhotos, enqueuePendingMeterPhoto, getPendingMeterPhoto, listPendingMeterPhotos, pendingPhotoFile, putPendingMeterPhoto, releasePendingMeterPhotoRetryLease, removePendingMeterPhoto, type PendingMeterPhoto } from "../offline/pending-media-store";
 import { getBrowserClientInstanceId } from "../../lib/browser/client-instance";
 import { getConnectivitySnapshot } from "../../lib/browser/connectivity";
 import { type BrowserSession } from "../../lib/supabase-auth";
@@ -130,18 +130,6 @@ export function listPendingReadingPhotos(session: BrowserSession, clubId: string
 }
 export function countPendingReadingPhotos(session: BrowserSession, clubId: string) {
   return countPendingMeterPhotos(clubId, ownerUserId(session));
-}
-export async function deletePendingReadingPhoto(session: BrowserSession, clubId: string, id: string): Promise<ReadingPhotoResult> {
-  const result = await removeOwnedPendingMeterPhoto(id, clubId, ownerUserId(session));
-  if (result.status === "removed") return { status: "uploaded", message: "Lokales Foto wurde endgültig gelöscht." };
-  if (result.status === "in-flight") return { status: "already-in-flight", message: "Foto wird gerade hochgeladen und kann momentan nicht gelöscht werden." };
-  return { status: "failed", message: "Dieses Foto gehört nicht zum aktuellen Benutzer oder Verein." };
-}
-export async function countLegacyPendingReadingPhotos(clubId: string) {
-  return countLegacyPendingMeterPhotos(clubId);
-}
-export async function deleteLegacyPendingReadingPhotos(clubId: string) {
-  return removeLegacyPendingMeterPhotos(clubId);
 }
 export const openStoredReadingPhoto = openReadingPhoto;
 export type { PendingMeterPhoto };

@@ -18,8 +18,8 @@ public sealed class DocumentRenderDataBoundaryTests
                 Iban = "DE00123456780000000000",
                 Bic = "MUSTDEFFXXX"
             },
-            Paechter1 = new MitgliedRecord { Id = 7, Vorname = "Max", Name = "Mustermann", Adresse = "Gartenweg 7", Plz = "08000", Ort = "Zwickau" },
-            Paechter2 = new MitgliedRecord { Id = 8, Vorname = "Erika", Name = "Musterfrau" },
+            Paechter1 = new MitgliedRecord { Id = 7, Mitgliedsnummer = 1007, Vorname = "Max", Name = "Mustermann", Adresse = "Gartenweg 7", Plz = "08000", Ort = "Zwickau" },
+            Paechter2 = new MitgliedRecord { Id = 8, Mitgliedsnummer = 1008, Vorname = "Erika", Name = "Musterfrau" },
             ZweiteParteiIstGesetzlicherVertreter = false,
             ParzelleNummer = "17",
             ParzelleFlaecheQm = 300,

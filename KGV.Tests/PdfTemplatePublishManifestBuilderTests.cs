@@ -46,8 +46,8 @@ public sealed class PdfTemplatePublishManifestBuilderTests : IDisposable
     [Fact]
     public void Rejects_field_spec_and_renderer_contract_mismatches()
     {
-        var fieldSpecMismatch = CreateRequest(fieldSpecVersion: "spec/v2");
-        var rendererMismatch = CreateRequest(rendererVersion: "renderer/v2");
+        var fieldSpecMismatch = CreateRequest(fieldSpecVersion: "spec/v2", expectedFieldSpecVersion: "spec/v1");
+        var rendererMismatch = CreateRequest(rendererVersion: "renderer/v2", expectedRendererVersion: "renderer/v1");
 
         Assert.Throws<InvalidOperationException>(() => PdfTemplatePublishManifestBuilder.Build(fieldSpecMismatch));
         Assert.Throws<InvalidOperationException>(() => PdfTemplatePublishManifestBuilder.Build(rendererMismatch));
@@ -76,7 +76,9 @@ public sealed class PdfTemplatePublishManifestBuilderTests : IDisposable
         string fieldSpecVersion = "spec/v1",
         string rendererVersion = "renderer/v1",
         string? pdfPath = null,
-        string? fieldSpecJson = null)
+        string? fieldSpecJson = null,
+        string? expectedFieldSpecVersion = null,
+        string? expectedRendererVersion = null)
     {
         Directory.CreateDirectory(_directory);
         var pdf = pdfPath ?? Path.Combine(_directory, "template.pdf");
@@ -89,7 +91,7 @@ public sealed class PdfTemplatePublishManifestBuilderTests : IDisposable
 
         var spec = Path.Combine(_directory, "field-spec.json");
         File.WriteAllText(spec, fieldSpecJson ?? """{"schema_version":"kgv-pdf-field-spec/v1","settings":{"coordinateOrigin":"topLeft"},"fields":[{"name":"field","type":"text","page":1,"rect":{"x":0,"y":0,"w":1,"h":1}}]}""");
-        return new PdfTemplatePublishRequest(templateKey, version, pdf, spec, fieldSpecVersion, rendererVersion, "spec/v1", "renderer/v1");
+        return new PdfTemplatePublishRequest(templateKey, version, pdf, spec, fieldSpecVersion, rendererVersion, expectedFieldSpecVersion ?? fieldSpecVersion, expectedRendererVersion ?? rendererVersion);
     }
 
     private static string Hash(byte[] bytes) => Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();

@@ -149,10 +149,25 @@ public sealed class AdminShell : Shell, IAppShellInitializer
         Items.Add(CreateItem("Startseite", "home", () => _services.GetRequiredService<HomePage>()));
         Items.Add(CreateItem("Impressum", "impressum", () => _services.GetRequiredService<ImpressumPage>()));
         if (_userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand)
-            Items.Add(CreateItem("Vorgänge", "kommunikation", () => _services.GetRequiredService<KommunikationPage>()));
+        {
+            var communicationPages = _services.GetRequiredService<KommunikationPageFactory>();
+            Items.Add(CreateManagementItem("Vorgänge",
+                ("Signaturen", CommunicationAreaRoutes.Signatures, () => communicationPages.Create(CommunicationArea.Signatures)),
+                ("Dokumente", CommunicationAreaRoutes.Documents, () => communicationPages.Create(CommunicationArea.Documents)),
+                ("Vorstand", CommunicationAreaRoutes.Board, () => _services.GetRequiredService<MembershipBoardReviewPage>()),
+                ("Mailausgang", CommunicationAreaRoutes.MailOutbox, () => communicationPages.Create(CommunicationArea.MailOutbox)),
+                ("Versendet", CommunicationAreaRoutes.Sent, () => communicationPages.Create(CommunicationArea.Sent)),
+                ("Druckausgabe", CommunicationAreaRoutes.Print, () => communicationPages.Create(CommunicationArea.Print)),
+                ("Verlauf", CommunicationAreaRoutes.History, () => communicationPages.Create(CommunicationArea.History))));
+        }
         if (PermissionChecks.HasAnyMeterAccess(_userContextState.CurrentUserContext))
         {
-            Items.Add(CreateItem("Ablesen", "ablesen", () => _services.GetRequiredService<AblesenOverviewPage>()));
+            Items.Add(CreateManagementItem("Ablesen",
+                ("Ablesung erfassen", "reading_capture", () => _services.GetRequiredService<AblesungErfassenPage>()),
+                ("JAE erfassen", "annual_reading_capture", CreateAnnualReadingPage),
+                ("Zählerwechsel", "meter_change", () => _services.GetRequiredService<ZaehlerwechselPage>()),
+                ("RFID einrichten", "rfid_setup", () => _services.GetRequiredService<RfidEinrichtenPage>()),
+                ("Ablesungen freigeben", "reading_review", () => _services.GetRequiredService<AblesungenFreigabePage>())));
 
             _pendingPhotoMenuState.Refresh();
             _pendingPhotoUploadsItem = CreateItem(
@@ -163,11 +178,6 @@ public sealed class AdminShell : Shell, IAppShellInitializer
             Items.Add(_pendingPhotoUploadsItem);
         }
 
-        if (PermissionChecks.CanReadParzellen(_userContextState.CurrentUserContext))
-            Items.Add(CreateItem("Parzellenverwaltung", "parzellen", () => _services.GetRequiredService<ParzellenPage>()));
-
-        if (PermissionChecks.CanEditAllMembers(_userContextState.CurrentUserContext))
-            Items.Add(CreateItem("Wartungsverträge", "wartungsvertraege", () => _services.GetRequiredService<WartungsvertraegePage>()));
 
         if (PermissionChecks.CanManageWorkHours(_userContextState.CurrentUserContext))
         {
@@ -178,14 +188,20 @@ public sealed class AdminShell : Shell, IAppShellInitializer
         if (PermissionChecks.CanSearchMembers(_userContextState.CurrentUserContext))
             Items.Add(CreateItem("Export", "export", () => _services.GetRequiredService<ExportPage>()));
 
-        var managementEntries = new List<(string ContentTitle, string Route, Func<Page> PageFactory)>();
         var managementContext = _userContextState.CurrentUserContext;
+        var managementEntries = new List<(string ContentTitle, string Route, Func<Page> PageFactory)>();
+        if (PermissionChecks.CanReadParzellen(managementContext))
+            managementEntries.Add(("Parzellenverwaltung", "parzellen", () => _services.GetRequiredService<ParzellenPage>()));
+        if (PermissionChecks.CanEditAllMembers(managementContext))
+            managementEntries.Add(("Wartungsverträge", "wartungsvertraege", () => _services.GetRequiredService<WartungsvertraegePage>()));
         if (PermissionChecks.CanManageClubSeasonConfiguration(managementContext))
             managementEntries.Add(("Saisonverwaltung", "season_management", () => _services.GetRequiredService<SaisonverwaltungPage>()));
         if (PermissionChecks.CanPerformYearEndClosing(managementContext))
             managementEntries.Add(("Jahresabschluss", "annual_closing", () => _services.GetRequiredService<JahresabschlussPage>()));
         if (PermissionChecks.CanManageClubSeasonConfiguration(managementContext))
             managementEntries.Add(("Vereinskonfiguration", "club_configuration", () => _services.GetRequiredService<VereinskonfigurationPage>()));
+        if (PermissionChecks.CanRegisterHistoricalContracts(managementContext))
+            managementEntries.Add(("Verträge nacherfassen", "historical_contract_registration", () => _services.GetRequiredService<HistoricalContractRegistrationPage>()));
         if (managementContext?.Role is UserRole.Admin or UserRole.Vorstand)
             managementEntries.Add(("Vereinsunterlagen", "club_documents", () => _services.GetRequiredService<VereinsunterlagenPage>()));
         if (managementContext?.Role is UserRole.Admin or UserRole.Vorstand)
@@ -334,6 +350,13 @@ public sealed class AdminShell : Shell, IAppShellInitializer
                 }
             }
         };
+    }
+
+    private Page CreateAnnualReadingPage()
+    {
+        var page = _services.GetRequiredService<AblesungErfassenPage>();
+        page.ApplyQueryAttributes(new Dictionary<string, object> { ["art"] = AblesungArt.JahresEnde });
+        return page;
     }
 
     private static FlyoutItem CreateManagementItem(string flyoutTitle, params (string ContentTitle, string Route, Func<Page> PageFactory)[] entries)

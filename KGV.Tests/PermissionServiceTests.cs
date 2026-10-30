@@ -38,6 +38,28 @@ public sealed class PermissionServiceTests
     public void YearEndClosingPermissionBit_Is8388608()
         => Assert.Equal(8388608L, (long)PermissionFlags.CanPerformYearEndClosing);
 
+    [Fact]
+    public void HistoricalContractPermission_IsIndependentAndAssignableToOrdinaryUsers()
+    {
+        var service = new PermissionService();
+        var ordinaryUser = service.CreateContext(Guid.NewGuid(), "user", null);
+        var grantedUser = service.CreateContext(Guid.NewGuid(), "user", null, (long)PermissionFlags.CanRegisterHistoricalContracts);
+        var admin = service.CreateContext(Guid.NewGuid(), "admin", null);
+
+        Assert.Equal(16777216L, (long)PermissionFlags.CanRegisterHistoricalContracts);
+        Assert.False(PermissionChecks.CanRegisterHistoricalContracts(ordinaryUser));
+        Assert.True(PermissionChecks.CanRegisterHistoricalContracts(grantedUser));
+        Assert.False(PermissionChecks.CanRegisterHistoricalContracts(admin));
+    }
+
+    [Fact]
+    public void PermissionCatalog_ExposesHistoricalContractRegistrationAsAnAssignableActionArea()
+    {
+        Assert.Contains(PermissionCatalog.GetUserSpecificEditablePermissions(), permission => permission.Flag == PermissionFlags.CanRegisterHistoricalContracts);
+        var area = Assert.Single(PermissionCatalog.GetGlobalEditablePermissionAreas(), area => area.AreaKey == "altvertraege");
+        Assert.Equal(PermissionFlags.CanRegisterHistoricalContracts, area.WritePermissions);
+    }
+
     [Theory]
     [InlineData(UserRole.Admin, 16769015L)]
     [InlineData(UserRole.Vorstand, 7855607L)]

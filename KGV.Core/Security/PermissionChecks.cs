@@ -133,6 +133,9 @@ namespace KGV.Core.Security
         public static bool CanPerformYearEndClosing(UserContext? context)
             => HasPermission(context, PermissionFlags.CanPerformYearEndClosing);
 
+        public static bool CanRegisterHistoricalContracts(UserContext? context)
+            => HasPermission(context, PermissionFlags.CanRegisterHistoricalContracts);
+
         public static bool CanReadWorkHoursForMember(UserContext? context, int? memberId)
             => CanReadWorkHours(context)
                || HasOwnWorkHoursAccessForMember(context, memberId);
@@ -197,6 +200,7 @@ namespace KGV.Core.Security
                || CanApproveMeterReadings(context)
                || CanReadRoleManagement(context)
                || CanPerformYearEndClosing(context)
+               || CanRegisterHistoricalContracts(context)
                || CanManageClubSeasonConfiguration(context)
                || CanConfigureUserMeterReadingSubmissions(context);
     }

@@ -64,7 +64,8 @@ public sealed class PachtvertragDokumentFactoryTests
             saison: new SaisonRecord
             {
                 Jahr = 2026,
-                PachtProQm = 0.25m
+                PachtProQm = 0.25m,
+                PachtFaelligAm = new DateTime(2026, 3, 31)
             },
             vertragsbeginn: new DateTime(2026, 4, 1),
             altvertragDatum: null,

@@ -25,6 +25,7 @@ const PermissionBits = {
   CanManageAppointments: 1 << 21,
   CanManageAnnouncements: 1 << 22,
   CanPerformYearEndClosing: 1 << 23,
+  CanRegisterHistoricalContracts: 1 << 24,
 } as const;
 
 // Camel-case aliases preserve the existing Web call sites while the Pascal-case
@@ -55,6 +56,7 @@ export const Permission = {
   manageAppointments: PermissionBits.CanManageAppointments,
   manageAnnouncements: PermissionBits.CanManageAnnouncements,
   performYearEndClosing: PermissionBits.CanPerformYearEndClosing,
+  registerHistoricalContracts: PermissionBits.CanRegisterHistoricalContracts,
 } as const;
 
 const UserPermissions = Permission.CanViewMembers | Permission.CanSeeOwnDataOnly;
@@ -89,6 +91,7 @@ export const PermissionAreas = [
   { key: "ablesungsfreigaben", label: "Ablesungsfreigaben", all: Permission.CanReadMeters | Permission.CanApproveMeterReadings, read: Permission.CanReadMeters, write: Permission.CanApproveMeterReadings },
   { key: "rollen", label: "Rollen / Rechte", all: Permission.CanReadRoles | Permission.CanManageRoles, read: Permission.CanReadRoles, write: Permission.CanManageRoles },
   { key: "jahresabschluss", label: "Jahresabschluss", all: Permission.CanPerformYearEndClosing, read: Permission.CanPerformYearEndClosing, write: Permission.CanPerformYearEndClosing },
+  { key: "altvertraege", label: "Historische Verträge", all: Permission.CanRegisterHistoricalContracts, read: Permission.CanRegisterHistoricalContracts, write: Permission.CanRegisterHistoricalContracts },
 ] as const;
 
 export const ControllablePermissionMask = PermissionAreas.reduce((mask, area) => mask | area.all, 0);

@@ -33,7 +33,7 @@ public sealed class PdfTemplateRendererTests
     public void Lease_profile_keeps_attachment_checkboxes_as_legacy_text_x()
     {
         var plan = PdfTemplateRenderer.BuildRenderPlan(
-            new[] { Field("anlage_1", "checkbox"), Field("regular_check", "checkbox") },
+            new[] { Field("anlage_1", "checkbox", x: 42), Field("regular_check", "checkbox") },
             new Dictionary<string, string> { ["anlage_1"] = "true", ["regular_check"] = "true" },
             PdfTemplateRenderProfiles.Pachtvertrag);
 
@@ -58,5 +58,5 @@ public sealed class PdfTemplateRendererTests
         Assert.All(plan, operation => Assert.Equal("multiline", operation.Kind));
     }
 
-    private static PdfTemplateFieldSpec Field(string name, string kind, double height = 20) => new(name, kind, 1, 0, 0, 100, height);
+    private static PdfTemplateFieldSpec Field(string name, string kind, double height = 20, double x = 0) => new(name, kind, 1, x, 0, 100, height);
 }

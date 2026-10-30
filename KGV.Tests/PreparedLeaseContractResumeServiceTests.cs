@@ -184,7 +184,7 @@ public sealed class PreparedLeaseContractResumeServiceTests
         EntwurfDaten = JsonSerializer.SerializeToElement(new { })
     };
 
-    private sealed class RepositoryProxy : DispatchProxy
+    private class RepositoryProxy : DispatchProxy
     {
         public IPreparedContractRepository Repository => (IPreparedContractRepository)(object)this;
         public KommunikationsvorgangDto? ActiveContract { get; set; }

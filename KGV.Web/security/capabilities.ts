@@ -31,6 +31,10 @@ export function canPerformYearEndClosing(context: WebCapabilityContext): boolean
   return context !== null && hasPermission(context.effectivePermissions, Permission.CanPerformYearEndClosing);
 }
 
+export function canRegisterHistoricalContracts(context: WebCapabilityContext): boolean {
+  return context !== null && hasPermission(context.effectivePermissions, Permission.CanRegisterHistoricalContracts);
+}
+
 export function canArchiveDocuments(context: WebCapabilityContext): boolean {
   return context?.role === "admin";
 }

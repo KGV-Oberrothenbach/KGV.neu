@@ -159,6 +159,13 @@ public sealed class UserShell : Shell, IAppShellInitializer
         return _services.GetRequiredService<AdminMenuPage>();
     }
 
+    private Page CreateAnnualReadingPage()
+    {
+        var page = _services.GetRequiredService<AblesungErfassenPage>();
+        page.ApplyQueryAttributes(new Dictionary<string, object> { ["art"] = AblesungArt.JahresEnde });
+        return page;
+    }
+
     private void EnsureMenuBuilt()
     {
         if (_menuBuilt)
@@ -172,8 +179,19 @@ public sealed class UserShell : Shell, IAppShellInitializer
         Items.Add(CreateItem("Startseite", "home", () => _services.GetRequiredService<HomePage>()));
         Items.Add(CreateItem("Impressum", "impressum", () => _services.GetRequiredService<ImpressumPage>()));
 
-        if (PermissionChecks.HasAnyMeterAccess(_state.CurrentUserContext))
-            Items.Add(CreateItem("Ablesen", "ablesen", () => _services.GetRequiredService<AblesenOverviewPage>()));
+        var meterContext = _state.CurrentUserContext;
+        if (PermissionChecks.CanReadMeters(meterContext) || PermissionChecks.CanSubmitOwnMeterReadings(meterContext))
+        {
+            Items.Add(CreateItem("Ablesung erfassen", "reading_capture", () => _services.GetRequiredService<AblesungErfassenPage>()));
+            Items.Add(CreateItem("JAE erfassen", "annual_reading_capture", CreateAnnualReadingPage));
+        }
+        if (PermissionChecks.CanManageMeterChanges(meterContext))
+        {
+            Items.Add(CreateItem("Zählerwechsel", "meter_change", () => _services.GetRequiredService<ZaehlerwechselPage>()));
+            Items.Add(CreateItem("RFID einrichten", "rfid_setup", () => _services.GetRequiredService<RfidEinrichtenPage>()));
+        }
+        if (PermissionChecks.CanApproveMeterReadings(meterContext))
+            Items.Add(CreateItem("Ablesungen freigeben", "reading_review", () => _services.GetRequiredService<AblesungenFreigabePage>()));
 
         if (hasOwnMemberContext)
             Items.Add(CreateItem("↳ Stammdaten", "mydetails", CreateOwnMemberDetailsPage));

@@ -41,7 +41,7 @@ export type ReadingReviewItem = {
   decisionLabel: string;
 };
 
-export type ReadingReviewData = { open: ReadingReviewItem[]; reviewed: ReadingReviewItem[]; historyByReadingId: Map<number, ReadingReviewItem[]> };
+export type ReadingReviewData = { open: ReadingReviewItem[]; historyByReadingId: Map<number, ReadingReviewItem[]> };
 
 const unavailable = "Quelle im Modell nicht verfügbar";
 const correctionPrefix = "Korrigiert im Prüfprozess: ";
@@ -71,7 +71,7 @@ function decisionLabel(status: ReadingReviewStatus, comment: string | null) {
 }
 
 export async function loadReadingReviewData(club: ClubContext, session: BrowserSession, permissions: ReadingReviewPermissions): Promise<ReadingReviewData> {
-  if (!permissions.canApproveMeterReadings) return { open: [], reviewed: [], historyByReadingId: new Map() };
+  if (!permissions.canApproveMeterReadings) return { open: [], historyByReadingId: new Map() };
   const [readings, references, assignments, members] = await Promise.all([
     listReviewReadings(club, session),
     loadMeterReferenceData(club, session),
@@ -103,9 +103,8 @@ export async function loadReadingReviewData(club: ClubContext, session: BrowserS
   };
   const items = readings.map(toItem);
   const open = items.filter((item) => !item.freigegeben && item.pruefstatus === "eingereicht");
-  const reviewed = items.filter((item) => !( !item.freigegeben && item.pruefstatus === "eingereicht"));
   const historyByReadingId = new Map(open.map((item) => [item.readingId, items.filter((candidate) => candidate.meterId === item.meterId && candidate.readingId !== item.readingId).sort((left, right) => right.ablesedatum.localeCompare(left.ablesedatum)).slice(0, 5)]));
-  return { open, reviewed, historyByReadingId };
+  return { open, historyByReadingId };
 }
 
 export async function reviewMeterReading(club: ClubContext, session: BrowserSession, permissions: ReadingReviewPermissions, input: { readingId: number; action: ReadingReviewAction; comment: string; date?: string; value?: number }) {

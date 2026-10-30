@@ -321,7 +321,7 @@ public sealed class ZaehlerwechselAusbauPage : ContentPage
 
     private static async Task NavigateToFreshScanAsync()
     {
-        await Shell.Current.GoToAsync("//ablesen");
+        await Shell.Current.GoToAsync("//meter_change");
         await Shell.Current.GoToAsync(nameof(ZaehlerwechselPage));
     }
 }

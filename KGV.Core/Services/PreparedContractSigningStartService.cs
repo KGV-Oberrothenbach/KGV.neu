@@ -40,6 +40,8 @@ public sealed class PreparedContractSigningStartService
         if (contract.SignaturGestartetAm is not null) throw new PreparedContractValidationException("Die Signatur wurde bereits gestartet.");
         if (contract.Vorgangstyp != PreparedContractConstants.ContractSignatureProcess)
             throw new PreparedContractValidationException("Der Vorgang ist kein Vertrags-Signaturvorgang.");
+        if (contract.Dokumenttyp is not (PreparedContractConstants.MembershipApplication or PreparedContractConstants.LeaseContract or PreparedContractConstants.MaintenanceContract))
+            throw new PreparedContractValidationException("Der Dokumenttyp kann nicht über den vorbereiteten Vertrags-Signaturprozess gestartet werden.");
     }
 
     private static void ValidateStarted(KommunikationsvorgangDto expected, KommunikationsvorgangDto started)

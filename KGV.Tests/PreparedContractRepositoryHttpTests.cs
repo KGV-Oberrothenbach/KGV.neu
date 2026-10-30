@@ -38,6 +38,50 @@ public sealed class PreparedContractRepositoryHttpTests
         Assert.Contains("zugewiesen_an=eq.11111111-1111-1111-1111-111111111111", handler.Requests[1].Uri);
     }
 
+    [Theory]
+    [InlineData(CommunicationArea.Signatures, "vorgangstyp=eq.vertrag_signatur", "status=in.(vorbereitet,zur_signatur,letzte_pruefung)")]
+    [InlineData(CommunicationArea.Documents, "vorgangstyp=eq.dokument_erzeugung", "status=in.(vorbereitet,fehler)")]
+    [InlineData(CommunicationArea.MailOutbox, "vorgangstyp=eq.mail", "status=in.(mail_bereit,wird_versendet,fehler)")]
+    [InlineData(CommunicationArea.Sent, "vorgangstyp=eq.mail", "versendet_am=not.is.null")]
+    [InlineData(CommunicationArea.Print, "vorgangstyp=eq.druck", "status=in.(druck_bereit,fehler)")]
+    public async Task ListForArea_Uses_the_existing_status_filter_for_each_open_area(CommunicationArea area, string processFilter, string statusFilter)
+    {
+        var handler = new RecordingHandler(Response());
+
+        await Repository(handler).ListForAreaAsync(area);
+
+        var request = Assert.Single(handler.Requests);
+        Assert.Contains(processFilter, request.Uri);
+        Assert.Contains(statusFilter, request.Uri);
+    }
+
+    [Fact]
+    public async Task History_defaults_to_ninety_days_but_can_include_all_items()
+    {
+        var recentHandler = new RecordingHandler(Response());
+        await Repository(recentHandler).ListForAreaAsync(CommunicationArea.History);
+        Assert.Contains("status=in.(erledigt,abgebrochen,verworfen)", recentHandler.Requests.Single().Uri);
+        Assert.Contains("bearbeitet_am=gte.", recentHandler.Requests.Single().Uri);
+
+        var allHandler = new RecordingHandler(Response());
+        await Repository(allHandler).ListForAreaAsync(CommunicationArea.History, includeAllHistory: true);
+        Assert.DoesNotContain("bearbeitet_am=gte.", allHandler.Requests.Single().Uri);
+    }
+
+    [Fact]
+    public async Task CompletePrint_Uses_the_existing_print_completion_transition()
+    {
+        var handler = new RecordingHandler(Response(Item(2, PreparedContractConstants.Completed)));
+
+        await Repository(handler).CompletePrintAsync(ItemId);
+
+        var request = Assert.Single(handler.Requests);
+        Assert.Contains("vorgangstyp=eq.druck&status=eq.druck_bereit", request.Uri);
+        using var body = JsonDocument.Parse(request.Body);
+        Assert.Equal(PreparedContractConstants.Completed, body.RootElement.GetProperty("status").GetString());
+        Assert.True(body.RootElement.TryGetProperty("gedruckt_am", out _));
+    }
+
     [Fact]
     public async Task UpdateAndStartSignature_UseRevisionAndServerSignatureValues()
     {
@@ -48,9 +92,9 @@ public sealed class PreparedContractRepositoryHttpTests
         await repository.StartSignatureAsync(ItemId, 5);
         Assert.Contains("revision=eq.4&status=eq.vorbereitet&signatur_gestartet_am=is.null", handler.Requests[1].Uri);
         using var updateBody = JsonDocument.Parse(handler.Requests[1].Body); Assert.Equal(5, updateBody.RootElement.GetProperty("revision").GetInt32());
-        Assert.Contains("revision=eq.5&status=eq.vorbereitet", handler.Requests[2].Uri); Assert.Contains("signatur_revision=is.null", handler.Requests[2].Uri);
-        using var startBody = JsonDocument.Parse(handler.Requests[2].Body); Assert.Equal("zur_signatur", startBody.RootElement.GetProperty("status").GetString());
-        Assert.True(startBody.RootElement.TryGetProperty("signatur_gestartet_am", out _)); Assert.False(startBody.RootElement.TryGetProperty("signatur_revision", out _));
+        Assert.Contains("rpc/start_prepared_contract_signature", handler.Requests[2].Uri);
+        using var startBody = JsonDocument.Parse(handler.Requests[2].Body); Assert.Equal(ItemId, startBody.RootElement.GetProperty("p_kommunikationsvorgang_id").GetInt64()); Assert.Equal(5, startBody.RootElement.GetProperty("p_expected_revision").GetInt32());
+        Assert.True(startBody.RootElement.TryGetProperty("p_assigned_to", out _));
     }
 
     [Fact]

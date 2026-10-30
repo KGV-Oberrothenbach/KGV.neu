@@ -24,10 +24,15 @@ public sealed class KommunikationPage : ContentPage
     private readonly Label _emptyLabel;
     private readonly Label _statusLabel;
     private readonly RefreshView _refreshView;
+    private readonly Button? _historyRangeButton;
     private SignatureFilter _filter = SignatureFilter.Mine;
+    private bool _showAllHistory;
     private bool _isLoading;
 
+    public CommunicationArea FixedArea { get; }
+
     public KommunikationPage(
+        CommunicationArea fixedArea,
         IPreparedContractRepository repository,
         IContractGenerationClient contractClient,
         IAuthService authService,
@@ -36,6 +41,9 @@ public sealed class KommunikationPage : ContentPage
         IPreparedContractSignatureService preparedSignatures,
         UserContextState userContext)
     {
+        if (!Enum.IsDefined(fixedArea))
+            throw new ArgumentOutOfRangeException(nameof(fixedArea), fixedArea, "Unknown communication area.");
+
         _repository = repository ?? throw new ArgumentNullException(nameof(repository));
         _contractClient = contractClient ?? throw new ArgumentNullException(nameof(contractClient));
         _authService = authService ?? throw new ArgumentNullException(nameof(authService));
@@ -43,7 +51,8 @@ public sealed class KommunikationPage : ContentPage
         _leaseCompletionClient = leaseCompletionClient ?? throw new ArgumentNullException(nameof(leaseCompletionClient));
         _preparedSignatures = preparedSignatures ?? throw new ArgumentNullException(nameof(preparedSignatures));
         _userContext = userContext ?? throw new ArgumentNullException(nameof(userContext));
-        Title = "Vorgänge";
+        FixedArea = fixedArea;
+        Title = AreaTitle(FixedArea);
 
         var mine = FilterButton("Meine", SignatureFilter.Mine);
         var unassigned = FilterButton("Unzugeordnet", SignatureFilter.Unassigned);
@@ -65,6 +74,16 @@ public sealed class KommunikationPage : ContentPage
         };
         _refreshView = new RefreshView { Content = _list };
         _refreshView.Refreshing += async (_, _) => await LoadAsync();
+        if (FixedArea == CommunicationArea.History)
+        {
+            _historyRangeButton = new Button { Text = "Alle anzeigen", HorizontalOptions = LayoutOptions.Start };
+            _historyRangeButton.Clicked += async (_, _) =>
+            {
+                _showAllHistory = !_showAllHistory;
+                _historyRangeButton.Text = _showAllHistory ? "Letzte 90 Tage" : "Alle anzeigen";
+                await LoadAsync();
+            };
+        }
 
         Content = new VerticalStackLayout
         {
@@ -72,10 +91,10 @@ public sealed class KommunikationPage : ContentPage
             Spacing = 12,
             Children =
             {
-                new Label { Text = "Vorgänge", FontSize = 24, FontAttributes = FontAttributes.Bold },
-                new Label { Text = "Vorbereitete Vertrags- und Prüfvorgänge", TextColor = Colors.Gray },
-                CreateBoardReviewButton(),
+                new Label { Text = AreaTitle(FixedArea), FontSize = 24, FontAttributes = FontAttributes.Bold },
+                new Label { Text = AreaHint(FixedArea), TextColor = Colors.Gray },
                 new FlexLayout { Direction = FlexDirection.Row, Wrap = FlexWrap.Wrap, Children = { mine, unassigned, all } },
+                (View?)_historyRangeButton ?? new Label { IsVisible = false },
                 _statusLabel,
                 _emptyLabel,
                 _refreshView
@@ -96,13 +115,6 @@ public sealed class KommunikationPage : ContentPage
         return button;
     }
 
-    private Button CreateBoardReviewButton()
-    {
-        var button = new Button { Text = "Vorstand · Mitgliedsanträge", HorizontalOptions = LayoutOptions.Start };
-        button.Clicked += async (_, _) => await Navigation.PushAsync(new MembershipBoardReviewPage(_supabaseService, _userContext));
-        return button;
-    }
-
     private async Task LoadAsync()
     {
         if (_isLoading) return;
@@ -115,13 +127,13 @@ public sealed class KommunikationPage : ContentPage
                 throw new InvalidOperationException("Vorgänge sind nur für Admin und Vorstand verfügbar.");
             var currentUserId = CurrentUserId();
 
-            var contracts = await _repository.ListActiveAsync();
+            var contracts = await _repository.ListForAreaAsync(FixedArea, _showAllHistory);
             var members = (await _supabaseService.GetMitgliederAsync()).ToDictionary(member => member.Id);
             var parcels = (await _supabaseService.GetAllParzellenAsync()).ToDictionary(parcel => parcel.Id);
             var filtered = contracts.Where(contract => MatchesFilter(contract, currentUserId)).OrderByDescending(contract => contract.BearbeitetAm).ToList();
             _items.Clear();
             foreach (var contract in filtered)
-                _items.Add(new SignatureListItem(contract, MemberName(contract.MitgliedId, members), GardenNumber(contract.ParzelleId, parcels), currentUserId));
+                _items.Add(new SignatureListItem(contract, MemberName(contract.MitgliedId, members), GardenNumber(contract.ParzelleId, parcels), currentUserId, FixedArea));
             _emptyLabel.IsVisible = _items.Count == 0;
             _statusLabel.IsVisible = false;
         }
@@ -139,6 +151,8 @@ public sealed class KommunikationPage : ContentPage
 
     private async Task OpenAsync(SignatureListItem item)
     {
+        if (FixedArea != CommunicationArea.Signatures)
+            return;
         if (!item.IsMine)
         {
             await DisplayAlertAsync("Vorgänge", item.IsUnassigned
@@ -406,6 +420,14 @@ public sealed class KommunikationPage : ContentPage
         }
     }
 
+    private async Task CompletePrintAsync(SignatureListItem item)
+    {
+        if (FixedArea != CommunicationArea.Print || !item.CanCompletePrint)
+            return;
+        try { await _repository.CompletePrintAsync(item.Contract.Id); await LoadAsync(); }
+        catch (Exception ex) { await DisplayAlertAsync("Druckausgabe", ex.Message, "OK"); await LoadAsync(); }
+    }
+
     private async Task DiscardAsync(SignatureListItem item)
     {
         if (!item.IsMine || item.Contract.Status is not (PreparedContractConstants.Prepared or PreparedContractConstants.ReadyForSignature or PreparedContractConstants.FinalReview)) return;
@@ -430,12 +452,15 @@ public sealed class KommunikationPage : ContentPage
         claim.Clicked += async (sender, _) => { if (sender is Button { BindingContext: SignatureListItem item }) await ClaimAsync(item); };
         var action = new Button { HorizontalOptions = LayoutOptions.Start };
         action.SetBinding(Button.TextProperty, nameof(SignatureListItem.PrimaryAction));
-        action.SetBinding(IsVisibleProperty, nameof(SignatureListItem.IsMine));
+        action.SetBinding(IsVisibleProperty, nameof(SignatureListItem.CanOpen));
         action.Clicked += async (sender, _) => { if (sender is Button { BindingContext: SignatureListItem item }) await OpenAsync(item); };
+        var completePrint = new Button { Text = "Druck erledigt", HorizontalOptions = LayoutOptions.Start };
+        completePrint.SetBinding(IsVisibleProperty, nameof(SignatureListItem.CanCompletePrint));
+        completePrint.Clicked += async (sender, _) => { if (sender is Button { BindingContext: SignatureListItem item }) await CompletePrintAsync(item); };
         var discard = new Button { Text = "Verwerfen", HorizontalOptions = LayoutOptions.Start, TextColor = Colors.DarkRed };
         discard.SetBinding(IsVisibleProperty, nameof(SignatureListItem.CanDiscard));
         discard.Clicked += async (sender, _) => { if (sender is Button { BindingContext: SignatureListItem item }) await DiscardAsync(item); };
-        return new Border { Stroke = Colors.LightGray, Padding = 12, Content = new VerticalStackLayout { Spacing = 4, Children = { title, details, status, assignment, claim, action, discard } } };
+        return new Border { Stroke = Colors.LightGray, Padding = 12, Content = new VerticalStackLayout { Spacing = 4, Children = { title, details, status, assignment, claim, action, completePrint, discard } } };
     }
 
     private bool MatchesFilter(KommunikationsvorgangDto contract, Guid currentUserId) => _filter switch
@@ -461,17 +486,35 @@ public sealed class KommunikationPage : ContentPage
     private Guid CurrentUserId() => Guid.TryParse(_authService.CurrentUserId, out var userId) && userId != Guid.Empty
         ? userId
         : throw new InvalidOperationException("Es ist kein angemeldeter Benutzer vorhanden.");
+    private static string AreaTitle(CommunicationArea area) => area switch
+    {
+        CommunicationArea.Signatures => "Signaturen",
+        CommunicationArea.Documents => "Dokumente",
+        CommunicationArea.MailOutbox => "Mailausgang",
+        CommunicationArea.Sent => "Versendet",
+        CommunicationArea.Print => "Druckausgabe",
+        CommunicationArea.History => "Verlauf",
+        _ => "Vorgänge"
+    };
+    private static string AreaHint(CommunicationArea area) => area switch
+    {
+        CommunicationArea.History => "Die letzten 90 Tage werden angezeigt.",
+        CommunicationArea.Signatures => "Vorbereitete Vertrags- und Prüfvorgänge",
+        _ => "Kommunikationsvorgänge"
+    };
     private enum SignatureFilter { Unassigned, Mine, All }
 
     private sealed class SignatureListItem
     {
-        public SignatureListItem(KommunikationsvorgangDto contract, string memberName, string? gardenNumber, Guid currentUserId)
-        { Contract = contract; MemberName = memberName; GardenNumber = gardenNumber; IsMine = contract.ZugewiesenAn == currentUserId; IsUnassigned = contract.ZugewiesenAn is null && contract.Status is PreparedContractConstants.Prepared or PreparedContractConstants.ReadyForSignature; }
-        public KommunikationsvorgangDto Contract { get; } public string MemberName { get; } public string? GardenNumber { get; } public bool IsMine { get; } public bool IsUnassigned { get; }
-        public string DocumentType => Contract.Dokumenttyp == PreparedContractConstants.MembershipApplication ? "Mitgliedsantrag" : Contract.Dokumenttyp == PreparedContractConstants.MaintenanceContract ? "Wartungsvertrag" : "Pachtvertrag";
+        public SignatureListItem(KommunikationsvorgangDto contract, string memberName, string? gardenNumber, Guid currentUserId, CommunicationArea area)
+        { Contract = contract; MemberName = memberName; GardenNumber = gardenNumber; IsMine = contract.ZugewiesenAn == currentUserId; Area = area; IsUnassigned = contract.ZugewiesenAn is null && area is not CommunicationArea.Sent and not CommunicationArea.History && contract.Status is (PreparedContractConstants.Prepared or PreparedContractConstants.ReadyForSignature); }
+        public KommunikationsvorgangDto Contract { get; } public string MemberName { get; } public string? GardenNumber { get; } public bool IsMine { get; } public bool IsUnassigned { get; } public CommunicationArea Area { get; }
+        public string DocumentType => Contract.Dokumenttyp == PreparedContractConstants.MembershipApplication ? "Mitgliedsantrag" : Contract.Dokumenttyp == PreparedContractConstants.MaintenanceContract ? "Wartungsvertrag" : string.IsNullOrWhiteSpace(Contract.Dokumenttyp) ? "Kommunikationsvorgang" : Contract.Dokumenttyp;
         public string Details => GardenNumber is null ? MemberName : $"{MemberName} · Garten {GardenNumber}";
-        public string Status => Contract.Status switch { PreparedContractConstants.Prepared => "Vorbereitet", PreparedContractConstants.ReadyForSignature => "Zur Signatur", PreparedContractConstants.FinalReview => "Letzte Prüfung", _ => Contract.Status };
+        public string Status => Contract.Status switch { PreparedContractConstants.Prepared => "Vorbereitet", PreparedContractConstants.ReadyForSignature => "Zur Signatur", PreparedContractConstants.FinalReview => "Letzte Prüfung", "mail_bereit" => "Versandbereit", "wird_versendet" => "Wird versendet", "druck_bereit" => "Druckbereit", PreparedContractConstants.Completed => "Erledigt", "fehler" => "Fehler", "abgebrochen" => "Abgebrochen", PreparedContractConstants.Discarded => "Verworfen", _ => Contract.Status };
         public string PrimaryAction => Contract.Status == PreparedContractConstants.FinalReview ? "Letzte Prüfung" : "Zur Signatur";
+        public bool CanOpen => Area == CommunicationArea.Signatures && IsMine;
+        public bool CanCompletePrint => Area == CommunicationArea.Print && IsMine && Contract.Status == "druck_bereit";
         public bool CanDiscard => IsMine && Contract.Status is PreparedContractConstants.Prepared or PreparedContractConstants.ReadyForSignature or PreparedContractConstants.FinalReview;
         public string Assignment => IsMine ? "Mir zugewiesen" : IsUnassigned ? "Unzugeordnet" : "Anderem Bearbeiter zugewiesen";
     }

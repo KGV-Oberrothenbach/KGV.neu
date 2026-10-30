@@ -29,8 +29,12 @@ internal static class ShellNavigationHelper
         ["workhours_review"] = "home",
 
         // gemeinsame Punkte
-        ["photo_uploads"] = "ablesen",
-        ["ablesen"] = "home",
+        ["photo_uploads"] = "reading_capture",
+        ["reading_capture"] = "home",
+        ["annual_reading_capture"] = "home",
+        ["meter_change"] = "home",
+        ["rfid_setup"] = "meter_change",
+        ["reading_review"] = "home",
         ["impressum"] = "home",
         ["membersearch"] = "home",
         ["parzellen"] = "home",

@@ -24,10 +24,11 @@ test("B2 derives demo scope from the selected document member and keeps 80xxx me
 });
 
 test("Web and MAUI use the shared explicit assignment endpoint", () => {
-  const web = read("KGV.Web/features/documents/HistoricalDocumentUploadDialog.tsx");
-  const maui = read("KGV.Maui/Pages/HistoricalDocumentImportPage.cs");
+  const web = read("KGV.Web/features/documents/HistoricalContractRegistrationWorkflow.tsx");
+  const maui = read("KGV.Maui/Pages/HistoricalContractRegistrationPage.cs");
   const edge = read("supabase/functions/kgv-upload-document/index.ts");
-  assert.match(web, /Nummer zuweisen/);
+  assert.match(web, /uploadHistoricalContractDocument/);
+  assert.match(maui, /HistoricalContractType = code/);
   assert.match(web, /reserveHistoricalContractNumber\(/);
   assert.match(maui, /ReserveHistorischeVertragsnummerAsync/);
   assert.match(edge, /reserve_historical_contract_number/);

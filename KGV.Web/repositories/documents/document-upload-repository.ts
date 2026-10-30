@@ -36,12 +36,17 @@ export class DocumentUploadError extends Error {
   }
 }
 
-export async function uploadDocumentForOwnerRequest(club: ClubContext, session: BrowserSession, owner: DocumentOwner, file: File, title: string): Promise<Document> {
+export async function uploadDocumentForOwnerRequest(club: ClubContext, session: BrowserSession, owner: DocumentOwner, file: File, title: string, historicalContractType?: "historischer_ma_pv_erstvertrag" | "historischer_pv_folgevertrag", operationId?: string): Promise<Document> {
   const form = new FormData();
   form.set("file", file);
   form.set("owner_kind", owner.kind === "member" ? "mitglied" : "parzelle");
   form.set("owner_id", String(owner.id));
   form.set("titel", title);
+  if (historicalContractType !== undefined) {
+    if (!operationId) throw new Error("Die Vorgangs-ID des Altvertrags fehlt.");
+    form.set("historical_contract_type", historicalContractType);
+    form.set("operation_id", operationId);
+  }
 
   const response = await invokeEdgeFunctionRaw({ club, session }, "kgv-upload-document", { method: "POST", body: form });
   const payload = await response.json().catch(() => null) as DocumentUploadResponse | null;
@@ -63,4 +68,12 @@ export async function reserveHistoricalContractNumberRequest(club: ClubContext, 
     throw new DocumentUploadError(response.status, { ...payload, error_code: "HISTORICAL_NUMBER_RESPONSE_INVALID", message: payload?.message ?? "Der Server lieferte keine gültige historische Vertragsnummer." });
   }
   return { nummer, titel: payload?.titel ?? `Vertrags-Nr. ${nummer}`, pdfGestempelt: payload?.pdf_gestempelt === true };
+}
+
+export async function downloadHistoricalContractDocumentRequest(club: ClubContext, session: BrowserSession, documentId: number) {
+  const response = await invokeEdgeFunctionRaw({ club, session }, "kgv-upload-document", {
+    method: "POST", body: JSON.stringify({ action: "download_historical_contract", document_id: documentId }), contentType: "application/json",
+  });
+  if (!response.ok) throw new DocumentUploadError(response.status, await response.json().catch(() => null));
+  return response.blob();
 }

@@ -1,0 +1,13 @@
+{
+  "name": "kgv-historical-sql-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.13",
+    "pdf-lib": "1.17.1",
+    "typescript": "5.9.3"
+  }
+}

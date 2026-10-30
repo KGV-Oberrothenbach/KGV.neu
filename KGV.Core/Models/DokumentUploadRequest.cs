@@ -6,6 +6,8 @@ namespace KGV.Core.Models
     {
         public int? MitgliedId { get; set; }
         public int? ParzelleId { get; set; }
+        public Guid? HistoricalOperationId { get; set; }
+        public string? HistoricalContractType { get; set; }
         public string Titel { get; set; } = string.Empty;
         public string FileName { get; set; } = string.Empty;
         public string MimeType { get; set; } = "application/octet-stream";
