@@ -12429,3 +12429,9 @@ Note: PdfSharpCore bietet eingeschränkte AcroForm-Unterstützung; die Implement
 - PDF-Stempel: backendseitige Lease, Statusprüfung unter Sperre und dokument-/nummerngebundener, dauerhaft gespeicherter Zufallsmarker für das Fenster zwischen Datei-Schreiben und Statusbestätigung.
 - Web und MAUI halten dieselbe Vorgangs-ID und den ursprünglichen Request; Wiederaufnahme erfolgt explizit online, ohne historische Importqueue.
 - Prüfungen: echte SQL-/Edge-/PDF-Tests und HTTP-Tests ergänzt; native PostgreSQL-17-Paralleltests verwenden einen eigenen temporären Loopback-Cluster mit getrennten Verbindungen. Keine Produktivdaten, kein Live-Storage und kein Merge nach main. Vollständige Ergebnisse im G11b3-Abschlussbericht.
+
+## 2026-10-30 – G11c/G11d finale Integrationsabnahme und Dokumentationszusammenführung
+
+- G11c bestätigte alle sieben ursprünglichen historischen Vertragsblocker als behoben. Der finale Stand lautet: .NET **422/428** mit sechs bekannten Altschulden, isolierte PostgreSQL-/Edge-/PDF-Prüfung **82/82**, Web-Build und gezielter G11-Lint erfolgreich sowie MAUI-Android-Build mit 0 Fehlern und 25 bekannten ImageSharp-Warnungen.
+- Die weiterhin offenen Punkte sind ausschließlich nachgelagerte manuelle Abnahmen: echte Supabase-/Storage-End-to-End-Ausführung und Android-Laufzeittest. Es wurde keine Produktionsdatenbank verwendet.
+- G11d führt den Entwicklungslog, den Dokumentationsindex und den Fachvergleich gegen den aktuellen `origin/main` zusammen. Der Fachvergleich dokumentiert die G11b1–G11b3-Härtungen, die korrigierte Parteienzeitachse, Bit-24-Dokumentgrenzen, den reparierten PDF-Stempel und den idempotenten Upload-/Registrierungs-/Stempelpfad mit Vorrang vor älteren G10-Aussagen.

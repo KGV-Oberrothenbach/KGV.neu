@@ -2,7 +2,7 @@
 
 ## Geltungsbereich und Lesart
 
-Dieses Dokument hält den Repository-Stand nach G9 am Commit `8d5eab0197a94b8dba31eca0ca38b6db1c0aa726` fest. Es beschreibt fachliche Bereiche und belegte Implementierungen, nicht eine technische Gleichheit der Oberflächen. Web und MAUI verwenden unterschiedliche Navigation, UI-Komponenten und Teile der Client-Infrastruktur; gemeinsame Datenbank- und Workflowverträge bilden die fachliche Grenze.
+Dieses Dokument hält den Repository-Stand nach G11c am Commit `189505c` fest. Es beschreibt fachliche Bereiche und belegte Implementierungen, nicht eine technische Gleichheit der Oberflächen. Web und MAUI verwenden unterschiedliche Navigation, UI-Komponenten und Teile der Client-Infrastruktur; gemeinsame Datenbank- und Workflowverträge bilden die fachliche Grenze.
 
 Die folgende Produktstruktur ist rollen- und berechtigungsabhängig. Sie bedeutet nicht, dass jeder Eintrag für jede angemeldete Person sichtbar ist. Die Web-Navigation filtert nach effektiven Rechten. MAUI unterscheidet unter anderem `UserShell` und `AdminShell`; die jeweilige Shell zeigt nur freigegebene Ziele.
 
@@ -149,7 +149,7 @@ Beide Clients verwenden die gemeinsamen Modelle aus `KGV.Core`, `get_historische
 
 `register_historischen_pachtvertrag` ist die atomare **relationale Registrierungsgrenze**: Dokumentklassifizierung, Vertragsnummerreservierung, Pachtbeziehungen/-fassungen, Parteienhistorie, `mitglied_seit`-Korrektur und ausdrücklich bestätigte Mitgliedschafts-/Aktivstatusänderungen werden innerhalb der Datenbanktransaktion verarbeitet. Ein Fehler innerhalb dieser RPC hinterlässt keinen Teilzustand dieser relationalen Änderungen; Wiederholungen derselben Registrierung sind auf vorhandene Fassungen und Nummern ausgelegt.
 
-Die gesamte Dateiablage liegt jedoch nicht in dieser SQL-Transaktion: Web und MAUI laden das Dokument vorher hoch; danach folgt die Registrierungs-RPC. Schlägt die Registrierung fehl, kann daher ein bereits gespeichertes, noch nicht als Vertrag registriertes Dokument verbleiben. Der PDF-Stempel wird anschließend über einen separaten Edge-Function-Aufruf erzeugt und sein Status separat gespeichert. Ein Fehler in dieser Nachbearbeitung rollt die erfolgreiche Registrierung nicht zurück. Der Pfad „PDF ersetzt, aber Stempelstatus noch nicht markiert“ muss bei der echten Retry-/End-to-End-Abnahme gezielt geprüft werden; der Repository-Stand belegt keine transaktionsweite Atomarität für Upload und Stempel.
+Dateiablage und PDF-Stempel bleiben getrennte technische Phasen außerhalb der SQL-Transaktion. G11b3 macht diese Phasen jedoch über eine persistierte Vorgangs-ID, vorab erzeugte Drive-ID, Upload-Hash sowie eine Stempel-Lease und einen dokument-/nummerngebundenen PDF-Marker wiederaufnehmbar und idempotent. Ein erfolgreicher relationaler Vertrag wird bei einem späteren Storagefehler nicht zurückgerollt; Wiederholung setzt stattdessen denselben Vorgang fort. Die echte Supabase-/Drive-End-to-End-Abnahme bleibt dennoch offen.
 
 ### Allgemeiner historischer Dokumentimport
 
@@ -162,27 +162,28 @@ Der allgemeine historische Dokumentimport bleibt für allgemeine Dokumentnachwei
 | `supabase/migrations/20261030110000_g6a_historical_contract_foundation.sql` | Historische Vertragstypen, Vertragsfassungen, Capability-Prüfung, Audittabelle für „Mitglied seit“ und erste atomare Registrierungs-RPC |
 | `supabase/migrations/20261030120000_g6b2_historical_contract_state_transitions.sql` | Vertragsparteien je Pachtbeziehung sowie ausdrücklich bestätigte Mitgliedschafts- und Aktivstatusänderungen |
 | `supabase/migrations/20261030130000_g7_historical_contract_preview.sql` | Capability-geschützte Vorschau-RPC zur zeitlichen Einordnung von Vorgänger/Nachfolger |
+| `supabase/migrations/20261030140000_g11b1_historical_contract_validation.sql` | qualifizierte Registrierungsvalidierung, Parteienzeitachse, serverseitiger Vertragskontext und fachliche Befehlsprüfung |
+| `supabase/migrations/20261030150000_g11b2_historical_document_access.sql` | Bit-24-geschützter Upload-/Dokumentkontext und abgesicherter PDF-Stempelzugriff |
+| `supabase/migrations/20261030160000_g11b3_historical_contract_idempotency.sql` | persistierte Vorgänge, Request-/Result-Replay, Upload- und Stempel-Idempotenz |
 | `supabase/migrations/20261027120000_nb2b_b2_historische_vertragsnummern.sql` | 80xxx-Feld, quellbezogene Nummernreservierung und PDF-Stempelstatus-Metadaten |
 
 Die Tabelle beschreibt den Zweck der Migrationen; sie ist keine SQL-Zeilenreferenz und dokumentiert keine Anwendung auf eine Live-Datenbank.
 
-## Test- und Integrationsstand nach G9
+## Test- und Integrationsstand nach G11c
 
-Die folgenden Ergebnisse stammen aus dem G9-Abschlusslauf und wurden für diese reine Dokumentationsänderung nicht erneut ausgeführt:
-
-- **.NET:** 412/418 Tests bestanden. Sechs bekannte Fehler: drei Demo-Marker-Assertions, ein UUID-Dateiname-Test und zwei Mitgliedsantrag-Renderer-Tests wegen der bestehenden v5-Feldschema-Inkompatibilität.
+- **.NET:** 422/428 Tests bestanden. Die sechs bekannten Altschulden sind drei Demo-Marker-Assertions, ein UUID-Dateiname-Test sowie zwei Mitgliedsantrag-v5-Renderer-/Feldschemafälle.
+- **Isolierte PostgreSQL-/Edge-/PDF-Tests:** 82/82 bestanden, einschließlich Capability, Parteienzeitachse, Rollback, paralleler Registrierung, Upload- und Stempel-Retry.
 - **Web-Build:** erfolgreich; vorhandene Chunkgrößen- und Routenklassifizierungswarnungen.
-- **Web-Lint:** global 7 Fehler / 10 Warnungen. G9-geänderte Web-Dateien wurden gezielt lint-geprüft; bekannte Bestandsfehler wurden nicht im Rahmen von G9 behoben.
-- **MAUI-Android-Build:** erfolgreich, 0 Fehler; vorhandene ImageSharp-NU1902-/NU1903-Warnungen.
-- **`git diff --check`:** im G9-Abschluss erfolgreich; für die G10-Dokumentationsänderung erneut zu prüfen.
+- **Web-Lint:** der gezielte G11-Lint ist erfolgreich. Der globale Bestandslinter ist nicht Gegenstand dieser Abnahme.
+- **MAUI-Android-Build:** erfolgreich, 0 Fehler und 25 bekannte ImageSharp-Warnungen.
+- **`git diff --check`:** in G11c erfolgreich.
 
 ## Bekannte Restpunkte
 
-- Die sechs genannten .NET-Testfehler bestehen fort.
-- Der globale Web-Linter meldet weiterhin 7 Fehler und 10 Warnungen; G9 hat keine neuen Lintfehler in den gezielt geprüften geänderten Web-Dateien hinzugefügt.
-- Für G6/G7 stand keine testfähige lokale Supabase-Instanz zur Verfügung. SQL-/RPC-Verträge wurden lokal per SQL-/Contracttests geprüft; eine vollständige Migration und RPC-End-to-End-Ausführung gegen eine frische Testdatenbank steht aus.
-- Die getrennten Phasen für Datei-Upload, relationale Registrierung und PDF-Stempel sind keine gemeinsame Transaktion. Fehler-/Retry-Verhalten über diese Phasengrenzen muss mit einer Testdatenbank und realem Storage geprüft werden.
-- Die vorhandenen ImageSharp-NU1902-/NU1903-Warnungen sowie Web-Buildwarnungen sind nicht durch G9 eingeführt.
+- Die sechs genannten .NET-Altschulden bestehen fort.
+- Eine echte Supabase-/Storage-End-to-End-Ausführung gegen eine testfähige Instanz steht aus; 82 isolierte PostgreSQL-/Edge-/PDF-Tests ersetzen diese Laufzeitabnahme nicht.
+- Ein Android-Laufzeittest auf Gerät oder Emulator steht aus; der Android-Build selbst ist erfolgreich.
+- Die vorhandenen ImageSharp-NU1902-/NU1903-Warnungen sowie Web-Buildwarnungen sind nicht durch G11 eingeführt.
 - Ein eigener Dokumenttypen-Navigationseintrag ist in der MAUI-AdminShell nicht nachgewiesen, während Web ihn anbietet.
 
 Es wurde keine Produktionsdatenbank für Tests verwendet und keine reale DB-Integration behauptet.
