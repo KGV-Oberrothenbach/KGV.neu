@@ -1,1 +1,2 @@
-export function SerienbriefBetreff({value,onChange}:{value:string;onChange:(value:string)=>void}){return <label>Betreff<input value={value} onChange={event=>onChange(event.target.value)} placeholder="Erforderlicher Austausch Ihres Stromzählers"/></label>;}
+import { type RefObject } from "react";
+export function SerienbriefBetreff({value,onChange,inputRef,onActive}:{value:string;onChange:(value:string)=>void;inputRef:RefObject<HTMLInputElement|null>;onActive:()=>void}){return <label>Betreff<input ref={inputRef} value={value} onFocus={onActive} onClick={onActive} onChange={event=>onChange(event.target.value)} placeholder="Erforderlicher Austausch Ihres Stromzählers"/></label>;}
