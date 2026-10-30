@@ -44,6 +44,7 @@ namespace KGV.Core.Security
             new(PermissionFlags.CanManageAppointments, "Termine verwalten"),
             new(PermissionFlags.CanManageAnnouncements, "Bekanntmachungen verwalten"),
             new(PermissionFlags.CanPerformYearEndClosing, "Jahresabschluss durchführen"),
+            new(PermissionFlags.CanRegisterHistoricalContracts, "Historische Verträge nacherfassen"),
             new(PermissionFlags.CanReadRoles, "Rollen/Rechte sehen"),
             new(PermissionFlags.CanManageRoles, "Rollen verwalten")
         };
@@ -65,6 +66,7 @@ namespace KGV.Core.Security
             PermissionFlags.CanManageAppointments,
             PermissionFlags.CanManageAnnouncements,
             PermissionFlags.CanPerformYearEndClosing,
+            PermissionFlags.CanRegisterHistoricalContracts,
             PermissionFlags.CanReadMeters,
             PermissionFlags.CanManageMeterChanges,
             PermissionFlags.CanApproveMeterReadings,
@@ -132,6 +134,12 @@ namespace KGV.Core.Security
                 PermissionFlags.CanPerformYearEndClosing,
                 PermissionFlags.CanPerformYearEndClosing,
                 PermissionFlags.CanPerformYearEndClosing),
+            new(
+                "altvertraege",
+                "Historische Verträge",
+                PermissionFlags.CanRegisterHistoricalContracts,
+                PermissionFlags.CanRegisterHistoricalContracts,
+                PermissionFlags.CanRegisterHistoricalContracts),
             new(
                 "zaehlerwechsel",
                 "Zählerwechsel",

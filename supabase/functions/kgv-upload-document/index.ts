@@ -57,6 +57,8 @@ type AuthenticatedDocumentUser = {
   role: string;
   mitgliedId: number | null;
   isDemoAccount: boolean;
+  permissionGrants: number;
+  permissionRevocations: number;
 };
 
 type DriveDocumentRecord = {
@@ -524,7 +526,7 @@ async function authenticateDocumentUser(authHeader: string) {
 
   const { data: appUser, error: appUserError } = await supabaseAdmin
     .from("app_user")
-    .select("role,mitglied_id,is_demo_account")
+    .select("role,mitglied_id,is_demo_account,permission_grants,permission_revocations")
     .eq("user_id", userData.user.id)
     .maybeSingle();
 
@@ -538,7 +540,16 @@ async function authenticateDocumentUser(authHeader: string) {
     ? rawMitgliedId
     : null;
 
-  return { ok: true as const, userId: userData.user.id, role, mitgliedId, isDemoAccount: appUser?.is_demo_account === true, supabaseAdmin };
+  return {
+    ok: true as const,
+    userId: userData.user.id,
+    role,
+    mitgliedId,
+    isDemoAccount: appUser?.is_demo_account === true,
+    permissionGrants: Number(appUser?.permission_grants ?? 0),
+    permissionRevocations: Number(appUser?.permission_revocations ?? 0),
+    supabaseAdmin,
+  };
 }
 
 async function requireAdminOrVorstand(authHeader: string) {
@@ -562,6 +573,19 @@ async function requireAdmin(authHeader: string) {
 
   if (auth.role !== "admin")
     return { ok: false as const, status: 403, message: "Nur Admin dürfen Dokumente archivieren." };
+
+  return auth;
+}
+
+async function requireHistoricalContractRegistration(authHeader: string) {
+  const auth = await authenticateDocumentUser(authHeader);
+  if (!auth.ok)
+    return auth;
+
+  const roleBase = auth.role === "admin" ? 16769015 : auth.role === "vorstand" ? 7855607 : 10;
+  const effectivePermissions = (roleBase | auth.permissionGrants) & ~auth.permissionRevocations;
+  if ((effectivePermissions & 16777216) !== 16777216)
+    return { ok: false as const, status: 403, message: "Für die Nacherfassung historischer Verträge fehlt die Berechtigung." };
 
   return auth;
 }
@@ -798,7 +822,7 @@ Deno.serve(async (req) => {
         const documentId = Number(payload.document_id);
         if (!Number.isSafeInteger(documentId) || documentId <= 0)
           return errorResponse(400, "BAD_REQUEST", "document_id fehlt oder ist ungültig.", requestId);
-        const auth = await requireAdminOrVorstand(authHeader);
+        const auth = await requireHistoricalContractRegistration(authHeader);
         if (!auth.ok) return errorResponse(auth.status, "FORBIDDEN", auth.message, requestId);
         const document = await mayReadDocument(auth, documentId);
         if (!document) return errorResponse(403, "FORBIDDEN", "Dieses Dokument ist für den aktuellen Benutzer nicht freigegeben.", requestId);

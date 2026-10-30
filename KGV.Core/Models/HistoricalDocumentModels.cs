@@ -33,6 +33,98 @@ public sealed record HistorischesDokumentRegistrierungRequest(long DokumentId, l
 public sealed record HistorischesDokumentRegistrierungResult(long DokumentId, long DokumenttypId, DateTime Dokumentdatum, bool Unterzeichnet, long? PachtvertragsfassungId, long? WartungsvertragZuordnungId);
 public sealed record HistorischeVertragsnummerResult(int Nummer, string Titel, bool PdfGestempelt);
 
+/// <summary>Die beiden fachlich zulässigen Formen eines nacherfassten Papiervertrags.</summary>
+public enum HistoricalContractKind
+{
+    MembershipAndLeaseInitialContract = 1,
+    LeaseFollowUpContract = 2
+}
+
+public static class HistoricalContractDocumentTypes
+{
+    public const string MembershipAndLeaseInitialContract = "historischer_ma_pv_erstvertrag";
+    public const string LeaseFollowUpContract = "historischer_pv_folgevertrag";
+}
+
+public sealed record HistoricalContractParty(long MitgliedId, long Mitgliedsnummer);
+
+/// <summary>Ein vorhandener Vertragsstand derselben Pachtbeziehung.</summary>
+public sealed record HistoricalLeaseContractVersion(long PachtvertragsfassungId, DateOnly WirksamAb, DateOnly? GueltigBis);
+
+/// <summary>
+/// Ergebnis der zeitlichen Einordnung einer neuen Vertragsfassung. Es betrifft bewusst
+/// nur die übergebene Pachtbeziehung und kann deshalb keine andere Parzelle verändern.
+/// </summary>
+public sealed record HistoricalLeaseHistoryPlacement(
+    long? VorgaengerFassungId,
+    DateOnly? VorgeschlagenesEndeDesVorgaengers,
+    long? NachfolgerFassungId,
+    DateOnly? VorgeschlagenesEndeDerNeuenFassung);
+
+public enum HistoricalMembershipExitHandling
+{
+    LeaseParticipationOnly = 1,
+    LeaseParticipationAndMembership = 2
+}
+
+public enum HistoricalMembershipActivitySuggestion
+{
+    KeepCurrentState = 0,
+    SuggestActive = 1,
+    SuggestPassive = 2
+}
+
+public sealed record HistoricalMembershipSinceCorrection(long MitgliedId, DateOnly BisherigesDatum, DateOnly KorrigiertesDatum)
+{
+    public bool IsCorrection => BisherigesDatum != KorrigiertesDatum;
+}
+
+public static class HistoricalContractRegistrationRules
+{
+    public static HistoricalLeaseHistoryPlacement PlaceLeaseVersion(
+        DateOnly wirksamAb,
+        IEnumerable<HistoricalLeaseContractVersion> existingVersions,
+        DateOnly? overriddenPreviousEnd = null)
+    {
+        ArgumentNullException.ThrowIfNull(existingVersions);
+
+        var ordered = existingVersions.OrderBy(version => version.WirksamAb).ToArray();
+        var predecessor = ordered.LastOrDefault(version => version.WirksamAb < wirksamAb);
+        var successor = ordered.FirstOrDefault(version => version.WirksamAb > wirksamAb);
+
+        return new HistoricalLeaseHistoryPlacement(
+            predecessor?.PachtvertragsfassungId,
+            predecessor is null ? null : overriddenPreviousEnd ?? wirksamAb.AddDays(-1),
+            successor?.PachtvertragsfassungId,
+            successor is null ? null : successor.WirksamAb.AddDays(-1));
+    }
+
+    public static HistoricalMembershipActivitySuggestion SuggestMembershipActivity(
+        bool isCurrentlyActive,
+        int effectiveLeaseRelationCount)
+    {
+        if (effectiveLeaseRelationCount < 0)
+            throw new ArgumentOutOfRangeException(nameof(effectiveLeaseRelationCount));
+
+        return (isCurrentlyActive, effectiveLeaseRelationCount) switch
+        {
+            (false, > 0) => HistoricalMembershipActivitySuggestion.SuggestActive,
+            (true, 0) => HistoricalMembershipActivitySuggestion.SuggestPassive,
+            _ => HistoricalMembershipActivitySuggestion.KeepCurrentState
+        };
+    }
+
+    public static string CreatePdfStampText(int historicalContractNumber, IEnumerable<long> memberNumbers)
+    {
+        var numbers = memberNumbers?.Distinct().OrderBy(number => number).ToArray()
+            ?? throw new ArgumentNullException(nameof(memberNumbers));
+        if (numbers.Length == 0)
+            throw new ArgumentException("Mindestens eine Mitgliedsnummer ist erforderlich.", nameof(memberNumbers));
+
+        return $"Mgl.-Nr. {string.Join(" / ", numbers)}{Environment.NewLine}Vertrags-Nr. {historicalContractNumber}";
+    }
+}
+
 [Table("pachtverhaeltnis_beteiligung")]
 public sealed class PachtverhaeltnisBeteiligungRecord : BaseModel
 {
