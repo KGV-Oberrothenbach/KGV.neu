@@ -1,0 +1,1 @@
+export function SerienbriefBetreff({value,onChange}:{value:string;onChange:(value:string)=>void}){return <label>Betreff<input value={value} onChange={event=>onChange(event.target.value)} placeholder="Erforderlicher Austausch Ihres Stromzählers"/></label>;}
