@@ -14,11 +14,12 @@ public sealed class HistoricalContractRegistrationPage : ContentPage
     private readonly Picker _primary = new() { Title = "2. Hauptpächter" };
     private readonly Picker _secondary = new() { Title = "Optionaler zweiter Pächter" };
     private readonly VerticalStackLayout _leaseChoices = new() { Spacing = 4 };
+    private readonly VerticalStackLayout _history = new() { Spacing = 3 };
+    private readonly VerticalStackLayout _removedPartyChoices = new() { Spacing = 3 };
     private readonly DatePicker _date = new() { Date = DateTime.Today };
     private readonly Switch _signed = new() { IsToggled = true };
     private readonly Switch _correctSince = new();
     private readonly DatePicker _memberSince = new() { Date = DateTime.Today };
-    private readonly Switch _endSecondaryMembership = new();
     private readonly DatePicker _membershipEnd = new() { Date = DateTime.Today };
     private readonly Picker _activity = new() { Title = "Bestätigte Aktiv/Passiv-Änderung" };
     private readonly Label _file = new() { Text = "3. Keine Datei ausgewählt." };
@@ -26,6 +27,8 @@ public sealed class HistoricalContractRegistrationPage : ContentPage
     private readonly List<MitgliedRecord> _members = [];
     private readonly List<HistorischePachtbeziehung> _leases = [];
     private readonly Dictionary<long, CheckBox> _leaseChecks = [];
+    private readonly Dictionary<long, Switch> _removedPartyMembershipEnds = [];
+    private readonly List<HistoricalContractHistoryEntry> _contractHistory = [];
     private byte[]? _content; private string _fileName = string.Empty; private string _mimeType = "application/octet-stream"; private bool _busy;
 
     public HistoricalContractRegistrationPage(ISupabaseService supabase)
@@ -34,6 +37,7 @@ public sealed class HistoricalContractRegistrationPage : ContentPage
         _kind.ItemsSource = new[] { "MA + PV – Erstvertrag", "PV – Folgevertrag" }; _kind.SelectedIndex = 0;
         _activity.ItemsSource = new[] { "Keine Statusänderung", "aktiv setzen", "passiv setzen" }; _activity.SelectedIndex = 0;
         _primary.SelectedIndexChanged += async (_, _) => await LoadLeasesAsync();
+        _date.DateSelected += async (_, _) => await RefreshHistoryAsync();
         var choose = new Button { Text = "Datei auswählen" }; choose.Clicked += async (_, _) => await SelectFileAsync();
         var submit = new Button { Text = "7. Altvertrag übernehmen" }; submit.Clicked += async (_, _) => await SubmitAsync();
         Content = new ScrollView { Content = new VerticalStackLayout { Padding = 20, Spacing = 12, Children =
@@ -43,7 +47,8 @@ public sealed class HistoricalContractRegistrationPage : ContentPage
             _kind, _primary, _secondary, new Label { Text = "2. Betroffene Pachtbeziehungen / Parzellen (Mehrfachauswahl)" }, _leaseChoices,
             choose, _file, new Label { Text = "4. Vertragsdaten / Historie" }, _date, new HorizontalStackLayout { Children = { new Label { Text = "Unterzeichnet" }, _signed } },
             new Label { Text = "5. Änderungen und Hinweise" }, new HorizontalStackLayout { Children = { new Label { Text = "Mitglied seit bewusst korrigieren" }, _correctSince } }, _memberSince,
-            new HorizontalStackLayout { Children = { new Label { Text = "Zweiten Pächter auch als Mitglied beenden" }, _endSecondaryMembership } }, _membershipEnd, _activity,
+            new Label { Text = "Vorhandene Vertragsstände der ausgewählten Parzellen" }, _history,
+            new Label { Text = "Herausfallende Parteien (Mitgliedschaft nur bewusst beenden)" }, _removedPartyChoices, _membershipEnd, _activity,
             new Label { Text = "6. Zusammenfassung: Die 80xxx-Vertragsnummer und der PDF-Stempel werden beim Übernehmen automatisch erzeugt." }, submit, _status
         } } };
         Appearing += async (_, _) => await LoadMembersAsync();
@@ -70,12 +75,34 @@ public sealed class HistoricalContractRegistrationPage : ContentPage
             _leases.AddRange(await _supabase.GetPachtbeziehungenForMitgliedAsync(member.Id));
             foreach (var lease in _leases)
             {
-                var check = new CheckBox(); _leaseChecks[lease.PachtverhaeltnisId] = check;
+                var check = new CheckBox(); check.CheckedChanged += async (_, _) => await RefreshHistoryAsync(); _leaseChecks[lease.PachtverhaeltnisId] = check;
                 _leaseChoices.Children.Add(new HorizontalStackLayout { Children = { check, new Label { Text = $"Garten {lease.Parzellennummer} · {lease.Anlage} · {lease.Rolle}" } } });
             }
             _memberSince.Date = member.MitgliedSeit ?? DateTime.Today;
         }
         catch (Exception ex) { _status.Text = $"Pachtbeziehungen konnten nicht geladen werden: {ex.Message}"; }
+    }
+
+    private async Task RefreshHistoryAsync()
+    {
+        _history.Children.Clear(); _removedPartyChoices.Children.Clear(); _removedPartyMembershipEnds.Clear(); _contractHistory.Clear();
+        var relationIds = _leaseChecks.Where(item => item.Value.IsChecked).Select(item => item.Key).ToList();
+        if (relationIds.Count == 0) return;
+        try
+        {
+            _contractHistory.AddRange(await _supabase.GetHistoricalContractHistoryAsync(relationIds, DateOnly.FromDateTime(_date.Date ?? DateTime.Today)));
+            foreach (var entry in _contractHistory)
+                _history.Children.Add(new Label { Text = $"{entry.WirksamAb:dd.MM.yyyy}–{entry.GueltigBis?.ToString("dd.MM.yyyy") ?? "offen"}, Nr. {entry.HistorischeVertragsnummer?.ToString() ?? "–"}, Parteien {string.Join(" / ", entry.VertragsparteiMitgliedIds)}{(entry.IstVorgaenger ? " (Vorgänger)" : entry.IstNachfolger ? " (wird danach eingeordnet)" : string.Empty)}" });
+            var parties = new HashSet<long> { _primary.SelectedIndex >= 0 ? _members[_primary.SelectedIndex].Id : 0 };
+            if (_secondary.SelectedIndex > 0) parties.Add(_members[_secondary.SelectedIndex - 1].Id);
+            foreach (var memberId in _contractHistory.Where(item => item.IstVorgaenger).SelectMany(item => item.VertragsparteiMitgliedIds).Distinct().Where(memberId => !parties.Contains(memberId)))
+            {
+                var toggle = new Switch(); _removedPartyMembershipEnds[memberId] = toggle;
+                var member = _members.FirstOrDefault(item => item.Id == memberId);
+                _removedPartyChoices.Children.Add(new HorizontalStackLayout { Children = { toggle, new Label { Text = $"{(member is null ? $"Mitglied {memberId}" : MemberLabel(member))} ebenfalls als Mitglied beenden" } } });
+            }
+        }
+        catch (Exception ex) { _status.Text = $"Vertragshistorie konnte nicht geladen werden: {ex.Message}"; }
     }
 
     private async Task SelectFileAsync()
@@ -99,12 +126,12 @@ public sealed class HistoricalContractRegistrationPage : ContentPage
             if (!upload.Success || upload.Document?.Id is not > 0) throw new InvalidOperationException(upload.Message);
             var partyIds = second == null ? new List<long> { primary.Id } : new List<long> { primary.Id, second.Id };
             var contractDate = _date.Date ?? DateTime.Today;
-            var ends = _endSecondaryMembership.IsToggled && second != null ? new[] { new HistoricalMembershipEnd(second.Id, _membershipEnd.Date ?? contractDate) } : [];
+            var ends = _removedPartyMembershipEnds.Where(item => item.Value.IsToggled).Select(item => new HistoricalMembershipEnd(item.Key, _membershipEnd.Date ?? contractDate)).ToArray();
             var status = _activity.SelectedIndex switch { 1 => new[] { new HistoricalActivityStatusChange(primary.Id, true) }, 2 => new[] { new HistoricalActivityStatusChange(primary.Id, false) }, _ => [] };
-            var previousEnds = relations.ToDictionary(id => id, _ => contractDate.AddDays(-1));
+            var previousEnds = relations.ToDictionary(id => id, id => _contractHistory.FirstOrDefault(item => item.PachtverhaeltnisId == id && item.IstVorgaenger)?.VorgeschlagenesVorgaengerende is DateOnly end ? end.ToDateTime(TimeOnly.MinValue) : contractDate.AddDays(-1));
             var result = await _supabase.RegisterHistoricalContractAsync(new HistoricalContractRegistrationRequest(upload.Document.Id, code, contractDate, _signed.IsToggled, relations, previousEnds, _correctSince.IsToggled ? primary.Id : null, _correctSince.IsToggled ? _memberSince.Date ?? contractDate : null, partyIds, ends, status));
             var number = await _supabase.ReserveHistorischeVertragsnummerAsync(upload.Document.Id);
-            _status.Text = $"Altvertrag übernommen. Vertrags-Nr. {number.Nummer}{(number.PdfGestempelt ? " wurde im PDF gestempelt." : " wurde vergeben.")}";
+            _status.Text = $"Altvertrag übernommen. Vertrags-Nr. {result.First().HistorischeVertragsnummer}{(number.PdfGestempelt ? " wurde im PDF gestempelt." : " wurde vergeben.")}";
         }
         catch (Exception ex) { _status.Text = $"Altvertrag konnte nicht atomar übernommen werden: {ex.Message}"; }
         finally { _busy = false; }

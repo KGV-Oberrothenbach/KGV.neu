@@ -36,6 +36,9 @@ public sealed record HistoricalContractRegistrationRequest(long DokumentId, stri
 public sealed record HistoricalMembershipEnd(long MitgliedId, DateTime MitgliedEnde);
 public sealed record HistoricalActivityStatusChange(long MitgliedId, bool Aktiv);
 public sealed record HistoricalContractRegistrationResult(long DokumentId, long DokumenttypId, long PachtverhaeltnisId, long PachtvertragsfassungId, int HistorischeVertragsnummer);
+/// <summary>Read-only common projection for the historical-contract editor. The
+/// server determines predecessor and successor from the effective date.</summary>
+public sealed record HistoricalContractHistoryEntry(long PachtverhaeltnisId, long PachtvertragsfassungId, DateOnly WirksamAb, DateOnly? GueltigBis, int? HistorischeVertragsnummer, IReadOnlyList<long> VertragsparteiMitgliedIds, bool IstVorgaenger, bool IstNachfolger, DateOnly? VorgeschlagenesVorgaengerende);
 
 /// <summary>Die beiden fachlich zulässigen Formen eines nacherfassten Papiervertrags.</summary>
 public enum HistoricalContractKind

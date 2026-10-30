@@ -4,6 +4,11 @@ import type { BrowserSession } from "../../lib/supabase-auth";
 
 export type HistoricalContractRegistrationInput = { documentId: number; documentTypeCode: "historischer_ma_pv_erstvertrag" | "historischer_pv_folgevertrag"; contractDate: string; signed: boolean; leaseRelationshipIds: number[]; previousEndDates: Record<string, string>; membershipSinceCorrection?: { memberId: number; date: string } | null; partyMemberIds: number[]; membershipEnds: { mitglied_id: number; mitglied_ende: string }[]; activityStatusChanges: { mitglied_id: number; aktiv: boolean }[] };
 export type HistoricalContractRegistrationRow = { dokument_id: number; dokumenttyp_id: number; pachtverhaeltnis_id: number; pachtvertragsfassung_id: number; historische_vertragsnummer: number };
+export type HistoricalContractHistoryEntry = { pachtverhaeltnis_id: number; pachtvertragsfassung_id: number; wirksam_ab: string; gueltig_bis: string | null; historische_vertragsnummer: number | null; vertragspartei_mitglied_ids: number[]; ist_vorgaenger: boolean; ist_nachfolger: boolean; vorgeschlagenes_vorgaengerende: string | null };
+
+export function loadHistoricalContractPreview(club: ClubContext, session: BrowserSession, leaseRelationshipIds: number[], contractDate: string) {
+  return callSupabaseRpc<HistoricalContractHistoryEntry[]>({ club, session }, "get_historische_pachtvertragsvorschau", { p_pachtverhaeltnis_ids: leaseRelationshipIds, p_vertragsdatum: contractDate });
+}
 
 // Deliberately calls the G6a multi-relation RPC, never register_historisches_dokument.
 export function registerHistoricalContract(club: ClubContext, session: BrowserSession, input: HistoricalContractRegistrationInput) {

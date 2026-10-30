@@ -3543,6 +3543,14 @@ namespace KGV.Infrastructure.Services
                 }).OrderByDescending(x => x.GueltigAb).ToList();
             }, new List<HistorischePachtbeziehung>());
 
+        public async Task<List<HistoricalContractHistoryEntry>> GetHistoricalContractHistoryAsync(IReadOnlyList<long> pachtverhaeltnisIds, DateOnly vertragsdatum)
+        {
+            if (pachtverhaeltnisIds.Count == 0) return [];
+            var client = await EnsureClientAsync();
+            var rows = await client.Rpc<List<HistoricalContractHistoryEntry>>("get_historische_pachtvertragsvorschau", new { p_pachtverhaeltnis_ids = pachtverhaeltnisIds.Distinct().ToArray(), p_vertragsdatum = vertragsdatum.ToString("yyyy-MM-dd") });
+            return rows?.ToList() ?? [];
+        }
+
         public async Task<List<HistorischeWartungsvertragZuordnung>> GetHistorischeWartungsvertragZuordnungenForMitgliedAsync(int mitgliedId)
         {
             if (mitgliedId <= 0) return [];

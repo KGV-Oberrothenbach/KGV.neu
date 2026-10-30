@@ -731,15 +731,15 @@ async function replaceDriveFileContent(accessToken: string, driveFileId: string,
   if (!response.ok) throw new Error(`Drive PDF update failed: ${await response.text()}`);
 }
 
-async function stampHistoricalContractPdf(bytes: ArrayBuffer, nummer: number): Promise<Uint8Array> {
+async function stampHistoricalContractPdf(bytes: ArrayBuffer, nummer: number, memberNumbers: number[]): Promise<Uint8Array> {
   const pdf = await PDFDocument.load(bytes);
   const page = pdf.getPages()[0];
   if (!page) throw new Error("Das PDF enthält keine Seite.");
   const font = await pdf.embedFont(StandardFonts.HelveticaBold);
-  const text = `Vertrags-Nr. ${nummer}`;
+  const text = `Mgl.-Nr. ${[...new Set(memberNumbers)].sort((a, b) => a - b).join(" / ")}\nVertrags-Nr. ${nummer}`;
   const width = font.widthOfTextAtSize(text, 11);
-  page.drawRectangle({ x: page.getWidth() - width - 42, y: page.getHeight() - 42, width: width + 14, height: 20, color: rgb(1, 1, 1), opacity: 0.92 });
-  page.drawText(text, { x: page.getWidth() - width - 35, y: page.getHeight() - 35, size: 11, font, color: rgb(0.05, 0.05, 0.05) });
+  page.drawRectangle({ x: page.getWidth() - width - 42, y: page.getHeight() - 58, width: width + 14, height: 36, color: rgb(1, 1, 1), opacity: 0.92 });
+  page.drawText(text, { x: page.getWidth() - width - 35, y: page.getHeight() - 51, size: 11, font, color: rgb(0.05, 0.05, 0.05), lineHeight: 13 });
   return await pdf.save();
 }
 
@@ -756,7 +756,13 @@ async function reserveHistoricalContractNumber(auth: { supabaseAdmin: ReturnType
     if (!driveFileId) throw new Error("Das PDF besitzt keine Google-Drive-Dateireferenz.");
     const accessToken = await getGoogleAccessToken();
     const source = await downloadDriveDocument(accessToken, driveFileId);
-    await replaceDriveFileContent(accessToken, driveFileId, await stampHistoricalContractPdf(await source.arrayBuffer(), nummer));
+    const { data: versions, error: versionError } = await auth.supabaseAdmin.from("pachtvertragsfassung").select("pachtverhaeltnis_id,wirksam_ab").eq("dokument_id", documentId);
+    if (versionError) throw new Error(`Vertragsfassungen für PDF-Stempel konnten nicht geladen werden: ${versionError.message}`);
+    const starts = new Map((versions ?? []).map((row: { pachtverhaeltnis_id: number; wirksam_ab: string }) => [row.pachtverhaeltnis_id, row.wirksam_ab]));
+    const { data: parties, error: partyError } = await auth.supabaseAdmin.from("pachtverhaeltnis_beteiligung").select("pachtverhaeltnis_id,gueltig_ab,gueltig_bis,mitglied:mitglied_id(mitgliedsnummer)").in("pachtverhaeltnis_id", [...starts.keys()]);
+    if (partyError) throw new Error(`Vertragsparteien für PDF-Stempel konnten nicht geladen werden: ${partyError.message}`);
+    const memberNumbers = (parties ?? []).filter((row: { pachtverhaeltnis_id: number; gueltig_ab: string; gueltig_bis?: string | null }) => { const start = starts.get(row.pachtverhaeltnis_id); return !!start && row.gueltig_ab <= start && (!row.gueltig_bis || row.gueltig_bis >= start); }).map((row: { mitglied?: { mitgliedsnummer?: number | null } }) => Number(row.mitglied?.mitgliedsnummer)).filter(Number.isInteger);
+    await replaceDriveFileContent(accessToken, driveFileId, await stampHistoricalContractPdf(await source.arrayBuffer(), nummer, memberNumbers));
     const { error: markError } = await auth.supabaseAdmin.rpc("mark_historische_vertragsnummer_pdf_gestempelt", { p_dokument_id: documentId, p_nummer: nummer });
     if (markError) throw new Error(`PDF-Stempel konnte nicht bestätigt werden: ${markError.message}`);
   }
