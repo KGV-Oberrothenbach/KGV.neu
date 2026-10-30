@@ -3567,6 +3567,28 @@ namespace KGV.Infrastructure.Services
             return rows?.SingleOrDefault() ?? throw new InvalidOperationException("Die fachliche Dokumentzuordnung wurde nicht bestätigt.");
         }
 
+        public async Task<List<HistoricalContractRegistrationResult>> RegisterHistoricalContractAsync(HistoricalContractRegistrationRequest request)
+        {
+            if (request.DokumentId <= 0 || request.PachtverhaeltnisIds.Count == 0 || request.VertragsparteiMitgliedIds.Count == 0)
+                throw new ArgumentException("Historischer Vertrag benötigt Dokument, Pachtbeziehung und Vertragspartei.");
+            var client = await EnsureClientAsync();
+            var rows = await client.Rpc<List<HistoricalContractRegistrationResult>>("register_historischen_pachtvertrag", new
+            {
+                p_dokument_id = request.DokumentId,
+                p_dokumenttyp_code = request.DokumenttypCode,
+                p_vertragsdatum = request.Vertragsdatum.ToString("yyyy-MM-dd"),
+                p_unterzeichnet = request.Unterzeichnet,
+                p_pachtverhaeltnis_ids = request.PachtverhaeltnisIds.ToArray(),
+                p_vorherige_enddaten = request.VorherigeEnddaten.ToDictionary(x => x.Key.ToString(), x => x.Value.ToString("yyyy-MM-dd")),
+                p_mitglied_seit_korrektur_mitglied_id = request.MitgliedSeitKorrekturMitgliedId,
+                p_mitglied_seit_korrektur_datum = request.MitgliedSeitKorrekturDatum?.ToString("yyyy-MM-dd"),
+                p_vertragspartei_mitglied_ids = request.VertragsparteiMitgliedIds.ToArray(),
+                p_mitgliedschaftsenden = request.Mitgliedschaftsenden.Select(x => new { mitglied_id = x.MitgliedId, mitglied_ende = x.MitgliedEnde.ToString("yyyy-MM-dd") }).ToArray(),
+                p_aktiv_status_aenderungen = request.AktivStatusAenderungen.Select(x => new { mitglied_id = x.MitgliedId, aktiv = x.Aktiv }).ToArray()
+            });
+            return rows?.ToList() ?? throw new InvalidOperationException("Die historische Vertragsregistrierung wurde nicht bestätigt.");
+        }
+
         public async Task<HistorischeVertragsnummerResult> ReserveHistorischeVertragsnummerAsync(long dokumentId)
         {
             if (dokumentId <= 0) throw new ArgumentOutOfRangeException(nameof(dokumentId));

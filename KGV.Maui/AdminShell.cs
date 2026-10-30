@@ -200,6 +200,8 @@ public sealed class AdminShell : Shell, IAppShellInitializer
             managementEntries.Add(("Jahresabschluss", "annual_closing", () => _services.GetRequiredService<JahresabschlussPage>()));
         if (PermissionChecks.CanManageClubSeasonConfiguration(managementContext))
             managementEntries.Add(("Vereinskonfiguration", "club_configuration", () => _services.GetRequiredService<VereinskonfigurationPage>()));
+        if (PermissionChecks.CanRegisterHistoricalContracts(managementContext))
+            managementEntries.Add(("Verträge nacherfassen", "historical_contract_registration", () => _services.GetRequiredService<HistoricalContractRegistrationPage>()));
         if (managementContext?.Role is UserRole.Admin or UserRole.Vorstand)
             managementEntries.Add(("Vereinsunterlagen", "club_documents", () => _services.GetRequiredService<VereinsunterlagenPage>()));
         if (managementContext?.Role is UserRole.Admin or UserRole.Vorstand)

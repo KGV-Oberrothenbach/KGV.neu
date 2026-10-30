@@ -158,6 +158,7 @@ namespace KGV.Core.Interfaces
         Task<List<HistorischePachtbeziehung>> GetPachtbeziehungenForMitgliedAsync(int mitgliedId);
         Task<List<HistorischeWartungsvertragZuordnung>> GetHistorischeWartungsvertragZuordnungenForMitgliedAsync(int mitgliedId);
         Task<HistorischesDokumentRegistrierungResult> RegisterHistorischesDokumentAsync(HistorischesDokumentRegistrierungRequest request);
+        Task<List<HistoricalContractRegistrationResult>> RegisterHistoricalContractAsync(HistoricalContractRegistrationRequest request);
         Task<HistorischeVertragsnummerResult> ReserveHistorischeVertragsnummerAsync(long dokumentId);
         Task<DokumentNachweisstatus?> GetMitgliedsantragNachweisstatusAsync(int mitgliedId);
         Task<DokumentNachweisstatus?> GetPachtvertragNachweisstatusAsync(long pachtverhaeltnisId);

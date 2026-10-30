@@ -32,6 +32,10 @@ public sealed record DokumenttypItem(long Id, string Bezeichnung, bool Aktiv, in
 public sealed record HistorischesDokumentRegistrierungRequest(long DokumentId, long DokumenttypId, DateTime Dokumentdatum, bool Unterzeichnet, long? PachtverhaeltnisId, long? WartungsvertragZuordnungId);
 public sealed record HistorischesDokumentRegistrierungResult(long DokumentId, long DokumenttypId, DateTime Dokumentdatum, bool Unterzeichnet, long? PachtvertragsfassungId, long? WartungsvertragZuordnungId);
 public sealed record HistorischeVertragsnummerResult(int Nummer, string Titel, bool PdfGestempelt);
+public sealed record HistoricalContractRegistrationRequest(long DokumentId, string DokumenttypCode, DateTime Vertragsdatum, bool Unterzeichnet, IReadOnlyList<long> PachtverhaeltnisIds, IReadOnlyDictionary<long, DateTime> VorherigeEnddaten, long? MitgliedSeitKorrekturMitgliedId, DateTime? MitgliedSeitKorrekturDatum, IReadOnlyList<long> VertragsparteiMitgliedIds, IReadOnlyList<HistoricalMembershipEnd> Mitgliedschaftsenden, IReadOnlyList<HistoricalActivityStatusChange> AktivStatusAenderungen);
+public sealed record HistoricalMembershipEnd(long MitgliedId, DateTime MitgliedEnde);
+public sealed record HistoricalActivityStatusChange(long MitgliedId, bool Aktiv);
+public sealed record HistoricalContractRegistrationResult(long DokumentId, long DokumenttypId, long PachtverhaeltnisId, long PachtvertragsfassungId, int HistorischeVertragsnummer);
 
 /// <summary>Die beiden fachlich zulässigen Formen eines nacherfassten Papiervertrags.</summary>
 public enum HistoricalContractKind
