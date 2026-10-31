@@ -23,9 +23,20 @@ async function responseMessage(response: Response, fallback: string) {
   return detail?.message ?? fallback;
 }
 
+export class SupabaseRestError extends Error {
+  readonly technicalMessage: string;
+  readonly status: number;
+  constructor(message: string, status: number, technicalMessage: string) { super(message); this.name = "SupabaseRestError"; this.status = status; this.technicalMessage = technicalMessage; }
+}
+
+async function readError(response: Response) {
+  const detail = await response.json().catch(() => null) as { message?: unknown; details?: unknown; hint?: unknown; code?: unknown } | null;
+  return [detail?.code, detail?.message, detail?.details, detail?.hint].filter(value => typeof value === "string" && value.trim()).join(" | ") || `HTTP ${response.status}`;
+}
+
 export async function readSupabaseRest<T>(context: SupabaseClientContext, table: string, query: SupabaseQuery): Promise<T[]> {
   const response = await fetch(restUrl(context, table, query), { headers: headers(context) });
-  if (!response.ok) throw new Error("Die Vereinsdaten konnten nicht geladen werden.");
+  if (!response.ok) throw new SupabaseRestError("Die Vereinsdaten konnten nicht geladen werden.", response.status, await readError(response));
   return await response.json() as T[];
 }
 

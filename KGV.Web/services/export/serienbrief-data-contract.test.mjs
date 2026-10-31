@@ -10,6 +10,7 @@ const coreTemplates = readFileSync(resolve(root, "KGV.Core/Models/SerienbriefVor
 const definitionModel = readFileSync(resolve(root, "KGV.Web/models/export/export-definition.ts"), "utf8");
 const columnModel = readFileSync(resolve(root, "KGV.Web/models/export/export-column.ts"), "utf8");
 const repository = readFileSync(resolve(root, "KGV.Web/repositories/export/export-definition-repository.ts"), "utf8");
+const restClient = readFileSync(resolve(root, "KGV.Web/lib/supabase/rest-client.ts"), "utf8");
 const meterMigration = readFileSync(resolve(root, "supabase/migrations/20261031110000_serienbrief_zaehler_eichfaelligkeit.sql"), "utf8");
 
 test("G2 defines an opt-in serial-letter export contract with stable technical IDs", () => {
@@ -20,7 +21,10 @@ test("G2 defines an opt-in serial-letter export contract with stable technical I
   assert.doesNotMatch(migration, /update public\.app_export_definition\s+set serienbrief_erlaubt\s*=\s*true/i);
   assert.match(coreExports, /\[Column\("serienbrief_mitglied_id_feld"\)\][\s\S]*SerienbriefMitgliedIdFeld/);
   assert.match(definitionModel, /serienbrief_mitglied_id_feld: string \| null/);
-  assert.match(repository, /serienbrief_erlaubt,serienbrief_mitglied_id_feld,serienbrief_parzelle_id_feld/);
+  assert.match(repository, /definitionCoreSelect/);
+  assert.match(repository, /definitionSerialLetterSelect/);
+  assert.match(repository, /withOptionalDefinitionSerialLetterMetadata/);
+  assert.match(repository, /optionalMetadata\(\(\) => readSupabaseRest<DefinitionSerialLetterMetadata>/);
 });
 
 test("G2 exposes only explicitly approved non-technical fields to future editors", () => {
@@ -29,7 +33,17 @@ test("G2 exposes only explicitly approved non-technical fields to future editors
   assert.match(migration, /column_key not in \('mitglied_id', 'parzelle_id'\)/i);
   assert.match(coreExports, /\[Column\("serienbrief_freigegeben"\)\][\s\S]*SerienbriefFreigegeben/);
   assert.match(columnModel, /serienbrief_freigegeben: boolean/);
-  assert.match(repository, /serienbrief_freigegeben,serienbrief_gruppe/);
+  assert.match(repository, /columnCoreSelect/);
+  assert.match(repository, /columnSerialLetterSelect/);
+  assert.match(repository, /withOptionalColumnSerialLetterMetadata/);
+  assert.match(repository, /optionalMetadata\(\(\) => readSupabaseRest<ColumnSerialLetterMetadata>/);
+});
+
+test("keeps read errors user-friendly while retaining PostgREST diagnostics", () => {
+  assert.match(restClient, /class SupabaseRestError/);
+  assert.match(restClient, /technicalMessage/);
+  assert.match(restClient, /await readError\(response\)/);
+  assert.match(restClient, /Die Vereinsdaten konnten nicht geladen werden/);
 });
 
 test("G2 stores export-independent templates and typed free-field definitions only", () => {
