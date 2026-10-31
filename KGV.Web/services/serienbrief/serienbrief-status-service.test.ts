@@ -1,0 +1,2 @@
+import assert from "node:assert/strict";import test from "node:test";import { zusammenfassung } from "./serienbrief-status-service.ts";
+test("counts final routes without overlap and preserves errors",()=>{const s=zusammenfassung([{rowKey:"a",mitgliedId:1,status:"mailausgang",letzterErfolg:"mailausgang"},{rowKey:"b",mitgliedId:2,status:"druckausgabe",letzterErfolg:"druckausgabe"},{rowKey:"c",mitgliedId:3,status:"fehler",letzterErfolg:"archiviert",fehlerphase:"routing",fehler:"x"}]);assert.deepEqual(s,{ausgewaehlt:3,pdf:3,archiviert:3,mail:1,druck:1,fehler:1});});
