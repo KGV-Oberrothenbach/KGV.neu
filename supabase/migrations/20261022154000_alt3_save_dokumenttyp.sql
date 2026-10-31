@@ -69,9 +69,7 @@ begin
     where dt.id = v_id;
 end;
 $$;
-
 revoke all on function public.save_dokumenttyp(bigint, text, boolean, integer, text[]) from public, anon, authenticated, service_role;
 grant execute on function public.save_dokumenttyp(bigint, text, boolean, integer, text[]) to authenticated;
-
 comment on function public.save_dokumenttyp(bigint, text, boolean, integer, text[]) is
     'Speichert einen allgemeinen Dokumenttyp und seine vollständige Wirkungsmenge atomar. Nur Admin.';

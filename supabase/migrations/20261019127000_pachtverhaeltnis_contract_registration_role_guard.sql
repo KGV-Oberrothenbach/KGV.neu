@@ -87,7 +87,6 @@ begin
   return query select v_pachtverhaeltnis_id, v_pachtvertragsfassung_id;
 end;
 $$;
-
 create or replace function public.register_pachtvertrags_neufassung(
   p_pachtverhaeltnis_id bigint, p_vorgaenger_fassung_id bigint, p_dokument_id bigint,
   p_vertragsdatum date, p_wirksam_ab date, p_created_by uuid
@@ -168,7 +167,6 @@ begin
   return query select v_pachtvertragsfassung_id;
 end;
 $$;
-
 revoke all on function public.register_pachtverhaeltnis_erstvertrag(bigint, bigint, date, bigint, date, date, uuid, bigint)
   from public, anon, authenticated, service_role;
 grant execute on function public.register_pachtverhaeltnis_erstvertrag(bigint, bigint, date, bigint, date, date, uuid, bigint)

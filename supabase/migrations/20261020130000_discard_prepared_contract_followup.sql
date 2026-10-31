@@ -18,7 +18,6 @@ begin
   if not found then raise exception 'Der Vertragsvorgang wurde zwischenzeitlich geändert' using errcode='40001'; end if;
   return query select v_vorgang.id,'verworfen'::text,v_vorgang.final_dokument_id;
 end; $$;
-
 -- The workflow guard normally makes final_dokument_id immutable. Clearing it is allowed
 -- only together with the server-owned discard transition; the document provenance remains.
 create or replace function public.guard_kommunikationsvorgang_update()

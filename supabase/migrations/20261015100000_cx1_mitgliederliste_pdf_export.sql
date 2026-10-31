@@ -84,7 +84,6 @@ as $$
     case when s.sortierung = 'garten' then lower(coalesce(r.vorname, '')) end,
     r.id;
 $$;
-
 create or replace function public.rpc_export_mitgliederliste()
 returns setof jsonb
 language sql
@@ -94,7 +93,6 @@ set search_path = public, pg_temp
 as $$
   select * from public.rpc_export_mitgliederliste('alle', 'name');
 $$;
-
 create or replace function public.rpc_execute_export(p_source_name text, p_parameters jsonb default '{}'::jsonb)
 returns setof jsonb
 language plpgsql
@@ -128,7 +126,6 @@ begin
   end case;
 end;
 $$;
-
 revoke all on function public.rpc_export_mitgliederliste(text, text) from public;
 revoke execute on function public.rpc_export_mitgliederliste(text, text) from authenticated;
 grant execute on function public.rpc_execute_export(text, jsonb) to authenticated;

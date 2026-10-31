@@ -8,7 +8,6 @@ where au.mitglied_id = m.id
   and au.role in ('admin', 'vorstand', 'user')
   and nullif(trim(u.email), '') is not null
   and lower(trim(coalesce(m.email, ''))) <> lower(trim(u.email));
-
 create or replace function public.guard_linked_member_email()
 returns trigger language plpgsql security definer set search_path = public, pg_temp as $$
 declare v_auth_email text;
@@ -31,11 +30,9 @@ begin
   return new;
 end;
 $$;
-
 drop trigger if exists guard_linked_member_email on public.mitglied;
 create trigger guard_linked_member_email before update of email, auth_user_id on public.mitglied
 for each row execute function public.guard_linked_member_email();
-
 create or replace function public.sync_current_member_email()
 returns text language plpgsql security definer set search_path = public, pg_temp as $$
 declare v_context record; v_email text;
@@ -51,5 +48,4 @@ begin
   return v_email;
 end;
 $$;
-
 grant execute on function public.sync_current_member_email() to authenticated;

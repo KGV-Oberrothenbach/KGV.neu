@@ -65,9 +65,7 @@ as $$
      or (p_wartungsvertraege and hat_wartungsvertrag)
   order by nachname, vorname;
 $$;
-
 grant execute on function public.rpc_export_arbeitsstunden_uebersicht(integer, boolean, boolean, boolean) to authenticated;
-
 create or replace function public.rpc_export_arbeitsstunden_jahre()
 returns table (label text, value text)
 language sql
@@ -78,9 +76,7 @@ as $$
   from public.saison s
   order by 1 desc;
 $$;
-
 grant execute on function public.rpc_export_arbeitsstunden_jahre() to authenticated;
-
 -- Die mobile Exportseite liest diese Definitionen dynamisch aus der Datenbank.
 insert into public.app_export_definition
   (export_key, titel, beschreibung, quelle_typ, quelle_name, aktiv, standard_sortierung, standard_ausgabe, erlaubt_csv, erlaubt_pdf)
@@ -92,14 +88,12 @@ on conflict (export_key) do update set
   titel = excluded.titel, beschreibung = excluded.beschreibung, quelle_typ = excluded.quelle_typ,
   quelle_name = excluded.quelle_name, aktiv = excluded.aktiv, standard_sortierung = excluded.standard_sortierung,
   standard_ausgabe = excluded.standard_ausgabe, erlaubt_csv = excluded.erlaubt_csv, erlaubt_pdf = excluded.erlaubt_pdf;
-
 delete from public.app_export_filter_definition where export_key = 'arbeitsstunden_uebersicht';
 insert into public.app_export_filter_definition (export_key, filter_key, label, typ, optionen_json, pflicht, sortierung) values
   ('arbeitsstunden_uebersicht', 'jahr', 'Jahr', 'select', to_jsonb('rpc_export_arbeitsstunden_jahre'::text), false, 10),
   ('arbeitsstunden_uebersicht', 'stunden_offen', 'Stunden offen', 'boolean', null, false, 20),
   ('arbeitsstunden_uebersicht', 'stunden_fertig', 'Stunden fertig', 'boolean', null, false, 30),
   ('arbeitsstunden_uebersicht', 'wartungsvertraege', 'Wartungsverträge', 'boolean', null, false, 40);
-
 delete from public.app_export_column_definition where export_key = 'arbeitsstunden_uebersicht';
 insert into public.app_export_column_definition
   (export_key, column_key, label_kurz, label_lang, sortierung, standard_sichtbar, ist_sortierspalte) values

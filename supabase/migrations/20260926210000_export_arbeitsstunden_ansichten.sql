@@ -1,7 +1,6 @@
 -- Arbeitsstundenexport: Die Pflicht wird immer auf dem Hauptmitglied geführt.
 -- Detailzeilen machen transparent, welches Haupt-/Nebenmitglied die Stunden erbracht hat.
 drop function if exists public.rpc_export_arbeitsstunden_uebersicht(integer, boolean, boolean, boolean);
-
 create function public.rpc_export_arbeitsstunden_uebersicht(
     p_jahr integer default null,
     p_stunden_offen boolean default false,
@@ -74,14 +73,11 @@ language sql stable security invoker as $$
     regelgrund,zeilentyp,leistendes_mitglied,stunden_dieses_mitglieds,datum,taetigkeit,sortierung
   from rows order by case when nullif(garten_nr, '') is null then 1 else 0 end, substring(garten_nr from '^[[:space:]]*([0-9]+)')::integer nulls last, garten_nr, nachname, vorname, sortierung, leistendes_mitglied, datum;
 $$;
-
 grant execute on function public.rpc_export_arbeitsstunden_uebersicht(integer, boolean, boolean, boolean, text) to authenticated;
-
 insert into public.app_export_filter_definition (export_key,filter_key,label,typ,optionen_json,pflicht,sortierung)
 values ('arbeitsstunden_uebersicht','ansicht','Ansicht','select',
   '[{"label":"Zusammenfassung","value":"zusammenfassung"},{"label":"Mitgliederanteile","value":"pro_mitglied"},{"label":"Einzelbuchungen","value":"einzeln"}]'::jsonb,true,15)
 on conflict (export_key,filter_key) do update set label=excluded.label,typ=excluded.typ,optionen_json=excluded.optionen_json,pflicht=excluded.pflicht,sortierung=excluded.sortierung;
-
 insert into public.app_export_column_definition (export_key,column_key,label_kurz,label_lang,sortierung,standard_sichtbar,ist_sortierspalte) values
  ('arbeitsstunden_uebersicht','zeilentyp','Zeile','Zeilentyp',15,true,false),
  ('arbeitsstunden_uebersicht','leistendes_mitglied','Geleistet von','Leistendes Mitglied',65,true,false),

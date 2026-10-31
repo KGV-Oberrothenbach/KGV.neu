@@ -1,10 +1,8 @@
 -- G13.3a: app_user mutations are exclusively server-side RPC operations.
 alter table public.app_user add column if not exists is_protected boolean not null default false;
 comment on column public.app_user.is_protected is 'Prevents the designated emergency administrator from losing role-management access.';
-
 update public.app_user set is_protected = true where mitglied_id = 7 and is_protected = false;
 create unique index if not exists app_user_one_protected_account on public.app_user ((is_protected)) where is_protected;
-
 create or replace function public.update_app_user_access(p_user_id uuid, p_role text, p_permission_grants bigint default 0, p_permission_revocations bigint default 0)
 returns void language plpgsql security definer set search_path = public, pg_temp as $$
 declare v_target public.app_user%rowtype; v_grants bigint := coalesce(p_permission_grants, 0); v_revocations bigint := coalesce(p_permission_revocations, 0); v_effective bigint;
@@ -19,7 +17,6 @@ begin
   update public.app_user set role = p_role, permission_grants = v_grants, permission_revocations = v_revocations, updated_at = now() where user_id = p_user_id;
 end;
 $$;
-
 create or replace function public.unlink_app_user(p_user_id uuid)
 returns void language plpgsql security definer set search_path = public, pg_temp as $$
 declare v_target public.app_user%rowtype;
@@ -32,7 +29,6 @@ begin
   delete from public.app_user where user_id = v_target.user_id;
 end;
 $$;
-
 alter table public.app_user enable row level security;
 drop policy if exists app_user_admin_full on public.app_user;
 drop policy if exists app_user_select_own_or_admin on public.app_user;

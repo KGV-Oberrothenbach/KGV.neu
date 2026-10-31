@@ -4,7 +4,6 @@ returns boolean language sql stable security definer set search_path to 'public'
   select coalesce(((((case au.role when 'admin' then 8380407::bigint when 'vorstand' then 7855607::bigint else 10::bigint end | coalesce(au.permission_grants, 0)) & ~coalesce(au.permission_revocations, 0)) & p_permission) = p_permission), false)
   from public.app_user au where au.user_id = auth.uid() limit 1;
 $$;
-
 -- Replace legacy role-based and earlier management policies. There intentionally is no DELETE policy.
 drop policy if exists termin_admin_full on public.termin;
 drop policy if exists termin_demo_admin_full on public.termin;
@@ -22,7 +21,6 @@ create policy termin_manage_update on public.termin for update to authenticated 
   public.has_effective_permission(2097152) and ((not public.is_demo_or_reviewer() and coalesce(is_demo, false) = false) or (public.is_demo_or_reviewer() and coalesce(is_demo, false) = true)));
 create policy termin_select_visible_authenticated on public.termin for select to authenticated using (
   aktiv = true and (sichtbar_ab is null or sichtbar_ab <= public.kgv_local_now()) and (sichtbar_bis is null or sichtbar_bis >= public.kgv_local_now()) and ((not public.is_demo_or_reviewer() and coalesce(is_demo, false) = false) or (public.is_demo_or_reviewer() and coalesce(is_demo, false) = true)));
-
 drop policy if exists bekanntmachung_admin_full on public.bekanntmachung;
 drop policy if exists bekanntmachung_demo_admin_full on public.bekanntmachung;
 drop policy if exists bekanntmachung_select_visible_authenticated on public.bekanntmachung;
@@ -39,7 +37,6 @@ create policy bekanntmachung_manage_update on public.bekanntmachung for update t
   public.has_effective_permission(4194304) and ((not public.is_demo_or_reviewer() and coalesce(is_demo, false) = false) or (public.is_demo_or_reviewer() and coalesce(is_demo, false) = true)));
 create policy bekanntmachung_select_visible_authenticated on public.bekanntmachung for select to authenticated using (
   aktiv = true and (sichtbar_ab is null or sichtbar_ab <= public.kgv_local_now()) and (sichtbar_bis is null or sichtbar_bis >= public.kgv_local_now()) and ((not public.is_demo_or_reviewer() and coalesce(is_demo, false) = false) or (public.is_demo_or_reviewer() and coalesce(is_demo, false) = true)));
-
 create or replace function public.acquire_browser_edit_lock(p_entity_type text, p_entity_id text, p_timeout_seconds integer default 600)
 returns table (acquired boolean, locked_by_user_id uuid, locked_by_display_name text, expires_at timestamptz)
 language plpgsql security definer set search_path = public as $$
@@ -60,7 +57,6 @@ begin
   return query select v_locked_by = v_user_id, v_locked_by, coalesce(public.browser_edit_lock_display_name(v_locked_by), 'Ein anderer Benutzer'), v_expires_at;
 end;
 $$;
-
 -- Scope comes from the authenticated session, never from a client-provided is_demo value.
 create or replace function public.enforce_appointment_announcement_demo_scope()
 returns trigger language plpgsql security definer set search_path = public as $$

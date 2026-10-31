@@ -227,5 +227,4 @@ from resolved r
 join public.parzelle p on p.id = r.parzelle_id
 order by parzelle, medium, zaehlernummer, von_datum;
 $$;
-
 grant execute on function public.rpc_jahresverbrauch_segmente(integer) to authenticated;

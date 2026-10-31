@@ -25,7 +25,6 @@ begin
  update public.kommunikationsvorgang set status='zur_signatur',signatur_gestartet_am=now(),signatur_revision=revision where id=v.id returning * into v;
  return v;
 end; $$;
-
 create or replace function public.speichere_prepared_contract_signatur(
  p_kommunikationsvorgang_id bigint,p_signatur_revision integer,p_signatur_schluessel text,p_mitglied_id bigint,p_unterzeichner_name_snapshot text,p_vereinsfunktion_besetzung_id bigint,p_vertretung_id bigint,p_vertretene_besetzung_id bigint,p_storage_path text,p_signatur_sha256 text,p_unterzeichnet_am timestamptz default now()
 ) returns public.prepared_contract_signatur language plpgsql security definer set search_path=public,pg_temp as $$
@@ -56,7 +55,6 @@ begin
  end if;
  return v_position;
 end; $$;
-
 create or replace function public.entscheide_mitgliedsaufnahme(p_bearbeitung_id bigint,p_ergebnis text,p_weg text,p_sitzungsdatum date default null,p_begruendung text default null,p_aufnahmedatum date default null)
 returns void language plpgsql security definer set search_path=public,pg_temp as $$
 declare b public.mitgliedsaufnahme_vorstandsbearbeitung%rowtype; v public.kommunikationsvorgang%rowtype; m public.mitglied%rowtype; caller uuid:=auth.uid(); cnt integer; yes_cnt integer; v_expected text; v_reason text:=nullif(btrim(p_begruendung),'');
@@ -92,7 +90,6 @@ begin
  update public.mitgliedsaufnahme_vorstandsbearbeitung set entscheidung=v_expected,entscheidungsweg=p_weg,sitzungsdatum=p_sitzungsdatum,entscheidungsbegruendung=case when p_ergebnis='ablehnen' then v_reason else null end,entschieden_am=now(),entschieden_von_auth_user_id=caller,updated_at=now() where id=b.id;
  if p_ergebnis='annehmen' then perform public.ensure_aufnahmebestaetigung_dokumentvorgang(b.id); end if;
 end; $$;
-
 create or replace function public.prepare_pachtvertrag_ersatz(p_vorgaenger_fassung_id bigint,p_assigned_to uuid)
 returns table(kommunikationsvorgang_id bigint) language plpgsql security definer set search_path=public,pg_temp as $$
 declare v_id bigint; v_assigned_to uuid;
@@ -109,15 +106,12 @@ begin
  end if;
  return query select * from public.prepare_pachtvertrag_ersatz_vor_phase9(p_vorgaenger_fassung_id,p_assigned_to);
 end; $$;
-
 revoke all on function public.prepare_pachtvertrag_ersatz_vor_phase9(bigint,uuid) from public,anon,authenticated,service_role;
 grant execute on function public.prepare_pachtvertrag_ersatz_vor_phase9(bigint,uuid) to service_role;
-
 -- Preserve established snapshot creation behind a retry-aware gate.
 alter function public.prepare_contract_dispatch(bigint,bigint) rename to prepare_contract_dispatch_vor_phase12;
 revoke all on function public.prepare_contract_dispatch_vor_phase12(bigint,bigint) from public,anon,authenticated;
 grant execute on function public.prepare_contract_dispatch_vor_phase12(bigint,bigint) to service_role;
-
 create function public.prepare_contract_dispatch(p_kommunikationsvorgang_id bigint,p_erneuter_versand_von_id bigint default null)
 returns bigint language plpgsql security definer set search_path=public,pg_temp as $$
 declare v public.kommunikationsvorgang%rowtype; v_id bigint;
@@ -133,7 +127,6 @@ begin
  if found then return v_id; end if;
  return public.prepare_contract_dispatch_vor_phase12(p_kommunikationsvorgang_id,p_erneuter_versand_von_id);
 end; $$;
-
 create or replace function public.claim_contract_dispatch(p_versandinstanz_id bigint)
 returns table(id bigint,betreff text,mailtext text) language plpgsql security definer set search_path=public,pg_temp as $$
 begin
@@ -146,8 +139,6 @@ begin
  if not found then raise exception 'Versandinstanz ist nicht beanspruchbar' using errcode='40001'; end if;
  return next;
 end; $$;
-
 revoke all on function public.start_prepared_contract_signature(bigint,integer,uuid),public.speichere_prepared_contract_signatur(bigint,integer,text,bigint,text,bigint,bigint,bigint,text,text,timestamptz),public.entscheide_mitgliedsaufnahme(bigint,text,text,date,text,date),public.prepare_pachtvertrag_ersatz(bigint,uuid),public.prepare_contract_dispatch(bigint,bigint),public.claim_contract_dispatch(bigint) from public,anon;
 grant execute on function public.start_prepared_contract_signature(bigint,integer,uuid),public.speichere_prepared_contract_signatur(bigint,integer,text,bigint,text,bigint,bigint,bigint,text,text,timestamptz),public.entscheide_mitgliedsaufnahme(bigint,text,text,date,text,date),public.prepare_pachtvertrag_ersatz(bigint,uuid),public.prepare_contract_dispatch(bigint,bigint),public.claim_contract_dispatch(bigint) to authenticated,service_role;
-
 comment on function public.prepare_contract_dispatch(bigint,bigint) is 'Returns the stable initial dispatch, reuses an unfinished explicit redispatch, and creates a new redispatch only after the previous one was sent.';

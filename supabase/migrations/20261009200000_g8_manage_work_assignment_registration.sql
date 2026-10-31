@@ -34,7 +34,6 @@ $$;
 revoke all on function public.manage_arbeitseinsatz_anmeldung(bigint, bigint, text) from public;
 revoke all on function public.manage_arbeitseinsatz_anmeldung(bigint, bigint, text) from anon;
 grant execute on function public.manage_arbeitseinsatz_anmeldung(bigint, bigint, text) to authenticated;
-
 -- Management actions are deliberately limited to the RPC above; they may be
 -- performed after the start time where the ordinary self-service path may not.
 create or replace function public.trg_arbeitseinsatz_anmeldung_validate()

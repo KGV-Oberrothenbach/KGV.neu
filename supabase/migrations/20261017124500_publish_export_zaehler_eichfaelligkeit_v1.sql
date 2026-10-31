@@ -52,15 +52,12 @@ begin
     end if;
 end;
 $$;
-
 update public.pdf_template_catalog
 set aktiv = false
 where template_key = 'export-zaehler-eichfaelligkeit-hoch' and aktiv = true;
-
 update public.pdf_template_catalog
 set aktiv = false
 where template_key = 'export-zaehler-eichfaelligkeit-quer' and aktiv = true;
-
 insert into public.pdf_template_catalog
   (template_key, version, storage_bucket, storage_path, content_type, checksum,
    field_spec_path, field_spec_checksum, field_spec_version, renderer_version,

@@ -4,24 +4,19 @@
 alter table public.kommunikationsvorgang
   add column if not exists ersetzt_pachtvertragsfassung_id bigint
     references public.pachtvertragsfassung(id) on delete restrict;
-
 alter table public.pachtvertragsfassung
   add column if not exists nicht_mehr_massgeblich_am timestamptz;
-
 create index if not exists ix_kommunikationsvorgang_ersetzt_pachtvertragsfassung
   on public.kommunikationsvorgang(ersetzt_pachtvertragsfassung_id)
   where ersetzt_pachtvertragsfassung_id is not null;
-
 create unique index if not exists ux_kommunikationsvorgang_aktive_ersatzfassung
   on public.kommunikationsvorgang(ersetzt_pachtvertragsfassung_id)
   where ersetzt_pachtvertragsfassung_id is not null
     and status not in ('erledigt', 'abgebrochen');
-
 comment on column public.kommunikationsvorgang.ersetzt_pachtvertragsfassung_id is
   'Unmittelbarer, beim Start fest gebundener Vorgänger eines Prepared-Korrektur-/Ersatzvertrags.';
 comment on column public.pachtvertragsfassung.nicht_mehr_massgeblich_am is
   'Wird erst beim erfolgreichen, atomaren Abschluss der unmittelbaren Nachfolgerfassung gesetzt.';
-
 create or replace function public.guard_kommunikationsvorgang_ersatzbindung()
 returns trigger
 language plpgsql
@@ -34,11 +29,9 @@ begin
   return new;
 end;
 $$;
-
 create trigger trg_guard_kommunikationsvorgang_ersatzbindung
 before update on public.kommunikationsvorgang
 for each row execute function public.guard_kommunikationsvorgang_ersatzbindung();
-
 create or replace function public.prepare_pachtvertrag_ersatz(
   p_vorgaenger_fassung_id bigint,
   p_assigned_to uuid
@@ -116,17 +109,14 @@ begin
   return query select v_id;
 end;
 $$;
-
 revoke all on function public.prepare_pachtvertrag_ersatz(bigint, uuid) from public, anon;
 grant execute on function public.prepare_pachtvertrag_ersatz(bigint, uuid) to authenticated;
-
 alter function public.complete_prepared_pachtvertrag(bigint, integer, uuid)
   rename to complete_prepared_pachtvertrag_vor_b3;
 revoke all on function public.complete_prepared_pachtvertrag_vor_b3(bigint, integer, uuid)
   from public, anon, authenticated, service_role;
 grant execute on function public.complete_prepared_pachtvertrag_vor_b3(bigint, integer, uuid)
   to service_role;
-
 create function public.complete_prepared_pachtvertrag(
   p_kommunikationsvorgang_id bigint,
   p_expected_revision integer,
@@ -191,12 +181,10 @@ begin
   return query select v_result.pachtverhaeltnis_id, v_result.pachtvertragsfassung_id, v_result.bereits_abgeschlossen;
 end;
 $$;
-
 revoke all on function public.complete_prepared_pachtvertrag(bigint, integer, uuid)
   from public, anon, authenticated, service_role;
 grant execute on function public.complete_prepared_pachtvertrag(bigint, integer, uuid)
   to service_role;
-
 create or replace view public.v_pachtvertragsfassung_uebersicht
 with (security_invoker = true)
 as
@@ -225,5 +213,4 @@ left join public.pachtvertragsfassung nf on nf.vorgaenger_fassung_id = f.id
 left join public.dokument nd on nd.id = nf.dokument_id
 left join public.fachnummer_reservierung nfr
   on nfr.quelle_art = 'kommunikationsvorgang' and nfr.quelle_id = nd.source_kommunikationsvorgang_id and nfr.art = 'pachtvertrag';
-
 grant select on public.v_pachtvertragsfassung_uebersicht to authenticated, service_role;

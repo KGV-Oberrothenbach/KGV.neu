@@ -5,7 +5,6 @@ stable
 as $$
   select public.current_app_role();
 $$;
-
 create or replace function public.sync_app_user_from_mitglied()
 returns trigger
 language plpgsql
@@ -27,7 +26,6 @@ begin
   return new;
 end;
 $$;
-
 create or replace function public.who_am_i()
 returns table(vorname text, role text)
 language sql
@@ -40,9 +38,7 @@ as $$
   where m.auth_user_id = auth.uid()
   limit 1;
 $$;
-
 drop trigger if exists trg_sync_app_user_from_mitglied on public.mitglied;
-
 create trigger trg_sync_app_user_from_mitglied
 after insert or update of auth_user_id on public.mitglied
 for each row execute function public.sync_app_user_from_mitglied();

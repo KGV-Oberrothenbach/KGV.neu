@@ -5,7 +5,6 @@ alter table public.dokument
     add column if not exists dokumenttyp_id bigint,
     add column if not exists dokumentdatum date,
     add column if not exists unterzeichnet boolean;
-
 do $$
 begin
     if not exists (
@@ -22,12 +21,10 @@ begin
     end if;
 end;
 $$;
-
 create index if not exists ix_dokument_dokumenttyp_id_aktiv
     on public.dokument (dokumenttyp_id)
     where archiviert_at is null
       and dokumenttyp_id is not null;
-
 comment on column public.dokument.dokumenttyp_id is
     'Optionaler allgemeiner Dokumenttyp. Bestehende Dokumente bleiben ohne rückwirkende Typisierung NULL.';
 comment on column public.dokument.dokumentdatum is

@@ -5,14 +5,11 @@
 alter table public.dokument
   add column if not exists historische_vertragsnummer integer,
   add column if not exists historische_vertragsnummer_pdf_gestempelt_am timestamptz;
-
 alter table public.dokument
   drop constraint if exists dokument_historische_vertragsnummer_check;
-
 alter table public.dokument
   add constraint dokument_historische_vertragsnummer_check
   check (historische_vertragsnummer is null or historische_vertragsnummer between 80000 and 89999);
-
 create or replace function public.reserve_fachnummer(
   p_art text,
   p_quelle_art text,
@@ -77,7 +74,6 @@ begin
   return v_nummer;
 end;
 $$;
-
 create or replace function public.reserve_historische_vertragsnummer(p_dokument_id bigint)
 returns table (nummer integer, titel text, mime_type text, pdf_bereits_gestempelt boolean)
 language plpgsql
@@ -120,7 +116,6 @@ begin
     v_dokument.historische_vertragsnummer_pdf_gestempelt_am is not null;
 end;
 $$;
-
 create or replace function public.mark_historische_vertragsnummer_pdf_gestempelt(p_dokument_id bigint, p_nummer integer)
 returns void
 language plpgsql
@@ -139,7 +134,6 @@ begin
   end if;
 end;
 $$;
-
 revoke all on function public.reserve_historische_vertragsnummer(bigint) from public, anon;
 grant execute on function public.reserve_historische_vertragsnummer(bigint) to authenticated, service_role;
 revoke all on function public.mark_historische_vertragsnummer_pdf_gestempelt(bigint, integer) from public, anon;

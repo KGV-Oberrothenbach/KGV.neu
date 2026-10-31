@@ -9,7 +9,6 @@ begin
   end if;
 end;
 $$;
-
 create or replace function public.register_historischen_pachtvertrag(
   p_dokument_id bigint,
   p_dokumenttyp_code text,
@@ -91,11 +90,9 @@ begin
     p_vorherige_enddaten, p_mitglied_seit_korrektur_mitglied_id, p_mitglied_seit_korrektur_datum);
 end;
 $$;
-
 revoke all on function public.register_historischen_pachtvertrag_g6a(bigint, text, date, boolean, bigint[], jsonb, bigint, date) from public, anon, authenticated;
 grant execute on function public.register_historischen_pachtvertrag_g6a(bigint, text, date, boolean, bigint[], jsonb, bigint, date) to service_role;
 revoke all on function public.register_historischen_pachtvertrag(bigint, text, date, boolean, bigint[], jsonb, bigint, date, bigint[], jsonb, jsonb) from public, anon;
 grant execute on function public.register_historischen_pachtvertrag(bigint, text, date, boolean, bigint[], jsonb, bigint, date, bigint[], jsonb, jsonb) to authenticated, service_role;
-
 comment on function public.register_historischen_pachtvertrag(bigint, text, date, boolean, bigint[], jsonb, bigint, date, bigint[], jsonb, jsonb) is
   'G6b2 historical contract registration: atomic party timeline, explicit membership ends and confirmed activity state changes.';

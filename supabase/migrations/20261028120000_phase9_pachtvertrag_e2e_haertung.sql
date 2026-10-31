@@ -18,19 +18,16 @@ begin
   return new;
 end;
 $$;
-
 drop trigger if exists trg_guard_pachtverhaeltnis_beteiligung_mitgliedsstatus on public.pachtverhaeltnis_beteiligung;
 create trigger trg_guard_pachtverhaeltnis_beteiligung_mitgliedsstatus
 before insert on public.pachtverhaeltnis_beteiligung
 for each row execute function public.guard_pachtverhaeltnis_beteiligung_mitgliedsstatus();
-
 alter function public.complete_prepared_pachtvertrag(bigint,integer,uuid)
   rename to complete_prepared_pachtvertrag_vor_phase9;
 revoke all on function public.complete_prepared_pachtvertrag_vor_phase9(bigint,integer,uuid)
   from public,anon,authenticated,service_role;
 grant execute on function public.complete_prepared_pachtvertrag_vor_phase9(bigint,integer,uuid)
   to service_role;
-
 create function public.complete_prepared_pachtvertrag(
   p_kommunikationsvorgang_id bigint,
   p_expected_revision integer,
@@ -88,19 +85,16 @@ begin
     p_kommunikationsvorgang_id,p_expected_revision,p_created_by);
 end;
 $$;
-
 revoke all on function public.complete_prepared_pachtvertrag(bigint,integer,uuid)
   from public,anon,authenticated,service_role;
 grant execute on function public.complete_prepared_pachtvertrag(bigint,integer,uuid)
   to service_role;
-
 alter function public.prepare_pachtvertrag_ersatz(bigint,uuid)
   rename to prepare_pachtvertrag_ersatz_vor_phase9;
 revoke all on function public.prepare_pachtvertrag_ersatz_vor_phase9(bigint,uuid)
   from public,anon,authenticated;
 grant execute on function public.prepare_pachtvertrag_ersatz_vor_phase9(bigint,uuid)
   to authenticated;
-
 create function public.prepare_pachtvertrag_ersatz(
   p_vorgaenger_fassung_id bigint,
   p_assigned_to uuid
@@ -135,11 +129,9 @@ begin
     p_vorgaenger_fassung_id,p_assigned_to);
 end;
 $$;
-
 revoke all on function public.prepare_pachtvertrag_ersatz(bigint,uuid)
   from public,anon;
 grant execute on function public.prepare_pachtvertrag_ersatz(bigint,uuid)
   to authenticated;
-
 revoke all on function public.guard_pachtverhaeltnis_beteiligung_mitgliedsstatus()
   from public,anon,authenticated;

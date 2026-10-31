@@ -4,7 +4,6 @@
 update public.app_export_definition
 set standard_sortierung = 'garten_nr'
 where export_key = 'zaehler_eichfaelligkeit';
-
 create or replace function public.rpc_export_zaehler_eichfaelligkeit(p_medium text default null)
 returns table (
     parzelle text,
@@ -52,5 +51,4 @@ as $$
         e.zaehlernummer,
         e.id;
 $$;
-
 grant execute on function public.rpc_export_zaehler_eichfaelligkeit(text) to authenticated;

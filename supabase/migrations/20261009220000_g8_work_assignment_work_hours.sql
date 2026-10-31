@@ -3,7 +3,6 @@ alter table public.arbeitsstunde add column if not exists arbeitseinsatz_anmeldu
 alter table public.arbeitsstunde drop constraint if exists arbeitsstunde_arbeitseinsatz_anmeldung_id_fkey;
 alter table public.arbeitsstunde add constraint arbeitsstunde_arbeitseinsatz_anmeldung_id_fkey foreign key (arbeitseinsatz_anmeldung_id) references public.arbeitseinsatz_anmeldung(id) on delete set null;
 create unique index if not exists ux_arbeitsstunde_arbeitseinsatz_anmeldung on public.arbeitsstunde (arbeitseinsatz_anmeldung_id) where arbeitseinsatz_anmeldung_id is not null;
-
 -- Generic G7 inserts remain free work-hour inserts; only the dedicated RPCs below may create a link.
 drop policy if exists arbeitsstunde_insert_own_open on public.arbeitsstunde;
 create policy arbeitsstunde_insert_own_open on public.arbeitsstunde for insert to authenticated with check (
@@ -15,7 +14,6 @@ create policy arbeitsstunde_manage_work_hours_insert on public.arbeitsstunde for
   public.has_effective_permission(256) and arbeitseinsatz_anmeldung_id is null and (not public.is_demo_or_reviewer() or public.is_demo_mitglied_id(mitglied_id))
   and status = 'genehmigt' and freigegeben = true and genehmigt_von = public.current_mitglied_id() and genehmigt_am is not null
 );
-
 create or replace function public.enforce_own_open_arbeitsstunde_update()
 returns trigger language plpgsql security definer set search_path = public as $$
 declare v_assignment_date date;
@@ -38,7 +36,6 @@ begin
   raise exception 'Arbeitsstunden-Sperren dürfen nur über den Browser-Lock geändert werden.' using errcode = '42501';
 end;
 $$;
-
 create or replace function public.submit_arbeitseinsatz_arbeitsstunde(p_arbeitseinsatz_anmeldung_id bigint, p_stunden numeric, p_art_der_arbeit text default null)
 returns public.arbeitsstunde language plpgsql security definer set search_path = public, pg_temp as $$
 declare v_registration public.arbeitseinsatz_anmeldung; v_assignment public.arbeitseinsatz; v_saison_id integer; v_row public.arbeitsstunde; v_end timestamp without time zone;
@@ -59,7 +56,6 @@ begin
   insert into public.arbeitsstunde(mitglied_id,saison_id,datum,stunden,art_der_arbeit,status,freigegeben,genehmigt_von,genehmigt_am,arbeitseinsatz_anmeldung_id) values (v_registration.mitglied_id,v_saison_id,v_assignment.datum,p_stunden,coalesce(nullif(btrim(p_art_der_arbeit),''),v_assignment.titel),'offen',false,null,null,v_registration.id) returning * into v_row;
   return v_row;
 end; $$;
-
 create or replace function public.confirm_arbeitseinsatz_arbeitsstunde(p_arbeitseinsatz_anmeldung_id bigint, p_stunden numeric, p_art_der_arbeit text default null)
 returns public.arbeitsstunde language plpgsql security definer set search_path = public, pg_temp as $$
 declare v_registration public.arbeitseinsatz_anmeldung; v_assignment public.arbeitseinsatz; v_saison_id integer; v_reviewer integer; v_row public.arbeitsstunde; v_end timestamp without time zone;
@@ -79,10 +75,10 @@ begin
   update public.arbeitseinsatz_anmeldung set status = 'teilgenommen', updated_at = now() where id = v_registration.id;
   return v_row;
 end; $$;
-
-revoke all on function public.submit_arbeitseinsatz_arbeitsstunde(bigint,numeric,text) from public, anon; grant execute on function public.submit_arbeitseinsatz_arbeitsstunde(bigint,numeric,text) to authenticated;
-revoke all on function public.confirm_arbeitseinsatz_arbeitsstunde(bigint,numeric,text) from public, anon; grant execute on function public.confirm_arbeitseinsatz_arbeitsstunde(bigint,numeric,text) to authenticated;
-
+revoke all on function public.submit_arbeitseinsatz_arbeitsstunde(bigint,numeric,text) from public, anon;
+grant execute on function public.submit_arbeitseinsatz_arbeitsstunde(bigint,numeric,text) to authenticated;
+revoke all on function public.confirm_arbeitseinsatz_arbeitsstunde(bigint,numeric,text) from public, anon;
+grant execute on function public.confirm_arbeitseinsatz_arbeitsstunde(bigint,numeric,text) to authenticated;
 -- The G7 review function remains the sole review entry point. This trigger runs
 -- in its transaction, so audit, approval and participant confirmation commit together.
 create or replace function public.sync_arbeitseinsatz_teilnahme_from_arbeitsstunde()

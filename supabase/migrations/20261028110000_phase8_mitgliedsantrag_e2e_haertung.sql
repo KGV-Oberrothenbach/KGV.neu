@@ -34,12 +34,10 @@ begin
   return new;
 end;
 $$;
-
 drop trigger if exists trg_prepare_mitglied_fuer_neuen_mitgliedsantrag on public.kommunikationsvorgang;
 create trigger trg_prepare_mitglied_fuer_neuen_mitgliedsantrag
 before insert on public.kommunikationsvorgang
 for each row execute function public.prepare_mitglied_fuer_neuen_mitgliedsantrag();
-
 alter table public.versandinstanz drop constraint if exists versandinstanz_vertragsart_check;
 alter table public.versandinstanz add constraint versandinstanz_vertragsart_check
 check (vertragsart in ('mitgliedsantrag','aufnahmebestaetigung','pachtvertrag','wartungsvertrag','wartungsvertrag_verlaengerung'));
@@ -73,13 +71,11 @@ begin
   else raise exception 'Pflichtanlage % ist weder digital gebunden noch als Papierübergabe dokumentiert',typ using errcode='23514'; end if; i:=i+1;
  end loop;
 end $$;
-
 create or replace function public.freeze_vertragsversand_snapshot() returns trigger language plpgsql security definer set search_path=public,pg_temp as $$
 begin
  if new.final_dokument_id is not null and new.final_dokument_id is distinct from old.final_dokument_id and new.dokumenttyp in ('mitgliedsantrag','aufnahmebestaetigung','pachtvertrag','wartungsvertrag','wartungsvertrag_verlaengerung') then perform public.ensure_vertragsversand_snapshot(new.id); end if;
  return new;
 end $$;
-
 create or replace function public.prepare_contract_dispatch(p_kommunikationsvorgang_id bigint,p_erneuter_versand_von_id bigint default null)
 returns bigint language plpgsql security definer set search_path=public,pg_temp as $$
 declare v public.kommunikationsvorgang%rowtype; x bigint; p record; allowed boolean; reason text;
@@ -99,7 +95,6 @@ begin
  insert into public.versandinstanz_dokument_snapshot select x,sortierung,bezeichnung_snapshot,bindungsstatus,dateiname_snapshot,mime_type_snapshot,bucket_snapshot,storage_path_snapshot,drive_file_id_snapshot,sha256_snapshot,dokumenttyp_code,bereitgestellt_am_snapshot,bemerkung_snapshot from public.vertragsversand_anlage_snapshot where kommunikationsvorgang_id=v.id and revision=coalesce(v.signatur_revision,v.revision);
  return x;
 end $$;
-
 create or replace function public.start_mitgliedsaufnahme_vorstandsbearbeitung(p_kommunikationsvorgang_id bigint)
 returns bigint language plpgsql security definer set search_path=public,pg_temp as $$
 declare v public.kommunikationsvorgang%rowtype; b_id bigint; r record; p_id bigint; caller uuid:=auth.uid();
@@ -119,7 +114,6 @@ begin
  if not exists(select 1 from public.mitgliedsaufnahme_abstimmung_snapshot_person where vorstandsbearbeitung_id=b_id) then raise exception 'Keine Stimmberechtigten konfiguriert' using errcode='23514'; end if;
  return b_id;
 end; $$;
-
 create or replace view public.mitgliedsaufnahme_vorstand_liste with (security_invoker=true) as
 select b.id bearbeitung_id,b.kommunikationsvorgang_id,v.mitglied_id,v.final_dokument_id,spc.name_snapshot antragsteller,b.gestartet_am,b.entscheidung,
  count(sp.id) snapshot_personen,count(s.stimme) abgegebene_stimmen,count(s.stimme) filter(where s.stimme='ja') ja_stimmen,count(s.stimme) filter(where s.stimme='nein') nein_stimmen,
@@ -141,7 +135,6 @@ left join lateral (
 left join public.mitgliedsaufnahme_abstimmung_snapshot_person sp on sp.vorstandsbearbeitung_id=b.id
 left join lateral(select stimme from public.mitgliedsaufnahme_abstimmung_stimme where snapshot_person_id=sp.id order by version desc limit 1) s on true
 group by b.id,v.mitglied_id,v.final_dokument_id,spc.name_snapshot,confirmation.id,confirmation.status,confirmation.final_dokument_id;
-
 revoke all on function public.prepare_mitglied_fuer_neuen_mitgliedsantrag() from public,anon,authenticated;
 revoke all on function public.start_mitgliedsaufnahme_vorstandsbearbeitung(bigint) from public,anon;
 grant execute on function public.start_mitgliedsaufnahme_vorstandsbearbeitung(bigint) to authenticated;

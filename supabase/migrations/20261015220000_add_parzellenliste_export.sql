@@ -35,17 +35,14 @@ as $$
       p.garten_nr, p."Anlage", p.id
   ) r;
 $$;
-
 insert into public.app_export_definition
   (export_key, titel, beschreibung, quelle_typ, quelle_name, aktiv, standard_sortierung, standard_ausgabe, erlaubt_csv, erlaubt_pdf)
 values ('parzellenliste', 'Parzellenliste', 'Übersicht der Parzellen mit aktueller Belegung', 'rpc', 'rpc_export_parzellenliste', true, 'garten_nr', 'pdf', true, true)
 on conflict (export_key) do update set titel = excluded.titel, beschreibung = excluded.beschreibung, quelle_typ = excluded.quelle_typ, quelle_name = excluded.quelle_name, aktiv = true, standard_sortierung = excluded.standard_sortierung, standard_ausgabe = excluded.standard_ausgabe, erlaubt_csv = excluded.erlaubt_csv, erlaubt_pdf = excluded.erlaubt_pdf;
-
 insert into public.app_export_filter_definition
   (export_key, filter_key, label, typ, optionen_json, parameter_name, wert_typ, standardwert_json, pflicht, sortierung)
 values ('parzellenliste', 'belegung', 'Belegung', 'select', '[{"label":"Alle","value":"alle"},{"label":"Belegt","value":"belegt"},{"label":"Frei","value":"frei"}]'::jsonb, 'belegung', 'string', '"alle"'::jsonb, false, 10)
 on conflict (export_key, filter_key) do update set label = excluded.label, typ = excluded.typ, optionen_json = excluded.optionen_json, parameter_name = excluded.parameter_name, wert_typ = excluded.wert_typ, standardwert_json = excluded.standardwert_json, pflicht = excluded.pflicht, sortierung = excluded.sortierung;
-
 insert into public.app_export_column_definition
   (export_key, column_key, label_kurz, label_lang, sortierung, standard_sichtbar, ist_sortierspalte)
 values
@@ -55,5 +52,4 @@ values
   ('parzellenliste', 'flaeche_qm', 'Fläche', 'Fläche in m²', 40, true, false),
   ('parzellenliste', 'belegt', 'Belegt', 'Aktuell belegt', 50, true, false)
 on conflict (export_key, column_key) do update set label_kurz = excluded.label_kurz, label_lang = excluded.label_lang, sortierung = excluded.sortierung, standard_sichtbar = excluded.standard_sichtbar, ist_sortierspalte = excluded.ist_sortierspalte;
-
 revoke all on function public.rpc_export_parzellenliste(jsonb) from public;

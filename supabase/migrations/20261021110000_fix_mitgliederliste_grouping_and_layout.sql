@@ -2,7 +2,6 @@
 alter table public.app_export_column_definition
   add column if not exists pdf_darstellung text not null default 'table'
   check (pdf_darstellung in ('table', 'detail'));
-
 create or replace function public.rpc_export_mitgliederliste(
   p_aktiv_filter text,
   p_sortierung text
@@ -52,14 +51,12 @@ order by
   case when g.hauptmitglied_id is null then 0 else 1 end,
   lower(coalesce(g.name,'')), lower(coalesce(g.vorname,'')), g.id;
 $$;
-
 insert into public.app_export_column_definition(export_key,column_key,label_kurz,label_lang,sortierung,standard_sichtbar,ist_sortierspalte,pdf_darstellung)
 values
  ('mitgliederliste','mitglied','Mitglied','Mitglied',20,true,true,'table'),
  ('mitgliederliste','adresse_block','Adresse','Adresse',40,true,false,'table'),
  ('mitgliederliste','kontakt_block','Kontakt','Kontakt',50,true,false,'table')
 on conflict(export_key,column_key) do update set label_kurz=excluded.label_kurz,label_lang=excluded.label_lang,sortierung=excluded.sortierung,standard_sichtbar=true,pdf_darstellung='table';
-
 update public.app_export_column_definition set standard_sichtbar=false
 where export_key='mitgliederliste' and column_key in ('name','vorname','strasse_hsnr','plz','ort','telefon','handy','bemerkung');
 update public.app_export_column_definition set pdf_darstellung='detail', standard_sichtbar=false

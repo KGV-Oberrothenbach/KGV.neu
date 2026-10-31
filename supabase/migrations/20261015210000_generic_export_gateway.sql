@@ -14,7 +14,6 @@ $$;
 create or replace function public.rpc_export_zaehler_eichfaelligkeit_json(p_parameters jsonb default '{}'::jsonb) returns setof jsonb language sql stable security invoker set search_path = public, pg_temp as $$
   select to_jsonb(r) from public.rpc_export_zaehler_eichfaelligkeit(nullif(p_parameters ->> 'p_medium', '')) r;
 $$;
-
 update public.app_export_definition set quelle_name = case export_key
   when 'mitgliederliste' then 'rpc_export_mitgliederliste_json'
   when 'arbeitsstunden_uebersicht' then 'rpc_export_arbeitsstunden_uebersicht_json'
@@ -23,9 +22,7 @@ update public.app_export_definition set quelle_name = case export_key
   when 'zaehler_eichfaelligkeit' then 'rpc_export_zaehler_eichfaelligkeit_json'
 end
 where export_key in ('mitgliederliste', 'arbeitsstunden_uebersicht', 'jahresablesung_status', 'datenschutz_aktive_mitglieder', 'zaehler_eichfaelligkeit');
-
 drop function if exists public.rpc_execute_export(text, jsonb);
-
 create function public.rpc_execute_export(p_export_key text, p_parameters jsonb default '{}'::jsonb)
 returns setof jsonb language plpgsql security definer set search_path = public, pg_temp as $$
 declare source_name text;
@@ -46,10 +43,8 @@ begin
   end;
 end;
 $$;
-
 revoke all on function public.rpc_execute_export(text, jsonb) from public;
 grant execute on function public.rpc_execute_export(text, jsonb) to authenticated;
-
 create or replace function public.rpc_export_cx10_test(p_parameters jsonb default '{}'::jsonb)
 returns setof jsonb language sql stable security invoker set search_path = public, pg_temp as $$
   select jsonb_build_object('testwert', 'cx10', 'parameterwert', p_parameters -> 'testwert');

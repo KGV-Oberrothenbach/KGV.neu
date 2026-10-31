@@ -23,11 +23,9 @@ begin
     end if;
 end;
 $$;
-
 update public.pdf_template_catalog
 set aktiv = false
 where template_key = 'export-allgemein' and aktiv = true;
-
 insert into public.pdf_template_catalog
   (template_key, version, storage_bucket, storage_path, content_type, checksum,
    field_spec_path, field_spec_checksum, field_spec_version, renderer_version,
@@ -37,5 +35,5 @@ values
    'templates/export-allgemein/v2/template.pdf', 'application/pdf',
    '5f291e6c7a78bf16aa954c67c61372a55529b2af07a678df45006e2f3ccec741',
    'templates/export-allgemein/v2/field-spec.json',
-   '8d526a6e7ebf7180dad5c6e33ad98141ce48f985b0d846c4f8319b504c1675cd',
+   '3459429f728ae7ba28919f10482b9443b6c3a9f051b99418c1519ca2c296df1c',
    'export-allgemein-field-spec/v2', 'top-left/v1', 'published', true, now());

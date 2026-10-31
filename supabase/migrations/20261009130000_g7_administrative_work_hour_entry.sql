@@ -22,10 +22,8 @@ as $$
   where au.user_id = auth.uid()
   limit 1;
 $$;
-
 comment on function public.has_effective_permission(bigint) is
   'Wertet Rollen-Grundrechte sowie userbezogene Grants und Revocations aus der zentralen Permission-Matrix aus.';
-
 drop policy if exists arbeitsstunde_admin_full on public.arbeitsstunde;
 drop policy if exists arbeitsstunde_demo_admin_full on public.arbeitsstunde;
 drop policy if exists arbeitsstunde_manage_work_hours on public.arbeitsstunde;
@@ -35,7 +33,6 @@ drop policy if exists arbeitsstunde_manage_work_hours_update on public.arbeitsst
 drop policy if exists arbeitsstunde_manage_work_hours_delete on public.arbeitsstunde;
 drop policy if exists arbeitsstunde_legacy_review_update on public.arbeitsstunde;
 drop policy if exists arbeitsstunde_legacy_review_delete on public.arbeitsstunde;
-
 create policy arbeitsstunde_manage_work_hours_select on public.arbeitsstunde
   for select to authenticated
   using (
@@ -45,7 +42,6 @@ create policy arbeitsstunde_manage_work_hours_select on public.arbeitsstunde
       or public.is_demo_mitglied_id(mitglied_id)
     )
   );
-
 create policy arbeitsstunde_manage_work_hours_insert on public.arbeitsstunde
   for insert to authenticated
   with check (
@@ -59,7 +55,6 @@ create policy arbeitsstunde_manage_work_hours_insert on public.arbeitsstunde
     and genehmigt_von = public.current_mitglied_id()
     and genehmigt_am is not null
   );
-
 -- Der noch vorhandene Review-Prozess wird erst in G7.4 auf ein eigenes
 -- Permission-Modell umgestellt. Bis dahin bleiben seine bisherigen Rollenrechte
 -- unverändert; ManageWorkHours selbst erhält daraus keine UPDATE-/DELETE-Rechte.
@@ -79,7 +74,6 @@ create policy arbeitsstunde_legacy_review_update on public.arbeitsstunde
       and public.is_demo_mitglied_id(mitglied_id)
     )
   );
-
 create policy arbeitsstunde_legacy_review_delete on public.arbeitsstunde
   for delete to authenticated
   using (
@@ -89,7 +83,6 @@ create policy arbeitsstunde_legacy_review_delete on public.arbeitsstunde
       and public.is_demo_mitglied_id(mitglied_id)
     )
   );
-
 drop policy if exists arbeitsstunde_select_own_or_admin on public.arbeitsstunde;
 create policy arbeitsstunde_select_own_or_admin on public.arbeitsstunde
   for select to authenticated
@@ -109,7 +102,6 @@ create policy arbeitsstunde_select_own_or_admin on public.arbeitsstunde
       )
     )
   );
-
 create or replace function public.enforce_administrative_arbeitsstunde_insert()
 returns trigger
 language plpgsql
@@ -143,14 +135,11 @@ begin
   return new;
 end;
 $$;
-
 revoke all on function public.enforce_administrative_arbeitsstunde_insert() from public, anon, authenticated;
-
 drop trigger if exists trg_enforce_administrative_arbeitsstunde_insert on public.arbeitsstunde;
 create trigger trg_enforce_administrative_arbeitsstunde_insert
   before insert on public.arbeitsstunde
   for each row execute function public.enforce_administrative_arbeitsstunde_insert();
-
 create or replace function public.enforce_own_open_arbeitsstunde_update()
 returns trigger
 language plpgsql

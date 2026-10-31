@@ -13,7 +13,6 @@ BEGIN
     END IF;
 END;
 $$;
-
 CREATE OR REPLACE FUNCTION public.validate_wartungsvertrag_zuordnung()
 RETURNS trigger
 LANGUAGE plpgsql

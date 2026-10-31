@@ -133,6 +133,5 @@ BEGIN
         p_secondary_decision;
 END;
 $$;
-
 REVOKE ALL ON FUNCTION public.end_membership(bigint, text) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.end_membership(bigint, text) TO authenticated;

@@ -42,6 +42,5 @@ begin
   update public.wartungsvertrag_dokument_workflow set workflow_art='verlaengerungsmitteilung',folgeentscheidung_id=v_dec.id,kommunikationsvorgang_id=v_vorgang.id,status='dokument_ausstehend',fehlermeldung=null where wartungsvertrag_zuordnung_id=v_neu.id returning * into v_workflow;
   return query select v_dec.id,v_neu.id,v_vorgang.id,v_workflow.id,v_neu.vertragspartei_mitglied_id;
 end $$;
-
 revoke all on function public.verlaengere_wartungsvertrag(bigint,date,date,text) from public,anon;
 grant execute on function public.verlaengere_wartungsvertrag(bigint,date,date,text) to authenticated,service_role;

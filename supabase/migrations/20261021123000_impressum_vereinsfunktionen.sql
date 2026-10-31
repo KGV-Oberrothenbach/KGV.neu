@@ -7,7 +7,6 @@ alter table public.vereinsfunktion_verwendung
   add column if not exists impressum_gruppen_sort_order smallint,
   add column if not exists impressum_ist_hauptkontakt boolean,
   add column if not exists impressum_zeige_ladungsfaehige_anschrift boolean;
-
 update public.vereinsfunktion_verwendung
 set impressum_gruppe = coalesce(nullif(btrim(impressum_gruppe), ''), 'weitere'),
     impressum_gruppe_bezeichnung = coalesce(nullif(btrim(impressum_gruppe_bezeichnung), ''), 'Weitere Funktionen'),
@@ -21,7 +20,6 @@ where impressum_gruppe is null
    or impressum_gruppen_sort_order is null
    or impressum_ist_hauptkontakt is null
    or impressum_zeige_ladungsfaehige_anschrift is null;
-
 alter table public.vereinsfunktion_verwendung
   alter column impressum_gruppe set default 'weitere',
   alter column impressum_gruppe_bezeichnung set default 'Weitere Funktionen',
@@ -33,7 +31,6 @@ alter table public.vereinsfunktion_verwendung
   alter column impressum_gruppen_sort_order set not null,
   alter column impressum_ist_hauptkontakt set not null,
   alter column impressum_zeige_ladungsfaehige_anschrift set not null;
-
 alter table public.vereinsfunktion_verwendung
   add constraint ck_vereinsfunktion_verwendung_impressum_gruppe_nonempty
     check (verwendungszweck <> 'impressum' or btrim(impressum_gruppe) <> ''),
@@ -50,11 +47,9 @@ alter table public.vereinsfunktion_verwendung
   add constraint ck_vereinsfunktion_verwendung_impressum_anschrift_hauptkontakt
     check (not coalesce(impressum_zeige_ladungsfaehige_anschrift, false)
       or coalesce(impressum_ist_hauptkontakt, false));
-
 create unique index ux_vereinsfunktion_verwendung_impressum_hauptkontakt
   on public.vereinsfunktion_verwendung (verwendungszweck)
   where verwendungszweck = 'impressum' and impressum_ist_hauptkontakt;
-
 -- This deliberately returns only the contact fields required by the Impressum.
 -- It is SECURITY DEFINER solely to project selected member fields; callers never
 -- receive direct member-table access, history, representations or other purposes.
@@ -96,6 +91,5 @@ as $$
    order by v.impressum_ist_hauptkontakt desc, v.impressum_gruppen_sort_order,
             v.sort_order, f.schluessel, b.sort_order, b.id;
 $$;
-
 revoke all on function public.impressum_kontakte() from public;
 grant execute on function public.impressum_kontakte() to authenticated, service_role;

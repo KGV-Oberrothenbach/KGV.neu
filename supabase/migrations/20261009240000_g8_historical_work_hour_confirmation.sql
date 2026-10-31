@@ -20,7 +20,6 @@ begin
 end; $$;
 revoke all on function public.confirm_arbeitseinsatz_arbeitsstunde(bigint,numeric,text) from public, anon;
 grant execute on function public.confirm_arbeitseinsatz_arbeitsstunde(bigint,numeric,text) to authenticated;
-
 create or replace view public.v_startseite_arbeitseinsatz
 with (security_invoker = 'true') as
 select a.id, a.titel, a.beschreibung, a.datum, a.start_uhrzeit, a.end_uhrzeit,

@@ -16,7 +16,6 @@ begin
   end if;
 end;
 $$;
-
 create or replace function public.prevent_vereinsfunktion_vertretung_identity_change()
 returns trigger
 language plpgsql
@@ -31,14 +30,12 @@ begin
   return new;
 end;
 $$;
-
 drop trigger if exists trg_vereinsfunktion_vertretung_identity_immutable
   on public.vereinsfunktion_vertretung;
 create trigger trg_vereinsfunktion_vertretung_identity_immutable
 before update of vertretene_besetzung_id,vertreter_besetzung_id,gueltig_ab
 on public.vereinsfunktion_vertretung
 for each row execute function public.prevent_vereinsfunktion_vertretung_identity_change();
-
 create or replace function public.validate_vereinsfunktion_vertretung_eindeutig()
 returns trigger
 language plpgsql
@@ -65,14 +62,12 @@ begin
   return new;
 end;
 $$;
-
 drop trigger if exists trg_vereinsfunktion_vertretung_eindeutig
   on public.vereinsfunktion_vertretung;
 create trigger trg_vereinsfunktion_vertretung_eindeutig
 before insert or update of vertretene_besetzung_id,gueltig_ab,gueltig_bis
 on public.vereinsfunktion_vertretung
 for each row execute function public.validate_vereinsfunktion_vertretung_eindeutig();
-
 -- A representation is considered only when the representative's own assignment
 -- and function are valid at the requested date. No recursive/transitive lookup
 -- is performed. If that source is no longer valid, the represented assignment
@@ -150,7 +145,6 @@ set search_path=public,pg_temp as $$
   from aufgeloest a
   join public.mitglied m on m.id=a.mitglied_id;
 $$;
-
 revoke all on function public.prevent_vereinsfunktion_vertretung_identity_change()
   from public,anon,authenticated;
 revoke all on function public.validate_vereinsfunktion_vertretung_eindeutig()

@@ -6,7 +6,6 @@ alter table public.kommunikationsvorgang
     'entwurf', 'vorbereitet', 'zur_signatur', 'letzte_pruefung', 'verworfen', 'mail_bereit', 'wird_versendet',
     'druck_bereit', 'erledigt', 'fehler', 'abgebrochen'
   ));
-
 create or replace function public.discard_prepared_contract(
   p_kommunikationsvorgang_id bigint,
   p_expected_revision integer,
@@ -35,7 +34,6 @@ end;
 $$;
 revoke all on function public.discard_prepared_contract(bigint, integer, uuid) from public, anon, authenticated, service_role;
 grant execute on function public.discard_prepared_contract(bigint, integer, uuid) to service_role;
-
 -- Extend the existing workflow guard without weakening its frozen-signature checks.
 create or replace function public.guard_kommunikationsvorgang_update()
 returns trigger language plpgsql security definer set search_path = public, pg_temp as $$

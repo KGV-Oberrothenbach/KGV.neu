@@ -47,7 +47,6 @@ begin
   returning *;
 end;
 $$;
-
 create or replace function public.create_mitglied_vereinsdokument_bereitstellungen_digital(
   p_mitglied_id bigint,
   p_vereinsdokument_fassung_ids bigint[],
@@ -98,13 +97,10 @@ begin
   returning *;
 end;
 $$;
-
 drop policy if exists mitglied_vereinsdokument_bereitstellung_insert_admin_vorstand
   on public.mitglied_vereinsdokument_bereitstellung;
 revoke insert, delete on table public.mitglied_vereinsdokument_bereitstellung from authenticated;
-
 revoke all on function public.create_mitglied_vereinsdokument_bereitstellungen_papier(bigint, bigint[], timestamptz) from public, anon, authenticated, service_role;
 grant execute on function public.create_mitglied_vereinsdokument_bereitstellungen_papier(bigint, bigint[], timestamptz) to authenticated;
-
 revoke all on function public.create_mitglied_vereinsdokument_bereitstellungen_digital(bigint, bigint[], uuid) from public, anon, authenticated;
 grant execute on function public.create_mitglied_vereinsdokument_bereitstellungen_digital(bigint, bigint[], uuid) to service_role;

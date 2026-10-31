@@ -14,7 +14,6 @@ create table public.dokumenttyp (
     constraint ck_dokumenttyp_code_nonempty check (btrim(code) <> ''),
     constraint ck_dokumenttyp_bezeichnung_nonempty check (btrim(bezeichnung) <> '')
 );
-
 create table public.dokumenttyp_wirkung (
     dokumenttyp_id bigint not null
         references public.dokumenttyp(id) on delete restrict,
@@ -30,7 +29,6 @@ create table public.dokumenttyp_wirkung (
         )
     )
 );
-
 create table public.dokument_wartungsvertrag_zuordnung (
     dokument_id bigint not null
         references public.dokument(id) on delete restrict,
@@ -38,13 +36,10 @@ create table public.dokument_wartungsvertrag_zuordnung (
         references public.wartungsvertrag_zuordnungen(id) on delete restrict,
     primary key (dokument_id, wartungsvertrag_zuordnung_id)
 );
-
 create index ix_dokumenttyp_aktiv_sortierung_bezeichnung
     on public.dokumenttyp (aktiv, sortierung, bezeichnung);
-
 create index ix_dokument_wartungsvertrag_zuordnung_zuordnung_dokument
     on public.dokument_wartungsvertrag_zuordnung (wartungsvertrag_zuordnung_id, dokument_id);
-
 create or replace function public.set_dokumenttyp_audit_fields()
 returns trigger
 language plpgsql
@@ -68,47 +63,38 @@ begin
     return new;
 end;
 $$;
-
 create trigger trg_dokumenttyp_audit_fields
 before insert or update on public.dokumenttyp
 for each row execute function public.set_dokumenttyp_audit_fields();
-
 alter table public.dokumenttyp enable row level security;
 alter table public.dokumenttyp_wirkung enable row level security;
 alter table public.dokument_wartungsvertrag_zuordnung enable row level security;
-
 create policy dokumenttyp_read_authenticated
 on public.dokumenttyp
 for select to authenticated
 using (true);
-
 create policy dokumenttyp_write_admin
 on public.dokumenttyp
 for all to authenticated
 using (public.is_admin())
 with check (public.is_admin());
-
 create policy dokumenttyp_wirkung_read_admin_vorstand
 on public.dokumenttyp_wirkung
 for select to authenticated
 using (public.is_admin_or_vorstand());
-
 create policy dokumenttyp_wirkung_write_admin
 on public.dokumenttyp_wirkung
 for all to authenticated
 using (public.is_admin())
 with check (public.is_admin());
-
 create policy dokument_wartungsvertrag_zuordnung_read_admin_vorstand
 on public.dokument_wartungsvertrag_zuordnung
 for select to authenticated
 using (public.is_admin_or_vorstand());
-
 revoke all on table public.dokumenttyp,
     public.dokumenttyp_wirkung,
     public.dokument_wartungsvertrag_zuordnung
 from public, anon;
-
 grant select, insert, update, delete on table public.dokumenttyp to authenticated;
 grant select, insert, update, delete on table public.dokumenttyp_wirkung to authenticated;
 grant select on table public.dokument_wartungsvertrag_zuordnung to authenticated;
@@ -116,12 +102,9 @@ grant all on table public.dokumenttyp,
     public.dokumenttyp_wirkung,
     public.dokument_wartungsvertrag_zuordnung
 to service_role;
-
 grant usage, select on sequence public.dokumenttyp_id_seq to authenticated, service_role;
-
 revoke all on function public.set_dokumenttyp_audit_fields() from public, anon, authenticated;
 grant execute on function public.set_dokumenttyp_audit_fields() to service_role;
-
 insert into public.dokumenttyp (code, bezeichnung, aktiv, sortierung)
 values
     ('pacht_mitgliedsantrag', 'Pacht und Mitgliedsantrag', true, 10),
@@ -129,7 +112,6 @@ values
     ('protokoll', 'Protokoll', true, 30),
     ('wartungsvertrag', 'Wartungsvertrag', true, 40)
 on conflict (code) do nothing;
-
 insert into public.dokumenttyp_wirkung (dokumenttyp_id, wirkung)
 select dokumenttyp.id, seed.wirkung
 from (
@@ -144,7 +126,6 @@ from (
 ) as seed(code, wirkung)
 join public.dokumenttyp on dokumenttyp.code = seed.code
 on conflict (dokumenttyp_id, wirkung) do nothing;
-
 comment on table public.dokumenttyp is
     'Allgemeiner administrierbarer Katalog fachlicher Dokumenttypen. Fachliche Wirkungen werden ausschließlich in dokumenttyp_wirkung gepflegt.';
 comment on table public.dokumenttyp_wirkung is

@@ -6,7 +6,6 @@ create unique index if not exists ux_kommunikationsvorgang_aufnahmebestaetigung_
   on public.kommunikationsvorgang (((entwurf_daten->>'mitgliedsantrag_kommunikationsvorgang_id')::bigint))
   where vorgangstyp='dokument_erzeugung'
     and dokumenttyp='aufnahmebestaetigung';
-
 create or replace function public.ensure_aufnahmebestaetigung_dokumentvorgang(p_bearbeitung_id bigint)
 returns public.kommunikationsvorgang
 language plpgsql security definer set search_path=public,pg_temp as $$
@@ -73,7 +72,6 @@ begin
   return v_dokumentvorgang;
 end;
 $$;
-
 -- The decision remains leading. Document creation itself is a separate,
 -- retryable action. The process shell is created only after the membership and
 -- original application have been completed successfully.
@@ -103,7 +101,6 @@ begin
  end if;
 end;
 $$;
-
 create or replace function public.complete_aufnahmebestaetigung(p_kommunikationsvorgang_id bigint,p_dokument_id bigint)
 returns void language plpgsql security definer set search_path=public,pg_temp as $$
 declare v_vorgang public.kommunikationsvorgang%rowtype; v_dokument public.dokument%rowtype;
@@ -130,7 +127,6 @@ begin
   end if;
 end;
 $$;
-
 create or replace view public.mitgliedsaufnahme_vorstand_liste with (security_invoker=true) as
 select b.id bearbeitung_id,b.kommunikationsvorgang_id,v.mitglied_id,v.final_dokument_id,spc.name_snapshot antragsteller,b.gestartet_am,b.entscheidung,
  count(sp.id) snapshot_personen,count(s.stimme) abgegebene_stimmen,count(s.stimme) filter(where s.stimme='ja') ja_stimmen,count(s.stimme) filter(where s.stimme='nein') nein_stimmen,
@@ -152,7 +148,6 @@ left join lateral (
 left join public.mitgliedsaufnahme_abstimmung_snapshot_person sp on sp.vorstandsbearbeitung_id=b.id
 left join lateral(select stimme from public.mitgliedsaufnahme_abstimmung_stimme where snapshot_person_id=sp.id order by version desc limit 1) s on true
 group by b.id,v.mitglied_id,v.final_dokument_id,spc.name_snapshot,confirmation.id,confirmation.status,confirmation.final_dokument_id;
-
 revoke all on function public.ensure_aufnahmebestaetigung_dokumentvorgang(bigint),public.complete_aufnahmebestaetigung(bigint,bigint) from public,anon;
 grant execute on function public.ensure_aufnahmebestaetigung_dokumentvorgang(bigint) to authenticated,service_role;
 grant execute on function public.complete_aufnahmebestaetigung(bigint,bigint) to service_role;

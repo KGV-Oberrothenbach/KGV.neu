@@ -3,10 +3,8 @@
 
 alter table public.browser_edit_lock
   add column if not exists client_instance_id uuid;
-
 create index if not exists ix_browser_edit_lock_owner_client
   on public.browser_edit_lock (locked_by_user_id, client_instance_id);
-
 create or replace function public.acquire_browser_edit_lock_core(
   p_entity_type text,
   p_entity_id text,
@@ -180,7 +178,6 @@ begin
     v_expires_at;
 end;
 $$;
-
 create or replace function public.release_browser_edit_lock_core(
   p_entity_type text,
   p_entity_id text,
@@ -215,7 +212,6 @@ begin
   return true;
 end;
 $$;
-
 create or replace function public.release_all_browser_edit_locks_core(
   p_client_instance_id uuid
 )
@@ -247,7 +243,6 @@ begin
   return true;
 end;
 $$;
-
 -- Legacy callers share one deterministic per-user client identity during rollout.
 create or replace function public.acquire_browser_edit_lock(
   p_entity_type text,
@@ -268,7 +263,6 @@ as $$
     p_entity_type, p_entity_id, auth.uid(), p_timeout_seconds
   );
 $$;
-
 create or replace function public.release_browser_edit_lock(
   p_entity_type text,
   p_entity_id text
@@ -280,7 +274,6 @@ set search_path = public
 as $$
   select public.release_browser_edit_lock_core(p_entity_type, p_entity_id, auth.uid());
 $$;
-
 create or replace function public.release_all_browser_edit_locks()
 returns boolean
 language sql
@@ -289,7 +282,6 @@ set search_path = public
 as $$
   select public.release_all_browser_edit_locks_core(auth.uid());
 $$;
-
 create or replace function public.acquire_browser_edit_lock_for_client(
   p_entity_type text,
   p_entity_id text,
@@ -310,7 +302,6 @@ as $$
     p_entity_type, p_entity_id, p_client_instance_id, p_timeout_seconds
   );
 $$;
-
 create or replace function public.release_browser_edit_lock_for_client(
   p_entity_type text,
   p_entity_id text,
@@ -323,7 +314,6 @@ set search_path = public
 as $$
   select public.release_browser_edit_lock_core(p_entity_type, p_entity_id, p_client_instance_id);
 $$;
-
 create or replace function public.release_all_browser_edit_locks_for_client(
   p_client_instance_id uuid
 )
@@ -334,18 +324,15 @@ set search_path = public
 as $$
   select public.release_all_browser_edit_locks_core(p_client_instance_id);
 $$;
-
 revoke all on function public.acquire_browser_edit_lock_core(text, text, uuid, integer) from public, anon, authenticated;
 revoke all on function public.release_browser_edit_lock_core(text, text, uuid) from public, anon, authenticated;
 revoke all on function public.release_all_browser_edit_locks_core(uuid) from public, anon, authenticated;
-
 revoke all on function public.acquire_browser_edit_lock(text, text, integer) from public, anon;
 revoke all on function public.release_browser_edit_lock(text, text) from public, anon;
 revoke all on function public.release_all_browser_edit_locks() from public, anon;
 grant execute on function public.acquire_browser_edit_lock(text, text, integer) to authenticated;
 grant execute on function public.release_browser_edit_lock(text, text) to authenticated;
 grant execute on function public.release_all_browser_edit_locks() to authenticated;
-
 revoke all on function public.acquire_browser_edit_lock_for_client(text, text, uuid, integer) from public, anon;
 revoke all on function public.release_browser_edit_lock_for_client(text, text, uuid) from public, anon;
 revoke all on function public.release_all_browser_edit_locks_for_client(uuid) from public, anon;

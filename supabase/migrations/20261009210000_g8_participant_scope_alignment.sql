@@ -31,11 +31,9 @@ begin
   return v_row;
 end;
 $$;
-
 revoke all on function public.manage_arbeitseinsatz_anmeldung(bigint, bigint, text) from public;
 revoke all on function public.manage_arbeitseinsatz_anmeldung(bigint, bigint, text) from anon;
 grant execute on function public.manage_arbeitseinsatz_anmeldung(bigint, bigint, text) to authenticated;
-
 drop policy if exists arbeitseinsatz_anmeldung_manage_select on public.arbeitseinsatz_anmeldung;
 create policy arbeitseinsatz_anmeldung_manage_select on public.arbeitseinsatz_anmeldung for select to authenticated using (
   public.has_effective_permission(1048576) and (

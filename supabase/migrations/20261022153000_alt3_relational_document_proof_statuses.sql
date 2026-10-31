@@ -10,7 +10,6 @@ create policy dokumenttyp_wirkung_read_authenticated
 on public.dokumenttyp_wirkung
 for select to authenticated
 using (true);
-
 create or replace view public.v_mitglied_mitgliedsantrag_nachweisstatus
 with (security_invoker = true) as
 select
@@ -42,7 +41,6 @@ left join lateral (
         d.id desc
     limit 1
 ) n on true;
-
 create or replace view public.v_pachtverhaeltnis_pachtvertrag_nachweisstatus
 with (security_invoker = true) as
 select
@@ -78,7 +76,6 @@ left join lateral (
         f.id desc
     limit 1
 ) n on true;
-
 create or replace view public.v_wartungsvertrag_zuordnung_nachweisstatus
 with (security_invoker = true) as
 select
@@ -113,7 +110,6 @@ left join lateral (
     limit 1
 ) n on true
 where public.is_admin_or_vorstand();
-
 revoke all on table public.v_mitglied_mitgliedsantrag_nachweisstatus,
     public.v_pachtverhaeltnis_pachtvertrag_nachweisstatus,
     public.v_wartungsvertrag_zuordnung_nachweisstatus
@@ -122,7 +118,6 @@ grant select on table public.v_mitglied_mitgliedsantrag_nachweisstatus,
     public.v_pachtverhaeltnis_pachtvertrag_nachweisstatus,
     public.v_wartungsvertrag_zuordnung_nachweisstatus
 to authenticated;
-
 comment on view public.v_mitglied_mitgliedsantrag_nachweisstatus is
     'Relationaler Mitgliedsantrag-Nachweisstatus je Mitglied. Unterzeichnete Nachweise haben Vorrang; danach entscheidet dokumentdatum und Dokument-ID.';
 comment on view public.v_pachtverhaeltnis_pachtvertrag_nachweisstatus is

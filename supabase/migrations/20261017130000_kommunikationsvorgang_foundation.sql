@@ -39,12 +39,10 @@ create table public.kommunikationsvorgang (
     or (signatur_revision = revision and signatur_gestartet_am is not null)
   )
 );
-
 comment on table public.kommunikationsvorgang is
   'Zentraler Vorgang für Vertragsentwürfe, Signaturen, Mailausgang, Druck und weitere Dokumenttypen.';
 comment on column public.kommunikationsvorgang.entwurf_daten is
   'Strukturierte, fachliche Entwurfsdaten; nach Signaturbeginn der konkreten Revision unveränderlich.';
-
 create index ix_kommunikationsvorgang_status on public.kommunikationsvorgang(status);
 create index ix_kommunikationsvorgang_vorgangstyp on public.kommunikationsvorgang(vorgangstyp);
 create index ix_kommunikationsvorgang_dokumenttyp on public.kommunikationsvorgang(dokumenttyp);
@@ -53,7 +51,6 @@ create index ix_kommunikationsvorgang_parzelle_id on public.kommunikationsvorgan
 create index ix_kommunikationsvorgang_zugewiesen_an on public.kommunikationsvorgang(zugewiesen_an);
 create index ix_kommunikationsvorgang_erstellt_am on public.kommunikationsvorgang(erstellt_am);
 create index ix_kommunikationsvorgang_status_erstellt_am on public.kommunikationsvorgang(status, erstellt_am desc);
-
 create or replace function public.guard_kommunikationsvorgang_update()
 returns trigger
 language plpgsql
@@ -116,13 +113,10 @@ begin
   return new;
 end;
 $$;
-
 create trigger trg_kommunikationsvorgang_guard
 before insert or update on public.kommunikationsvorgang
 for each row execute function public.guard_kommunikationsvorgang_update();
-
 alter table public.kommunikationsvorgang enable row level security;
-
 create policy kommunikationsvorgang_admin_vorstand_all
 on public.kommunikationsvorgang
 for all to authenticated
@@ -138,13 +132,11 @@ with check (
     where c.role in ('admin', 'vorstand')
   )
 );
-
 revoke all on table public.kommunikationsvorgang from public, anon;
 grant select, insert, update, delete on table public.kommunikationsvorgang to authenticated;
 revoke all on sequence public.kommunikationsvorgang_id_seq from public, anon;
 grant usage, select on sequence public.kommunikationsvorgang_id_seq to authenticated;
 grant all on table public.kommunikationsvorgang to service_role;
 grant usage, select on sequence public.kommunikationsvorgang_id_seq to service_role;
-
 revoke all on function public.guard_kommunikationsvorgang_update() from public;
 grant execute on function public.guard_kommunikationsvorgang_update() to service_role;

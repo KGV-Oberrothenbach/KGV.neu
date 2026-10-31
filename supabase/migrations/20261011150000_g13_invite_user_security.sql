@@ -46,7 +46,6 @@ begin
   values (p_user_id, p_mitglied_id, p_role, 0, 0, false, now());
 end;
 $$;
-
 revoke all on function public.provision_app_user_link(bigint, uuid, text) from public;
 revoke all on function public.provision_app_user_link(bigint, uuid, text) from authenticated;
 grant execute on function public.provision_app_user_link(bigint, uuid, text) to service_role;

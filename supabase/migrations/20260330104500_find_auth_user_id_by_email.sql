@@ -22,8 +22,6 @@ begin
     limit 1;
 end;
 $$;
-
 alter function public.find_auth_user_id_by_email(text) owner to postgres;
-
 grant execute on function public.find_auth_user_id_by_email(text) to authenticated;
 grant execute on function public.find_auth_user_id_by_email(text) to service_role;

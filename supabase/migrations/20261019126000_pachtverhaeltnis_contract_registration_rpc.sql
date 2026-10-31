@@ -5,7 +5,6 @@
 create unique index if not exists ux_pachtvertragsfassung_ein_nachfolger_pro_vorgaenger
   on public.pachtvertragsfassung(vorgaenger_fassung_id)
   where vorgaenger_fassung_id is not null;
-
 create or replace function public.register_pachtverhaeltnis_erstvertrag(
   p_parzelle_id bigint,
   p_hauptpaechter_mitglied_id bigint,
@@ -141,7 +140,6 @@ begin
   return query select v_pachtverhaeltnis_id, v_pachtvertragsfassung_id;
 end;
 $$;
-
 create or replace function public.register_pachtvertrags_neufassung(
   p_pachtverhaeltnis_id bigint,
   p_vorgaenger_fassung_id bigint,
@@ -263,12 +261,10 @@ begin
   return query select v_pachtvertragsfassung_id;
 end;
 $$;
-
 revoke all on function public.register_pachtverhaeltnis_erstvertrag(bigint, bigint, date, bigint, date, date, uuid, bigint)
   from public, anon, authenticated, service_role;
 grant execute on function public.register_pachtverhaeltnis_erstvertrag(bigint, bigint, date, bigint, date, date, uuid, bigint)
   to service_role;
-
 revoke all on function public.register_pachtvertrags_neufassung(bigint, bigint, bigint, date, date, uuid)
   from public, anon, authenticated, service_role;
 grant execute on function public.register_pachtvertrags_neufassung(bigint, bigint, bigint, date, date, uuid)

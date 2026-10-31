@@ -1,7 +1,6 @@
 -- K4e.3c-2b-2a: Finalized contracts require an explicit final-document review.
 alter table public.kommunikationsvorgang
   add column if not exists final_dokument_id bigint references public.dokument(id) on delete restrict;
-
 alter table public.kommunikationsvorgang
   drop constraint if exists kommunikationsvorgang_status_check,
   add constraint kommunikationsvorgang_status_check check (status in (
@@ -11,11 +10,9 @@ alter table public.kommunikationsvorgang
   add constraint kommunikationsvorgang_letzte_pruefung_dokument_chk check (
     status <> 'letzte_pruefung' or final_dokument_id is not null
   );
-
 create index if not exists ix_kommunikationsvorgang_final_dokument_id
   on public.kommunikationsvorgang(final_dokument_id)
   where final_dokument_id is not null;
-
 create or replace function public.guard_kommunikationsvorgang_update()
 returns trigger
 language plpgsql

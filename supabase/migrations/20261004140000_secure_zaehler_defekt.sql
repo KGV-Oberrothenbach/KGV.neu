@@ -43,7 +43,6 @@ BEGIN
 	RETURN true;
 END;
 $$;
-
 REVOKE ALL ON FUNCTION public.mark_meter_defective(bigint) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.mark_meter_defective(bigint) FROM anon;
 GRANT EXECUTE ON FUNCTION public.mark_meter_defective(bigint) TO authenticated;

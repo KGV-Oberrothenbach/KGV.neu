@@ -3,7 +3,6 @@
 -- without a separately approved database rollout.
 
 drop function if exists public.rpc_export_arbeitsstunden_uebersicht(integer, boolean, boolean, boolean, text);
-
 create function public.rpc_export_arbeitsstunden_uebersicht(
   p_jahr integer default null, p_stunden_offen boolean default false,
   p_stunden_fertig boolean default false, p_wartungsvertraege boolean default false,
@@ -110,11 +109,8 @@ begin
     r.garten_nr, r.nachname, r.vorname, r.sortierung, r.leistendes_mitglied, r.datum;
 end;
 $$;
-
 grant execute on function public.rpc_export_arbeitsstunden_uebersicht(integer, boolean, boolean, boolean, text) to authenticated;
-
 drop function if exists public.rpc_export_datenschutz_aktive_mitglieder();
-
 create function public.rpc_export_datenschutz_aktive_mitglieder()
 returns table (
   garten_nr text, mitgliedsnummer bigint, name text, email text,
@@ -169,9 +165,7 @@ begin
     b.name, b.email;
 end;
 $$;
-
 grant execute on function public.rpc_export_datenschutz_aktive_mitglieder() to authenticated;
-
 -- Keep the JSON wrappers explicit after the return shapes changed.
 create or replace function public.rpc_export_arbeitsstunden_uebersicht_json(p_parameters jsonb default '{}'::jsonb)
 returns setof jsonb language sql stable security invoker set search_path = public, pg_temp as $$
@@ -181,7 +175,6 @@ create or replace function public.rpc_export_datenschutz_aktive_mitglieder_json(
 returns setof jsonb language sql stable security invoker set search_path = public, pg_temp as $$
   select to_jsonb(r) from public.rpc_export_datenschutz_aktive_mitglieder() r;
 $$;
-
 insert into public.app_export_column_definition
   (export_key, column_key, label_kurz, label_lang, sortierung, standard_sichtbar, ist_sortierspalte)
 values
@@ -191,7 +184,6 @@ on conflict (export_key, column_key) do update set
   label_kurz = excluded.label_kurz, label_lang = excluded.label_lang,
   sortierung = excluded.sortierung, standard_sichtbar = excluded.standard_sichtbar,
   ist_sortierspalte = excluded.ist_sortierspalte;
-
 update public.app_export_column_definition
 set sortierung = 30
 where export_key = 'arbeitsstunden_uebersicht' and column_key = 'nachname';

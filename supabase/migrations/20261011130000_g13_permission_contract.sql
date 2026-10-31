@@ -12,7 +12,6 @@ as $$
     else 10::bigint
   end;
 $$;
-
 create or replace function public.known_permission_mask()
 returns bigint
 language sql
@@ -21,7 +20,6 @@ set search_path to 'public', 'pg_temp'
 as $$
   select 16777215::bigint;
 $$;
-
 create or replace function public.current_effective_permissions()
 returns bigint
 language sql
@@ -38,7 +36,6 @@ as $$
     limit 1
   ), 0::bigint);
 $$;
-
 create or replace function public.has_effective_permission(p_permission bigint)
 returns boolean
 language sql
@@ -53,7 +50,6 @@ as $$
     false
   );
 $$;
-
 comment on function public.permission_role_base(text) is
   'G13 role base: user=10, vorstand=7855607, admin=16769015.';
 comment on function public.known_permission_mask() is

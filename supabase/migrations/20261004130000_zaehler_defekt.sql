@@ -1,7 +1,6 @@
 -- Enables marking an active meter as defective without changing its meter lifecycle.
 ALTER TABLE public.zaehler
     ADD COLUMN IF NOT EXISTS defekt boolean NOT NULL DEFAULT false;
-
 -- Defective active meters remain in this view and are treated as overdue.
 CREATE OR REPLACE VIEW public.v_zaehler_eichstatus WITH (security_invoker = true) AS
 SELECT z.id,

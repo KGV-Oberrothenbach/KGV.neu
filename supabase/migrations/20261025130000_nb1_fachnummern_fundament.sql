@@ -1,7 +1,6 @@
 -- NB-1. Commit this migration; do not apply it without separate approval.
 alter table public.mitglied add column if not exists mitgliedsnummer bigint generated always as (id + 1000) stored;
 create unique index if not exists ux_mitglied_mitgliedsnummer on public.mitglied(mitgliedsnummer);
-
 create table if not exists public.fachnummer_reservierung (
   is_demo boolean not null, nummer integer not null, art text not null check (art in ('mitgliedsantrag','pachtvertrag','historischer_kombivertrag','wartungsvertrag')),
   quelle_art text not null check (quelle_art in ('kommunikationsvorgang','historisches_dokument')),
@@ -24,6 +23,9 @@ create or replace function public.reserve_fachnummer(p_art text,p_quelle_art tex
  n:=nextval(s); insert into public.fachnummer_reservierung(is_demo,nummer,art,quelle_art,quelle_id) values(p_is_demo,n,p_art,p_quelle_art,p_quelle_id) returning nummer into n; return n; end $$;
 create or replace function public.trg_reserve_vertragsnummer() returns trigger language plpgsql security definer set search_path=public,pg_temp as $$ declare a text; demo boolean; begin
  if new.status='zur_signatur' and old.status is distinct from 'zur_signatur' then a:=case new.dokumenttyp when 'mitgliedsantrag' then 'mitgliedsantrag' when 'pachtvertrag' then 'pachtvertrag' when 'wartungsvertrag' then 'wartungsvertrag' end; if a is not null then select coalesce(is_demo,false) into demo from public.mitglied where id=new.mitglied_id; perform public.reserve_fachnummer(a,'kommunikationsvorgang',new.id,demo); end if; end if; return new; end $$;
-drop trigger if exists trg_reserve_vertragsnummer on public.kommunikationsvorgang; create trigger trg_reserve_vertragsnummer before update of status on public.kommunikationsvorgang for each row execute function public.trg_reserve_vertragsnummer();
-revoke all on table public.fachnummer_reservierung from public, anon, authenticated; grant select on table public.fachnummer_reservierung to authenticated, service_role;
-revoke all on function public.reserve_fachnummer(text,text,bigint,boolean) from public, anon; grant execute on function public.reserve_fachnummer(text,text,bigint,boolean) to authenticated, service_role;
+drop trigger if exists trg_reserve_vertragsnummer on public.kommunikationsvorgang;
+create trigger trg_reserve_vertragsnummer before update of status on public.kommunikationsvorgang for each row execute function public.trg_reserve_vertragsnummer();
+revoke all on table public.fachnummer_reservierung from public, anon, authenticated;
+grant select on table public.fachnummer_reservierung to authenticated, service_role;
+revoke all on function public.reserve_fachnummer(text,text,bigint,boolean) from public, anon;
+grant execute on function public.reserve_fachnummer(text,text,bigint,boolean) to authenticated, service_role;

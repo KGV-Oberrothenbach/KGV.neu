@@ -47,9 +47,7 @@ as $$
         e.medium,
         e.zaehlernummer;
 $$;
-
 grant execute on function public.rpc_export_zaehler_eichfaelligkeit(text) to authenticated;
-
 insert into public.app_export_definition
     (export_key, titel, beschreibung, quelle_typ, quelle_name, aktiv, standard_sortierung, standard_ausgabe, erlaubt_csv, erlaubt_pdf)
 values
@@ -66,12 +64,10 @@ on conflict (export_key) do update set
     standard_ausgabe = excluded.standard_ausgabe,
     erlaubt_csv = excluded.erlaubt_csv,
     erlaubt_pdf = excluded.erlaubt_pdf;
-
 delete from public.app_export_filter_definition where export_key = 'zaehler_eichfaelligkeit';
 insert into public.app_export_filter_definition (export_key, filter_key, label, typ, optionen_json, pflicht, sortierung) values
     ('zaehler_eichfaelligkeit', 'p_medium', 'Zählerart', 'select',
      '[{"label":"Strom","value":"strom"},{"label":"Wasser","value":"wasser"}]'::jsonb, false, 10);
-
 delete from public.app_export_column_definition where export_key = 'zaehler_eichfaelligkeit';
 insert into public.app_export_column_definition
     (export_key, column_key, label_kurz, label_lang, sortierung, standard_sichtbar, ist_sortierspalte) values

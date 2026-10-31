@@ -1,6 +1,5 @@
 -- Arbeitsstunden-PDF: Gartennummer für die fachliche Sortierung bereitstellen.
 DROP FUNCTION IF EXISTS public.rpc_export_arbeitsstunden_uebersicht(integer, boolean, boolean, boolean);
-
 CREATE FUNCTION public.rpc_export_arbeitsstunden_uebersicht(
     p_jahr integer DEFAULT NULL,
     p_stunden_offen boolean DEFAULT false,
@@ -80,13 +79,10 @@ AS $$
      OR (p_wartungsvertraege AND hat_wartungsvertrag)
   ORDER BY garten_nr, nachname, vorname;
 $$;
-
 GRANT EXECUTE ON FUNCTION public.rpc_export_arbeitsstunden_uebersicht(integer, boolean, boolean, boolean) TO authenticated;
-
 UPDATE public.app_export_definition
 SET standard_sortierung = 'garten_nr'
 WHERE export_key = 'arbeitsstunden_uebersicht';
-
 DELETE FROM public.app_export_column_definition WHERE export_key = 'arbeitsstunden_uebersicht';
 INSERT INTO public.app_export_column_definition
   (export_key, column_key, label_kurz, label_lang, sortierung, standard_sichtbar, ist_sortierspalte)

@@ -87,7 +87,6 @@ begin
   order by typ.code;
 end;
 $$;
-
 create or replace function public.get_mitglied_vereinsdokument_bereitstellung_historie(
   p_mitglied_id bigint
 )
@@ -149,7 +148,6 @@ begin
   order by b.bereitgestellt_am desc, b.id desc;
 end;
 $$;
-
 revoke all on function public.get_mitglied_vereinsdokument_status(bigint, date) from public, anon, authenticated;
 grant execute on function public.get_mitglied_vereinsdokument_status(bigint, date) to authenticated, service_role;
 revoke all on function public.get_mitglied_vereinsdokument_bereitstellung_historie(bigint) from public, anon, authenticated;

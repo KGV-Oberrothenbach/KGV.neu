@@ -1,7 +1,6 @@
 -- G11.1b: the central G7 calculation owns maintenance-contract credits.
 DROP VIEW IF EXISTS public.v_pflichtstunden_uebersicht;
 DROP FUNCTION IF EXISTS public.fn_berechne_pflichtstunden_status(bigint, bigint);
-
 CREATE FUNCTION public.fn_berechne_pflichtstunden_status(p_mitglied_id bigint, p_saison_id bigint)
 RETURNS TABLE(hauptmitglied_id bigint, saison_id bigint, saison_jahr integer, regelgrund text, ist_befreit boolean, hat_wartungsvertrag boolean, wartungsvertrag_gutschrift_stunden numeric, altersbefreit boolean, eintritt_im_saisonjahr boolean, eintritt_zweites_halbjahr boolean, pflichtstunden_soll numeric, geleistete_stunden numeric, offene_stunden numeric, euro_pro_fehlstunde numeric, fehlbetrag numeric)
 LANGUAGE plpgsql STABLE AS $$
@@ -62,15 +61,12 @@ begin
     return query select v_hauptmitglied_id, p_saison_id, v_saison.jahr, v_regelgrund, v_ist_befreit, v_hat_wartungsvertrag, v_wartungsvertrag_gutschrift_stunden, v_altersbefreit, v_eintritt_im_saisonjahr, v_eintritt_zweites_halbjahr, v_pflichtstunden_soll, v_geleistete_stunden, greatest(v_pflichtstunden_soll - v_geleistete_stunden - v_wartungsvertrag_gutschrift_stunden, 0), coalesce(v_saison.euro_pro_fehlstunde, 0), greatest(v_pflichtstunden_soll - v_geleistete_stunden - v_wartungsvertrag_gutschrift_stunden, 0) * coalesce(v_saison.euro_pro_fehlstunde, 0);
 end;
 $$;
-
 CREATE VIEW public.v_pflichtstunden_uebersicht AS
 SELECT s.id AS saison_id, s.jahr, s.jahr AS saison_jahr, m.id AS mitglied_id, coalesce(m.hauptmitglied_id, m.id) AS hauptmitglied_id, m.name, m.vorname,
   x.regelgrund, x.ist_befreit, x.hat_wartungsvertrag, x.wartungsvertrag_gutschrift_stunden, x.altersbefreit, x.eintritt_im_saisonjahr, x.eintritt_zweites_halbjahr, x.pflichtstunden_soll, x.geleistete_stunden, x.offene_stunden, x.euro_pro_fehlstunde, x.fehlbetrag
 FROM public.saison s CROSS JOIN public.mitglied m CROSS JOIN LATERAL public.fn_berechne_pflichtstunden_status(m.id, s.id::bigint) x;
-
 GRANT ALL ON TABLE public.v_pflichtstunden_uebersicht TO authenticated, service_role;
 GRANT ALL ON FUNCTION public.fn_berechne_pflichtstunden_status(bigint, bigint) TO anon, authenticated, service_role;
-
 -- The export uses the central result and no longer treats every maintenance contract as an exemption.
 DROP FUNCTION IF EXISTS public.rpc_export_arbeitsstunden_uebersicht(integer, boolean, boolean, boolean, text);
 CREATE FUNCTION public.rpc_export_arbeitsstunden_uebersicht(p_jahr integer default null, p_stunden_offen boolean default false, p_stunden_fertig boolean default false, p_wartungsvertraege boolean default false, p_ansicht text default 'zusammenfassung')
@@ -85,7 +81,6 @@ LANGUAGE sql STABLE SECURITY INVOKER AS $$
   select mitglied_id,garten_nr,nachname,vorname,jahr,pflichtstunden_soll,geleistete_stunden,wartungsvertrag_gutschrift_stunden,offene_stunden,hat_wartungsvertrag,wartungsvertraege,case when regelgrund='wartungsvertrag' then 'Wartungsvertrag – befreit' when pflichtstunden_soll>0 and offene_stunden>0 then 'Stunden offen' when pflichtstunden_soll>0 then 'Stunden fertig' else 'Befreit' end,regelgrund,'Zusammenfassung','',null::numeric,null::date,'',0 from filtered order by nachname,vorname;
 $$;
 GRANT EXECUTE ON FUNCTION public.rpc_export_arbeitsstunden_uebersicht(integer, boolean, boolean, boolean, text) TO authenticated;
-
 INSERT INTO public.app_export_column_definition (export_key,column_key,label_kurz,label_lang,sortierung,standard_sichtbar,ist_sortierspalte)
 VALUES ('arbeitsstunden_uebersicht','wartungsvertrag_gutschrift_stunden','WV-Gutschrift','Wartungsvertrag-Gutschrift',55,true,false)
 ON CONFLICT (export_key,column_key) DO UPDATE SET label_kurz=excluded.label_kurz,label_lang=excluded.label_lang,sortierung=excluded.sortierung,standard_sichtbar=excluded.standard_sichtbar,ist_sortierspalte=excluded.ist_sortierspalte;

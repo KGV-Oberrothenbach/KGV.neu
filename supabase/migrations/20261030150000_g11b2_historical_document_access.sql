@@ -1,7 +1,6 @@
 -- G11b2: capability-scoped historical uploads and reads, no general document write grant.
 alter table public.dokument add column if not exists historical_contract_type text
   check (historical_contract_type is null or historical_contract_type in ('historischer_ma_pv_erstvertrag','historischer_pv_folgevertrag'));
-
 create or replace function public.guard_historical_contract_upload_context()
 returns trigger language plpgsql security definer set search_path = public, pg_temp as $$
 begin
@@ -45,7 +44,6 @@ drop trigger if exists guard_historical_contract_upload_context on public.dokume
 create trigger guard_historical_contract_upload_context before insert or update on public.dokument
   for each row execute function public.guard_historical_contract_upload_context();
 revoke all on function public.guard_historical_contract_upload_context() from public, anon, authenticated;
-
 create or replace function public.can_access_historical_contract_member(p_mitglied_id bigint)
 returns boolean language sql stable security definer set search_path = public, pg_temp as $$
   select coalesce(public.can_register_historical_contracts(), false) and exists (
@@ -53,7 +51,6 @@ returns boolean language sql stable security definer set search_path = public, p
     where m.id = p_mitglied_id and coalesce(m.is_demo, false) = c.is_demo_account
   );
 $$;
-
 create or replace function public.is_registered_historical_contract_document(p_dokument_id bigint)
 returns boolean language sql stable security definer set search_path = public, pg_temp as $$
   select exists (select 1 from public.dokument as d join public.dokumenttyp as dt on dt.id = d.dokumenttyp_id
@@ -66,7 +63,6 @@ returns boolean language sql stable security definer set search_path = public, p
 $$;
 revoke all on function public.is_registered_historical_contract_document(bigint) from public, anon, authenticated;
 grant execute on function public.is_registered_historical_contract_document(bigint) to service_role;
-
 create or replace function public.can_access_historical_contract_document(p_dokument_id bigint, p_require_registered boolean default false)
 returns boolean language sql stable security definer set search_path = public, pg_temp as $$
   select coalesce(public.can_register_historical_contracts(), false) and exists (
@@ -94,11 +90,9 @@ revoke all on function public.can_access_historical_contract_member(bigint) from
 grant execute on function public.can_access_historical_contract_member(bigint) to authenticated;
 revoke all on function public.can_access_historical_contract_document(bigint, boolean) from public, anon;
 grant execute on function public.can_access_historical_contract_document(bigint, boolean) to authenticated;
-
 drop policy if exists dokument_historical_contract_select on public.dokument;
 create policy dokument_historical_contract_select on public.dokument for select to authenticated
   using (public.can_access_historical_contract_document(id, false));
-
 -- Minimal lookup projections for the workflow; no general member/parcel SELECT grants.
 create or replace function public.get_historical_contract_members()
 returns setof jsonb language plpgsql stable security definer set search_path = public, pg_temp as $$
@@ -129,7 +123,6 @@ revoke all on function public.get_historical_contract_members() from public, ano
 grant execute on function public.get_historical_contract_members() to authenticated;
 revoke all on function public.get_historical_contract_lease_relationships(bigint) from public, anon;
 grant execute on function public.get_historical_contract_lease_relationships(bigint) to authenticated;
-
 -- Retain the G7 projection, adding only the historical data scope check.
 -- G7 shared read model. It is capability-gated just like the write RPC.
 create or replace function public.get_historische_pachtvertragsvorschau(p_pachtverhaeltnis_ids bigint[], p_vertragsdatum date)
@@ -166,7 +159,6 @@ end;
 $$;
 revoke all on function public.get_historische_pachtvertragsvorschau(bigint[], date) from public, anon;
 grant execute on function public.get_historische_pachtvertragsvorschau(bigint[], date) to authenticated, service_role;
-
 -- Keep number/stamp RPCs under the same context boundary, including direct calls.
 create or replace function public.reserve_fachnummer(p_art text, p_quelle_art text, p_quelle_id bigint, p_is_demo boolean)
 returns integer language plpgsql security definer set search_path = public, pg_temp as $$
@@ -196,7 +188,6 @@ begin
   return v_nummer;
 end;
 $$;
-
 -- Keep number/stamp RPCs under the same context boundary, including direct calls.
 create or replace function public.reserve_historische_vertragsnummer(p_dokument_id bigint)
 returns table (nummer integer, titel text, mime_type text, pdf_bereits_gestempelt boolean)
@@ -221,7 +212,6 @@ begin
   return query select v_nummer, v_titel, v_dokument.mime_type, v_dokument.historische_vertragsnummer_pdf_gestempelt_am is not null;
 end;
 $$;
-
 -- Keep number/stamp RPCs under the same context boundary, including direct calls.
 create or replace function public.mark_historische_vertragsnummer_pdf_gestempelt(p_dokument_id bigint, p_nummer integer)
 returns void
@@ -239,11 +229,9 @@ begin
   if not found then raise exception 'Die historische Vertragsnummer passt nicht zum Dokument.' using errcode = '22023'; end if;
 end;
 $$;
-
 -- Only the backend that wrote the stamped bytes may confirm that outcome.
 revoke all on function public.mark_historische_vertragsnummer_pdf_gestempelt(bigint, integer) from public, anon, authenticated;
 grant execute on function public.mark_historische_vertragsnummer_pdf_gestempelt(bigint, integer) to service_role;
-
 create or replace function public.get_historical_contract_documents(p_mitglied_id bigint)
 returns setof jsonb language plpgsql stable security definer set search_path = public, pg_temp as $$
 begin

@@ -12,7 +12,6 @@ begin
     return coalesce(new, old);
 end;
 $$;
-
 drop trigger if exists trg_prevent_final_jahresabschluss_position_change on public.jahresabschluss_position;
 create trigger trg_prevent_final_jahresabschluss_position_change
 before insert or update or delete on public.jahresabschluss_position

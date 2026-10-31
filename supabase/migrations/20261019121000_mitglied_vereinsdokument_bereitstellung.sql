@@ -24,7 +24,6 @@ create table public.mitglied_vereinsdokument_bereitstellung (
     )
   )
 );
-
 comment on table public.mitglied_vereinsdokument_bereitstellung is
   'Append-only-Historie der tatsächlich erfolgten digitalen oder papierhaften Bereitstellung einer konkreten Vereinsdokumentfassung.';
 comment on column public.mitglied_vereinsdokument_bereitstellung.bereitgestellt_am is
@@ -33,17 +32,14 @@ comment on column public.mitglied_vereinsdokument_bereitstellung.bereitstellungs
   'Art der tatsächlichen Bereitstellung: digital oder papier.';
 comment on column public.mitglied_vereinsdokument_bereitstellung.storniert_am is
   'Zeitpunkt der einmaligen Stornierung eines fehlerhaften Bereitstellungsnachweises. Stornierte Nachweise gelten nicht als Bereitstellung.';
-
 create index ix_mitglied_vereinsdokument_bereitstellung_member_fassung_bereitgestellt
   on public.mitglied_vereinsdokument_bereitstellung (
     mitglied_id,
     vereinsdokument_fassung_id,
     bereitgestellt_am desc
   );
-
 create index ix_mitglied_vereinsdokument_bereitstellung_fassung
   on public.mitglied_vereinsdokument_bereitstellung (vereinsdokument_fassung_id);
-
 create or replace function public.set_mitglied_vereinsdokument_bereitgestellt_von()
 returns trigger
 language plpgsql
@@ -57,11 +53,9 @@ begin
   return new;
 end;
 $$;
-
 create trigger trg_mitglied_vereinsdokument_bereitgestellt_von
 before insert on public.mitglied_vereinsdokument_bereitstellung
 for each row execute function public.set_mitglied_vereinsdokument_bereitgestellt_von();
-
 create or replace function public.guard_mitglied_vereinsdokument_bereitstellung_history()
 returns trigger
 language plpgsql
@@ -98,13 +92,10 @@ begin
   return new;
 end;
 $$;
-
 create trigger trg_mitglied_vereinsdokument_bereitstellung_append_only
 before update or delete on public.mitglied_vereinsdokument_bereitstellung
 for each row execute function public.guard_mitglied_vereinsdokument_bereitstellung_history();
-
 alter table public.mitglied_vereinsdokument_bereitstellung enable row level security;
-
 create policy mitglied_vereinsdokument_bereitstellung_read_admin_vorstand
 on public.mitglied_vereinsdokument_bereitstellung
 for select to authenticated
@@ -114,7 +105,6 @@ using (
     where c.role in ('admin', 'vorstand')
   )
 );
-
 create policy mitglied_vereinsdokument_bereitstellung_insert_admin_vorstand
 on public.mitglied_vereinsdokument_bereitstellung
 for insert to authenticated
@@ -124,7 +114,6 @@ with check (
     where c.role in ('admin', 'vorstand')
   )
 );
-
 create policy mitglied_vereinsdokument_bereitstellung_storno_admin_vorstand
 on public.mitglied_vereinsdokument_bereitstellung
 for update to authenticated
@@ -141,14 +130,12 @@ with check (
     where c.role in ('admin', 'vorstand')
   )
 );
-
 revoke all on table public.mitglied_vereinsdokument_bereitstellung from public, anon;
 grant select, insert, update on table public.mitglied_vereinsdokument_bereitstellung to authenticated;
 grant all on table public.mitglied_vereinsdokument_bereitstellung to service_role;
 revoke all on sequence public.mitglied_vereinsdokument_bereitstellung_id_seq from public, anon;
 grant usage, select on sequence public.mitglied_vereinsdokument_bereitstellung_id_seq to authenticated;
 grant usage, select on sequence public.mitglied_vereinsdokument_bereitstellung_id_seq to service_role;
-
 revoke all on function public.set_mitglied_vereinsdokument_bereitgestellt_von() from public;
 grant execute on function public.set_mitglied_vereinsdokument_bereitgestellt_von() to service_role;
 revoke all on function public.guard_mitglied_vereinsdokument_bereitstellung_history() from public;

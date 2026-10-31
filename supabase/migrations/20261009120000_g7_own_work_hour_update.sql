@@ -26,7 +26,6 @@ create policy arbeitsstunde_update_own_open on public.arbeitsstunde
       or public.is_demo_mitglied_id(mitglied_id)
     )
   );
-
 create or replace function public.enforce_own_open_arbeitsstunde_update()
 returns trigger
 language plpgsql
@@ -93,9 +92,7 @@ begin
   raise exception 'Arbeitsstunden-Sperren dürfen nur über den Browser-Lock geändert werden.' using errcode = '42501';
 end;
 $$;
-
 revoke all on function public.enforce_own_open_arbeitsstunde_update() from public, anon, authenticated;
-
 drop trigger if exists trg_enforce_own_open_arbeitsstunde_update on public.arbeitsstunde;
 create trigger trg_enforce_own_open_arbeitsstunde_update
   before update on public.arbeitsstunde

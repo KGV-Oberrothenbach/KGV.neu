@@ -39,9 +39,7 @@ as $$
       and not coalesce(m.is_demo, false)
     order by m.name, m.vorname, m.email;
 $$;
-
 grant execute on function public.rpc_export_datenschutz_aktive_mitglieder() to authenticated;
-
 insert into public.app_export_definition
     (export_key, titel, beschreibung, quelle_typ, quelle_name, aktiv, standard_sortierung, standard_ausgabe, erlaubt_csv, erlaubt_pdf)
 values
@@ -58,7 +56,6 @@ on conflict (export_key) do update set
     standard_ausgabe = excluded.standard_ausgabe,
     erlaubt_csv = excluded.erlaubt_csv,
     erlaubt_pdf = excluded.erlaubt_pdf;
-
 insert into public.app_export_column_definition
     (export_key, column_key, label_kurz, label_lang, sortierung, standard_sichtbar, ist_sortierspalte)
 values

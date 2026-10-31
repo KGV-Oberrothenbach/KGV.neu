@@ -86,9 +86,7 @@ as $$
   left join pachtwechsel pw on pw.parzelle_id = z.parzelle_id
   order by parzelle, medium, z.zaehlernummer;
 $$;
-
 grant execute on function public.rpc_export_jahresablesung_status(integer) to authenticated;
-
 create or replace function public.rpc_export_jahresablesung_jahre()
 returns table (label text, value text)
 language sql
@@ -103,9 +101,7 @@ as $$
   from public.saison s
   order by 1 desc;
 $$;
-
 grant execute on function public.rpc_export_jahresablesung_jahre() to authenticated;
-
 insert into public.app_export_definition
   (export_key, titel, beschreibung, quelle_typ, quelle_name, aktiv, standard_sortierung, standard_ausgabe, erlaubt_csv, erlaubt_pdf)
 values
@@ -116,11 +112,9 @@ on conflict (export_key) do update set
   titel = excluded.titel, beschreibung = excluded.beschreibung, quelle_typ = excluded.quelle_typ,
   quelle_name = excluded.quelle_name, aktiv = excluded.aktiv, standard_sortierung = excluded.standard_sortierung,
   standard_ausgabe = excluded.standard_ausgabe, erlaubt_csv = excluded.erlaubt_csv, erlaubt_pdf = excluded.erlaubt_pdf;
-
 delete from public.app_export_filter_definition where export_key = 'jahresablesung_status';
 insert into public.app_export_filter_definition (export_key, filter_key, label, typ, optionen_json, pflicht, sortierung) values
   ('jahresablesung_status', 'p_jahr', 'Jahr', 'select', to_jsonb('rpc_export_jahresablesung_jahre'::text), false, 10);
-
 delete from public.app_export_column_definition where export_key = 'jahresablesung_status';
 insert into public.app_export_column_definition
   (export_key, column_key, label_kurz, label_lang, sortierung, standard_sichtbar, ist_sortierspalte) values

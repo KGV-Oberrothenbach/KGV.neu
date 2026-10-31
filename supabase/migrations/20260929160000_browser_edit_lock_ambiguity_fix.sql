@@ -114,6 +114,5 @@ begin
     v_expires_at;
 end;
 $$;
-
 revoke all on function public.acquire_browser_edit_lock(text, text, integer) from public, anon;
 grant execute on function public.acquire_browser_edit_lock(text, text, integer) to authenticated;

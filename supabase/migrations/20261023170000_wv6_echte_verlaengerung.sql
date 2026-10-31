@@ -1,7 +1,6 @@
 -- WV-6: A continuation is strictly the next period of the same contract definition.
 -- A material change uses a newly created wartungsvertrag_id and the normal first-contract signature flow.
 drop function if exists public.verlaengere_wartungsvertrag(bigint,bigint,date,date,text);
-
 create function public.verlaengere_wartungsvertrag(
   p_vorgaenger_zuordnung_id bigint,
   p_neues_gueltig_bis date,
@@ -45,6 +44,5 @@ begin
   update public.wartungsvertrag_dokument_workflow set workflow_art='verlaengerungsmitteilung',folgeentscheidung_id=v_dec.id,kommunikationsvorgang_id=v_vorgang.id,status='dokument_ausstehend',fehlermeldung=null where wartungsvertrag_zuordnung_id=v_neu.id returning * into v_workflow;
   return query select v_dec.id,v_neu.id,v_vorgang.id,v_workflow.id,v_neu.vertragspartei_mitglied_id;
 end $$;
-
 revoke all on function public.verlaengere_wartungsvertrag(bigint,date,date,text) from public,anon;
 grant execute on function public.verlaengere_wartungsvertrag(bigint,date,date,text) to authenticated,service_role;

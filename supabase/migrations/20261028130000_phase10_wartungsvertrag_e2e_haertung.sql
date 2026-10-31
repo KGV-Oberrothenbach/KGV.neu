@@ -56,12 +56,10 @@ set search_path=public,pg_temp as $$
   left join public.wartungsvertrag_dokument_workflow wd on wd.folgeentscheidung_id=e.id
   where z.id=p_vorgaenger_zuordnung_id;
 $$;
-
 revoke all on function public.get_wartungsvertrag_folgeentscheidung_detail(bigint)
   from public,anon;
 grant execute on function public.get_wartungsvertrag_folgeentscheidung_detail(bigint)
   to authenticated,service_role;
-
 create or replace function public.complete_wartungsvertrag_verlaengerungsmitteilung(
   p_kommunikationsvorgang_id bigint,
   p_dokument_id bigint
@@ -120,12 +118,10 @@ begin
     and workflow_art='verlaengerungsmitteilung';
 end;
 $$;
-
 revoke all on function public.complete_wartungsvertrag_verlaengerungsmitteilung(bigint,bigint)
   from public,anon,authenticated;
 grant execute on function public.complete_wartungsvertrag_verlaengerungsmitteilung(bigint,bigint)
   to service_role;
-
 create or replace function public.sync_wartungsvertrag_grundlegende_aenderung_abbruch()
 returns trigger
 language plpgsql
@@ -143,22 +139,18 @@ begin
   return new;
 end;
 $$;
-
 drop trigger if exists trg_sync_wartungsvertrag_grundlegende_aenderung_abbruch
   on public.kommunikationsvorgang;
 create trigger trg_sync_wartungsvertrag_grundlegende_aenderung_abbruch
 after update of status on public.kommunikationsvorgang
 for each row execute function public.sync_wartungsvertrag_grundlegende_aenderung_abbruch();
-
 revoke all on function public.sync_wartungsvertrag_grundlegende_aenderung_abbruch()
   from public,anon,authenticated;
-
 alter table public.wartungsvertrag_grundlegende_aenderung
   drop constraint if exists wartungsvertrag_grundlegende_aenderung_vorgaenger_zuordnung_id_key;
 create unique index if not exists ux_wvga_aktiver_versuch_je_vorgaenger
   on public.wartungsvertrag_grundlegende_aenderung(vorgaenger_zuordnung_id)
   where status='vorbereitet';
-
 create or replace function public.start_wartungsvertrag_grundlegende_aenderung(
   p_vorgaenger_zuordnung_id bigint,
   p_titel text,
@@ -284,7 +276,6 @@ begin
   return query select v_communication.id,v_new_contract.id,v_communication.status;
 end;
 $$;
-
 revoke all on function public.start_wartungsvertrag_grundlegende_aenderung(bigint,text,text,text,integer,boolean,numeric,date,text)
   from public,anon;
 grant execute on function public.start_wartungsvertrag_grundlegende_aenderung(bigint,text,text,text,integer,boolean,numeric,date,text)

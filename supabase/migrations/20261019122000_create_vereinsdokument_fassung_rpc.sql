@@ -65,7 +65,6 @@ begin
   return v_result;
 end;
 $$;
-
 -- Nur unregistrierte Upload-Reste dürfen clientseitig bereinigt werden.
 -- Sobald eine Fassung den Pfad referenziert, ist die Datei nicht löschbar.
 create policy vereinsunterlagen_cleanup_unregistered_admin_vorstand
@@ -83,7 +82,6 @@ using (
     where c.role in ('admin', 'vorstand')
   )
 );
-
 -- Fassungen dürfen für angemeldete Benutzer ausschließlich über die RPC
 -- angelegt bzw. fortgeschrieben werden. Die Lesesicht für Vorstand/Admin bleibt.
 drop policy if exists vereinsdokument_fassung_admin_vorstand_all on public.vereinsdokument_fassung;
@@ -98,6 +96,5 @@ using (
 );
 revoke insert, update, delete on table public.vereinsdokument_fassung from authenticated;
 grant select on table public.vereinsdokument_fassung to authenticated;
-
 revoke all on function public.create_vereinsdokument_fassung(text, text, date, text, text, text) from public, anon;
 grant execute on function public.create_vereinsdokument_fassung(text, text, date, text, text, text) to authenticated, service_role;

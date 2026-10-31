@@ -159,7 +159,6 @@ begin
     from public.pachtvertragsfassung f where f.dokument_id = p_dokument_id order by f.pachtverhaeltnis_id;
 end;
 $$;
-
 -- G11b1: keep the public RPC signature; validate commands before applying them.
 create or replace function public.register_historischen_pachtvertrag(
   p_dokument_id bigint,
@@ -380,7 +379,6 @@ begin
   end loop;
 end;
 $$;
-
 revoke all on function public.register_historischen_pachtvertrag_g6a(bigint, text, date, boolean, bigint[], jsonb, bigint, date) from public, anon, authenticated;
 grant execute on function public.register_historischen_pachtvertrag_g6a(bigint, text, date, boolean, bigint[], jsonb, bigint, date) to service_role;
 revoke all on function public.register_historischen_pachtvertrag(bigint, text, date, boolean, bigint[], jsonb, bigint, date, bigint[], jsonb, jsonb) from public, anon;

@@ -20,7 +20,6 @@ begin
 end $$;
 drop trigger if exists trg_sync_wv_dispatch_party_context on public.kommunikationsvorgang;
 create trigger trg_sync_wv_dispatch_party_context after update of final_dokument_id on public.kommunikationsvorgang for each row execute function public.sync_wv_dispatch_party_context();
-
 create or replace function public.guard_wv_dispatch_party_known() returns trigger language plpgsql security definer set search_path=public,pg_temp as $$
 begin
  if exists(select 1 from public.kommunikationsvorgang v join public.wartungsvertrag_zuordnungen z on z.id=v.wartungsvertrag_zuordnung_id where v.id=new.kommunikationsvorgang_id and v.dokumenttyp in ('wartungsvertrag','wartungsvertrag_verlaengerung') and z.vertragspartei_mitglied_id is null) then raise exception 'Wartungsvertrag-Altbestand: Die tatsächliche Vertragspartei ist unbekannt. Bitte vor dem Versand fachlich klären; es wird nicht geraten.' using errcode='23514'; end if;

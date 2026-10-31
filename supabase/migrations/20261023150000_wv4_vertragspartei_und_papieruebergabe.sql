@@ -4,7 +4,6 @@
 alter table public.wartungsvertrag_zuordnungen add column if not exists vertragspartei_mitglied_id bigint references public.mitglied(id) on delete restrict;
 comment on column public.wartungsvertrag_zuordnungen.vertragspartei_mitglied_id is 'Tatsächliche Vertragspartei. NULL bei Altbestand bedeutet unbekannt, nicht Hauptmitglied.';
 create index if not exists ix_wvz_vertragspartei on public.wartungsvertrag_zuordnungen(vertragspartei_mitglied_id);
-
 create or replace function public.validate_wartungsvertrag_vertragspartei() returns trigger language plpgsql security definer set search_path=public,pg_temp as $$
 declare p public.mitglied%rowtype;
 begin
@@ -18,7 +17,6 @@ begin
 end $$;
 drop trigger if exists trg_validate_wartungsvertrag_vertragspartei on public.wartungsvertrag_zuordnungen;
 create trigger trg_validate_wartungsvertrag_vertragspartei before insert or update of hauptmitglied_id,vertragspartei_mitglied_id on public.wartungsvertrag_zuordnungen for each row execute function public.validate_wartungsvertrag_vertragspartei();
-
 create or replace function public.validate_wartungsvertrag_folgezuordnung() returns trigger language plpgsql security definer set search_path=public,pg_temp as $$
 declare v public.wartungsvertrag_zuordnungen%rowtype;
 begin
@@ -30,7 +28,6 @@ begin
 end $$;
 drop trigger if exists trg_validate_wartungsvertrag_folgezuordnung on public.wartungsvertrag_zuordnungen;
 create trigger trg_validate_wartungsvertrag_folgezuordnung before insert or update of vorgaenger_zuordnung_id,hauptmitglied_id,vertragspartei_mitglied_id,gueltig_ab on public.wartungsvertrag_zuordnungen for each row execute function public.validate_wartungsvertrag_folgezuordnung();
-
 create or replace function public.validate_wartungsvertrag_kommunikationsvorgang_link() returns trigger language plpgsql security definer set search_path=public,pg_temp as $$
 declare z public.wartungsvertrag_zuordnungen%rowtype;
 begin
@@ -40,7 +37,6 @@ begin
  if (new.vorgangstyp='vertrag_signatur' and new.dokumenttyp='wartungsvertrag' and z.vorgaenger_zuordnung_id is null) or (new.vorgangstyp='dokument_erzeugung' and new.dokumenttyp='wartungsvertrag_verlaengerung' and z.vorgaenger_zuordnung_id is not null) then return new; end if;
  raise exception 'Vorgangsart und Wartungsvertragszuordnung passen nicht zusammen.' using errcode='23514';
 end $$;
-
 -- Replaces the former normalized insertion for newly created first contracts.
 create or replace function public.ensure_wartungsvertrag_prepared_contract(p_zuordnung_id bigint) returns public.kommunikationsvorgang language plpgsql security definer set search_path=public,pg_temp as $$
 declare z public.wartungsvertrag_zuordnungen%rowtype; w public.wartungsvertrag_dokument_workflow%rowtype; c public.kommunikationsvorgang%rowtype;
@@ -52,7 +48,6 @@ begin
  insert into public.kommunikationsvorgang(vorgangstyp,dokumenttyp,status,mitglied_id,wartungsvertrag_zuordnung_id,entwurf_daten,revision,zugewiesen_an) values('vertrag_signatur','wartungsvertrag','vorbereitet',z.vertragspartei_mitglied_id,z.id,jsonb_build_object('schema_version','kgv-prepared-contract/v1','document_type','wartungsvertrag','memberId',z.vertragspartei_mitglied_id,'wartungsvertrag_zuordnung_id',z.id,'hauptmitglied_id',z.hauptmitglied_id,'vertragspartei_mitglied_id',z.vertragspartei_mitglied_id),1,auth.uid()) returning * into c;
  update public.wartungsvertrag_dokument_workflow set kommunikationsvorgang_id=c.id,status='dokument_ausstehend' where id=w.id; return c;
 end $$;
-
 -- Paper evidence is captured in the prepared draft before signature/finalization;
 -- after signatur start the existing immutable-draft guard deliberately prevents edits.
 create or replace function public.dokumentiere_prepared_contract_papieruebergabe(p_kommunikationsvorgang_id bigint,p_dokumenttyp text,p_fassung text,p_uebergabe_am timestamptz,p_bemerkung text default null) returns public.kommunikationsvorgang language plpgsql security definer set search_path=public,pg_temp as $$

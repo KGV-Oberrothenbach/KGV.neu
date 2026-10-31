@@ -126,6 +126,5 @@ begin
   return query select v_pachtverhaeltnis_id, v_fassung_id, false;
 end;
 $$;
-
 revoke all on function public.complete_prepared_pachtvertrag(bigint, integer, uuid) from public, anon, authenticated, service_role;
 grant execute on function public.complete_prepared_pachtvertrag(bigint, integer, uuid) to service_role;

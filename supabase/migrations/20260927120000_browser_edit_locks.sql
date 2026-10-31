@@ -13,13 +13,10 @@ create table if not exists public.browser_edit_lock (
   constraint browser_edit_lock_entity_id_check
     check (char_length(entity_id) between 1 and 128)
 );
-
 create index if not exists ix_browser_edit_lock_expires_at
   on public.browser_edit_lock (expires_at);
-
 alter table public.browser_edit_lock enable row level security;
 revoke all on table public.browser_edit_lock from anon, authenticated;
-
 create or replace function public.browser_edit_lock_display_name(p_user_id uuid)
 returns text
 language sql
@@ -36,9 +33,7 @@ as $$
   where au.user_id = p_user_id
   limit 1;
 $$;
-
 revoke all on function public.browser_edit_lock_display_name(uuid) from public, anon, authenticated;
-
 create or replace function public.acquire_browser_edit_lock(
   p_entity_type text,
   p_entity_id text,
@@ -75,7 +70,7 @@ begin
     raise exception 'Ungueltiger Sperrschluessel.' using errcode = '22023';
   end if;
 
-  delete from public.browser_edit_lock as l where l.expires_at <= v_now;
+  delete from public.browser_edit_lock where expires_at <= v_now;
 
   insert into public.browser_edit_lock (
     entity_type, entity_id, locked_by_user_id, locked_at, expires_at
@@ -118,9 +113,9 @@ begin
     if v_rows = 0 then
       select lockedbyuserid, lockat into v_legacy_locked_by, v_legacy_locked_at
       from public.mitglied where id = p_entity_id::bigint;
-      delete from public.browser_edit_lock as l
-      where l.entity_type = p_entity_type and l.entity_id = p_entity_id
-        and l.locked_by_user_id = v_user_id;
+      delete from public.browser_edit_lock
+      where entity_type = p_entity_type and entity_id = p_entity_id
+        and locked_by_user_id = v_user_id;
       v_locked_by := v_legacy_locked_by;
       v_expires_at := (v_legacy_locked_at at time zone 'UTC') + make_interval(secs => v_timeout);
     end if;
@@ -139,9 +134,9 @@ begin
     if v_rows = 0 then
       select lockedbyuserid, lockat into v_legacy_locked_by, v_legacy_locked_at
       from public.arbeitsstunde where id = p_entity_id::integer;
-      delete from public.browser_edit_lock as l
-      where l.entity_type = p_entity_type and l.entity_id = p_entity_id
-        and l.locked_by_user_id = v_user_id;
+      delete from public.browser_edit_lock
+      where entity_type = p_entity_type and entity_id = p_entity_id
+        and locked_by_user_id = v_user_id;
       v_locked_by := v_legacy_locked_by;
       v_expires_at := (v_legacy_locked_at at time zone 'UTC') + make_interval(secs => v_timeout);
     end if;
@@ -154,7 +149,6 @@ begin
     v_expires_at;
 end;
 $$;
-
 create or replace function public.release_browser_edit_lock(
   p_entity_type text,
   p_entity_id text
@@ -183,7 +177,6 @@ begin
   return true;
 end;
 $$;
-
 create or replace function public.release_all_browser_edit_locks()
 returns boolean
 language plpgsql
@@ -202,14 +195,12 @@ begin
   return true;
 end;
 $$;
-
 revoke all on function public.acquire_browser_edit_lock(text, text, integer) from public, anon;
 revoke all on function public.release_browser_edit_lock(text, text) from public, anon;
 revoke all on function public.release_all_browser_edit_locks() from public, anon;
 grant execute on function public.acquire_browser_edit_lock(text, text, integer) to authenticated;
 grant execute on function public.release_browser_edit_lock(text, text) to authenticated;
 grant execute on function public.release_all_browser_edit_locks() to authenticated;
-
 create or replace function public.enforce_browser_edit_lock()
 returns trigger
 language plpgsql
@@ -235,9 +226,7 @@ begin
   return new;
 end;
 $$;
-
 revoke all on function public.enforce_browser_edit_lock() from public, anon, authenticated;
-
 do $$
 declare
   v_item record;

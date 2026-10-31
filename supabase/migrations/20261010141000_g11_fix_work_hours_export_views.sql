@@ -1,6 +1,5 @@
 -- Restore the complete pre-G11.1b export behaviour while retaining the central credit column.
 DROP FUNCTION IF EXISTS public.rpc_export_arbeitsstunden_uebersicht(integer, boolean, boolean, boolean, text);
-
 CREATE FUNCTION public.rpc_export_arbeitsstunden_uebersicht(
     p_jahr integer default null, p_stunden_offen boolean default false,
     p_stunden_fertig boolean default false, p_wartungsvertraege boolean default false,
@@ -90,5 +89,4 @@ LANGUAGE sql STABLE SECURITY INVOKER AS $$
     substring(garten_nr from '^[[:space:]]*([0-9]+)')::integer nulls last,
     garten_nr, nachname, vorname, sortierung, leistendes_mitglied, datum;
 $$;
-
 GRANT EXECUTE ON FUNCTION public.rpc_export_arbeitsstunden_uebersicht(integer, boolean, boolean, boolean, text) TO authenticated;

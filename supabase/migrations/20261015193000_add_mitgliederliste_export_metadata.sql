@@ -15,11 +15,9 @@ on conflict (export_key) do update set
   standard_ausgabe = excluded.standard_ausgabe,
   erlaubt_csv = excluded.erlaubt_csv,
   erlaubt_pdf = excluded.erlaubt_pdf;
-
 delete from public.app_export_filter_definition
 where export_key = 'mitgliederliste'
   and filter_key not in ('aktiv_filter', 'sortierung');
-
 insert into public.app_export_filter_definition
   (export_key, filter_key, label, typ, optionen_json, parameter_name, wert_typ, standardwert_json, pflicht, sortierung)
 values
@@ -38,7 +36,6 @@ on conflict (export_key, filter_key) do update set
   standardwert_json = excluded.standardwert_json,
   pflicht = excluded.pflicht,
   sortierung = excluded.sortierung;
-
 delete from public.app_export_column_definition
 where export_key = 'mitgliederliste'
   and column_key not in (
@@ -46,7 +43,6 @@ where export_key = 'mitgliederliste'
     'telefon', 'handy', 'email', 'geburtsdatum', 'mitglied_seit',
     'gartennummern', 'wa', 're', 'info', 'app', 'aktiv_export', 'bemerkung'
   );
-
 insert into public.app_export_column_definition
   (export_key, column_key, label_kurz, label_lang, sortierung, standard_sichtbar, ist_sortierspalte)
 values

@@ -4,7 +4,6 @@
 
 drop policy if exists vereinsfunktion_impressum_select_authenticated
 on public.vereinsfunktion;
-
 create policy vereinsfunktion_impressum_select_authenticated
 on public.vereinsfunktion
 for select

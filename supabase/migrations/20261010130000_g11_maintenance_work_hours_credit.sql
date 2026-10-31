@@ -1,7 +1,6 @@
 -- G11.1: Additive foundation only. Duty-hour calculation remains in G7/G11.1b.
 ALTER TABLE public.wartungsvertraege
   ADD COLUMN IF NOT EXISTS arbeitsstunden_gutschrift numeric NOT NULL DEFAULT 0;
-
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'wartungsvertraege_arbeitsstunden_gutschrift_nonnegative') THEN

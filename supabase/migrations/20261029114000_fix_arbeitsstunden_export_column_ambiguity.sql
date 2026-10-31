@@ -102,5 +102,4 @@ begin
     r.garten_nr, r.nachname, r.vorname, r.sortierung, r.leistendes_mitglied, r.datum;
 end;
 $$;
-
 grant execute on function public.rpc_export_arbeitsstunden_uebersicht(integer, boolean, boolean, boolean, text) to authenticated;

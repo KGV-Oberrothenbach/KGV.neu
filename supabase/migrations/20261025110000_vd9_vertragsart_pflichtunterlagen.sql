@@ -11,7 +11,6 @@ alter table public.vertragsversand_anlage_snapshot
     or (art='anlage' and ((bindungsstatus='digital_gebunden' and vereinsdokument_fassung_id is not null and storage_path_snapshot is not null and dateiname_snapshot is not null)
       or (bindungsstatus='papier_ausgehaendigt' and dokument_id is null and storage_path_snapshot is null and dateiname_snapshot is null)))
   );
-
 create or replace function public.dokumentiere_prepared_contract_papieruebergabe(p_kommunikationsvorgang_id bigint,p_dokumenttyp text,p_fassung text,p_uebergabe_am timestamptz,p_bemerkung text default null) returns public.kommunikationsvorgang language plpgsql security definer set search_path=public,pg_temp as $$
 declare v public.kommunikationsvorgang%rowtype; a jsonb; required text[]; f record;
 begin
@@ -23,7 +22,6 @@ begin
  a:=jsonb_strip_nulls(jsonb_build_object('dokumenttyp',p_dokumenttyp,'vereinsdokument_fassung_id',f.id,'fassung',f.fassung,'gueltig_ab',f.gueltig_ab,'gueltig_bis',f.gueltig_bis,'bereitstellungsart','papier','bereitgestellt_am',p_uebergabe_am,'bemerkung',nullif(btrim(p_bemerkung),'')));
  update public.kommunikationsvorgang set entwurf_daten=jsonb_set(v.entwurf_daten,'{vereinsunterlagenNachweis}',coalesce((select jsonb_agg(case when x->>'dokumenttyp'=p_dokumenttyp then a else x end) from jsonb_array_elements(coalesce(v.entwurf_daten->'vereinsunterlagenNachweis','[]')) x),'[]'::jsonb),true),revision=v.revision+1 where id=v.id returning * into v; return v;
 end $$;
-
 -- Preserve the frozen required sets: MA only Satzung; PV only KGO, BuGO and AO.
 create or replace function public.ensure_vertragsversand_snapshot(p_kommunikationsvorgang_id bigint) returns void language plpgsql security definer set search_path=public,pg_temp as $$
 declare v public.kommunikationsvorgang%rowtype; d public.dokument%rowtype; r record; i smallint:=1; e jsonb; typ text;

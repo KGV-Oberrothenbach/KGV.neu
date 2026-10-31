@@ -15,7 +15,6 @@ begin
   end;
 end;
 $$;
-
 do $$
 declare
   v_constraint record;
@@ -65,12 +64,10 @@ begin
   end if;
 end;
 $$;
-
 drop policy if exists arbeitsstunde_legacy_review_update on public.arbeitsstunde;
 drop policy if exists arbeitsstunde_legacy_review_delete on public.arbeitsstunde;
 drop policy if exists arbeitsstunde_manage_work_hours_update on public.arbeitsstunde;
 drop policy if exists arbeitsstunde_manage_work_hours_delete on public.arbeitsstunde;
-
 drop policy if exists arbeitsstunde_pruefverlauf_select_authenticated on public.arbeitsstunde_pruefverlauf;
 drop policy if exists arbeitsstunde_pruefverlauf_insert_authenticated on public.arbeitsstunde_pruefverlauf;
 drop policy if exists arbeitsstunde_pruefverlauf_select_scoped on public.arbeitsstunde_pruefverlauf;
@@ -96,11 +93,9 @@ create policy arbeitsstunde_pruefverlauf_select_scoped on public.arbeitsstunde_p
       )
     )
   );
-
 revoke insert, update, delete on table public.arbeitsstunde_pruefverlauf from authenticated;
 grant select on table public.arbeitsstunde_pruefverlauf to authenticated;
 revoke delete on table public.arbeitsstunde from authenticated;
-
 create or replace function public.enforce_own_open_arbeitsstunde_update()
 returns trigger
 language plpgsql
@@ -164,7 +159,6 @@ begin
   raise exception 'Arbeitsstunden-Sperren dürfen nur über den Browser-Lock geändert werden.' using errcode = '42501';
 end;
 $$;
-
 create or replace function public.review_arbeitsstunde(
   p_arbeitsstunde_id integer,
   p_aktion text,
@@ -267,6 +261,5 @@ begin
   return jsonb_build_object('arbeitsstunde_id', p_arbeitsstunde_id, 'aktion', v_audit_action, 'nachher_snapshot', v_after);
 end;
 $$;
-
 revoke all on function public.review_arbeitsstunde(integer, text, text, date, numeric, text) from public, anon;
 grant execute on function public.review_arbeitsstunde(integer, text, text, date, numeric, text) to authenticated;

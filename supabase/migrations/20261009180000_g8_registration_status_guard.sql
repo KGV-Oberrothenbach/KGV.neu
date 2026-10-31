@@ -27,7 +27,6 @@ begin
   return new;
 end;
 $$;
-
 create or replace function public.sign_up_for_arbeitseinsatz(p_arbeitseinsatz_id bigint, p_mitglied_id bigint)
 returns public.arbeitseinsatz_anmeldung language plpgsql security definer set search_path = public, pg_temp as $$
 declare v_assignment public.arbeitseinsatz; v_row public.arbeitseinsatz_anmeldung; v_begin timestamp without time zone; v_count integer;
@@ -49,7 +48,6 @@ begin
   return v_row;
 end;
 $$;
-
 create or replace function public.sign_off_from_arbeitseinsatz(p_arbeitseinsatz_id bigint, p_mitglied_id bigint)
 returns public.arbeitseinsatz_anmeldung language plpgsql security definer set search_path = public, pg_temp as $$
 declare v_assignment public.arbeitseinsatz; v_row public.arbeitseinsatz_anmeldung; v_begin timestamp without time zone;
@@ -68,7 +66,6 @@ begin
   return v_row;
 end;
 $$;
-
 revoke all on function public.sign_up_for_arbeitseinsatz(bigint, bigint) from public;
 revoke all on function public.sign_up_for_arbeitseinsatz(bigint, bigint) from anon;
 grant execute on function public.sign_up_for_arbeitseinsatz(bigint, bigint) to authenticated;

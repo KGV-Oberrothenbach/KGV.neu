@@ -106,7 +106,6 @@ begin
     return new;
 end;
 $$;
-
 CREATE OR REPLACE FUNCTION public.fn_berechne_pflichtstunden_status(p_mitglied_id bigint, p_saison_id bigint)
 RETURNS TABLE(hauptmitglied_id bigint, saison_id bigint, saison_jahr integer, regelgrund text, ist_befreit boolean, hat_wartungsvertrag boolean, altersbefreit boolean, eintritt_im_saisonjahr boolean, eintritt_zweites_halbjahr boolean, pflichtstunden_soll numeric, geleistete_stunden numeric, offene_stunden numeric, euro_pro_fehlstunde numeric, fehlbetrag numeric)
 LANGUAGE plpgsql
@@ -237,12 +236,10 @@ begin
         greatest(v_pflichtstunden_soll - v_geleistete_stunden, 0) * coalesce(v_saison.euro_pro_fehlstunde, 0);
 end;
 $$;
-
 -- Die Remote-View kann aus einer älteren Fassung eine abweichende
 -- Spaltenbezeichnung enthalten. DROP ist hier erforderlich, damit die
 -- definierte Spaltenreihenfolge und -namen atomar neu angelegt werden.
 DROP VIEW IF EXISTS public.v_pflichtstunden_uebersicht;
-
 CREATE VIEW public.v_pflichtstunden_uebersicht AS
  SELECT s.id AS saison_id,
     s.jahr AS jahr,

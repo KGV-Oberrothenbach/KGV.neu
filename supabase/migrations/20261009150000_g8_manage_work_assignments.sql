@@ -15,7 +15,6 @@ as $$
   where au.user_id = auth.uid()
   limit 1;
 $$;
-
 drop policy if exists arbeitseinsatz_admin_full on public.arbeitseinsatz;
 drop policy if exists arbeitseinsatz_demo_admin_full on public.arbeitseinsatz;
 drop policy if exists arbeitseinsatz_select_visible_authenticated on public.arbeitseinsatz;
@@ -23,7 +22,6 @@ drop policy if exists arbeitseinsatz_manage_select on public.arbeitseinsatz;
 drop policy if exists arbeitseinsatz_manage_insert on public.arbeitseinsatz;
 drop policy if exists arbeitseinsatz_manage_update on public.arbeitseinsatz;
 drop policy if exists arbeitseinsatz_manage_delete on public.arbeitseinsatz;
-
 create policy arbeitseinsatz_manage_select on public.arbeitseinsatz for select to authenticated using (
   public.has_effective_permission(1048576)
   and ((not public.is_demo_or_reviewer() and coalesce(is_demo, false) = false)
@@ -55,7 +53,6 @@ create policy arbeitseinsatz_select_visible_authenticated on public.arbeitseinsa
   and ((public.is_demo_or_reviewer() and coalesce(is_demo, false) = true)
     or (not public.is_demo_or_reviewer() and coalesce(is_demo, false) = false))
 );
-
 drop policy if exists arbeitseinsatz_anmeldung_admin_full on public.arbeitseinsatz_anmeldung;
 drop policy if exists arbeitseinsatz_anmeldung_demo_admin_full on public.arbeitseinsatz_anmeldung;
 drop policy if exists arbeitseinsatz_anmeldung_delete_own_or_admin on public.arbeitseinsatz_anmeldung;
@@ -65,7 +62,6 @@ drop policy if exists arbeitseinsatz_anmeldung_update_own_open on public.arbeits
 drop policy if exists arbeitseinsatz_anmeldung_manage_all on public.arbeitseinsatz_anmeldung;
 drop policy if exists arbeitseinsatz_anmeldung_delete_own on public.arbeitseinsatz_anmeldung;
 drop policy if exists arbeitseinsatz_anmeldung_select_own on public.arbeitseinsatz_anmeldung;
-
 create policy arbeitseinsatz_anmeldung_manage_all on public.arbeitseinsatz_anmeldung to authenticated using (
   public.has_effective_permission(1048576)
   and ((not public.is_demo_or_reviewer() and exists (select 1 from public.arbeitseinsatz a where a.id = arbeitseinsatz_id and coalesce(a.is_demo, false) = false))
@@ -104,7 +100,6 @@ create policy arbeitseinsatz_anmeldung_update_own_open on public.arbeitseinsatz_
     and (a.sichtbar_bis is null or a.sichtbar_bis >= public.kgv_local_now())
     and (a.anmeldung_bis is null or a.anmeldung_bis >= public.kgv_local_now()))
 );
-
 create or replace function public.acquire_browser_edit_lock(
   p_entity_type text, p_entity_id text, p_timeout_seconds integer default 600
 ) returns table (acquired boolean, locked_by_user_id uuid, locked_by_display_name text, expires_at timestamptz)

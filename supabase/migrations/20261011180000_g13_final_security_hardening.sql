@@ -24,7 +24,6 @@ begin
   update public.app_user set role = p_role, permission_grants = v_grants, permission_revocations = v_revocations, updated_at = now() where user_id = p_user_id;
 end;
 $$;
-
 revoke all on function public.update_app_user_access(uuid, text, bigint, bigint) from public;
 revoke all on function public.unlink_app_user(uuid) from public;
 revoke all on function public.provision_app_user_link(bigint, uuid, text) from public;

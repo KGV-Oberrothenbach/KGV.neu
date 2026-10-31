@@ -44,7 +44,6 @@ begin
   return new;
 end;
 $$;
-
 CREATE OR REPLACE VIEW public.v_startseite_arbeitseinsatz
 WITH (security_invoker = 'true') AS
 select a.id,
@@ -82,7 +81,6 @@ group by a.id, a.titel, a.beschreibung, a.datum, a.start_uhrzeit, a.end_uhrzeit,
 	a.treffpunkt, a.max_teilnehmer, a.stunden_wert, a.sichtbar_ab, a.sichtbar_bis,
 	a.anmeldung_bis
 order by a.datum, a.start_uhrzeit nulls first, a.id;
-
 CREATE OR REPLACE VIEW public.v_startseite_bekanntmachungen
 WITH (security_invoker = 'true') AS
 select id, titel, inhalt_html, sichtbar_ab, sichtbar_bis, sort_order, created_at
@@ -91,7 +89,6 @@ where aktiv = true
   and (sichtbar_ab is null or sichtbar_ab <= public.kgv_local_now())
   and (sichtbar_bis is null or sichtbar_bis >= public.kgv_local_now())
 order by sort_order, created_at desc, id desc;
-
 CREATE OR REPLACE VIEW public.v_startseite_termine
 WITH (security_invoker = 'true') AS
 select id, titel, beschreibung, datum, start_uhrzeit, end_uhrzeit, sichtbar_ab, sichtbar_bis
@@ -100,7 +97,6 @@ where aktiv = true
   and (sichtbar_ab is null or sichtbar_ab <= public.kgv_local_now())
   and (sichtbar_bis is null or sichtbar_bis >= public.kgv_local_now())
 order by datum, start_uhrzeit nulls first, id;
-
 DROP POLICY IF EXISTS arbeitseinsatz_anmeldung_insert_own_open ON public.arbeitseinsatz_anmeldung;
 CREATE POLICY arbeitseinsatz_anmeldung_insert_own_open ON public.arbeitseinsatz_anmeldung
 FOR INSERT TO authenticated
@@ -124,7 +120,6 @@ WITH CHECK (
 		)
 	)
 );
-
 DROP POLICY IF EXISTS arbeitseinsatz_anmeldung_update_own_open ON public.arbeitseinsatz_anmeldung;
 CREATE POLICY arbeitseinsatz_anmeldung_update_own_open ON public.arbeitseinsatz_anmeldung
 FOR UPDATE TO authenticated
@@ -158,7 +153,6 @@ WITH CHECK (
 		)
 	)
 );
-
 DROP POLICY IF EXISTS arbeitseinsatz_select_visible_authenticated ON public.arbeitseinsatz;
 CREATE POLICY arbeitseinsatz_select_visible_authenticated ON public.arbeitseinsatz
 FOR SELECT TO authenticated
@@ -174,7 +168,6 @@ USING (
 		)
 	)
 );
-
 DROP POLICY IF EXISTS bekanntmachung_select_visible_authenticated ON public.bekanntmachung;
 CREATE POLICY bekanntmachung_select_visible_authenticated ON public.bekanntmachung
 FOR SELECT TO authenticated
@@ -190,7 +183,6 @@ USING (
 		)
 	)
 );
-
 DROP POLICY IF EXISTS termin_select_visible_authenticated ON public.termin;
 CREATE POLICY termin_select_visible_authenticated ON public.termin
 FOR SELECT TO authenticated

@@ -2,16 +2,6 @@
 -- Die Finanzwerte sind bewusst eine Kopie der Saison 2025 und müssen vor einer
 -- abrechnungsrelevanten Verwendung fachlich geprüft bzw. korrigiert werden.
 
--- Die historische Übernahme verwendet dieselben optionalen Preisfelder wie die
--- zentrale Saison-Domain. Sie müssen auch bei einem Neuaufbau aus Migrationen
--- vorhanden sein, bevor die Vorlage 2025 gelesen wird.
-alter table public.saison
-    add column if not exists pacht_pro_qm numeric,
-    add column if not exists mitgliedsbeitrag numeric,
-    add column if not exists mitgliedsbeitrag_nebenmitglied numeric,
-    add column if not exists aufnahmegebuehr numeric,
-    add column if not exists gebuehr_bauantrag numeric;
-
 insert into public.saison
     (id, jahr, pflichtstunden_soll, euro_pro_fehlstunde, pacht_pro_qm, mitgliedsbeitrag,
      mitgliedsbeitrag_nebenmitglied, aufnahmegebuehr, gebuehr_bauantrag, bemerkung, is_demo)
@@ -41,5 +31,4 @@ where not exists (
     where vorhanden.id = jahre.jahr
        or vorhanden.jahr = jahre.jahr
 );
-
--- Erwartete Kontrolle: 1976 bis 2026, insgesamt 51 Saisons.
+-- Erwartete Kontrolle: 1976 bis 2026, insgesamt 51 Saisons.;

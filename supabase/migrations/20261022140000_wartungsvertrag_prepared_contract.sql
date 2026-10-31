@@ -21,7 +21,6 @@ begin
   update public.wartungsvertrag_dokument_workflow set kommunikationsvorgang_id=v_contract.id,status='dokument_ausstehend',fehlermeldung=null where id=v_workflow.id;
   return v_contract;
 end $$;
-
 create or replace function public.sync_wartungsvertrag_prepared_contract_workflow()
 returns trigger language plpgsql security definer set search_path = public, pg_temp as $$
 begin

@@ -11,18 +11,15 @@ language sql stable security definer set search_path = public, pg_temp as $$
     and au.mitglied_id is not null and au.mitglied_id > 0
     and au.role in ('admin', 'vorstand', 'user');
 $$;
-
 create or replace function public.current_effective_permissions()
 returns bigint language sql stable security definer set search_path = public, pg_temp as $$
   select coalesce((select (public.permission_role_base(c.role) | c.permission_grants) & ~c.permission_revocations
     from public.current_app_user_context() c limit 1), 0::bigint);
 $$;
-
 create or replace function public.current_mitglied_id()
 returns integer language sql stable security definer set search_path = public, pg_temp as $$
   select (select c.mitglied_id::integer from public.current_app_user_context() c limit 1);
 $$;
-
 create or replace function public.update_app_user_access(p_user_id uuid, p_role text, p_permission_grants bigint default 0, p_permission_revocations bigint default 0)
 returns void language plpgsql security definer set search_path = public, pg_temp as $$
 declare v_target public.app_user%rowtype; v_grants bigint := coalesce(p_permission_grants, 0); v_revocations bigint := coalesce(p_permission_revocations, 0); v_effective bigint;
@@ -40,5 +37,4 @@ begin
   update public.app_user set role = p_role, permission_grants = v_grants, permission_revocations = v_revocations, updated_at = now() where user_id = p_user_id;
 end;
 $$;
-
 grant execute on function public.current_app_user_context() to authenticated;

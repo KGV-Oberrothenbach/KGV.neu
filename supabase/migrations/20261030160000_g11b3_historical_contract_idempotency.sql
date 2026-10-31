@@ -18,7 +18,6 @@ create table if not exists public.historical_contract_operation (
 alter table public.historical_contract_operation enable row level security;
 revoke all on public.historical_contract_operation from public, anon, authenticated;
 grant all on public.historical_contract_operation to service_role;
-
 create or replace function public.begin_historical_contract_upload(p_operation_id uuid,p_actor uuid,p_member_id bigint,p_contract_type text,p_upload_request jsonb,p_drive_file_id text,p_file_name text)
 returns jsonb language plpgsql security definer set search_path=public,pg_temp as $$
 declare v_op public.historical_contract_operation%rowtype; v_demo boolean;
@@ -35,7 +34,6 @@ begin
  raise exception 'Vorgangs-ID wurde bereits mit anderen Uploaddaten verwendet.' using errcode='22023'; end if;
  return to_jsonb(v_op);
 end; $$;
-
 create or replace function public.finish_historical_contract_upload(p_operation_id uuid,p_storage_path text)
 returns jsonb language plpgsql security definer set search_path=public,pg_temp as $$
 declare v_op public.historical_contract_operation%rowtype; v_doc public.dokument%rowtype;
@@ -53,7 +51,6 @@ end; $$;
 revoke all on function public.begin_historical_contract_upload(uuid,uuid,bigint,text,jsonb,text,text) from public,anon,authenticated;
 revoke all on function public.finish_historical_contract_upload(uuid,text) from public,anon,authenticated;
 grant execute on function public.begin_historical_contract_upload(uuid,uuid,bigint,text,jsonb,text,text),public.finish_historical_contract_upload(uuid,text) to service_role;
-
 create or replace function public.register_historischen_pachtvertrag_g11b1(
   p_dokument_id bigint,
   p_dokumenttyp_code text,
@@ -275,7 +272,6 @@ end;
 $$;
 revoke all on function public.register_historischen_pachtvertrag_g11b1(bigint,text,date,boolean,bigint[],jsonb,bigint,date,bigint[],jsonb,jsonb) from public,anon,authenticated;
 grant execute on function public.register_historischen_pachtvertrag_g11b1(bigint,text,date,boolean,bigint[],jsonb,bigint,date,bigint[],jsonb,jsonb) to service_role;
-
 -- Existing callers remain compatible for documents outside the operation workflow.
 create or replace function public.register_historischen_pachtvertrag(
  p_dokument_id bigint,p_dokumenttyp_code text,p_vertragsdatum date,p_unterzeichnet boolean,p_pachtverhaeltnis_ids bigint[],
@@ -288,7 +284,6 @@ begin
  raise exception 'Dieser Vertrag benötigt seine ursprüngliche Vorgangs-ID.' using errcode='22023'; end if;
  return query select * from public.register_historischen_pachtvertrag_g11b1(p_dokument_id,p_dokumenttyp_code,p_vertragsdatum,p_unterzeichnet,p_pachtverhaeltnis_ids,p_vorherige_enddaten,p_mitglied_seit_korrektur_mitglied_id,p_mitglied_seit_korrektur_datum,p_vertragspartei_mitglied_ids,p_mitgliedschaftsenden,p_aktiv_status_aenderungen);
 end; $$;
-
 create or replace function public.register_historischen_pachtvertrag(
  p_operation_id uuid,p_dokument_id bigint,p_dokumenttyp_code text,p_vertragsdatum date,p_unterzeichnet boolean,p_pachtverhaeltnis_ids bigint[],
  p_vorherige_enddaten jsonb default '{}',p_mitglied_seit_korrektur_mitglied_id bigint default null,p_mitglied_seit_korrektur_datum date default null,
@@ -325,7 +320,6 @@ begin
 end; $$;
 revoke all on function public.register_historischen_pachtvertrag(uuid,bigint,text,date,boolean,bigint[],jsonb,bigint,date,bigint[],jsonb,jsonb) from public,anon;
 grant execute on function public.register_historischen_pachtvertrag(uuid,bigint,text,date,boolean,bigint[],jsonb,bigint,date,bigint[],jsonb,jsonb) to authenticated;
-
 -- Short backend-only lease serializes PDF writes across Edge instances. A crash is
 -- resumable after expiry; the authenticated PDF marker also protects the write/status gap.
 create table if not exists public.historical_contract_stamp_lease(document_id bigint primary key references public.dokument(id),token uuid not null,expires_at timestamptz not null,stamp_marker text not null default (gen_random_uuid()::text || gen_random_uuid()::text));
@@ -348,7 +342,6 @@ begin
 end; $$;
 revoke all on function public.claim_historical_contract_stamp(bigint,uuid),public.release_historical_contract_stamp(bigint,uuid) from public,anon,authenticated;
 grant execute on function public.claim_historical_contract_stamp(bigint,uuid),public.release_historical_contract_stamp(bigint,uuid) to service_role;
-
 -- Explicit read for resuming an unknown upload result; no table SELECT grant.
 create or replace function public.get_historical_contract_operation(p_operation_id uuid)
 returns jsonb language plpgsql stable security definer set search_path=public,pg_temp as $$
@@ -362,7 +355,6 @@ begin
 end; $$;
 revoke all on function public.get_historical_contract_operation(uuid) from public,anon;
 grant execute on function public.get_historical_contract_operation(uuid) to authenticated;
-
 -- A permanent, backend-owned random marker survives signing-key rotation and
 -- lease expiry. It is exposed in the PDF only after the first completed write.
 create or replace function public.get_historical_contract_stamp_marker(p_document_id bigint)

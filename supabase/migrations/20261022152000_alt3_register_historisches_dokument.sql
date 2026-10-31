@@ -252,11 +252,9 @@ begin
            case when v_wartung_erforderlich then p_wartungsvertrag_zuordnung_id else null end;
 end;
 $$;
-
 revoke all on function public.register_historisches_dokument(bigint, bigint, date, boolean, bigint, bigint)
     from public, anon, authenticated, service_role;
 grant execute on function public.register_historisches_dokument(bigint, bigint, date, boolean, bigint, bigint)
     to authenticated;
-
 comment on function public.register_historisches_dokument(bigint, bigint, date, boolean, bigint, bigint) is
     'Registriert ein bereits hochgeladenes historisches Dokument atomar nach den Wirkungen seines Dokumenttyps. Ausschließlich für Admin oder Vorstand.';

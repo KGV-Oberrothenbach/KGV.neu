@@ -15,7 +15,6 @@ create policy arbeitsstunde_insert_own_open on public.arbeitsstunde
       or public.is_demo_mitglied_id(mitglied_id)
     )
   );
-
 -- Der Verlauf bestand bereits in der Live-Datenbank, war aber nicht versioniert.
 -- Bekannte Einschränkungen bis G7.4:
 -- * ON DELETE CASCADE bewahrt keinen dauerhaften Löschverlauf.
@@ -31,7 +30,6 @@ create table if not exists public.arbeitsstunde_pruefverlauf (
   vorher_snapshot text not null default '',
   nachher_snapshot text null
 );
-
 alter table public.arbeitsstunde_pruefverlauf
   add column if not exists arbeitsstunde_id integer,
   add column if not exists aktion text not null default '',
@@ -40,7 +38,6 @@ alter table public.arbeitsstunde_pruefverlauf
   add column if not exists geprueft_am timestamp without time zone not null default now(),
   add column if not exists vorher_snapshot text not null default '',
   add column if not exists nachher_snapshot text null;
-
 do $$
 begin
   if not exists (
@@ -61,9 +58,7 @@ begin
   end if;
 end;
 $$;
-
 alter table public.arbeitsstunde_pruefverlauf enable row level security;
-
 do $$
 begin
   if not exists (
@@ -91,9 +86,7 @@ begin
   end if;
 end;
 $$;
-
 grant select, insert on table public.arbeitsstunde_pruefverlauf to authenticated;
-
 do $$
 begin
   if to_regclass('public.arbeitsstunde_pruefverlauf_id_seq') is not null then
