@@ -4815,10 +4815,8 @@ namespace KGV.Infrastructure.Services
             if ((request.FileContent?.Length ?? 0) <= 0)
                 return DokumentUploadResult.Fail("Bitte eine Dokumentdatei auswählen.", "VALIDATION");
 
-            var ownerCount = (request.MitgliedId.HasValue && request.MitgliedId.Value > 0 ? 1 : 0)
-                + (request.ParzelleId.HasValue && request.ParzelleId.Value > 0 ? 1 : 0);
-            if (ownerCount != 1)
-                return DokumentUploadResult.Fail("Ein Dokument muss genau einem Mitglied oder genau einer Parzelle zugeordnet sein.", "VALIDATION");
+            if (!request.MitgliedId.HasValue || request.MitgliedId.Value <= 0)
+                return DokumentUploadResult.Fail("Ein Dokument muss einem gültigen Mitglied zugeordnet sein.", "VALIDATION");
 
             var uploadResult = await UploadDokumentToDriveAsync(request, normalizedTitle);
             if (!uploadResult.Success)
