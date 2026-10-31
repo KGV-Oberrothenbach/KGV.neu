@@ -1,0 +1,2 @@
+import assert from "node:assert/strict";import test from "node:test";import { kompatibilitaet,validateVorlage } from "./serienbrief-vorlage-service.ts";
+test("validates used fields",()=>{const s:any={betreff:"{{vorname}}",htmlInhalt:"{{frist}} {{x}}",freieFelder:[{schluessel:"frist"}]};assert.deepEqual(validateVorlage(s,["vorname"]),{exportfelder:["vorname"],unknown:["x"]});assert.deepEqual(kompatibilitaet(["vorname","nr"],["vorname"]),["nr"]);});
