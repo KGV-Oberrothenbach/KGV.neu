@@ -16,9 +16,9 @@ test("executes all normal RPC export definitions through metadata without export
   assert.equal(called[0], "rpc_export_arbeitsstunden_uebersicht:2026");
 });
 
-test("executes RFID as a metadata-driven view and keeps all result rows", async () => {
-  const data = { executeRpcExport: async () => [], readTableOrViewExport: async (source: string) => { assert.equal(source, "v_export_rfid_status"); return Array.from({ length: 501 }, (_, index) => ({ garten_nr: String(index + 1) })); } };
-  const result = await executeExportWithDataAccess(data, { definition: definition({ export_key: "rfid_status", quelle_typ: "view", quelle_name: "v_export_rfid_status" }), filters: [], columns, values: {} });
+test("executes RFID through its metadata-driven RPC and keeps all result rows", async () => {
+  const data = { executeRpcExport: async (exportKey: string, parameters: Record<string, unknown>) => { assert.equal(exportKey, "rfid_status"); assert.deepEqual(parameters, {}); return Array.from({ length: 501 }, (_, index) => ({ garten_nr: String(index + 1) })); }, readTableOrViewExport: async () => { throw new Error("RFID darf nicht über einen View-Pfad geladen werden."); } };
+  const result = await executeExportWithDataAccess(data, { definition: definition({ export_key: "rfid_status", quelle_typ: "rpc", quelle_name: "rpc_export_rfid_status" }), filters: [], columns, values: {} });
   assert.equal(result.recordCount, 501);
   assert.equal(result.rows.length, 501);
   assert.equal(result.standardSortierung, "garten_nr");
