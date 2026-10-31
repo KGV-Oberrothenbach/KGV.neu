@@ -1,0 +1,11 @@
+import type { SerienbriefExportDatensatz } from "../../models/serienbrief/serienbrief-export-context";
+import type { SerienbriefEditorState } from "./SerienbriefEditor";
+
+export type SerienbriefEmpfaenger={id:number;vorname:string|null;name:string|null;adresse:string|null;plz:string|null;ort:string|null;anrede?:"frau"|"herr"|null};
+export type SerienbriefRunState={selectedRows:SerienbriefExportDatensatz[];freifeldWerte:Record<string,string>;previewIndex:number};
+const token=/\{\{([a-z][a-z0-9_]*)\}\}/g;
+const escapeHtml=(value:string)=>value.replace(/[&<>'"]/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;","\"":"&quot;"}[char]??char));
+export const briefanrede=(empfaenger:SerienbriefEmpfaenger)=>empfaenger.anrede==="frau"?`Sehr geehrte Frau ${empfaenger.name??""},`:empfaenger.anrede==="herr"?`Sehr geehrter Herr ${empfaenger.name??""},`:`Sehr geehrte/r Gartenfreund/in ${[empfaenger.vorname,empfaenger.name].filter(Boolean).join(" ")},`;
+export const formatFreifeld=(value:string,typ:"text"|"date"|"number")=>{if(!value)return "";if(typ==="date"){const [jahr,monat,tag]=value.split("-");return jahr&&monat&&tag?`${tag}.${monat}.${jahr}`:value;}if(typ==="number"){const number=Number(value);return Number.isFinite(number)?new Intl.NumberFormat("de-DE").format(number):value;}return value;};
+export function resolveSerienbriefText(input:string,row:SerienbriefExportDatensatz,vorlage:SerienbriefEditorState,werte:Record<string,string>,html=false){const exportKeys=new Set(Object.keys(row.werte)),free=new Map(vorlage.freieFelder.map(feld=>[feld.schluessel,feld]));const fehler:string[]=[];const text=input.replace(token,(_,key:string)=>{let value:unknown;if(exportKeys.has(key))value=row.werte[key];else if(free.has(key)){const feld=free.get(key)!;value=formatFreifeld(werte[key]??"",feld.typ);}else {fehler.push(`Unbekannter Platzhalter: ${key}`);return `[FEHLT: ${key}]`;}if(value===null||value===undefined||value===""){fehler.push(`Fehlender Wert: ${key}`);return `[FEHLT: ${key}]`;}const result=String(value);return html?escapeHtml(result):result;});return {text,fehler};}
+export const fehlendePflichtFreifelder=(vorlage:SerienbriefEditorState,werte:Record<string,string>)=>vorlage.freieFelder.filter(feld=>feld.pflicht&&!werte[feld.schluessel]?.trim()).map(feld=>feld.anzeigename);
