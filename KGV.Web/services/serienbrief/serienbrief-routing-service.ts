@@ -1,0 +1,5 @@
+export type SerienbriefRoutingResult={rowKey:string;mitgliedId:number;dokumentId:number;ausgabeweg:"mail"|"druck";kommunikationsvorgangId?:number;fehler?:string};
+const mail=/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+export const serienbriefAusgabeweg=(email:string|null,info:boolean,rechnung:boolean)=>email&&mail.test(email.trim())&&(info||rechnung)?"mail" as const:"druck" as const;
+export const standardMailtextQuelle="public.vertragsversand_mailtext_snapshot() in 20261023140000_vd3_contract_dispatch.sql";
+export function routeSerienbriefe<T extends {rowKey:string;mitgliedId:number;dokumentId:number}>(items:T[],member:Map<number,{email:string|null;emailInfo:boolean;emailRechnung:boolean}>){const seen=new Set<string>();return items.flatMap(item=>{const key=`${item.rowKey}:${item.dokumentId}`;if(seen.has(key))return[];seen.add(key);const current=member.get(item.mitgliedId);if(!current)return[{...item,ausgabeweg:"druck" as const,fehler:"Mitglied nicht gefunden."}];return[{...item,ausgabeweg:serienbriefAusgabeweg(current.email,current.emailInfo,current.emailRechnung)}];});}
