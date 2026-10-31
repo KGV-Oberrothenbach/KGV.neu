@@ -10,6 +10,8 @@ test("groups metadata fields and keeps the active editor cursor while selecting 
   assert.match(catalog,/feld\.gruppe\?\.trim\(\)\|\|"Sonstiges"/);
   assert.match(catalog,/onMouseDown=\{event=>event\.preventDefault\(\)\}/);
   assert.doesNotMatch(catalog,/mitglied_id|parzelle_id|serienbrief_empfaenger_status/);
+  assert.match(catalog,/Freie Felder/);
+  assert.match(catalog,/Freies Feld anlegen/);
 });
 
 test("inserts stable placeholders into subject or HTML text without interpreting them",()=>{

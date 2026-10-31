@@ -1,0 +1,9 @@
+export type SerienbriefFreifeldTyp="text"|"date"|"number";
+export type SerienbriefFreifeld={schluessel:string;anzeigename:string;typ:SerienbriefFreifeldTyp;pflicht:boolean;sortierung:number};
+export type SerienbriefFreifeldEntwurf={schluessel:string;anzeigename:string;typ:SerienbriefFreifeldTyp;pflicht:boolean};
+export const reservedSerienbriefKeys=new Set(["mitglied_id","parzelle_id","serienbrief_empfaenger_status","briefanrede"]);
+export const emptySerienbriefFreifeld=():SerienbriefFreifeldEntwurf=>({schluessel:"",anzeigename:"",typ:"text",pflicht:false});
+export function serienbriefKeyVorschlag(anzeigename:string){return anzeigename.toLocaleLowerCase("de-DE").replace(/ä/g,"ae").replace(/ö/g,"oe").replace(/ü/g,"ue").replace(/ß/g,"ss").replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"");}
+export function serienbriefFreifeldFehler(entwurf:SerienbriefFreifeldEntwurf,exportKeys:Iterable<string>,freieFelder:SerienbriefFreifeld[],ausgenommen?:string){const key=entwurf.schluessel.trim();if(!entwurf.anzeigename.trim())return "Anzeigename ist erforderlich.";if(!/^[a-z][a-z0-9_]*$/.test(key))return "Der Schlüssel muss mit einem Kleinbuchstaben beginnen und darf nur Kleinbuchstaben, Ziffern und Unterstriche enthalten.";if(reservedSerienbriefKeys.has(key))return `Der Schlüssel „${key}“ ist reserviert.`;if(new Set(exportKeys).has(key))return `Der Schlüssel „${key}“ ist bereits ein Exportfeld.`;if(freieFelder.some(feld=>feld.schluessel===key&&feld.schluessel!==ausgenommen))return `Der Schlüssel „${key}“ ist bereits als freies Feld vorhanden.`;return null;}
+export const serienbriefPlaceholderVerwendet=(inhalt:string,schluessel:string)=>inhalt.includes(`{{${schluessel}}}`);
+export const serienbriefPlaceholderErsetzen=(inhalt:string,alt:string,neu:string)=>inhalt.replaceAll(`{{${alt}}}`,`{{${neu}}}`);
