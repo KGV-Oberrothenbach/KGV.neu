@@ -297,24 +297,6 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
 
     private async void OnScanContextPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(RfidScanContextViewModel.Resolution)
-            && _currentArt == AblesungArt.JahresEnde
-            && _scanContext.Resolution?.State == RfidScanContextState.Unknown)
-        {
-            var messstelle = await _supabaseService.GetHauptzaehlerMessstelleByRfidAsync(_scanContext.Resolution.NormalizedUid);
-            if (messstelle != null)
-            {
-                var meter = await _supabaseService.GetActiveHauptzaehlerForMessstelleAsync(messstelle.Medium, messstelle.Anlagenbereich, DateTime.Today);
-                if (meter != null)
-                {
-                    _hauptzaehlerCheckBox.IsChecked = true;
-                    _fallbackMeters.Clear(); _fallbackMeters.Add(meter);
-                    _fallbackMeterPicker.ItemsSource = _fallbackMeters; _fallbackMeterPicker.SelectedItem = meter;
-                    await ApplySelectedFallbackMeterAsync();
-                    return;
-                }
-            }
-        }
         if (e.PropertyName is nameof(RfidScanContextViewModel.Resolution) or nameof(RfidScanContextViewModel.StatusMessage))
             ApplyResolution(_scanContext.Resolution, _scanContext.StatusMessage);
     }

@@ -4,7 +4,9 @@ import type { ClubContext } from "../../models/auth/club";
 import { type BrowserSession } from "../../lib/supabase-auth";
 
 export type RfidScanContext = {
-  parzelle_id: number;
+  parzelle_id: number | null;
+  ist_hauptzaehler?: boolean;
+  anlagenbereich?: string | null;
   anlage: string | null;
   garten_nr: string | null;
   medium: string | null;
@@ -41,6 +43,9 @@ export const listRfidScanContexts = (club: ClubContext, session: BrowserSession)
   select: "parzelle_id,anlage,garten_nr,medium,rfid_tag_uid,aktiver_zaehler_id,zaehlernummer,eichdatum,eichfaellig_am,eingebaut_am,ausgebaut_am,status",
   limit: "3000",
 });
+
+export const resolveUnifiedRfidScanContext = (club: ClubContext, session: BrowserSession, uid: string) =>
+  callSupabaseRpc<RfidScanContext[]>({ club, session }, "resolve_rfid_scan_context", { p_rfid_tag_uid: uid });
 
 export const listActiveMeterMedia = (club: ClubContext, session: BrowserSession, parcelId: number) => readSupabaseRest<ActiveMeterMedium>({ club, session }, "zaehler", {
   select: "medium",

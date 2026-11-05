@@ -5,6 +5,7 @@ import {
   listActiveMeterMedia,
   listRfidParcels,
   listRfidScanContexts,
+  resolveUnifiedRfidScanContext,
   type RfidParcel,
   type RfidScanContext,
 } from "../../repositories/rfid/rfid-repository";
@@ -36,8 +37,8 @@ export async function listRfidSetupParcels(club: ClubContext, session: BrowserSe
 export async function resolveRfidScanContext(club: ClubContext, session: BrowserSession, uid: string): Promise<RfidScanResolution> {
   const normalizedUid = normalizeUid(uid);
   if (!normalizedUid) return { normalizedUid: "", state: "Unknown", context: null, message: "Bitte eine RFID-UID eingeben." };
-  const contexts = await listRfidScanContexts(club, session);
-  const context = contexts.filter((item) => normalizeUid(item.rfid_tag_uid ?? "") === normalizedUid).sort((left, right) => Number(Boolean(right.aktiver_zaehler_id)) - Number(Boolean(left.aktiver_zaehler_id)))[0] ?? null;
+  const context = (await resolveUnifiedRfidScanContext(club, session, normalizedUid))
+    .sort((left, right) => Number(Boolean(right.aktiver_zaehler_id)) - Number(Boolean(left.aktiver_zaehler_id)))[0] ?? null;
   if (!context) return { normalizedUid, state: "Unknown", context: null, message: `Für die UID ${normalizedUid} wurde kein RFID-Kontext gefunden.` };
   const state: RfidScanState = context.aktiver_zaehler_id ? "KnownWithActiveMeter" : "KnownWithoutActiveMeter";
   return { normalizedUid, state, context, message: state === "KnownWithActiveMeter" ? `RFID-Kontext für ${contextParcelName(context)} mit aktivem ${mediumName(context.medium).toLowerCase()}zähler geladen.` : `RFID-Kontext für ${contextParcelName(context)} geladen, aktuell jedoch ohne aktiven Zähler.` };

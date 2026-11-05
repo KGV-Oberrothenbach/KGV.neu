@@ -75,21 +75,7 @@ public sealed class ZaehlerwechselPage : RfidScanWorkflowPage
             switch (_viewModel.Resolution.State)
             {
                 case RfidScanContextState.Unknown:
-                    var hauptzaehlerResolution = await TryResolveHauptzaehlerAsync(_viewModel.Resolution.NormalizedUid);
-                    if (hauptzaehlerResolution == null)
-                    {
-                        await OpenRfidHinzufuegenAsync(_viewModel.Resolution.NormalizedUid);
-                        break;
-                    }
-
-                    var confirmHauptzaehlerRemoval = await DisplayAlertAsync(
-                        "Bestätigung",
-                        "Wollen Sie den Hauptzähler ausbauen?",
-                        "Ja",
-                        "Nein");
-
-                    if (confirmHauptzaehlerRemoval)
-                        await ContinueToWorkflowAsync(hauptzaehlerResolution, nameof(ZaehlerwechselAusbauPage));
+                    await OpenRfidHinzufuegenAsync(_viewModel.Resolution.NormalizedUid);
                     break;
 
                 case RfidScanContextState.KnownWithoutActiveMeter:
@@ -122,50 +108,6 @@ public sealed class ZaehlerwechselPage : RfidScanWorkflowPage
 
         services.GetRequiredService<ZaehlerwechselWorkflowState>().SetContext(resolution);
         await Shell.Current.GoToAsync(route);
-    }
-
-    /// <summary>
-    /// Hauptzähler-Tags gehören zur Messstelle und deshalb nicht zur bestehenden
-    /// Parzellen-RFID-Auflösung. Diese Ergänzung liest nur die Messstelle; sie
-    /// erzeugt oder ändert keine RFID-Zuordnung.
-    /// </summary>
-    private static async Task<RfidScanContextResult?> TryResolveHauptzaehlerAsync(string? normalizedUid)
-    {
-        if (string.IsNullOrWhiteSpace(normalizedUid))
-            return null;
-
-        var services = Application.Current?.Handler?.MauiContext?.Services
-            ?? throw new InvalidOperationException("MAUI-Services sind aktuell nicht verfügbar.");
-        var supabaseService = services.GetRequiredService<ISupabaseService>();
-        var messstelle = await supabaseService.GetHauptzaehlerMessstelleByRfidAsync(normalizedUid);
-        if (messstelle == null)
-            return null;
-
-        var meter = await supabaseService.GetActiveHauptzaehlerForMessstelleAsync(
-            messstelle.Medium,
-            messstelle.Anlagenbereich,
-            DateTime.Today);
-        if (meter == null)
-            return null;
-
-        return new RfidScanContextResult
-        {
-            NormalizedUid = normalizedUid,
-            State = RfidScanContextState.KnownWithActiveMeter,
-            Message = "Hauptzähler-Messstelle mit aktivem Hauptzähler gefunden.",
-            Context = new RfidScanContextRecord
-            {
-                ParzelleId = null,
-                IstHauptzaehler = true,
-                Anlagenbereich = messstelle.Anlagenbereich,
-                Medium = messstelle.Medium,
-                RfidTagUid = normalizedUid,
-                AktiverZaehlerId = checked((int)meter.Id),
-                Zaehlernummer = meter.Zaehlernummer,
-                EingebautAm = meter.EingebautAm,
-                Status = "aktiv"
-            }
-        };
     }
 
     private static async Task OpenRfidHinzufuegenAsync(string? normalizedUid)

@@ -1864,12 +1864,10 @@ namespace KGV.Infrastructure.Services
                 }
 
                 var client = await EnsureClientAsync();
-                var response = await client
-                    .From<RfidScanContextRecord>()
-                    .Where(x => x.RfidTagUid == normalizedUid)
-                    .Get();
+                var contexts = await client.Rpc<List<RfidScanContextRecord>>(
+                    "resolve_rfid_scan_context", new { p_rfid_tag_uid = normalizedUid });
 
-                var context = response?.Models?
+                var context = contexts?
                     .OrderByDescending(x => x.HasActiveMeter)
                     .FirstOrDefault();
 
