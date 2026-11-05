@@ -698,3 +698,48 @@ RFID-, Zähler- und Ablesedaten bleiben damit nicht in der DemoDB zurück.
   Abnahmelauf auf beiden Clients mit je einer normalen Parzellen- und einer
   Hauptzähler-RFID pro Medium sinnvoll; dabei insbesondere Nord/Süd,
   manuelle Auswahl und ein Hauptzählerwechsel im UI protokollieren.
+
+## G6 – Jahresverbrauch Haupt- und Unterzähler Nord/Süd – 05.11.2026
+
+### Vertrag und Berechnungslogik
+
+Die neue DemoDB-Migration `20261105220000_g6_jahresverbrauch_hauptzaehler_unterzaehler.sql`
+stellt zwei ausschließlich lesende, mit `CanReadMeters` (32) geschützte RPCs bereit:
+
+- `rpc_hauptzaehler_jahresverbrauch_segmente(integer)` liefert je eingesetztem
+  Hauptzähler die überprüfbaren Segmentgrenzen, Ablesungen, Verbrauch und
+  Fehlergrund. Ein innerhalb des Jahres eingebauter Zähler benötigt eine
+  freigegebene Einbauablesung; sonst gilt die Vorjahres-JEA als Start. Beim
+  Ausbau ist die freigegebene Ausbauablesung Ende, sonst die Jahres-JEA.
+- `rpc_jahresverbrauch_haupt_und_unterzaehler(integer)` liefert stets getrennt
+  Strom Nord/Süd und Wasser Nord/Süd, mit Haupt-/Unterzählerverbrauch,
+  Berechenbarkeit und Fehlercode/-text. Unterzähler werden ausschließlich über
+  `zaehler.parzelle_id → parzelle."Anlage"` zugeordnet.
+
+Hauptzählerwechsel werden durch getrennte Zählersegmente summiert. Für
+Unterzähler wird der vorhandene, pächterwechsel-sichere Vertrag
+`rpc_jahresverbrauch_segmente` verwendet. Sobald auch nur ein notwendiges
+Segment unvollständig, nicht freigegeben, uneindeutig oder negativ ist, bleibt
+der jeweilige Gesamtwert `NULL`; fehlende Werte werden nicht zu `0`.
+
+### Tests und Rollout
+
+`supabase/tests/20261105220000_g6_jahresverbrauch_integrationstest.sql` lief
+auf DemoDB vollständig in `BEGIN`/`ROLLBACK` erfolgreich. Er prüft konkrete
+Summen für alle vier Kombinationen (inklusive zweier Strom-Nord-Wechsel und
+mehrerer Unterzähler), Einbau, Ausbau, fehlende JEA/Ausbauablesung,
+nicht freigegebene Ablesung und negative Differenz. Testparzellen und alle
+Ablesungen sind ausschließlich transaktional angelegt.
+
+Die Migration ist nur auf DemoDB (`ymxhszxfutjnljiuciyj`) angewendet.
+Die VereinsDB (`itjcabiibuodkxayhvjq`) blieb für G6 unverändert und endet bei
+`20261105210000`. G7 erhält ausschließlich diesen Datenbankvertrag; es wurde
+keine Web- oder MAUI-Auswertungsoberfläche und keine Differenz-/Umlagelogik
+begonnen.
+
+### Nächster CX-Prompt für G7
+
+„Nutze `rpc_jahresverbrauch_haupt_und_unterzaehler(p_jahr)` als einzige
+Berechnungsquelle für die Darstellung der Haupt-/Unterzählerdifferenz. Baue
+keine parallele Clientberechnung. Zeige unvollständige Werte samt Fehlergrund
+deutlich an; erst nach separater Freigabe über G6 auf die VereinsDB ausrollen.“
