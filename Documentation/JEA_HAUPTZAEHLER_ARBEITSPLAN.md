@@ -682,6 +682,11 @@ RFID-, Zähler- und Ablesedaten bleiben damit nicht in der DemoDB zurück.
   Historisierung und die unveränderte RFID-Zuordnung an der Messstelle sind
   erfolgreich. Der Test ist jetzt unabhängig von einer hinter der Demo-Tabelle
   liegenden Mitglieds-ID-Sequenz und verändert diese Sequenz nicht.
+- Beim G5-Codeabgleich wurde ein Fehler in der manuellen historischen Auswahl
+  gefunden und korrigiert: `GetSelectableActiveMetersAsync` berücksichtigt
+  einen ausgebauten Zähler nun für Stichtage innerhalb seines Ein-/Ausbau-
+  zeitraums. Damit wird für eine Ablesung vor bzw. am Wechsel der alte und
+  danach der neue Hauptzähler gewählt.
 
 ### Offen / bewusst nicht als erfolgreich gemeldet
 

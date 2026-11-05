@@ -2157,7 +2157,10 @@ namespace KGV.Infrastructure.Services
                 var meters = (await client.From<ZaehlerRecord>().Get())?.Models ?? new List<ZaehlerRecord>();
                 return meters
                     .Where(meter => IsMeterActiveOn(meter.EingebautAm, meter.AusgebautAm, query.Stichtag)
-                        && string.Equals(meter.Status, "aktiv", StringComparison.OrdinalIgnoreCase)
+                        // Bei historischen Stichtagen ist ein beim Wechsel
+                        // ausgebauter Zähler bis einschließlich Ausbaudatum gültig.
+                        && (string.Equals(meter.Status, "aktiv", StringComparison.OrdinalIgnoreCase)
+                            || string.Equals(meter.Status, "ausgebaut", StringComparison.OrdinalIgnoreCase))
                         && (query.HauptzaehlerModus
                             ? meter.IstHauptzaehler && meter.ParzelleId is null
                             : !meter.IstHauptzaehler && query.ParzelleId is > 0 && meter.ParzelleId == query.ParzelleId))
