@@ -27,10 +27,10 @@ function createExtendedSheet(workbook: ExcelJS.Workbook, input: JaeExportInput) 
 function createMainSubMeterSheet(workbook: ExcelJS.Workbook, year: number, rows: MainSubMeterDifference[]) {
   if (workbook.getWorksheet("Haupt-/Unterzähler")) workbook.removeWorksheet("Haupt-/Unterzähler");
   const sheet = workbook.addWorksheet("Haupt-/Unterzähler");
-  sheet.addRow(["Abrechnungsjahr", "Medium", "Anlagenbereich", "Hauptzählerverbrauch", "Unterzählerverbrauch", "Differenz", "Einheit", "Berechenbar", "Fehlergrund"]);
+  sheet.addRow(["Abrechnungsjahr", "Medium", "Anlagenbereich", "Hauptzählerverbrauch", "Unterzählerverbrauch", "Differenz", "Einheit", "Berechenbar", "Prüfbedürftig", "Fehlergrund"]);
   sheet.getRow(1).font = { bold: true };
-  for (const row of rows) sheet.addRow([year, row.medium, row.anlagenbereich, row.hauptzaehler_verbrauch, row.unterzaehler_verbrauch, row.differenz, row.einheit, row.berechenbar ? "Ja" : "Nein", row.fehlertext ?? null]);
-  [4,5,6].forEach(index => sheet.getColumn(index).numFmt = "0.00"); sheet.columns.forEach(column => { column.width = 20; }); sheet.getColumn(9).width = 48;
+  for (const row of rows) sheet.addRow([year, row.medium, row.anlagenbereich, row.hauptzaehler_verbrauch, row.unterzaehler_verbrauch, row.differenz, row.einheit, row.berechenbar ? "Ja" : "Nein", row.berechenbar && row.pruefbeduerftig ? "Ja" : row.berechenbar ? "Nein" : null, row.fehlertext ?? null]);
+  [4,5,6].forEach(index => sheet.getColumn(index).numFmt = "0.00"); sheet.columns.forEach(column => { column.width = 20; }); sheet.getColumn(10).width = 48;
 }
 
 export async function createJaeWorkbook(input: JaeExportInput, template: ArrayBuffer, differences: MainSubMeterDifference[] = []) { const workbook = new ExcelJS.Workbook(); await workbook.xlsx.load(template); const legacy = workbook.getWorksheet("Tabelle1"); if (!legacy) throw new Error("JAE-Vorlage enthält Tabelle1 nicht."); fillLegacySheet(legacy, input); if (workbook.getWorksheet("JAE erweitert")) workbook.removeWorksheet("JAE erweitert"); createExtendedSheet(workbook, input); createMainSubMeterSheet(workbook, input.year, differences); return workbook; }

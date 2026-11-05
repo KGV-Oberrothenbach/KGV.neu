@@ -760,3 +760,16 @@ serverseitig gelieferten Werten; vorhandene Blätter und Berechnungen bleiben
 unverändert. Die VereinsDB blieb unverändert bei `20261105210000`; G6/G7 sind
 nur auf DemoDB angewendet. Offener Punkt für G8 ist die sichtbare Einbindung
 dieses Vertrags in die Jahresauswertungsseite inklusive manueller UI-Abnahme.
+
+### G7.1-Abschluss
+
+Die Jahresablesungsansicht zeigt nun für die gewählte Saison die vier
+serverseitig geladenen Haupt-/Unterzählerzeilen einschließlich Einheit,
+Differenz, Fehlergrund und Status `Prüfbedürftig` bei negativen Differenzen.
+Die Ansicht berechnet weder Verbrauch noch Differenz im Client. Der Export
+enthält zusätzlich die Spalte `Prüfbedürftig`; nicht berechenbare Werte bleiben
+numerisch leer. Ein Web-Build war erfolgreich. Der vorhandene direkte
+TypeScript-XLSX-Test ist derzeit wegen einer bereits bestehenden
+extensionlosen ESM-Importauflösung nicht über `node --test` ausführbar; der
+Build kompiliert die Testquelle jedoch fehlerfrei. Offene Abnahme: Browser- und
+MAUI-Gerätetest; keine Umlage oder Jahresabschlussbuchung ist Bestandteil.
