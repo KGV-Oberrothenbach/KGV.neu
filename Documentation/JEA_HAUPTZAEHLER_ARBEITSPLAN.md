@@ -633,3 +633,12 @@ durch den expliziten Cast `v_old.medium::text`.
 Der nächste kleine Arbeitsschritt ist G4: die bereits getrennten RFID-Pfade
 für Parzellen und Hauptzähler zu einem gemeinsamen Resolververtrag
 zusammenführen, ohne die bestehende Parzellen-RFID-Logik zu duplizieren.
+
+### G4.1 – gemeinsamer RFID-Resolver
+
+Die Vorwärtsmigration `20261105210000_rfid_scan_context_unified.sql` ergänzt
+`resolve_rfid_scan_context(text)`. Die nur lesende, mit `CanReadMeters` (32)
+geschützte RPC liefert für Parzellen und Hauptzähler denselben Kontextvertrag.
+Sie wurde nach Dry-Run ausschließlich auf DemoDB angewendet. Web und MAUI
+werden im nächsten G4-Schritt von ihren separaten Nachabfragen auf diese RPC
+umgestellt; die VereinsDB bleibt bis zur gesonderten Freigabe unverändert.
