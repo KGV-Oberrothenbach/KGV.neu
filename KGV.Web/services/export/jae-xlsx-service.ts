@@ -2,7 +2,7 @@ import type { ClubContext } from "../../models/auth/club";
 import ExcelJS from "exceljs";
 import type { BrowserSession } from "../../lib/supabase-auth";
 import { listParcelOverviewParcels } from "../../repositories/parcels/parcel-repository";
-import { listAnnualConsumptionSegments, type AnnualConsumptionSegment } from "../../repositories/readings/annual-consumption-repository";
+import { listAnnualConsumptionSegments, listMainSubMeterDifferences, type AnnualConsumptionSegment, type MainSubMeterDifference } from "../../repositories/readings/annual-consumption-repository";
 import { jaeExtendedHeaders, type JaeExportInput } from "../../models/export/jae-export";
 
 const natural = new Intl.Collator("de", { numeric: true, sensitivity: "base" });
@@ -24,5 +24,14 @@ function createExtendedSheet(workbook: ExcelJS.Workbook, input: JaeExportInput) 
   const firstTotal = sheet.rowCount + 2; const usable = input.segments.filter((segment) => segment.umlagefaehig && segment.berechenbar && segment.verbrauch !== null); [["Wasser gesamt umlagefähig", usable.filter((segment) => medium(segment.medium) === "wasser").reduce((total, segment) => total + segment.verbrauch!, 0)], ["Strom gesamt umlagefähig", usable.filter((segment) => medium(segment.medium) === "strom").reduce((total, segment) => total + segment.verbrauch!, 0)]].forEach(([label, value], index) => { const labelCell = sheet.getCell(firstTotal + index, 1); const valueCell = sheet.getCell(firstTotal + index, 2); labelCell.value = label; valueCell.value = value as number; labelCell.font = valueCell.font = { bold: true }; valueCell.numFmt = "0.00"; });
 }
 
-export async function createJaeWorkbook(input: JaeExportInput, template: ArrayBuffer) { const workbook = new ExcelJS.Workbook(); await workbook.xlsx.load(template); const legacy = workbook.getWorksheet("Tabelle1"); if (!legacy) throw new Error("JAE-Vorlage enthält Tabelle1 nicht."); fillLegacySheet(legacy, input); if (workbook.getWorksheet("JAE erweitert")) workbook.removeWorksheet("JAE erweitert"); createExtendedSheet(workbook, input); return workbook; }
-export async function downloadJaeXlsx(club: ClubContext, session: BrowserSession, year: number) { const [segments, parcels, response] = await Promise.all([listAnnualConsumptionSegments(club, session, year), listParcelOverviewParcels(club, session), fetch("/templates/exports/JAE_Vorlage.xlsx")]); if (!response.ok) throw new Error("JAE-Vorlage konnte nicht geladen werden."); const workbook = await createJaeWorkbook({ year, segments, parcelAreas: new Map(parcels.map((parcel) => [parcel.id, parcel.flaeche_qm])) }, await response.arrayBuffer()); download(await workbook.xlsx.writeBuffer() as ArrayBuffer, `${year}_JAE.xlsx`); }
+function createMainSubMeterSheet(workbook: ExcelJS.Workbook, year: number, rows: MainSubMeterDifference[]) {
+  if (workbook.getWorksheet("Haupt-/Unterzähler")) workbook.removeWorksheet("Haupt-/Unterzähler");
+  const sheet = workbook.addWorksheet("Haupt-/Unterzähler");
+  sheet.addRow(["Abrechnungsjahr", "Medium", "Anlagenbereich", "Hauptzählerverbrauch", "Unterzählerverbrauch", "Differenz", "Einheit", "Berechenbar", "Fehlergrund"]);
+  sheet.getRow(1).font = { bold: true };
+  for (const row of rows) sheet.addRow([year, row.medium, row.anlagenbereich, row.hauptzaehler_verbrauch, row.unterzaehler_verbrauch, row.differenz, row.einheit, row.berechenbar ? "Ja" : "Nein", row.fehlertext ?? null]);
+  [4,5,6].forEach(index => sheet.getColumn(index).numFmt = "0.00"); sheet.columns.forEach(column => { column.width = 20; }); sheet.getColumn(9).width = 48;
+}
+
+export async function createJaeWorkbook(input: JaeExportInput, template: ArrayBuffer, differences: MainSubMeterDifference[] = []) { const workbook = new ExcelJS.Workbook(); await workbook.xlsx.load(template); const legacy = workbook.getWorksheet("Tabelle1"); if (!legacy) throw new Error("JAE-Vorlage enthält Tabelle1 nicht."); fillLegacySheet(legacy, input); if (workbook.getWorksheet("JAE erweitert")) workbook.removeWorksheet("JAE erweitert"); createExtendedSheet(workbook, input); createMainSubMeterSheet(workbook, input.year, differences); return workbook; }
+export async function downloadJaeXlsx(club: ClubContext, session: BrowserSession, year: number) { const [segments, differences, parcels, response] = await Promise.all([listAnnualConsumptionSegments(club, session, year), listMainSubMeterDifferences(club, session, year), listParcelOverviewParcels(club, session), fetch("/templates/exports/JAE_Vorlage.xlsx")]); if (!response.ok) throw new Error("JAE-Vorlage konnte nicht geladen werden."); const workbook = await createJaeWorkbook({ year, segments, parcelAreas: new Map(parcels.map((parcel) => [parcel.id, parcel.flaeche_qm])) }, await response.arrayBuffer(), differences); download(await workbook.xlsx.writeBuffer() as ArrayBuffer, `${year}_JAE.xlsx`); }

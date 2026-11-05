@@ -743,3 +743,20 @@ begonnen.
 Berechnungsquelle für die Darstellung der Haupt-/Unterzählerdifferenz. Baue
 keine parallele Clientberechnung. Zeige unvollständige Werte samt Fehlergrund
 deutlich an; erst nach separater Freigabe über G6 auf die VereinsDB ausrollen.“
+
+## G7 – Differenz und JEA-Export – 05.11.2026
+
+`20261105230000_g7_differenz_haupt_unterzaehler.sql` korrigiert den
+G6-Fehlervertrag per Vorwärtsmigration: Bei berechenbaren Haupt- bzw.
+Unterzählerwerten sind Fehlercode und Fehlertext nun `NULL`; bei unvollständigen
+Werten bleiben Verbrauch und Differenz `NULL` und der konkrete Fehler erhalten.
+Der neue, lesende und mit `CanReadMeters` geschützte Vertrag
+`rpc_jahresverbrauch_haupt_unter_differenz(integer)` liefert die vier
+Kombinationen, Einheit, Differenz und `pruefbeduerftig` für negative Differenzen.
+
+Der Web-Repository-Vertrag ruft ausschließlich diesen RPC auf. Der vorhandene
+JAE-XLSX-Export ergänzt das Tabellenblatt `Haupt-/Unterzähler` mit den vier
+serverseitig gelieferten Werten; vorhandene Blätter und Berechnungen bleiben
+unverändert. Die VereinsDB blieb unverändert bei `20261105210000`; G6/G7 sind
+nur auf DemoDB angewendet. Offener Punkt für G8 ist die sichtbare Einbindung
+dieses Vertrags in die Jahresauswertungsseite inklusive manueller UI-Abnahme.
