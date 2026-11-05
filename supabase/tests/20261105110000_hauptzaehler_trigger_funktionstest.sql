@@ -32,11 +32,14 @@ begin
      '{"provider":"email","providers":["email"]}'::jsonb,
      '{}'::jsonb, now(), now());
 
+  -- Die DemoDB kann eine hinter der Tabelle liegende ID-Sequenz enthalten.
+  -- Eine explizite, nur transaktionale ID hält den Test reproduzierbar, ohne
+  -- die Sequenz zu verändern.
+  select coalesce(max(id), 0) + 1000000 into v_test_mitglied_id from public.mitglied;
   insert into public.mitglied
-    (name, vorname, auth_user_id, role, is_demo, aufnahme_status)
+    (id, name, vorname, auth_user_id, role, is_demo, aufnahme_status)
   values
-    ('G3.5 Test', 'RPC', v_test_user_id, 'user', true, 'aufgenommen')
-  returning id into v_test_mitglied_id;
+    (v_test_mitglied_id, 'G3.5 Test', 'RPC', v_test_user_id, 'user', true, 'aufgenommen');
 
   insert into public.app_user
     (user_id, mitglied_id, role, is_demo_account, is_demo, is_protected,

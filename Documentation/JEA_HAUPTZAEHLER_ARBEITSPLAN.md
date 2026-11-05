@@ -642,3 +642,54 @@ geschützte RPC liefert für Parzellen und Hauptzähler denselben Kontextvertrag
 Sie wurde nach Dry-Run ausschließlich auf DemoDB angewendet. Web und MAUI
 werden im nächsten G4-Schritt von ihren separaten Nachabfragen auf diese RPC
 umgestellt; die VereinsDB bleibt bis zur gesonderten Freigabe unverändert.
+
+## G4-Abschluss und G5-Integrationstest – 05.11.2026
+
+### G4 abgeschlossen
+
+- Web und MAUI verwenden gemeinsam `resolve_rfid_scan_context(text)`; die
+  zusätzlichen Hauptzähler-Nachabfragen der Clients sind entfernt.
+- Die Migrationshistorien von DemoDB (`ymxhszxfutjnljiuciyj`) und VereinsDB
+  (`itjcabiibuodkxayhvjq`) wurden verglichen. Vor dem Rollout fehlte in der
+  VereinsDB ausschließlich `20261105210000_rfid_scan_context_unified.sql`.
+- Der VereinsDB-Dry-Run enthielt ausschließlich diese erwartete Migration.
+  Sie wurde danach mit ausdrücklicher Freigabe ausgerollt. Es gab keine
+  Zähler-, RFID- oder Ablesungsänderung in der VereinsDB.
+- Nach dem Rollout besitzen beide Datenbanken dieselbe Funktion
+  `resolve_rfid_scan_context(text)` (Definitionshash
+  `148746474d5944aacb672eca2610fa85`), `SECURITY DEFINER`, EXECUTE für
+  `authenticated` und kein EXECUTE für `public`. Die Funktionsdefinition
+  prüft serverseitig `has_effective_permission(32)` (`CanReadMeters`), sodass
+  ein vorhandener EXECUTE-Grant ohne Leseberechtigung keinen Kontext liefert.
+
+### G5 – erfolgreich auf DemoDB automatisiert getestet
+
+`supabase/tests/20261105210000_rfid_scan_context_integrationstest.sql` läuft
+vollständig in `BEGIN`/`ROLLBACK`. Die temporären Auth-, Mitglied-, App-User-,
+RFID-, Zähler- und Ablesedaten bleiben damit nicht in der DemoDB zurück.
+
+- Bestehende Parzellen-RFID wird mit normalisiertem Tag unverändert über den
+  gemeinsamen Resolver aufgelöst.
+- Für Strom Nord, Strom Süd, Wasser Nord und Wasser Süd werden jeweils
+  Messstelle, Medium, Bereich und aktiver Hauptzähler geprüft; für jede der
+  vier Messstellen wird eine JEA-Ablesung über den produktiven RPC erfasst.
+- Unbekannte und leere Tags liefern keinen Kontext. Eine Messstelle ohne
+  aktiven Zähler bleibt auflösbar, enthält aber keine aktive Zähler-ID.
+- Ein Benutzer mit `CanReadMeters` erhält Kontext; ein Benutzer ohne diese
+  Berechtigung erhält den erwarteten Berechtigungsfehler.
+- Der vorhandene G3.5-Regressionslauf wurde wiederholt: Hauptzähler-Einbau,
+  aktiver-Zähler-Eindeutigkeit, Strom-Nord-Wechsel, Ausbau-/Einbauablesungen,
+  Historisierung und die unveränderte RFID-Zuordnung an der Messstelle sind
+  erfolgreich. Der Test ist jetzt unabhängig von einer hinter der Demo-Tabelle
+  liegenden Mitglieds-ID-Sequenz und verändert diese Sequenz nicht.
+
+### Offen / bewusst nicht als erfolgreich gemeldet
+
+- Es wurden keine echten Web-Browser-, MAUI-Geräte- oder Kamera/Scanner-Tests
+  ausgeführt. Der gemeinsame Service-/RPC-Vertrag und die Client-Builds sind
+  geprüft; die Bedienabläufe RFID-Scan, manuelle Auswahl und Anzeige auf
+  Android bzw. im Browser benötigen noch einen manuellen Abnahmelauf.
+- G6 wird nicht begonnen. Als nächster CX-Schritt ist ein manueller
+  Abnahmelauf auf beiden Clients mit je einer normalen Parzellen- und einer
+  Hauptzähler-RFID pro Medium sinnvoll; dabei insbesondere Nord/Süd,
+  manuelle Auswahl und ein Hauptzählerwechsel im UI protokollieren.
