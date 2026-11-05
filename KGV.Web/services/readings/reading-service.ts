@@ -115,12 +115,19 @@ export async function saveMeterReading(club: ClubContext, session: BrowserSessio
   if (input.art !== "normal" && input.art !== "jea") throw new Error("Die Ableseart ist ungültig.");
   const scope = await loadScope(club, session, permissions, input.date);
   if (!scope.isDirectCapture && !scope.canSubmitOwn) throw new Error(permissions.canSubmitOwnMeterReadings ? "Eigene Zählerablesungen sind aktuell zentral deaktiviert." : "Für Zählerablesungen besteht keine Berechtigung.");
-  const meter = scope.meters.find((item) => item.id === input.meterId);
+  const meter = scope.meters.find((item) => item.id === input.meterId)
+    ?? (input.art === "jea" && scope.isDirectCapture ? (await listReadingMeters(club, session)).find((item) => item.id === input.meterId) : undefined);
   if (!meter || !isActiveMeter(meter)) throw new Error("Der gewählte Zähler ist nicht aktiv.");
+  if (meter.ist_hauptzaehler) {
+    if (input.art !== "jea" || meter.parzelle_id !== null) throw new Error("Der gewählte Hauptzähler ist für diese Ablesung nicht zulässig.");
+    if (!scope.isDirectCapture) throw new Error("Hauptzähler können nur durch berechtigte Rollen abgelesen werden.");
+  }
+  if (!meter.ist_hauptzaehler) {
   const parcel = scope.parcels.find((item) => item.id === meter.parzelle_id);
   if (!parcel?.aktiv) throw new Error("Die Parzelle des Zählers ist nicht aktiv.");
   if (!isParcelMediumEnabled(parcel, meter.medium)) throw new Error("Das Medium des Zählers ist für diese Parzelle nicht freigeschaltet.");
   if (!scope.isDirectCapture && !scope.assignments.some((assignment) => assignment.parzelle_id === meter.parzelle_id && isParcelAssignmentActiveOn(assignment, input.date))) throw new Error("Eigene Nutzerablesungen sind nur für die eigene, am Ablesedatum belegte Parzelle zulässig.");
+  }
   const readings = await listReadingsForMeter(club, session, meter.id);
   if (readings.some((item) => item.zaehler_id === meter.id && item.ablesedatum.slice(0, 10) === input.date && item.art.toLowerCase() === input.art && item.pruefstatus !== "abgelehnt")) throw new Error("Für diesen Zähler, dieses Datum und diese Ableseart existiert bereits eine Ablesung.");
   const plausibility = checkReadingPlausibility(readings, input);

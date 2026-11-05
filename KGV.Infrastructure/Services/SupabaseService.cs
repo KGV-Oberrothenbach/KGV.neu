@@ -2140,16 +2140,73 @@ namespace KGV.Infrastructure.Services
                     return (await GetStromzaehlerForParzelleAsync(parzelleId))
                         .Where(x => IsMeterActiveOn(x.EingebautAm, x.AusgebautAm, onDate))
                         .OrderByDescending(x => x.EingebautAm)
-                        .Select(x => new ActiveMeterCandidate(x.Id, x.Zaehlernummer, x.EingebautAm))
+                        .Select(x => new ActiveMeterCandidate(x.Id, x.Zaehlernummer, x.EingebautAm, x.ParzelleId, "strom", x.IstHauptzaehler, x.Anlagenbereich))
                         .ToList();
 
                 return (await GetWasserzaehlerForParzelleAsync(parzelleId))
                     .Where(x => IsMeterActiveOn(x.EingebautAm, x.AusgebautAm, onDate))
                     .OrderByDescending(x => x.EingebautAm)
-                    .Select(x => new ActiveMeterCandidate(x.Id, x.Zaehlernummer, x.EingebautAm))
+                    .Select(x => new ActiveMeterCandidate(x.Id, x.Zaehlernummer, x.EingebautAm, x.ParzelleId, "wasser", x.IstHauptzaehler, x.Anlagenbereich))
                     .ToList();
             },
             new List<ActiveMeterCandidate>());
+
+        public Task<List<SelectableActiveMeter>> GetSelectableActiveMetersAsync(SelectableActiveMeterQuery query) => ExecuteAsync(
+            "GetSelectableActiveMetersAsync",
+            async () =>
+            {
+                var client = await EnsureClientAsync();
+                var meters = (await client.From<ZaehlerRecord>().Get())?.Models ?? new List<ZaehlerRecord>();
+                return meters
+                    .Where(meter => IsMeterActiveOn(meter.EingebautAm, meter.AusgebautAm, query.Stichtag)
+                        && string.Equals(meter.Status, "aktiv", StringComparison.OrdinalIgnoreCase)
+                        && (query.HauptzaehlerModus
+                            ? meter.IstHauptzaehler && meter.ParzelleId is null
+                            : !meter.IstHauptzaehler && query.ParzelleId is > 0 && meter.ParzelleId == query.ParzelleId))
+                    .OrderBy(meter => meter.Medium, StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(meter => meter.Anlagenbereich, StringComparer.OrdinalIgnoreCase)
+                    .ThenByDescending(meter => meter.EingebautAm)
+                    .Select(MapSelectableActiveMeter)
+                    .ToList();
+            },
+            new List<SelectableActiveMeter>());
+
+        public Task<List<HauptzaehlerMessstelleRecord>> GetHauptzaehlerMessstellenAsync() => ExecuteAsync(
+            "GetHauptzaehlerMessstellenAsync",
+            async () =>
+            {
+                var client = await EnsureClientAsync();
+                var response = await client.From<HauptzaehlerMessstelleRecord>().Get();
+                return response?.Models?
+                    .OrderBy(item => item.Medium, StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(item => item.Anlagenbereich, StringComparer.OrdinalIgnoreCase)
+                    .ToList() ?? new List<HauptzaehlerMessstelleRecord>();
+            },
+            new List<HauptzaehlerMessstelleRecord>());
+
+        public async Task<HauptzaehlerMessstelleRecord?> GetHauptzaehlerMessstelleByRfidAsync(string rfidTagUid)
+        {
+            var normalizedUid = NormalizeRfidTagUid(rfidTagUid);
+            if (normalizedUid == null)
+                return null;
+
+            return (await GetHauptzaehlerMessstellenAsync())
+                .FirstOrDefault(item => string.Equals(NormalizeRfidTagUid(item.RfidTagUid), normalizedUid, StringComparison.OrdinalIgnoreCase));
+        }
+
+        public async Task<SelectableActiveMeter?> GetActiveHauptzaehlerForMessstelleAsync(string medium, string anlagenbereich, DateTime onDate)
+        {
+            var normalizedMedium = NormalizeZaehlerMedium(medium);
+            var normalizedBereich = anlagenbereich?.Trim();
+            if (normalizedMedium == null || string.IsNullOrWhiteSpace(normalizedBereich))
+                return null;
+
+            return (await GetSelectableActiveMetersAsync(new SelectableActiveMeterQuery(null, true, onDate)))
+                .Where(item => string.Equals(item.Medium, normalizedMedium, StringComparison.Ordinal)
+                    && string.Equals(item.Anlagenbereich, normalizedBereich, StringComparison.Ordinal))
+                .OrderByDescending(item => item.EingebautAm)
+                .FirstOrDefault();
+        }
 
         public Task<bool> AddStromzaehlerAsync(StromzaehlerInsertRecord request)
             => AddZaehlerCoreAsync("strom", request?.ParzelleId ?? 0, request?.Zaehlernummer, request?.Eichdatum ?? default, request?.EingebautAm ?? default);
@@ -2213,11 +2270,27 @@ namespace KGV.Infrastructure.Services
             "ExecuteMeterChangeAsync",
             async () =>
             {
-                if (request is null || request.OldMeterId <= 0 || request.ParcelId <= 0 || string.IsNullOrWhiteSpace(request.Medium))
+                if (request is null || request.OldMeterId <= 0 || string.IsNullOrWhiteSpace(request.Medium)
+                    || (request.IstHauptzaehler ? string.IsNullOrWhiteSpace(request.Anlagenbereich) : request.ParcelId is not > 0))
+                    return false;
+
+                var anlagenbereich = request.Anlagenbereich?.Trim();
+                if (request.IstHauptzaehler && anlagenbereich is not ("Nord" or "Süd"))
                     return false;
 
                 var client = await EnsureClientAsync();
-                var rows = await client.Rpc<System.Text.Json.JsonElement[]>("execute_meter_change", new
+                var rows = request.IstHauptzaehler
+                    ? await client.Rpc<System.Text.Json.JsonElement[]>("execute_hauptzaehler_meter_change", new
+                    {
+                        p_alter_zaehler_id = request.OldMeterId,
+                        p_medium = request.Medium.Trim().ToLowerInvariant(),
+                        p_anlagenbereich = anlagenbereich,
+                        p_ausbaudatum = request.RemovalDate.ToString("yyyy-MM-dd"), p_endstand = request.FinalValue,
+                        p_ausbau_foto_pfad = request.RemovalPhotoPath, p_neue_zaehlernummer = request.NewMeterNumber.Trim(),
+                        p_eichdatum = request.CalibrationDate.ToString("yyyy-MM-dd"), p_einbaudatum = request.InstallationDate.ToString("yyyy-MM-dd"),
+                        p_anfangsstand = request.InitialValue, p_einbau_foto_pfad = request.InstallationPhotoPath
+                    })
+                    : await client.Rpc<System.Text.Json.JsonElement[]>("execute_meter_change", new
                 {
                     p_alter_zaehler_id = request.OldMeterId,
                     p_parzelle_id = request.ParcelId,
@@ -2353,7 +2426,10 @@ namespace KGV.Infrastructure.Services
                     return new List<AblesungReviewItem>();
 
                 var parzelleIds = meterById.Values
-                    .Select(x => (int)x.ParzelleId)
+                    // Die Freigabeliste ist bewusst parzellenbezogen; Hauptzähler
+                    // werden erst mit ihrem eigenen Workflow in G3 aufgenommen.
+                    .Where(x => x.ParzelleId is > 0)
+                    .Select(x => (int)x.ParzelleId!.Value)
                     .Distinct()
                     .ToHashSet();
 
@@ -2372,7 +2448,10 @@ namespace KGV.Infrastructure.Services
                     if (!meterById.TryGetValue(record.ZaehlerId, out var meter))
                         continue;
 
-                    var parzelleId = (int)meter.ParzelleId;
+                    if (meter.ParzelleId is not > 0)
+                        continue;
+
+                    var parzelleId = (int)meter.ParzelleId.Value;
                     parzellenById.TryGetValue(parzelleId, out var parzelle);
 
                     if (!OperationalDataFilter.IsOperationalText(parzelle?.GartenNr)
@@ -7129,6 +7208,8 @@ namespace KGV.Infrastructure.Services
             {
                 Id = source.Id,
                 ParzelleId = source.ParzelleId,
+                IstHauptzaehler = source.IstHauptzaehler,
+                Anlagenbereich = source.Anlagenbereich,
                 Zaehlernummer = source.Zaehlernummer,
                 Eichdatum = source.Eichdatum,
                 EingebautAm = source.EingebautAm,
@@ -7136,12 +7217,24 @@ namespace KGV.Infrastructure.Services
             };
         }
 
+        private static SelectableActiveMeter MapSelectableActiveMeter(ZaehlerRecord source)
+            => new(
+                source.Id,
+                source.Medium,
+                source.Zaehlernummer,
+                source.ParzelleId,
+                source.IstHauptzaehler,
+                source.Anlagenbereich,
+                source.EingebautAm);
+
         private static WasserzaehlerRecord MapWasserzaehlerRecord(ZaehlerRecord source)
         {
             return new WasserzaehlerRecord
             {
                 Id = source.Id,
                 ParzelleId = source.ParzelleId,
+                IstHauptzaehler = source.IstHauptzaehler,
+                Anlagenbereich = source.Anlagenbereich,
                 Zaehlernummer = source.Zaehlernummer,
                 Eichdatum = source.Eichdatum,
                 EingebautAm = source.EingebautAm,

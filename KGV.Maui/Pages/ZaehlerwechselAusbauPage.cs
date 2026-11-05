@@ -117,7 +117,7 @@ public sealed class ZaehlerwechselAusbauPage : ContentPage
         }
 
         var context = _context.Context;
-        _contextLabel.Text = $"Parzelle: {context.ParzelleDisplayName}{Environment.NewLine}" +
+        _contextLabel.Text = $"{(context.IstHauptzaehler ? "Hauptzähler-Messstelle" : "Parzelle")}: {context.ParzelleDisplayName}{Environment.NewLine}" +
                              $"Medium: {context.MediumDisplay}{Environment.NewLine}" +
                              $"Aktiver Zähler: {context.ActiveMeterDisplay}{Environment.NewLine}" +
                              $"Zählernummer: {context.ZaehlernummerDisplay}";
@@ -238,7 +238,7 @@ public sealed class ZaehlerwechselAusbauPage : ContentPage
                 context.AktiverZaehlerId!.Value, context.ParzelleId, NormalizeMedium(context.Medium),
                 _ausbauDatumPicker.Date!.Value, stand, photoResult.RelativePath,
                 _neueZaehlernummerEntry.Text.Trim(), new DateTime(eichjahr, 1, 1),
-                _ausbauDatumPicker.Date!.Value, anfangsstand, null));
+                _ausbauDatumPicker.Date!.Value, anfangsstand, null, context.IstHauptzaehler, context.Anlagenbereich));
             if (!changed)
             {
                 _statusLabel.Text = "Der Zählerwechsel konnte nicht atomar ausgeführt werden.";

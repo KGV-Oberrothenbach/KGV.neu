@@ -48,6 +48,9 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
     private readonly Button _clearPhotoButton;
     private readonly Button _saveButton;
     private readonly Button _resetButton;
+    private readonly CheckBox _hauptzaehlerCheckBox;
+    private readonly Picker _fallbackMeterPicker;
+    private readonly List<SelectableActiveMeter> _fallbackMeters = new();
     private bool _initialized;
     private bool _isBusy;
     private bool _hasRequestedFallbackContext;
@@ -124,6 +127,10 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
 
         _resetButton = new Button { Text = "Anderen Tag scannen" };
         _resetButton.Clicked += async (_, _) => await ResetAndRestartScanAsync(clearWorkflow: true);
+        _hauptzaehlerCheckBox = new CheckBox();
+        _hauptzaehlerCheckBox.CheckedChanged += async (_, _) => await ReloadFallbackMetersAsync();
+        _fallbackMeterPicker = new Picker { Title = "Zähler wählen" };
+        _fallbackMeterPicker.ItemDisplayBinding = new Binding(nameof(SelectableActiveMeter.DisplayName));
 
         var nfcStatusTitleLabel = new Label { FontAttributes = FontAttributes.Bold, LineBreakMode = LineBreakMode.WordWrap };
         nfcStatusTitleLabel.SetBinding(Label.TextProperty, nameof(RfidScanContextViewModel.NfcStatusTitle));
@@ -288,8 +295,26 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
         base.OnDisappearing();
     }
 
-    private void OnScanContextPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    private async void OnScanContextPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (e.PropertyName == nameof(RfidScanContextViewModel.Resolution)
+            && _currentArt == AblesungArt.JahresEnde
+            && _scanContext.Resolution?.State == RfidScanContextState.Unknown)
+        {
+            var messstelle = await _supabaseService.GetHauptzaehlerMessstelleByRfidAsync(_scanContext.Resolution.NormalizedUid);
+            if (messstelle != null)
+            {
+                var meter = await _supabaseService.GetActiveHauptzaehlerForMessstelleAsync(messstelle.Medium, messstelle.Anlagenbereich, DateTime.Today);
+                if (meter != null)
+                {
+                    _hauptzaehlerCheckBox.IsChecked = true;
+                    _fallbackMeters.Clear(); _fallbackMeters.Add(meter);
+                    _fallbackMeterPicker.ItemsSource = _fallbackMeters; _fallbackMeterPicker.SelectedItem = meter;
+                    await ApplySelectedFallbackMeterAsync();
+                    return;
+                }
+            }
+        }
         if (e.PropertyName is nameof(RfidScanContextViewModel.Resolution) or nameof(RfidScanContextViewModel.StatusMessage))
             ApplyResolution(_scanContext.Resolution, _scanContext.StatusMessage);
     }
@@ -618,27 +643,82 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
         parzellePicker.ItemDisplayBinding = new Binding(nameof(ParzelleRecord.DisplayName));
         parzellePicker.SetBinding(Picker.ItemsSourceProperty, nameof(RfidScanContextViewModel.FallbackParzellen));
         parzellePicker.SetBinding(Picker.SelectedItemProperty, nameof(RfidScanContextViewModel.SelectedFallbackParzelle), BindingMode.TwoWay);
-
-        var mediumPicker = new Picker { Title = "Medium wählen" };
-        mediumPicker.ItemDisplayBinding = new Binding(nameof(RfidMediumOption.DisplayName));
-        mediumPicker.SetBinding(Picker.ItemsSourceProperty, nameof(RfidScanContextViewModel.FallbackMediumOptions));
-        mediumPicker.SetBinding(Picker.SelectedItemProperty, nameof(RfidScanContextViewModel.SelectedFallbackMedium), BindingMode.TwoWay);
+        parzellePicker.SelectedIndexChanged += async (_, _) => await ReloadFallbackMetersAsync();
+        _hauptzaehlerCheckBox.CheckedChanged += (_, _) => parzellePicker.IsVisible = !_hauptzaehlerCheckBox.IsChecked;
 
         var fallbackButton = new Button { Text = "Kontext ohne NFC laden" };
-        fallbackButton.SetBinding(IsEnabledProperty, nameof(RfidScanContextViewModel.CanApplyFallbackContext));
-        fallbackButton.Clicked += async (_, _) => await _scanContext.ApplyFallbackContextAsync();
+        fallbackButton.Clicked += async (_, _) => await ApplySelectedFallbackMeterAsync();
 
         return CreateSection(
             "Fallback ohne NFC",
             new Label
             {
-                Text = "Wenn NFC nicht verfügbar ist, kann der fachliche Ablese-Kontext über Parzelle und Medium geladen werden.",
+                Text = "Wenn NFC nicht verfügbar ist, wählen Sie eine Parzelle und anschließend den aktiven Zähler. Hauptzähler werden ohne Parzelle gewählt.",
                 LineBreakMode = LineBreakMode.WordWrap,
                 TextColor = Colors.Gray
             },
+            new HorizontalStackLayout { Spacing = 8, Children = { _hauptzaehlerCheckBox, new Label { Text = "Hauptzähler", VerticalTextAlignment = TextAlignment.Center } } },
             parzellePicker,
-            mediumPicker,
+            _fallbackMeterPicker,
             fallbackButton);
+    }
+
+    private async Task ReloadFallbackMetersAsync()
+    {
+        _fallbackMeterPicker.SelectedItem = null;
+        _fallbackMeters.Clear();
+        var mainMode = _hauptzaehlerCheckBox.IsChecked;
+        var parcelId = _scanContext.SelectedFallbackParzelle?.Id;
+        if (!mainMode && parcelId is not > 0)
+        {
+            _fallbackMeterPicker.ItemsSource = null;
+            return;
+        }
+
+        var meters = await _supabaseService.GetSelectableActiveMetersAsync(
+            new SelectableActiveMeterQuery(mainMode ? null : parcelId, mainMode, DateTime.Today));
+        _fallbackMeters.AddRange(meters);
+        _fallbackMeterPicker.ItemsSource = _fallbackMeters;
+    }
+
+    private Task ApplySelectedFallbackMeterAsync()
+    {
+        if (_fallbackMeterPicker.SelectedItem is not SelectableActiveMeter meter)
+        {
+            _statusLabel.Text = "Bitte zuerst einen aktiven Zähler wählen.";
+            return Task.CompletedTask;
+        }
+
+        var parcel = _scanContext.SelectedFallbackParzelle;
+        if (!meter.IstHauptzaehler && (parcel == null || meter.ParzelleId != parcel.Id))
+        {
+            _statusLabel.Text = "Der gewählte Zähler gehört nicht zur ausgewählten Parzelle.";
+            return Task.CompletedTask;
+        }
+
+        var context = new RfidScanContextRecord
+        {
+            ParzelleId = meter.ParzelleId is > 0 ? (int)meter.ParzelleId.Value : null,
+            IstHauptzaehler = meter.IstHauptzaehler,
+            Anlagenbereich = meter.Anlagenbereich,
+            Anlage = meter.IstHauptzaehler ? meter.Anlagenbereich : parcel?.Anlage,
+            GartenNr = meter.IstHauptzaehler ? "Hauptzähler" : parcel?.GartenNr,
+            Medium = meter.Medium,
+            AktiverZaehlerId = (int)meter.Id,
+            Zaehlernummer = meter.Zaehlernummer,
+            Eichdatum = null,
+            EingebautAm = meter.EingebautAm,
+            Status = "Aktiv"
+        };
+        var resolution = new RfidScanContextResult
+        {
+            State = RfidScanContextState.KnownWithActiveMeter,
+            Context = context,
+            Message = meter.DisplayName
+        };
+        _scanContext.ApplyResolvedContext(resolution, resolution.Message);
+        ApplyResolution(resolution, resolution.Message);
+        return Task.CompletedTask;
     }
 
     private static string MapPhotoKind(string art)

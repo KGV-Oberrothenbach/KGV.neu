@@ -13,7 +13,13 @@ namespace KGV.Core.Models
         public long Id { get; set; }
 
         [Column("parzelle_id")]
-        public long ParzelleId { get; set; }
+        public long? ParzelleId { get; set; }
+
+        [Column("ist_hauptzaehler")]
+        public bool IstHauptzaehler { get; set; }
+
+        [Column("anlagenbereich")]
+        public string? Anlagenbereich { get; set; }
 
         [Column("zaehlernummer")]
         public string Zaehlernummer { get; set; } = string.Empty;
