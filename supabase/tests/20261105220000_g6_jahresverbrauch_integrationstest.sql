@@ -54,8 +54,13 @@ begin
   select unterzaehler_verbrauch, unterzaehler_berechenbar, unterzaehler_fehlercode into v_value,v_ok,v_code from public.rpc_jahresverbrauch_haupt_und_unterzaehler(2026) where medium='strom' and anlagenbereich='Nord';
   if v_value<>55 or not v_ok then raise exception 'Strom Nord Unterzähler-Summe falsch: %, %, %',v_value,v_ok,v_code; end if;
   if (select count(*) from public.rpc_jahresverbrauch_haupt_und_unterzaehler(2026) where hauptzaehler_berechenbar and unterzaehler_berechenbar) <> 4 then raise exception 'Nicht alle vier Kombinationen sind berechenbar.'; end if;
+  select differenz, berechenbar into v_value,v_ok from public.rpc_jahresverbrauch_haupt_unter_differenz(2026) where medium='strom' and anlagenbereich='Nord';
+  if v_value<>75 or not v_ok then raise exception 'G7-Differenz Strom Nord falsch: %, %',v_value,v_ok; end if;
 
   -- Negative Differenz, fehlende JEA, nicht freigegebene und fehlende Ausbauablesung bleiben sichtbar.
+  update public.zaehler_ablesung set stand=115 where zaehler_id=v_wn and art='jea' and ablesedatum::date=date '2026-12-31';
+  select pruefbeduerftig into v_ok from public.rpc_jahresverbrauch_haupt_unter_differenz(2026) where medium='wasser' and anlagenbereich='Nord';
+  if not v_ok then raise exception 'Negative G7-Differenz wurde nicht als prüfbedürftig markiert.'; end if;
   update public.zaehler_ablesung set stand=90 where zaehler_id=v_wn and art='jea' and ablesedatum::date=date '2026-12-31';
   select fehlercode into v_code from public.rpc_hauptzaehler_jahresverbrauch_segmente(2026) where zaehler_id=v_wn;
   if v_code <> 'NEGATIVER_VERBRAUCH' then raise exception 'Negative Differenz wurde nicht erkannt: %',v_code; end if;

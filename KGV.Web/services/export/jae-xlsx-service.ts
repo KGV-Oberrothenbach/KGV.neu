@@ -25,8 +25,8 @@ function createExtendedSheet(workbook: ExcelJS.Workbook, input: JaeExportInput) 
 }
 
 function createMainSubMeterSheet(workbook: ExcelJS.Workbook, year: number, rows: MainSubMeterDifference[]) {
-  if (workbook.getWorksheet("Haupt-/Unterzähler")) workbook.removeWorksheet("Haupt-/Unterzähler");
-  const sheet = workbook.addWorksheet("Haupt-/Unterzähler");
+  if (workbook.getWorksheet("Haupt-Unterzähler")) workbook.removeWorksheet("Haupt-Unterzähler");
+  const sheet = workbook.addWorksheet("Haupt-Unterzähler");
   sheet.addRow(["Abrechnungsjahr", "Medium", "Anlagenbereich", "Hauptzählerverbrauch", "Unterzählerverbrauch", "Differenz", "Einheit", "Berechenbar", "Prüfbedürftig", "Fehlergrund"]);
   sheet.getRow(1).font = { bold: true };
   for (const row of rows) sheet.addRow([year, row.medium, row.anlagenbereich, row.hauptzaehler_verbrauch, row.unterzaehler_verbrauch, row.differenz, row.einheit, row.berechenbar ? "Ja" : "Nein", row.berechenbar && row.pruefbeduerftig ? "Ja" : row.berechenbar ? "Nein" : null, row.fehlertext ?? null]);

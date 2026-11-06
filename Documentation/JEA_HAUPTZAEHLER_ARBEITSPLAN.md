@@ -755,7 +755,7 @@ Der neue, lesende und mit `CanReadMeters` geschützte Vertrag
 Kombinationen, Einheit, Differenz und `pruefbeduerftig` für negative Differenzen.
 
 Der Web-Repository-Vertrag ruft ausschließlich diesen RPC auf. Der vorhandene
-JAE-XLSX-Export ergänzt das Tabellenblatt `Haupt-/Unterzähler` mit den vier
+JAE-XLSX-Export ergänzt das Excel-konforme Tabellenblatt `Haupt-Unterzähler` mit den vier
 serverseitig gelieferten Werten; vorhandene Blätter und Berechnungen bleiben
 unverändert. Die VereinsDB blieb unverändert bei `20261105210000`; G6/G7 sind
 nur auf DemoDB angewendet. Offener Punkt für G8 ist die sichtbare Einbindung
@@ -773,3 +773,15 @@ TypeScript-XLSX-Test ist derzeit wegen einer bereits bestehenden
 extensionlosen ESM-Importauflösung nicht über `node --test` ausführbar; der
 Build kompiliert die Testquelle jedoch fehlerfrei. Offene Abnahme: Browser- und
 MAUI-Gerätetest; keine Umlage oder Jahresabschlussbuchung ist Bestandteil.
+
+### G7.2 – technische Endabnahme
+
+Der XLSX-Regressionstest läuft nun mit `node --import tsx --test` erfolgreich.
+Dabei wurde ein echter Exportfehler korrigiert: Excel verbietet `/` im Blattnamen;
+das Blatt heißt deshalb Excel-konform `Haupt-Unterzähler`. Die Tests prüfen die
+vier Zeilen, negative und Null-Differenz, Prüfstatus, Fehlertext, numerisch leere
+unberechenbare Werte, Formelfreiheit sowie die bestehenden Blätter. Der Web-Build
+und `git diff --check` sind erfolgreich. Die praktische Checkliste liegt in
+`Documentation/G7_2_ENDABNAHME_CHECKLISTE.md`; Browser-Sitzung, Android-Gerät
+und physische RFID-/NFC-Tags sind noch manuell abzunehmen. G6/G7 bleiben nur auf
+DemoDB; VereinsDB bleibt unverändert.
