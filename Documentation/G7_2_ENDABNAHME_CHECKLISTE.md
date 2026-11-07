@@ -5,6 +5,28 @@ Physische RFID-/NFC-Tags, eine angemeldete Browser-Sitzung und ein Android-Gerä
 stehen dieser technischen Abnahme nicht zur Verfügung; diese Fälle sind bewusst
 als manuell ausstehend markiert.
 
+## G7.3-Demo-Testdaten (Jahr 2026)
+
+Das Setup liegt in `supabase/tests/manual/20261107_g7_3_demo_setup.sql`, das
+Cleanup in `supabase/tests/manual/20261107_g7_3_demo_cleanup.sql`. Alle Daten
+sind mit `CX-G7.3-` markiert. Die RFID-Werte `CX-G7.3-NO-PHYSICAL-*` sind nur
+Constraint-Platzhalter und **keine** erwarteten physischen Tags. Eigene Tags
+erst während der Abnahme über die UI zuordnen.
+
+| Bereich | Hauptzähler | Unterzähler | Erwartete Differenz | Testkennungen |
+|---|---:|---:|---:|---|
+| Strom Nord | 50 kWh | 30 kWh | +20 kWh | `CX-G7.3-H-SN`, `CX-G7.3-U-SN` |
+| Strom Süd | 20 kWh | 30 kWh | -10 kWh, Prüfbedürftig | `CX-G7.3-H-SS`, `CX-G7.3-U-SS` |
+| Wasser Nord | 20 m³ | 20 m³ | 0 m³ | `CX-G7.3-H-WN`, `CX-G7.3-U-WN` |
+| Wasser Süd | fehlt | 10 m³ | Nicht berechenbar | `CX-G7.3-H-WS`, `CX-G7.3-U-WS` |
+
+Browser-Reihenfolge: Demo anmelden → **Jahresablesung 2026** öffnen →
+Hauptzähler über die manuelle Auswahl prüfen → Strom Nord für einen Wechsel
+verwenden → Jahresauswertung öffnen → JAE-XLSX exportieren. Anschließend auf
+Android dieselbe Anmeldung, manuelle Auswahl, später eigene NFC-/RFID-Tags,
+JEA und historische Auswahl prüfen. Nach Abschluss ausschließlich das genannte
+Cleanup-Skript gegen DemoDB ausführen.
+
 | Nr. | Oberfläche | Ausgangssituation | Handlung | Erwartetes Ergebnis | Tatsächliches Ergebnis | Status |
 |---|---|---|---|---|---|---|
 | 01 | Web | Demo-Anmeldung, Parzellen-RFID Strom | RFID scannen | Parzelle, Strom und aktiver Zähler | Manuelle Prüfung ausstehend | nicht getestet |

@@ -785,3 +785,13 @@ und `git diff --check` sind erfolgreich. Die praktische Checkliste liegt in
 `Documentation/G7_2_ENDABNAHME_CHECKLISTE.md`; Browser-Sitzung, Android-Gerät
 und physische RFID-/NFC-Tags sind noch manuell abzunehmen. G6/G7 bleiben nur auf
 DemoDB; VereinsDB bleibt unverändert.
+
+### G7.3 – Demo-Umgebung für praktische Abnahme
+
+Für das Jahr 2026 wurden ausschließlich auf DemoDB die persistenten,
+eindeutig markierten Daten `CX-G7.3-*` angelegt. Sie liefern Strom Nord +20,
+Strom Süd -10 (prüfbedürftig), Wasser Nord 0 und Wasser Süd nicht berechenbar
+wegen fehlender Jahres-JEA. Setup und Cleanup sind getrennt, wiederholbar und
+in der Endabnahme-Checkliste dokumentiert. Die technischen RFID-Platzhalter
+sind keine physischen Test-Tags. VereinsDB bleibt unverändert; die Bereinigung
+erfolgt erst nach der manuellen Abnahme.
