@@ -1,4 +1,7 @@
 {
+  "scripts": {
+    "test:p11-ap01": "node --test supabase/tests/p11-ap01-fixtures.contract.test.mjs"
+  },
   "devDependencies": {
     "supabase": "^2.83.0"
   }
