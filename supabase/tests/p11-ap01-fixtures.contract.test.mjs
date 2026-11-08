@@ -38,3 +38,33 @@ test("AP-01 fixture catalog is local-only and does not introduce a production mi
   assert.match(seed, /local-only fixture catalog/i);
   assert.ok(migrations.every((file) => !/p11.*ap01/i.test(file)));
 });
+
+test("export metadata foundation precedes its first historical consumer", async () => {
+  const foundation = await read("supabase/migrations/20260923210000_export_metadata_foundation.sql");
+  for (const table of ["app_export_definition", "app_export_filter_definition", "app_export_column_definition"]) {
+    assert.match(foundation, new RegExp(`create table if not exists public\\.${table}`));
+    assert.match(foundation, new RegExp(`alter table public\\.${table} enable row level security`));
+  }
+  assert.match(foundation, /trg_app_export_definition_updated_at/);
+  assert.match(foundation, /references public\.app_export_definition\(export_key\) on delete cascade/g);
+});
+
+test("season finance foundation precedes the historical-season copy", async () => {
+  const foundation = await read("supabase/migrations/20260924220000_saison_finance_foundation.sql");
+  for (const column of ["pacht_pro_qm", "mitgliedsbeitrag", "mitgliedsbeitrag_nebenmitglied", "aufnahmegebuehr", "gebuehr_bauantrag", "is_demo"]) {
+    assert.match(foundation, new RegExp(`add column if not exists ${column}`));
+  }
+  assert.match(foundation, /alter column pacht_pro_qm set not null/);
+});
+
+test("local template replay fixture covers every historically guarded storage object", async () => {
+  const fixture = await read("supabase/migrations/20261017124000_local_template_storage_replay_fixture.sql");
+  assert.match(fixture, /insert into storage\.objects/);
+  assert.match(fixture, /where not exists \(/);
+  for (const path of [
+    "templates/export-zaehler-eichfaelligkeit-hoch/v1/template.pdf",
+    "templates/briefbogen-allgemein/v1/template.pdf",
+    "templates/pachtvertrag/v9/field-spec.json",
+    "templates/export-allgemein/v3/field-spec.json",
+  ]) assert.match(fixture, new RegExp(path.replaceAll(".", "\\.")));
+});

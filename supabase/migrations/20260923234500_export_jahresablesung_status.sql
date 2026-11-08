@@ -34,7 +34,7 @@ as $$
       p.jahr,
       a.ablesedatum,
       a.stand,
-      coalesce(a.pruefstatus, case when a.freigegeben then 'freigegeben' else 'eingereicht' end) as pruefstatus,
+      coalesce(a.pruefstatus::text, case when a.freigegeben then 'freigegeben' else 'eingereicht' end) as pruefstatus,
       a.freigegeben
     from public.zaehler_ablesung a
     cross join parameter p
