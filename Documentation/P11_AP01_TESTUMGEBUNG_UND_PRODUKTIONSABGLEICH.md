@@ -1,7 +1,7 @@
 # P11 – AP-01: Testumgebung und lesender Produktionsabgleich
 
-Stand: 08.11.2026  
-AP-00-Referenz: `P11_FACHREGELMATRIX_TESTKATALOG.md`  
+Stand: 08.11.2026
+AP-00-Referenz: `P11_FACHREGELMATRIX_TESTKATALOG.md`
 Geltung: Voraussetzung für jede spätere Supabase-Änderung aus P11.
 
 ## Produktivabgleich
