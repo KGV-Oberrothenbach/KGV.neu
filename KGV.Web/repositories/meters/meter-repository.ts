@@ -4,7 +4,9 @@ import { type BrowserSession } from "../../lib/supabase-auth";
 
 export type Meter = {
   id: number;
-  parzelle_id: number;
+  parzelle_id: number | null;
+  ist_hauptzaehler: boolean;
+  anlagenbereich: string | null;
   medium: string;
   zaehlernummer: string;
   eingebaut_am: string;
@@ -39,7 +41,7 @@ export type MeterDueStatus = {
 };
 
 export const listMeters = (club: ClubContext, session: BrowserSession) => readSupabaseRest<Meter>({ club, session }, "zaehler", {
-  select: "id,parzelle_id,medium,zaehlernummer,eingebaut_am,ausgebaut_am,eichfaellig_am,status",
+  select: "id,parzelle_id,ist_hauptzaehler,anlagenbereich,medium,zaehlernummer,eingebaut_am,ausgebaut_am,eichfaellig_am,status",
   order: "medium.asc,zaehlernummer.asc",
   limit: "1000",
 });

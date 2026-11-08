@@ -10,6 +10,7 @@
 - `G8_ARBEITSEINSAETZE.md` – fachlicher und technischer Abschlussstand der Arbeitseinsätze
 - `G9_TERMINE_BEKANNTMACHUNGEN.md` – fachlicher und technischer Abschlussstand von Terminen und Bekanntmachungen
 - `WEB_MAUI_FACHVERGLEICH.md` – finaler Web-/MAUI-Fachvergleich, Altvertragsarchitektur, Teststand und Abnahmecheckliste
+- `P11_FACHREGELMATRIX_TESTKATALOG.md` – verbindliche P11-Regel- und Testfallreferenz für nachfolgende CX-Aufträge
 
 ## Hinweise
 - Das aktive Entwicklungslog liegt im Repository-Root in `DEV_LOG.md`.

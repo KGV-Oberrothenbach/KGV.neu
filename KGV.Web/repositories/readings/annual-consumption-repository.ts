@@ -27,6 +27,16 @@ export type AnnualConsumptionSegment = {
   umlagefaehig: boolean;
 };
 
+export type MainSubMeterDifference = {
+  jahr: number; medium: string; anlagenbereich: string; einheit: string;
+  hauptzaehler_verbrauch: number | null; unterzaehler_verbrauch: number | null; differenz: number | null;
+  berechenbar: boolean; pruefbeduerftig: boolean; fehlercode: string | null; fehlertext: string | null;
+};
+
 export function listAnnualConsumptionSegments(club: ClubContext, session: BrowserSession, seasonYear: number) {
   return callSupabaseRpc<AnnualConsumptionSegment[]>({ club, session }, "rpc_jahresverbrauch_segmente", { p_jahr: seasonYear });
+}
+
+export function listMainSubMeterDifferences(club: ClubContext, session: BrowserSession, seasonYear: number) {
+  return callSupabaseRpc<MainSubMeterDifference[]>({ club, session }, "rpc_jahresverbrauch_haupt_unter_differenz", { p_jahr: seasonYear });
 }

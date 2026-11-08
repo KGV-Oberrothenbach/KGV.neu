@@ -127,6 +127,15 @@ public sealed class ZaehlerwechselEinbauPage : ContentPage
         var zaehlernummer = _zaehlernummerEntry.Text.Trim();
         var eichdatum = new DateTime(eichjahr, 1, 1);
 
+        // Der atomare Hauptzählerwechsel startet immer mit einem aktiven
+        // Hauptzähler und wird in der Ausbau-Seite vollständig abgeschlossen.
+        // Der bisherige Einbau-Flow bleibt deshalb ausschließlich parzellenbezogen.
+        if (context.IstHauptzaehler || context.ParzelleId is not > 0)
+        {
+            _statusLabel.Text = "Ein Hauptzähler wird über den atomaren Zählerwechsel mit aktivem Hauptzähler gewechselt.";
+            return;
+        }
+
         _isBusy = true;
         try
         {
@@ -154,7 +163,7 @@ public sealed class ZaehlerwechselEinbauPage : ContentPage
                 return;
             }
 
-            var activeMeterId = await ResolveNewMeterIdAsync(context.ParzelleId, medium, einbauDatum, zaehlernummer);
+            var activeMeterId = await ResolveNewMeterIdAsync(context.ParzelleId.Value, medium, einbauDatum, zaehlernummer);
             if (activeMeterId <= 0)
             {
             _statusLabel.Text = "Der neu angelegte Zähler konnte für den anschließenden Ablese-Flow nicht wieder aufgelöst werden.";

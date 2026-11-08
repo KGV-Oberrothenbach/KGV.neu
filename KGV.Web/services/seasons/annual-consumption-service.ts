@@ -1,6 +1,6 @@
 import type { ClubContext } from "../../models/auth/club";
 import type { BrowserSession } from "../../lib/supabase-auth";
-import { listAnnualConsumptionSegments, type AnnualConsumptionSegment } from "../../repositories/readings/annual-consumption-repository";
+import { listAnnualConsumptionSegments, listMainSubMeterDifferences, type AnnualConsumptionSegment, type MainSubMeterDifference } from "../../repositories/readings/annual-consumption-repository";
 
 export type AnnualConsumption = {
   year: number;
@@ -25,4 +25,8 @@ export async function getAnnualConsumption(club: ClubContext, session: BrowserSe
     issues: segments.filter((segment) => !segment.berechenbar),
     segmentsByMedium,
   };
+}
+
+export function getMainSubMeterDifferences(club: ClubContext, session: BrowserSession, seasonYear: number): Promise<MainSubMeterDifference[]> {
+  return listMainSubMeterDifferences(club, session, seasonYear);
 }

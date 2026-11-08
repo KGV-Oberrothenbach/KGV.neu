@@ -21,8 +21,9 @@ export type MeterReadingInsert = Pick<MeterReading, "zaehler_id" | "stand" | "ab
 export const listReadingMeters = (club: ClubContext, session: BrowserSession): Promise<Meter[]> => listMeters(club, session);
 export const listReadingParcels = (club: ClubContext, session: BrowserSession): Promise<MeterOverviewParcel[]> => listMeterOverviewParcels(club, session);
 export const listReadingMetersForParcels = (club: ClubContext, session: BrowserSession, parcelIds: number[]) => parcelIds.length ? readSupabaseRest<Meter>({ club, session }, "zaehler", {
-  select: "id,parzelle_id,medium,zaehlernummer,eingebaut_am,ausgebaut_am,eichfaellig_am,status",
+  select: "id,parzelle_id,ist_hauptzaehler,anlagenbereich,medium,zaehlernummer,eingebaut_am,ausgebaut_am,eichfaellig_am,status",
   parzelle_id: `in.(${parcelIds.join(",")})`,
+  ist_hauptzaehler: "eq.false",
   order: "medium.asc,zaehlernummer.asc",
   limit: "1000",
 }) : Promise.resolve([] as Meter[]);

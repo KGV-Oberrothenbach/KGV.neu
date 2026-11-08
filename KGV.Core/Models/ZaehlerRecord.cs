@@ -12,7 +12,13 @@ public sealed class ZaehlerRecord : BaseModel
     public long Id { get; set; }
 
     [Column("parzelle_id")]
-    public long ParzelleId { get; set; }
+    public long? ParzelleId { get; set; }
+
+    [Column("ist_hauptzaehler")]
+    public bool IstHauptzaehler { get; set; }
+
+    [Column("anlagenbereich")]
+    public string? Anlagenbereich { get; set; }
 
     [Column("medium")]
     public string Medium { get; set; } = string.Empty;

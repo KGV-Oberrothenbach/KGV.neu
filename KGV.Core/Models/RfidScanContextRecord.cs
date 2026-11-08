@@ -8,7 +8,13 @@ namespace KGV.Core.Models
     public sealed class RfidScanContextRecord : BaseModel
     {
         [Column("parzelle_id")]
-        public int ParzelleId { get; set; }
+        public int? ParzelleId { get; set; }
+
+        [Column("ist_hauptzaehler")]
+        public bool IstHauptzaehler { get; set; }
+
+        [Column("anlagenbereich")]
+        public string? Anlagenbereich { get; set; }
 
         [Column("anlage")]
         public string? Anlage { get; set; }
@@ -43,7 +49,7 @@ namespace KGV.Core.Models
         [Column("status")]
         public string? Status { get; set; }
 
-        public string ParzelleDisplayName => string.IsNullOrWhiteSpace(Anlage) ? GartenNr ?? string.Empty : $"{GartenNr} - {Anlage}";
+        public string ParzelleDisplayName => IstHauptzaehler ? $"Hauptzähler {MediumDisplay} {Anlagenbereich}" : (string.IsNullOrWhiteSpace(Anlage) ? GartenNr ?? string.Empty : $"{GartenNr} - {Anlage}");
         public bool HasActiveMeter => AktiverZaehlerId.HasValue && AktiverZaehlerId.Value > 0;
         public string MediumDisplay => string.Equals(Medium, "wasser", StringComparison.OrdinalIgnoreCase) ? "Wasser" : "Strom";
         public string RfidDisplay => string.IsNullOrWhiteSpace(RfidTagUid) ? "—" : RfidTagUid.Trim();

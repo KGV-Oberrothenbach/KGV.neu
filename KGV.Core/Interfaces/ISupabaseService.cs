@@ -65,6 +65,10 @@ namespace KGV.Core.Interfaces
         Task<StromzaehlerRecord?> GetActiveStromzaehlerAsync(int parzelleId, DateTime onDate);
         Task<WasserzaehlerRecord?> GetActiveWasserzaehlerAsync(int parzelleId, DateTime onDate);
         Task<List<ActiveMeterCandidate>> GetActiveMeterCandidatesAsync(int parzelleId, string medium, DateTime onDate);
+        Task<List<SelectableActiveMeter>> GetSelectableActiveMetersAsync(SelectableActiveMeterQuery query);
+        Task<List<HauptzaehlerMessstelleRecord>> GetHauptzaehlerMessstellenAsync();
+        Task<HauptzaehlerMessstelleRecord?> GetHauptzaehlerMessstelleByRfidAsync(string rfidTagUid);
+        Task<SelectableActiveMeter?> GetActiveHauptzaehlerForMessstelleAsync(string medium, string anlagenbereich, DateTime onDate);
 
         Task<bool> AddStromzaehlerAsync(StromzaehlerInsertRecord request);
         Task<bool> AddWasserzaehlerAsync(WasserzaehlerInsertRecord request);
