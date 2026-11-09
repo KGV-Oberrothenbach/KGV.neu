@@ -24,30 +24,24 @@ begin
   values (v_user_id, 'authenticated', 'authenticated',
     'g5-rfid-' || v_user_id::text || '@test.invalid', '', now(),
     '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb, now(), now());
-  insert into public.mitglied (name, vorname, auth_user_id, role, is_demo, aufnahme_status)
-  values ('G5 Test', 'RFID', v_user_id, 'user', true, 'aufgenommen')
+  insert into public.mitglied (name, vorname, auth_user_id, role, aufnahme_status)
+  values ('G5 Test', 'RFID', v_user_id, 'user', 'aufgenommen')
   returning id into v_member_id;
-  insert into public.app_user (user_id, mitglied_id, role, is_demo_account, is_demo,
+  insert into public.app_user (user_id, mitglied_id, role,
     is_protected, permission_grants, permission_revocations)
-  values (v_user_id, v_member_id, 'user', true, true, false, 96, 0)
+  values (v_user_id, v_member_id, 'user', false, 96, 0)
   on conflict (user_id) do update set
     mitglied_id = excluded.mitglied_id, role = excluded.role,
-    is_demo_account = excluded.is_demo_account, is_demo = excluded.is_demo,
     is_protected = excluded.is_protected, permission_grants = excluded.permission_grants,
     permission_revocations = excluded.permission_revocations;
   perform set_config('request.jwt.claim.sub', v_user_id::text, true);
   perform set_config('request.jwt.claim.role', 'authenticated', true);
 
-  -- Bestehender Parzellenpfad: Der Resolver muss ihn unverändert liefern.
-  select p.id, coalesce(p.rfid_strom, p.rfid_wasser)
-    into v_parcel_id, v_parcel_tag
-  from public.parzelle p
-  where coalesce(p.rfid_strom, p.rfid_wasser) is not null
-  order by p.id
-  limit 1;
-  if v_parcel_tag is null then
-    raise exception 'Der DemoDB-Test benötigt mindestens eine Parzellen-RFID.';
-  end if;
+  -- Synthetischer Parzellenpfad: Der Resolver muss ihn unverändert liefern.
+  v_parcel_tag := 'CX-G5-PARZELLE-' || replace(v_user_id::text, '-', '');
+  insert into public.parzelle(garten_nr, "Anlage", rfid_strom, aktiv)
+  values ('CX-G5-RFID', 'Test', v_parcel_tag, true)
+  returning id into v_parcel_id;
   if not exists (
     select 1 from public.resolve_rfid_scan_context('  ' || lower(v_parcel_tag) || '  ') r
     where r.parzelle_id = v_parcel_id and r.ist_hauptzaehler = false
@@ -122,15 +116,14 @@ begin
   values (v_denied_user_id, 'authenticated', 'authenticated',
     'g5-denied-' || v_denied_user_id::text || '@test.invalid', '', now(),
     '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb, now(), now());
-  insert into public.mitglied (name, vorname, auth_user_id, role, is_demo, aufnahme_status)
-  values ('G5 Test', 'Denied', v_denied_user_id, 'user', true, 'aufgenommen')
+  insert into public.mitglied (name, vorname, auth_user_id, role, aufnahme_status)
+  values ('G5 Test', 'Denied', v_denied_user_id, 'user', 'aufgenommen')
   returning id into v_denied_member_id;
-  insert into public.app_user (user_id, mitglied_id, role, is_demo_account, is_demo,
+  insert into public.app_user (user_id, mitglied_id, role,
     is_protected, permission_grants, permission_revocations)
-  values (v_denied_user_id, v_denied_member_id, 'user', true, true, false, 0, 0)
+  values (v_denied_user_id, v_denied_member_id, 'user', false, 0, 0)
   on conflict (user_id) do update set
     mitglied_id = excluded.mitglied_id, role = excluded.role,
-    is_demo_account = excluded.is_demo_account, is_demo = excluded.is_demo,
     is_protected = excluded.is_protected, permission_grants = excluded.permission_grants,
     permission_revocations = excluded.permission_revocations;
   perform set_config('request.jwt.claim.sub', v_denied_user_id::text, true);

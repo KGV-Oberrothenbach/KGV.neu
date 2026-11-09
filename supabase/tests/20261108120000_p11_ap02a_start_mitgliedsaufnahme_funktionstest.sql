@@ -10,12 +10,12 @@ create temporary table p11_start_test_ids (
   revoked_admin_user uuid not null
 ) on commit drop;
 
-insert into public.mitglied(name, vorname, aktiv, aufnahme_status, is_demo)
-values ('P11 Antrag', 'Test', false, 'antrag_offen', false)
+insert into public.mitglied(name, vorname, aktiv, aufnahme_status)
+values ('P11 Antrag', 'Test', false, 'antrag_offen')
 returning id as applicant_mitglied_id \gset
 
-insert into public.mitglied(name, vorname, aktiv, aufnahme_status, is_demo)
-values ('P11 Abstimmung', 'Test', true, 'aufgenommen', false)
+insert into public.mitglied(name, vorname, aktiv, aufnahme_status)
+values ('P11 Abstimmung', 'Test', true, 'aufgenommen')
 returning id as voter_mitglied_id \gset
 
 insert into public.vereinsfunktion(schluessel, bezeichnung)

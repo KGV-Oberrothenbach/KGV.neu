@@ -11,10 +11,10 @@ begin
   insert into auth.users(id,aud,role,email,encrypted_password,email_confirmed_at,raw_app_meta_data,raw_user_meta_data,created_at,updated_at)
   values(v_user,'authenticated','authenticated','g6-'||v_user::text||'@test.invalid','',now(),'{"provider":"email","providers":["email"]}','{}',now(),now());
   select coalesce(max(id),0)+1000000 into v_member from public.mitglied;
-  insert into public.mitglied(id,name,vorname,auth_user_id,role,is_demo,aufnahme_status)
-  values(v_member,'G6 Test','Verbrauch',v_user,'user',true,'aufgenommen');
-  insert into public.app_user(user_id,mitglied_id,role,is_demo_account,is_demo,is_protected,permission_grants,permission_revocations)
-  values(v_user,v_member,'user',true,true,false,96,0)
+  insert into public.mitglied(id,name,vorname,auth_user_id,role,aufnahme_status)
+  values(v_member,'G6 Test','Verbrauch',v_user,'user','aufgenommen');
+  insert into public.app_user(user_id,mitglied_id,role,is_protected,permission_grants,permission_revocations)
+  values(v_user,v_member,'user',false,96,0)
   on conflict(user_id) do update set mitglied_id=excluded.mitglied_id, permission_grants=excluded.permission_grants, permission_revocations=excluded.permission_revocations;
   perform set_config('request.jwt.claim.sub',v_user::text,true);
   perform set_config('request.jwt.claim.role','authenticated',true);
@@ -24,12 +24,12 @@ begin
   end if;
   select coalesce(max(id),0)+1000000 into v_parcel_base from public.parzelle;
   v_parcels := array[v_parcel_base,v_parcel_base+1,v_parcel_base+2,v_parcel_base+3,v_parcel_base+4];
-  insert into public.parzelle(id,garten_nr,"Anlage",hat_strom,hat_wasser,rfid_strom,rfid_wasser,aktiv,is_demo)
-  values (v_parcels[1],'CX-G6-1','Nord',true,true,'CX-G6-S-1','CX-G6-W-1',true,true),
-    (v_parcels[2],'CX-G6-2','Nord',true,true,'CX-G6-S-2','CX-G6-W-2',true,true),
-    (v_parcels[3],'CX-G6-3','Süd',true,true,'CX-G6-S-3','CX-G6-W-3',true,true),
-    (v_parcels[4],'CX-G6-4','Nord',true,true,'CX-G6-S-4','CX-G6-W-4',true,true),
-    (v_parcels[5],'CX-G6-5','Süd',true,true,'CX-G6-S-5','CX-G6-W-5',true,true);
+  insert into public.parzelle(id,garten_nr,"Anlage",hat_strom,hat_wasser,rfid_strom,rfid_wasser,aktiv)
+  values (v_parcels[1],'CX-G6-1','Nord',true,true,'CX-G6-S-1','CX-G6-W-1',true),
+    (v_parcels[2],'CX-G6-2','Nord',true,true,'CX-G6-S-2','CX-G6-W-2',true),
+    (v_parcels[3],'CX-G6-3','Süd',true,true,'CX-G6-S-3','CX-G6-W-3',true),
+    (v_parcels[4],'CX-G6-4','Nord',true,true,'CX-G6-S-4','CX-G6-W-4',true),
+    (v_parcels[5],'CX-G6-5','Süd',true,true,'CX-G6-S-5','CX-G6-W-5',true);
 
   insert into public.zaehler(parzelle_id,ist_hauptzaehler,medium,anlagenbereich,zaehlernummer,eichdatum,eingebaut_am,ausgebaut_am,status) values
     (null,true,'strom','Nord','CX-G6-H-SN-A',date '2025-01-01',date '2025-01-01',date '2026-04-01','ausgebaut'),

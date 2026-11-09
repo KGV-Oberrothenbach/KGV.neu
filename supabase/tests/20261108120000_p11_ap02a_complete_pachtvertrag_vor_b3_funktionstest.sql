@@ -15,20 +15,20 @@ values
  ('00000000-0000-0000-0000-000000000303','authenticated','authenticated','p11-lease-revoked@example.test','x',now(),'{}','{}',now(),now()),
  ('00000000-0000-0000-0000-000000000304','authenticated','authenticated','p11-lease-foreign@example.test','x',now(),'{}','{}',now(),now());
 
-insert into public.mitglied(name,vorname,aktiv,aufnahme_status,auth_user_id,is_demo)
+insert into public.mitglied(name,vorname,aktiv,aufnahme_status,auth_user_id)
 values
- ('P11 Pacht Recht','Test',true,'aufgenommen','00000000-0000-0000-0000-000000000301',false),
- ('P11 Pacht KeinRecht','Test',true,'aufgenommen','00000000-0000-0000-0000-000000000302',false),
- ('P11 Pacht Entzug','Test',true,'aufgenommen','00000000-0000-0000-0000-000000000303',false),
- ('P11 Pacht Fremd','Test',true,'aufgenommen','00000000-0000-0000-0000-000000000304',false),
- ('P11 Pacht Pächter','Test',true,'aufgenommen',null,false)
+ ('P11 Pacht Recht','Test',true,'aufgenommen','00000000-0000-0000-0000-000000000301'),
+ ('P11 Pacht KeinRecht','Test',true,'aufgenommen','00000000-0000-0000-0000-000000000302'),
+ ('P11 Pacht Entzug','Test',true,'aufgenommen','00000000-0000-0000-0000-000000000303'),
+ ('P11 Pacht Fremd','Test',true,'aufgenommen','00000000-0000-0000-0000-000000000304'),
+ ('P11 Pacht Pächter','Test',true,'aufgenommen',null)
 returning id;
 
-update public.app_user set role='user',permission_grants=524288,permission_revocations=0,is_demo_account=false where user_id in ('00000000-0000-0000-0000-000000000301','00000000-0000-0000-0000-000000000304');
-update public.app_user set role='user',permission_grants=0,permission_revocations=0,is_demo_account=false where user_id='00000000-0000-0000-0000-000000000302';
-update public.app_user set role='admin',permission_grants=0,permission_revocations=524288,is_demo_account=false where user_id='00000000-0000-0000-0000-000000000303';
+update public.app_user set role='user',permission_grants=524288,permission_revocations=0 where user_id in ('00000000-0000-0000-0000-000000000301','00000000-0000-0000-0000-000000000304');
+update public.app_user set role='user',permission_grants=0,permission_revocations=0 where user_id='00000000-0000-0000-0000-000000000302';
+update public.app_user set role='admin',permission_grants=0,permission_revocations=524288 where user_id='00000000-0000-0000-0000-000000000303';
 
-insert into public.parzelle(garten_nr,"Anlage",is_demo) values ('P11-RPC3','P11',false) returning id as parzelle_id \gset
+insert into public.parzelle(garten_nr,"Anlage") values ('P11-RPC3','P11') returning id as parzelle_id \gset
 select id as applicant_mitglied_id from public.mitglied where name='P11 Pacht Pächter' \gset
 
 -- Construct finalized and intentionally invalid workflow rows without

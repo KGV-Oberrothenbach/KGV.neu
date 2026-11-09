@@ -440,6 +440,82 @@ aktiven Schema entfernen.
 | Tests | Frischer vollständiger Supabase-Neuaufbau, Katalogscan auf alle entfernten Namen, Schema-Contract-Test, Rechte- und Vertragsregressionen, Seed-Ausführung. |
 | Abnahme | Der lokale Zielstand enthält keine aktive Spalte, Funktion, Policy, Trigger, Constraint oder View mit Demo-Daten-Scope; `is_protected` und alle fachlichen Schutzmechanismen bestehen fort. |
 
+#### D5 – Umsetzungs- und Abnahmestand (09.11.2026)
+
+**Status:** lokal technisch abgeschlossen. B-01 bleibt als betrieblicher
+Freigabe-Blocker offen; D6 wurde nicht begonnen. Es erfolgten kein produktiver
+Zugriff, kein Deployment und kein `db push --linked`.
+
+Migration und physischer Schemaabbau:
+
+- `20261109130000_p11_demo_cleanup_d5_physical_schema.sql` stellt 30
+  abhängige Funktionen explizit auf den endgültigen projektlokalen Vertrag
+  um. Effektive Rechte, Akteursbindung, Eigentümer-, Mitgliedschafts-,
+  Dokument-, Archiv-, Status- und Idempotenzprüfungen bleiben erhalten.
+- Entfernt wurden die elf Kompatibilitätsspalten
+  `app_user.is_demo_account`, `auth_allowlist.allow_demo_access` sowie
+  `is_demo` aus `arbeitseinsatz`, `bekanntmachung`,
+  `fachnummer_reservierung`, `historical_contract_operation`, `mitglied`,
+  `parzelle`, `saison`, `termin` und `wartungsvertraege`. Fachliche
+  Datensätze wurden nicht gelöscht oder umnummeriert.
+- Kontrolliert entfernt wurden 20 nicht mehr benötigte Funktionen
+  (D2-Kompatibilitätstrigger, Demo-Scope-Helfer, Reviewer-Helfer und der
+  abgeschlossene D4-Preflight), zwölf Trigger, zehn Übergangsconstraints und
+  vier obsolete Demo-Fachnummernsequenzen. `DROP CASCADE` wurde nicht
+  verwendet.
+- `current_app_user_context()` liefert nun ausschließlich `user_id`,
+  `mitglied_id`, `role`, `permission_grants`, `permission_revocations` und
+  `is_protected`. Seine drei direkten Storage-Policy-Abhängigkeiten wurden
+  vor dem kontrollierten Neuerstellen entfernt und anschließend mit
+  unverändertem fachlichem Zugriff wiederhergestellt. EXECUTE bleibt auf
+  `authenticated` und `service_role` begrenzt.
+- Die abschließende Katalogprüfung bricht die Migration ab, falls im aktiven
+  `public`-Schema oder in den betroffenen RLS-Policies noch eine Demo-Spalte,
+  Demo-Funktion, Demo-Policy, Demo-View, ein Demo-Constraint oder
+  Demo-Index vorhanden ist. Der eigenständige D5-Test prüft zusätzlich die
+  aktiven Trigger.
+
+Lokale Abnahme:
+
+- vollständiger `supabase db reset --local` einschließlich sämtlicher
+  Migrationen, D5-Migration und Seed: bestanden;
+- `20261109130000_p11_demo_cleanup_d5_schema_sicherheitstest.sql`:
+  Katalogfreiheit, neuer Benutzerkontext, unverändertes `is_protected`,
+  individuelle Gewährung, Admin-Entzug, direkter RPC-Schutz,
+  Mitgliedschaftsschutz sowie D4-Nummernvertrag und Idempotenz bestanden;
+- AP-02A-RPC-Tests 1 bis 6 einschließlich echter
+  Ersatzvertragsneuanlage: vollständig bestanden;
+- angepasster D4-Nummerntest und echter Parallelitätstest: bestanden;
+- betroffene aktive Zähler-/RFID-SQL-Tests: Strukturtest,
+  Hauptzähler-Funktionstest und RFID-Integration bestanden. Der zusätzlich
+  ausgeführte G6-Jahresverbrauchstest erreicht nach der D5-Fixture-Anpassung
+  die unveränderte Bestandsfunktion, scheitert dort jedoch weiterhin an
+  `coalesce(ablesung_pruefstatus, '')`, weil der Leertext kein gültiger
+  Enum-Wert ist. Diese fachfremde Bestandsfunktion wurde in D5 nicht
+  verändert;
+- bestehende Supabase-Regressionssuite: **87/87 bestanden**;
+- gezielte Web-Rechte-, Verbindungs-, Dokument- und Vertragsprüfungen:
+  **41/42 bestanden**. Die einzige Abweichung ist eine bereits veraltete
+  Quelltexterwartung in `prepared-contract-service.test.mjs`, die trotz des
+  seit D1 verwendeten zentralen Edge-Transports weiterhin einen direkt in der
+  Fachfunktion aufgebauten Authorization-Header erwartet. Der zentrale
+  Transport und der Web-Produktionsbuild bestehen; die Abweichung wurde
+  nicht fachfremd in D5 behoben.
+- Web-Produktionsbuild: bestanden, nur bestehender Chunkgrößenhinweis;
+- MAUI-Android-Build: bestanden, 0 Fehler; bestehende Nullable-/Obsolete-
+  Warnungen und `NU1902`/`NU1903` zu `SixLabors.ImageSharp 2.1.13` bleiben
+  fachfremd offen;
+- .NET-Suite: **414/419 bestanden**. Die fünf bereits dokumentierten
+  Altfehler betreffen zwei veraltete Rollenmaskenerwartungen, zwei
+  PDF-Vorlagenkompatibilitätstests und einen sichtbaren PDF-Dateinamentest.
+
+Verbleibende historische Demo-Bezeichnungen stehen ausschließlich in
+unveränderten historischen Migrationen und isolierten historischen
+Testfixtures beziehungsweise in noch umzubauenden D6-Seeds/Tests. D6 muss
+diese Fixtures auf den gemeinsamen Zielvertrag umstellen und die
+Gesamtabnahme beider Projektkonfigurationen durchführen. B-01 bleibt bis zum
+separaten betrieblichen Nachweis offen.
+
 ### D6 – Seeds, Tests, Dokumentation und Endabnahme
 
 **Ziel:** Die DemoDB wird weiterhin mit synthetischen Daten aufgebaut, aber

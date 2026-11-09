@@ -6,9 +6,9 @@ insert into auth.users(id,aud,role,email,encrypted_password,email_confirmed_at,r
  ('00000000-0000-0000-0000-000000000402','authenticated','authenticated','p11-discard-denied@example.test','x',now(),'{}','{}',now(),now()),
  ('00000000-0000-0000-0000-000000000403','authenticated','authenticated','p11-discard-revoked@example.test','x',now(),'{}','{}',now(),now()),
  ('00000000-0000-0000-0000-000000000404','authenticated','authenticated','p11-discard-foreign@example.test','x',now(),'{}','{}',now(),now());
-insert into public.mitglied(name,vorname,aktiv,aufnahme_status,is_demo) values ('P11 Verwerfen','Antrag',false,'antrag_offen',false) returning id as applicant_id \gset
-insert into public.app_user(user_id,role,permission_grants,permission_revocations,is_demo_account) values
- ('00000000-0000-0000-0000-000000000401','user',524304,0,false),('00000000-0000-0000-0000-000000000402','user',0,0,false),('00000000-0000-0000-0000-000000000403','admin',0,524304,false),('00000000-0000-0000-0000-000000000404','user',524304,0,false);
+insert into public.mitglied(name,vorname,aktiv,aufnahme_status) values ('P11 Verwerfen','Antrag',false,'antrag_offen') returning id as applicant_id \gset
+insert into public.app_user(user_id,role,permission_grants,permission_revocations) values
+ ('00000000-0000-0000-0000-000000000401','user',524304,0),('00000000-0000-0000-0000-000000000402','user',0,0),('00000000-0000-0000-0000-000000000403','admin',0,524304),('00000000-0000-0000-0000-000000000404','user',524304,0);
 set local session_replication_role=replica;
 insert into public.kommunikationsvorgang(vorgangstyp,dokumenttyp,status,mitglied_id,revision,zugewiesen_an) values ('vertrag_signatur','mitgliedsantrag','entwurf',:'applicant_id',1,'00000000-0000-0000-0000-000000000401') returning id as vorgang_id \gset
 insert into public.dokument(mitglied_id,storage_path,titel,dateiname,mime_type,source_kommunikationsvorgang_id,source_revision) values (:'applicant_id','p11/discard.pdf','P11 Vertrag','p11.pdf','application/pdf',:'vorgang_id',1) returning id as final_dokument_id \gset

@@ -10,8 +10,8 @@ create temporary table p11_complete_test_ids (
   foreign_granted_user uuid not null
 ) on commit drop;
 
-insert into public.mitglied(name, vorname, aktiv, aufnahme_status, is_demo)
-values ('P11 Abschluss', 'Antrag', false, 'antrag_offen', false)
+insert into public.mitglied(name, vorname, aktiv, aufnahme_status)
+values ('P11 Abschluss', 'Antrag', false, 'antrag_offen')
 returning id as applicant_mitglied_id \gset
 
 -- A finalized application and its final document form a provenance cycle.
@@ -37,11 +37,11 @@ values (:'vorgang_id',
         '00000000-0000-0000-0000-000000000203'::uuid,
         '00000000-0000-0000-0000-000000000204'::uuid);
 
-insert into public.app_user(user_id, role, permission_grants, permission_revocations, is_demo_account)
-select granted_user, 'user', 524288, 0, false from p11_complete_test_ids
-union all select denied_user, 'user', 0, 0, false from p11_complete_test_ids
-union all select revoked_admin_user, 'admin', 0, 524288, false from p11_complete_test_ids
-union all select foreign_granted_user, 'user', 524288, 0, false from p11_complete_test_ids;
+insert into public.app_user(user_id, role, permission_grants, permission_revocations)
+select granted_user, 'user', 524288, 0 from p11_complete_test_ids
+union all select denied_user, 'user', 0, 0 from p11_complete_test_ids
+union all select revoked_admin_user, 'admin', 0, 524288 from p11_complete_test_ids
+union all select foreign_granted_user, 'user', 524288, 0 from p11_complete_test_ids;
 
 grant select on p11_complete_test_ids to service_role, authenticated;
 

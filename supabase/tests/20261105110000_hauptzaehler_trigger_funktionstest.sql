@@ -37,20 +37,17 @@ begin
   -- die Sequenz zu verändern.
   select coalesce(max(id), 0) + 1000000 into v_test_mitglied_id from public.mitglied;
   insert into public.mitglied
-    (id, name, vorname, auth_user_id, role, is_demo, aufnahme_status)
+    (id, name, vorname, auth_user_id, role, aufnahme_status)
   values
-    (v_test_mitglied_id, 'G3.5 Test', 'RPC', v_test_user_id, 'user', true, 'aufgenommen');
+    (v_test_mitglied_id, 'G3.5 Test', 'RPC', v_test_user_id, 'user', 'aufgenommen');
 
   insert into public.app_user
-    (user_id, mitglied_id, role, is_demo_account, is_demo, is_protected,
-     permission_grants, permission_revocations)
+    (user_id, mitglied_id, role, is_protected, permission_grants, permission_revocations)
   values
-    (v_test_user_id, v_test_mitglied_id, 'user', true, true, false, 96, 0)
+    (v_test_user_id, v_test_mitglied_id, 'user', false, 96, 0)
   on conflict (user_id) do update
     set mitglied_id = excluded.mitglied_id,
         role = excluded.role,
-        is_demo_account = excluded.is_demo_account,
-        is_demo = excluded.is_demo,
         is_protected = excluded.is_protected,
         permission_grants = excluded.permission_grants,
         permission_revocations = excluded.permission_revocations;

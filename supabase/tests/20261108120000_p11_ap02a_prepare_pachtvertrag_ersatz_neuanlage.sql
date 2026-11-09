@@ -1,9 +1,9 @@
 begin;
 create temporary table p11_chain(actor uuid, predecessor bigint, member_id bigint, created_id bigint) on commit drop;
-insert into public.mitglied(name,vorname,aktiv,aufnahme_status,is_demo) values ('P11 Ersatz','Pächter',true,'aufgenommen',false) returning id as member_id \gset
+insert into public.mitglied(name,vorname,aktiv,aufnahme_status) values ('P11 Ersatz','Pächter',true,'aufgenommen') returning id as member_id \gset
 insert into public.app_user(user_id,role,permission_grants,permission_revocations) values ('00000000-0000-0000-0000-000000000601','user',524288,0);
 set local session_replication_role=replica;
-insert into public.parzelle(garten_nr,"Anlage",is_demo) values ('P11-CHAIN','P11',false) returning id as parcel_id \gset
+insert into public.parzelle(garten_nr,"Anlage") values ('P11-CHAIN','P11') returning id as parcel_id \gset
 insert into public.kommunikationsvorgang(vorgangstyp,dokumenttyp,status,mitglied_id,parzelle_id,entwurf_daten) values ('vertrag_signatur','pachtvertrag','erledigt',:'member_id',:'parcel_id','{"draft":{"startDate":"2026-01-01"}}') returning id as source_id \gset
 insert into public.dokument(parzelle_id,storage_path,titel,dateiname,mime_type,source_kommunikationsvorgang_id,source_revision) values (:'parcel_id','p11/chain.pdf','P11','p11.pdf','application/pdf',:'source_id',1) returning id as doc_id \gset
 insert into public.pachtverhaeltnis(parzelle_id,urspruenglicher_pachtbeginn) values (:'parcel_id','2026-01-01') returning id as lease_id \gset

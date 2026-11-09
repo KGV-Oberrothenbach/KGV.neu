@@ -8,7 +8,7 @@ insert into public.app_user(user_id,role,permission_grants,permission_revocation
 -- wrapper's permission, assignment and idempotency contract without changing
 -- the separately reserved phase-9 creator.
 set local session_replication_role=replica;
-insert into public.parzelle(garten_nr,"Anlage",is_demo) values ('P11-RPC5','P11',false) returning id as parzelle_id \gset
+insert into public.parzelle(garten_nr,"Anlage") values ('P11-RPC5','P11') returning id as parzelle_id \gset
 insert into public.dokument(parzelle_id,storage_path,titel,dateiname,mime_type) values (:'parzelle_id','p11/rpc5.pdf','P11 RPC5','p11.pdf','application/pdf') returning id as dokument_id \gset
 insert into public.pachtverhaeltnis(parzelle_id) values (:'parzelle_id') returning id as lease_id \gset
 insert into public.pachtvertragsfassung(pachtverhaeltnis_id,dokument_id,fassungstyp) values (:'lease_id',:'dokument_id','erstvertrag') returning id as fassung_id \gset

@@ -92,10 +92,10 @@ insert into auth.users(
   'authenticated', 'authenticated', 'p11-d4-historical@example.test', '', now(),
   '{}'::jsonb, '{}'::jsonb, now(), now()
 );
-insert into public.mitglied(id, name, vorname, aktiv, aufnahme_status, is_demo)
-values (94801, 'D4', 'Historisch', true, 'aufgenommen', false);
-insert into public.parzelle(id, garten_nr, "Anlage", aktiv, is_demo)
-values (94801, 'D4-801', 'D4', true, false);
+insert into public.mitglied(id, name, vorname, aktiv, aufnahme_status)
+values (94801, 'D4', 'Historisch', true, 'aufgenommen');
+insert into public.parzelle(id, garten_nr, "Anlage", aktiv)
+values (94801, 'D4-801', 'D4', true);
 insert into public.pachtverhaeltnis(id, parzelle_id, urspruenglicher_pachtbeginn)
 values (94801, 94801, date '2010-01-01');
 insert into public.pachtverhaeltnis_beteiligung(
@@ -165,15 +165,15 @@ begin
   where quelle_art = 'kommunikationsvorgang' and quelle_id = 94101;
 
   begin
-    insert into public.fachnummer_reservierung(is_demo, nummer, art, quelle_art, quelle_id)
-    values (true, v_number, 'mitgliedsantrag', 'kommunikationsvorgang', 94102);
+    insert into public.fachnummer_reservierung(nummer, art, quelle_art, quelle_id)
+    values (v_number, 'mitgliedsantrag', 'kommunikationsvorgang', 94102);
     raise exception 'D4 allowed one number for a different source';
   exception when unique_violation then null;
   end;
 
   begin
-    insert into public.fachnummer_reservierung(is_demo, nummer, art, quelle_art, quelle_id)
-    values (true, 19999, 'mitgliedsantrag', 'kommunikationsvorgang', 94101);
+    insert into public.fachnummer_reservierung(nummer, art, quelle_art, quelle_id)
+    values (19999, 'mitgliedsantrag', 'kommunikationsvorgang', 94101);
     raise exception 'D4 allowed a duplicate source binding';
   exception when unique_violation then null;
   end;
@@ -197,47 +197,4 @@ begin
 end;
 $$;
 
-rollback;
-
--- Isolated negative preflight: deliberately duplicate a number, prove the
--- migration guard aborts, then roll the entire synthetic collision back.
-begin;
-alter table public.fachnummer_reservierung drop constraint fachnummer_reservierung_pkey;
-insert into public.fachnummer_reservierung(is_demo, nummer, art, quelle_art, quelle_id)
-values
-  (false, 19998, 'mitgliedsantrag', 'kommunikationsvorgang', 94981),
-  (true, 19998, 'mitgliedsantrag', 'kommunikationsvorgang', 94982);
-do $$
-begin
-  begin
-    perform public.assert_fachnummer_reservierung_project_conflict_free();
-    raise exception 'D4 number conflict preflight unexpectedly succeeded';
-  exception when unique_violation then
-    if sqlerrm not like 'D4-Konflikt: Fachnummern sind projektweit nicht eindeutig:%' then
-      raise;
-    end if;
-  end;
-end;
-$$;
-rollback;
-
--- Repeat independently for a duplicate source binding.
-begin;
-alter table public.fachnummer_reservierung drop constraint fachnummer_reservierung_quelle_key;
-insert into public.fachnummer_reservierung(is_demo, nummer, art, quelle_art, quelle_id)
-values
-  (false, 19997, 'mitgliedsantrag', 'kommunikationsvorgang', 94983),
-  (true, 19996, 'mitgliedsantrag', 'kommunikationsvorgang', 94983);
-do $$
-begin
-  begin
-    perform public.assert_fachnummer_reservierung_project_conflict_free();
-    raise exception 'D4 source conflict preflight unexpectedly succeeded';
-  exception when unique_violation then
-    if sqlerrm not like 'D4-Konflikt: Quellbindungen sind projektweit nicht eindeutig:%' then
-      raise;
-    end if;
-  end;
-end;
-$$;
 rollback;
