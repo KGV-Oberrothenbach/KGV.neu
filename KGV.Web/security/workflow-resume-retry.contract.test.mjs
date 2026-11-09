@@ -8,14 +8,16 @@ const dispatch = readFileSync(new URL("../../supabase/functions/kgv-send-contrac
 const generator = readFileSync(new URL("../../supabase/functions/kgv-generate-contract/index.ts", import.meta.url), "utf8");
 const documentUpload = readFileSync(new URL("../../supabase/functions/kgv-upload-document/index.ts", import.meta.url), "utf8");
 const provenance = readFileSync(new URL("../../supabase/migrations/20261019100000_prepared_contract_final_document_provenance.sql", import.meta.url), "utf8");
-const numbers = readFileSync(new URL("../../supabase/migrations/20261025130000_nb1_fachnummern_fundament.sql", import.meta.url), "utf8");
+const numbers = readFileSync(new URL("../../supabase/migrations/20261109120000_p11_demo_cleanup_d4_number_reservations.sql", import.meta.url), "utf8");
 const maintenanceNumbers = readFileSync(new URL("../../supabase/migrations/20261027150000_nb2b_b4_wartungsvertragsnummern.sql", import.meta.url), "utf8");
 const phase10 = readFileSync(new URL("../../supabase/migrations/20261028130000_phase10_wartungsvertrag_e2e_haertung.sql", import.meta.url), "utf8");
 const phase11 = readFileSync(new URL("../../supabase/migrations/20261028140000_phase11_vereinsfunktionen_vertretung_e2e_haertung.sql", import.meta.url), "utf8");
 
 test("A/B/D/H: number and signature-start retries reuse one revision and frozen snapshot", () => {
-  assert.match(numbers, /unique\(is_demo, quelle_art, quelle_id\)/);
-  assert.match(numbers, /reserve_fachnummer/);
+  assert.match(numbers, /primary key using index ux_fachnummer_reservierung_d4_nummer/);
+  assert.match(numbers, /unique using index ux_fachnummer_reservierung_d4_quelle/);
+  assert.match(numbers, /create or replace function public\.reserve_fachnummer\(\s*p_art text,\s*p_quelle_art text,\s*p_quelle_id bigint\s*\)/);
+  assert.doesNotMatch(numbers, /p_is_demo boolean/);
   assert.match(numbers, /when 'mitgliedsantrag' then 'mitgliedsantrag'/);
   assert.match(numbers, /when 'pachtvertrag' then 'pachtvertrag'/);
   assert.match(maintenanceNumbers, /quelle_art = 'wartungsvertrag'/);

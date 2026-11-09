@@ -75,10 +75,10 @@ declare
   v_second integer;
 begin
   perform set_config('request.jwt.claim.role', 'service_role', true);
-  v_first := public.reserve_fachnummer('mitgliedsantrag', 'kommunikationsvorgang', 92001, true);
-  v_second := public.reserve_fachnummer('mitgliedsantrag', 'kommunikationsvorgang', 92001, false);
+  v_first := public.reserve_fachnummer('mitgliedsantrag', 'kommunikationsvorgang', 92001);
+  v_second := public.reserve_fachnummer('mitgliedsantrag', 'kommunikationsvorgang', 92001);
   if v_first is distinct from v_second then
-    raise exception 'D2 project-local number reservation is not idempotent across the legacy flag';
+    raise exception 'D2 project-local number reservation is not idempotent';
   end if;
   if not exists (
     select 1 from public.fachnummer_reservierung

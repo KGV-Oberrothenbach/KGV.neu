@@ -349,6 +349,82 @@ ohne Nummern oder Quellbeziehungen zu verlieren.
 | Tests | Direkte SQL-Tests für konfliktfreien und absichtlich kollidierenden Bestand; Vertrags-/historische Vertrags-/Wartungsvertrags-Nummernregressionen; lokale Neuaufbauten mit Vereins- und Demo-Seed. |
 | Abnahme | Schlüssel enthalten `is_demo` nicht mehr, alle vorhandenen Fachnummern und Referenzen bleiben unverändert, jeder Nummern-RPC arbeitet ohne Demo-Parameter und ein Kollisionsbestand bricht sicher ohne Datenänderung ab. |
 
+#### D4 – Umsetzungs- und Abnahmestand (09.11.2026)
+
+**Status:** lokal technisch abgeschlossen. B-01 bleibt offen; D5 und D6 wurden
+nicht begonnen. Es erfolgte kein produktiver Zugriff und kein
+`db push --linked`.
+
+Migration und Konflikt-Preflight:
+
+- `20261109120000_p11_demo_cleanup_d4_number_reservations.sql` führt vor
+  jeder Schlüsseländerung `assert_fachnummer_reservierung_project_conflict_free`
+  aus. Der Check bricht mit `23505` und einer technischen, nicht
+  personenbezogenen Konfliktliste ab, sobald `nummer` oder
+  `(quelle_art, quelle_id)` nach Wegfall des Demo-Anteils mehrfach vorkommen.
+- Zusätzlich wird auf eingehende Fremdschlüssel geprüft. Unerwartete
+  Abhängigkeiten brechen mit `2BP01` ab und müssen einzeln ohne
+  `DROP CASCADE` migriert werden. Der lokale Ausgangsbestand war für beide
+  künftigen Schlüssel konfliktfrei und enthielt keine solchen Fremdschlüssel.
+- Es werden keine Reservierungen gelöscht, zusammengeführt, überschrieben
+  oder umnummeriert. Die bestehenden projektlokalen Sequenzen werden nur bis
+  zur jeweils höchsten bereits reservierten Nummer vorgerückt, damit
+  Folgevergaben nicht kollidieren.
+
+Schlüssel- und Funktionsvertrag:
+
+- Alter Primärschlüssel: `(is_demo, nummer)`; neuer Primärschlüssel:
+  `(nummer)`.
+- Alte Quelleneindeutigkeit: `(is_demo, quelle_art, quelle_id)`; neue
+  Quelleneindeutigkeit: `(quelle_art, quelle_id)`.
+- `reserve_fachnummer(text, text, bigint, boolean)` wurde ohne
+  Kompatibilitätswrapper durch `reserve_fachnummer(text, text, bigint)`
+  ersetzt. Die alte Signatur ist im aktiven Schema nicht mehr vorhanden.
+- `trg_reserve_vertragsnummer` und
+  `reserve_historische_vertragsnummer(bigint)` rufen nur noch den neuen
+  Drei-Parameter-Vertrag auf. Die View `v_wartungsvertrag_fachnummer`
+  verbindet Wartungsvertrag und Reservierung ohne `is_demo`.
+- C#- und TypeScript-Anwendungscode enthielt keinen direkten Aufruf des
+  internen Reservierungs-RPC. Die betroffenen Web-Vertragstests wurden auf
+  den aktiven D4-Vertrag umgestellt. Historische Migrationen bleiben
+  unverändert; isolierte Regressionen, die ausdrücklich einen historischen
+  Migrationsstand aufbauen, dürfen dessen damalige Vier-Parameter-Signatur
+  weiterhin prüfen.
+
+Lokale Abnahme:
+
+- vollständiger `supabase db reset --local` einschließlich sämtlicher
+  Migrationen, `20261109120000` und Seed: bestanden;
+- direkter D4-SQL-Test: neue Schlüssel und Signatur, unveränderte vorhandene
+  Reservierungen, 10xxx/20xxx/80xxx/90xxx, Idempotenz, Vertragsnummern-
+  Trigger, historische Vertragsnummer und Wartungsvertragsnummer bestanden;
+- absichtlich doppelte Nummer sowie absichtlich doppelte Quellbindung wurden
+  jeweils in einer isolierten Transaktion sicher vom Preflight abgewiesen;
+- zwei echte parallele PostgreSQL-Sitzungen erhielten für dieselbe Quelle
+  genau eine identische Reservierung. Die synthetische Zeile wurde entfernt
+  und der vorherige Sequenzstand wiederhergestellt;
+- D2-Neutralitätstest sowie AP-02A-RPC-Tests 1 bis 6: bestanden;
+- bestehende Supabase-Regressionssuite: **87/87 bestanden**;
+- fachnummern-, Vertrags-, Dokument- und Retry-bezogene Web-Contract-Tests:
+  **32/32 bestanden**. Der zusätzlich ausgeführte vollständige historische
+  Web-Contract-Bestand enthält weiterhin bereits bekannte fachfremde,
+  veraltete Erwartungen (unter anderem fehlende historische Dateinamen und
+  alte Masken-/PDF-Verträge); kein Fehler betraf D4;
+- Web-Produktionsbuild: bestanden, nur bestehender Chunkgrößenhinweis;
+- MAUI-Android-Build: bestanden, 0 Fehler. Bestehende Nullable-/Obsolete-
+  Warnungen und `NU1902`/`NU1903` zu `SixLabors.ImageSharp 2.1.13` bleiben
+  fachfremd offen.
+
+Übergang zu D5:
+
+- `fachnummer_reservierung.is_demo` bleibt als stets neutral geschriebene
+  Kompatibilitätsspalte bestehen, ist aber an keinem aktiven Fachschlüssel,
+  Index, Nummern-RPC oder an der Wartungsvertragsnummern-View beteiligt.
+- Die vier nicht mehr verwendeten Demo-Sequenzen, die Kompatibilitätsspalte
+  und der D4-Preflight-Helfer werden erst im kontrollierten physischen
+  Schemaabbau von D5 entfernt. B-01 bleibt ein betrieblicher Blocker für
+  einen späteren produktiven Rollout.
+
 ### D5 – Physisches Schema und Demo-Helfer entfernen
 
 **Ziel:** Nach abgeschlossener Vertragsumstellung alle Demo-Spalten,

@@ -4,8 +4,9 @@ import test from "node:test";
 
 const root = new URL("../../../", import.meta.url);
 const read = (path) => readFile(new URL(path, root), "utf8");
-const [migration, catalogMigration, continuationMigration, generator, webFlow, materialChange, continuation, maui, memberList, assignmentService, assignmentPanel, contractTemplate, extensionTemplate] = await Promise.all([
+const [migration, d4Migration, catalogMigration, continuationMigration, generator, webFlow, materialChange, continuation, maui, memberList, assignmentService, assignmentPanel, contractTemplate, extensionTemplate] = await Promise.all([
   read("supabase/migrations/20261027150000_nb2b_b4_wartungsvertragsnummern.sql"),
+  read("supabase/migrations/20261109120000_p11_demo_cleanup_d4_number_reservations.sql"),
   read("supabase/migrations/20261027160000_nb2b_b4_wartungsvertrag_template_v2.sql"),
   read("supabase/migrations/20261023170000_wv6_echte_verlaengerung.sql"),
   read("supabase/functions/kgv-generate-contract/index.ts"),
@@ -28,6 +29,11 @@ test("a maintenance contract number is reserved once from the contract source on
   assert.match(migration, /when 'mitgliedsantrag' then 'mitgliedsantrag'[\s\S]*when 'pachtvertrag' then 'pachtvertrag'/);
   assert.match(migration, /v_quelle_art := 'kommunikationsvorgang'/);
   assert.match(migration, /quelle_art in \('kommunikationsvorgang', 'historisches_dokument', 'wartungsvertrag'\)/);
+  assert.match(d4Migration, /create or replace function public\.reserve_fachnummer\(\s*p_art text,\s*p_quelle_art text,\s*p_quelle_id bigint\s*\)/);
+  assert.match(d4Migration, /perform public\.reserve_fachnummer\(v_art, v_quelle_art, v_quelle_id\)/);
+  assert.doesNotMatch(d4Migration, /create or replace function public\.reserve_fachnummer\([\s\S]*?p_is_demo boolean/);
+  assert.match(d4Migration, /primary key using index ux_fachnummer_reservierung_d4_nummer/);
+  assert.match(d4Migration, /unique using index ux_fachnummer_reservierung_d4_quelle/);
   assert.match(generator, /loadMaintenanceContractNumber\(auth, wartungsvertragId\)/);
   assert.match(generator, /action === "finalize" && \(!Number\.isSafeInteger\(fachnummer\)/);
   assert.match(generator, /Vertrags-Nr\. \$\{fachnummer\}/);
