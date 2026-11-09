@@ -150,7 +150,7 @@ public sealed class AdminShell : Shell, IAppShellInitializer
 
         Items.Add(CreateItem("Startseite", "home", () => _services.GetRequiredService<HomePage>()));
         Items.Add(CreateItem("Impressum", "impressum", () => _services.GetRequiredService<ImpressumPage>()));
-        if (_userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand)
+        if (PermissionChecks.CanManageCommunicationWorkflows(_userContextState.CurrentUserContext))
         {
             var communicationPages = _services.GetRequiredService<KommunikationPageFactory>();
 
@@ -192,7 +192,7 @@ public sealed class AdminShell : Shell, IAppShellInitializer
             Items.Add(_workhoursReviewItem);
         }
 
-        if (PermissionChecks.CanSearchMembers(_userContextState.CurrentUserContext))
+        if (PermissionChecks.CanManageExports(_userContextState.CurrentUserContext))
             Items.Add(CreateItem("Export", "export", () => _services.GetRequiredService<ExportPage>()));
 
         var managementEntries = new List<(string ContentTitle, string Route, Func<Page> PageFactory)>();
@@ -201,11 +201,13 @@ public sealed class AdminShell : Shell, IAppShellInitializer
             managementEntries.Add(("Saisonverwaltung", "season_management", () => _services.GetRequiredService<SaisonverwaltungPage>()));
         if (PermissionChecks.CanPerformYearEndClosing(managementContext))
             managementEntries.Add(("Jahresabschluss", "annual_closing", () => _services.GetRequiredService<JahresabschlussPage>()));
+        if (PermissionChecks.CanRegisterHistoricalContracts(managementContext))
+            managementEntries.Add(("Historische Verträge", "historical_contracts", () => _services.GetRequiredService<HistoricalContractRegistrationPage>()));
         if (PermissionChecks.CanManageClubSeasonConfiguration(managementContext))
             managementEntries.Add(("Vereinskonfiguration", "club_configuration", () => _services.GetRequiredService<VereinskonfigurationPage>()));
-        if (managementContext?.Role is UserRole.Admin or UserRole.Vorstand)
+        if (PermissionChecks.CanManageClubDocuments(managementContext))
             managementEntries.Add(("Vereinsunterlagen", "club_documents", () => _services.GetRequiredService<VereinsunterlagenPage>()));
-        if (managementContext?.Role is UserRole.Admin or UserRole.Vorstand)
+        if (PermissionChecks.CanManageClubFunctions(managementContext))
             managementEntries.Add(("Vereinsfunktionen", "club_functions", () => _services.GetRequiredService<VereinsfunktionenPage>()));
         foreach (var managementEntry in managementEntries)
             Items.Add(CreateItem(managementEntry.ContentTitle, managementEntry.Route, managementEntry.PageFactory));
@@ -425,7 +427,7 @@ public sealed class AdminShell : Shell, IAppShellInitializer
             AddNavigationButton(menu, _workhoursReviewItem?.Title ?? "Arbeitsstunden freigeben", "workhours_review");
         if (PermissionChecks.CanSearchMembers(_userContextState.CurrentUserContext))
             AddNavigationButton(menu, "Export", "export");
-        if (_userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand)
+        if (PermissionChecks.CanManageCommunicationWorkflows(_userContextState.CurrentUserContext))
             AddNormalGroup(menu, "processes", "Vorgänge", new[]
             {
                 ("Signaturen", CommunicationAreaRoutes.Signatures, true),
@@ -441,10 +443,14 @@ public sealed class AdminShell : Shell, IAppShellInitializer
         var context = _userContextState.CurrentUserContext;
         if (PermissionChecks.CanManageClubSeasonConfiguration(context)) managementEntries.Add(("Saisonverwaltung", "season_management", true));
         if (PermissionChecks.CanPerformYearEndClosing(context)) managementEntries.Add(("Jahresabschluss", "annual_closing", true));
+        if (PermissionChecks.CanRegisterHistoricalContracts(context)) managementEntries.Add(("Historische Verträge", "historical_contracts", true));
         if (PermissionChecks.CanManageClubSeasonConfiguration(context)) managementEntries.Add(("Vereinskonfiguration", "club_configuration", true));
-        if (context?.Role is UserRole.Admin or UserRole.Vorstand)
+        if (PermissionChecks.CanManageClubDocuments(context))
         {
             managementEntries.Add(("Vereinsunterlagen", "club_documents", true));
+        }
+        if (PermissionChecks.CanManageClubFunctions(context))
+        {
             managementEntries.Add(("Vereinsfunktionen", "club_functions", true));
         }
         if (managementEntries.Count > 0)

@@ -43,7 +43,7 @@ public sealed class VereinsfunktionenPage : ContentPage
         Appearing += async (_, _) => await LoadAsync();
     }
 
-    private bool Authorized => _user.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand;
+    private bool Authorized => PermissionChecks.CanManageClubFunctions(_user.CurrentUserContext);
     private async Task LoadAsync()
     {
         if (_busy) return;

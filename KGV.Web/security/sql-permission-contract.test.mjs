@@ -5,7 +5,7 @@ const migration = await readFile(new URL("../../supabase/migrations/202610111300
 const coreFlags = await readFile(new URL("../../KGV.Core/Security/PermissionFlags.cs", import.meta.url), "utf8");
 const coreTests = await readFile(new URL("../../KGV.Tests/PermissionServiceTests.cs", import.meta.url), "utf8");
 
-assert.match(coreFlags, /CanPerformYearEndClosing\s*=\s*1\s*<<\s*23/);
+assert.match(coreFlags, /CanPerformYearEndClosing\s*=\s*1L?\s*<<\s*23/);
 assert.match(coreTests, /16769015L/);
 assert.match(coreTests, /7855607L/);
 assert.match(coreTests, /10L/);

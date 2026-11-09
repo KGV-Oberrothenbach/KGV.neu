@@ -66,13 +66,20 @@ namespace KGV.Core.Security
                | PermissionFlags.CanReadMeters
                | PermissionFlags.CanManageMeterChanges
                | PermissionFlags.CanApproveMeterReadings
-               | PermissionFlags.CanReadRoles;
+               | PermissionFlags.CanReadRoles
+               | PermissionFlags.CanManageExports
+               | PermissionFlags.CanManageClubDocuments
+               | PermissionFlags.CanManageClubFunctions
+               | PermissionFlags.CanManageCommunicationWorkflows;
 
         private static PermissionFlags GetAdminPermissions()
             => GetVorstandPermissions()
                | PermissionFlags.CanCreateMitglied
                | PermissionFlags.CanManageRoles
-               | PermissionFlags.CanPerformYearEndClosing;
+               | PermissionFlags.CanPerformYearEndClosing
+               | PermissionFlags.CanManageClubSeasonConfiguration
+               | PermissionFlags.CanManageDocumentTypes
+               | PermissionFlags.CanArchiveDocuments;
 
         public UserContext CreateContext(Guid userId, string? role, long? mitgliedId, long? grantedPermissions = null, long? revokedPermissions = null, bool isDemoAccount = false)
         {

@@ -66,7 +66,7 @@ public sealed class VereinsunterlagenPage : ContentPage
         Appearing += async (_, _) => await LoadAsync();
     }
 
-    private bool CanManage => _userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand;
+    private bool CanManage => PermissionChecks.CanManageClubDocuments(_userContextState.CurrentUserContext);
 
     private async Task LoadAsync()
     {

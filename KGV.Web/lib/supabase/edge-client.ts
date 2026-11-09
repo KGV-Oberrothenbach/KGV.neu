@@ -4,6 +4,7 @@ export type EdgeRawOptions = {
   method: "POST" | "PUT" | "PATCH" | "DELETE";
   body?: BodyInit | null;
   contentType?: string;
+  accept?: string;
 };
 
 function edgeUrl(context: SupabaseEdgeContext, name: string) {
@@ -11,9 +12,9 @@ function edgeUrl(context: SupabaseEdgeContext, name: string) {
   return `${url}/functions/v1/${encodeURIComponent(name)}`;
 }
 
-function edgeHeaders(context: SupabaseEdgeContext, contentType?: string) {
+function edgeHeaders(context: SupabaseEdgeContext, contentType?: string, accept?: string) {
   const { publishableKey } = resolveSupabaseConfig(context.club);
-  return { apikey: publishableKey, ...(context.session ? { Authorization: `Bearer ${context.session.accessToken}` } : {}), ...(contentType ? { "Content-Type": contentType } : {}) };
+  return { apikey: publishableKey, ...(context.session ? { Authorization: `Bearer ${context.session.accessToken}` } : {}), ...(contentType ? { "Content-Type": contentType } : {}), ...(accept ? { Accept: accept } : {}) };
 }
 
 export async function invokeEdgeFunction<T>(context: SupabaseClientContext, name: string, payload: Record<string, unknown>): Promise<T> {
@@ -24,5 +25,5 @@ export async function invokeEdgeFunction<T>(context: SupabaseClientContext, name
 }
 
 export function invokeEdgeFunctionRaw(context: SupabaseEdgeContext, name: string, options: EdgeRawOptions): Promise<Response> {
-  return fetch(edgeUrl(context, name), { method: options.method, headers: edgeHeaders(context, options.contentType), body: options.body });
+  return fetch(edgeUrl(context, name), { method: options.method, headers: edgeHeaders(context, options.contentType, options.accept), body: options.body });
 }

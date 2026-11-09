@@ -1,5 +1,6 @@
 import { readSupabaseRest, writeSupabaseRest } from "../../lib/supabase/rest-client";
 import { callSupabaseRpc } from "../../lib/supabase/rpc-client";
+import { invokeEdgeFunction } from "../../lib/supabase/edge-client";
 import type { ClubContext } from "../../models/auth/club";
 import type { BrowserSession } from "../../lib/supabase-auth";
 import type { CommunicationItem } from "../../models/communication/communication-item";
@@ -20,10 +21,8 @@ export async function findFinalDocumentByProvenance(club: ClubContext, session: 
 export async function completePreparedContract(club: ClubContext, session: BrowserSession, id: number, revision: number, userId: string, finalDocumentId: number) { const rows = await writeSupabaseRest<CommunicationItem>({ club, session }, "kommunikationsvorgang", "PATCH", { status: "erledigt" }, { id: `eq.${id}`, status: "eq.letzte_pruefung", revision: `eq.${revision}`, signatur_revision: `eq.${revision}`, final_dokument_id: `eq.${finalDocumentId}`, zugewiesen_an: `eq.${userId}` }); if (rows.length !== 1) throw new Error("Der Vorgang konnte nicht abgeschlossen werden."); return rows[0]; }
 export async function completePrintCommunicationItem(club: ClubContext, session: BrowserSession, id: number, userId: string) { const rows = await writeSupabaseRest<CommunicationItem>({ club, session }, "kommunikationsvorgang", "PATCH", { status: "erledigt", gedruckt_am: new Date().toISOString() }, { id: `eq.${id}`, vorgangstyp: "eq.druck", status: "eq.druck_bereit", zugewiesen_an: `eq.${userId}` }); if (rows.length !== 1) throw new Error("Der Druckauftrag wurde zwischenzeitlich geändert oder ist nicht dir zugewiesen."); return rows[0]; }
 export async function discardPreparedContract(club: ClubContext, session: BrowserSession, id: number, revision: number) {
-  const config = club.supabase;
-  const response = await fetch(`${config.url.replace(/\/$/, "")}/functions/v1/kgv-discard-prepared-contract`, { method: "POST", headers: { apikey: config.publishableKey, Authorization: `Bearer ${session.accessToken}`, "Content-Type": "application/json" }, body: JSON.stringify({ kommunikationsvorgang_id: id, expected_revision: revision }) });
-  const body = await response.json().catch(() => null) as { success?: boolean; message?: string } | null;
-  if (!response.ok || !body?.success) throw new Error(body?.message ?? "Der Vertragsvorgang konnte nicht verworfen werden.");
+  const body = await invokeEdgeFunction<{ success?: boolean; message?: string }>({ club, session }, "kgv-discard-prepared-contract", { kommunikationsvorgang_id: id, expected_revision: revision });
+  if (!body.success) throw new Error(body.message ?? "Der Vertragsvorgang konnte nicht verworfen werden.");
 }
 
 export async function claimCommunicationItem(club: ClubContext, session: BrowserSession, id: number, userId: string) {

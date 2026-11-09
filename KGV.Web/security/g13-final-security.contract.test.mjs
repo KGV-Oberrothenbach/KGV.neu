@@ -7,7 +7,7 @@ const [flags, web, sql] = await Promise.all([
   readFile(new URL("../../supabase/migrations/20261011130000_g13_permission_contract.sql", import.meta.url), "utf8"),
 ]);
 for (let bit = 0; bit <= 24; bit += 1) assert.match(flags, new RegExp(`1 << ${bit}`));
-assert.match(flags, /CanPerformYearEndClosing\s*=\s*1 << 23/);
+assert.match(flags, /CanPerformYearEndClosing\s*=\s*1L? << 23/);
 assert.match(sql, /when 'admin' then 16769015::bigint/);
 assert.match(sql, /when 'vorstand' then 7855607::bigint/);
 assert.match(sql, /else 10::bigint/);

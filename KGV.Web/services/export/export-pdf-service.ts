@@ -2,7 +2,7 @@ import type { ClubContext } from "../../models/auth/club";
 import type { BrowserSession } from "../../lib/supabase-auth";
 import type { ExportColumn } from "../../models/export/export-column";
 import type { ExportResult } from "../../models/export/export-result";
-import { resolveSupabaseConfig } from "../../lib/supabase/client-context";
+import { invokeEdgeFunctionRaw } from "../../lib/supabase/edge-client";
 import { loadClubConfiguration } from "../configuration/club-configuration-service";
 import { exportColumnLabel, formatExportValue } from "./export-output-service";
 
@@ -47,14 +47,9 @@ async function errorMessage(response: Response) {
 
 export async function generateExportPdf(club: ClubContext, session: BrowserSession, exportRequest: CentralExportRequest) {
   if (!session.accessToken) throw new Error("Die Anmeldung ist abgelaufen. Bitte erneut anmelden.");
-  const { url, publishableKey } = resolveSupabaseConfig(club);
   let response: Response;
   try {
-    response = await fetch(`${url}/functions/v1/kgv-generate-export-pdf`, {
-      method: "POST",
-      headers: { apikey: publishableKey, Authorization: `Bearer ${session.accessToken}`, "Content-Type": "application/json", Accept: "application/pdf" },
-      body: JSON.stringify(exportRequest),
-    });
+    response = await invokeEdgeFunctionRaw({ club, session }, "kgv-generate-export-pdf", { method: "POST", contentType: "application/json", accept: "application/pdf", body: JSON.stringify(exportRequest) });
   } catch { throw new Error("Der zentrale PDF-Export ist derzeit nicht erreichbar."); }
   if (!response.ok) throw new Error(await errorMessage(response));
   if (response.headers.get("content-type")?.split(";", 1)[0]?.toLowerCase() !== "application/pdf") throw new Error("Der zentrale PDF-Export lieferte keine PDF-Datei.");

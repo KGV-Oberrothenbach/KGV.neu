@@ -6,13 +6,13 @@ const inactivityMs = 15 * 60 * 1000;
 const refreshSafetyWindowMs = 60 * 1000;
 const refreshRetryDelayMs = 15 * 1000;
 
-function latestSessionFor(current: BrowserSession) {
-  const stored = loadStoredSession();
+function latestSessionFor(club: ClubContext, current: BrowserSession) {
+  const stored = loadStoredSession(club);
   return stored?.user.id === current.user.id ? stored : current;
 }
 
 async function refreshSession(club: ClubContext, current: BrowserSession): Promise<BrowserSession> {
-  const source = latestSessionFor(current);
+  const source = latestSessionFor(club, current);
   if (source.expiresAt > Date.now() + refreshSafetyWindowMs) return source;
 
   try {
@@ -24,24 +24,24 @@ async function refreshSession(club: ClubContext, current: BrowserSession): Promi
       user: { id: refreshed.user!.id!, email: refreshed.user!.email ?? source.user.email },
       isDemoAccount: source.isDemoAccount,
     };
-    saveSession(session);
+    saveSession(club, session);
     return session;
   } catch (error) {
-    const newer = latestSessionFor(source);
+    const newer = latestSessionFor(club, source);
     if (error instanceof RefreshSessionRejectedError && newer.refreshToken !== source.refreshToken) return newer;
     throw error;
   }
 }
 
 export async function restoreBrowserSession(club: ClubContext): Promise<BrowserSession | null> {
-  const storedSession = loadStoredSession();
+  const storedSession = loadStoredSession(club);
   if (!storedSession) return null;
   if (storedSession.expiresAt > Date.now() + refreshSafetyWindowMs) return storedSession;
 
   try {
     return await refreshSession(club, storedSession);
   } catch (error) {
-    if (error instanceof RefreshSessionRejectedError) clearSession();
+    if (error instanceof RefreshSessionRejectedError) clearSession(club);
     return null;
   }
 }
@@ -77,7 +77,7 @@ export function startSessionRefreshMonitor({ club, session, onSessionRefreshed, 
     } catch (error) {
       if (stopped) return;
       if (error instanceof RefreshSessionRejectedError) {
-        clearSession();
+        clearSession(club);
         expire();
         return;
       }
@@ -96,8 +96,8 @@ export function startSessionRefreshMonitor({ club, session, onSessionRefreshed, 
     }
   };
   const synchronize = (event: StorageEvent) => {
-    if (event.key !== browserSessionStorageKey) return;
-    const stored = loadStoredSession();
+    if (event.key !== browserSessionStorageKey(club)) return;
+    const stored = loadStoredSession(club);
     if (!stored || stored.user.id !== current.user.id) {
       expire();
       return;

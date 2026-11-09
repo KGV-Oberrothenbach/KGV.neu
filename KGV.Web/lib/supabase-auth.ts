@@ -25,9 +25,15 @@ export type WorkspaceContext = {
   parzelleId: number | null;
 };
 
-export const browserSessionStorageKey = "kgv.browser.session.v1";
+const browserSessionStoragePrefix = "kgv.browser.session.v1";
 const clubStorageKey = "kgv.browser.club.v1";
 const workspaceStoragePrefix = "kgv.browser.workspace.v1";
+
+export function browserSessionStorageKey(club: Pick<ClubContext, "vereinId">) {
+  const vereinId = club.vereinId?.trim();
+  if (!vereinId) throw new Error("Für die Sitzung ist ein Verein erforderlich.");
+  return `${browserSessionStoragePrefix}.${encodeURIComponent(vereinId)}`;
+}
 
 function workspaceStorageKey() {
   return `${workspaceStoragePrefix}.${loadClub()?.vereinId ?? "unknown"}`;
@@ -49,10 +55,11 @@ export function loadClub(): ClubContext | null {
 
 export function clearClub() {
   if (typeof window !== "undefined") {
+    const club = loadClub();
     const key = workspaceStorageKey();
+    if (club) clearSession(club);
     window.localStorage.removeItem(clubStorageKey);
     window.localStorage.removeItem(key);
-    clearSession();
   }
 }
 
@@ -75,15 +82,15 @@ export function saveWorkspaceContext(context: WorkspaceContext) {
   if (typeof window !== "undefined") window.localStorage.setItem(workspaceStorageKey(), JSON.stringify({ ...context, mitgliedId: null, parzelleId: null }));
 }
 
-export function loadSession(): BrowserSession | null {
-  const session = loadStoredSession();
+export function loadSession(club: ClubContext): BrowserSession | null {
+  const session = loadStoredSession(club);
   return session && session.expiresAt > Date.now() ? session : null;
 }
 
-export function loadStoredSession(): BrowserSession | null {
+export function loadStoredSession(club: ClubContext): BrowserSession | null {
   if (typeof window === "undefined") return null;
   try {
-    const saved = window.localStorage.getItem(browserSessionStorageKey);
+    const saved = window.localStorage.getItem(browserSessionStorageKey(club));
     if (!saved) return null;
     const session = JSON.parse(saved) as BrowserSession;
     return typeof session.accessToken === "string" && typeof session.refreshToken === "string" && typeof session.expiresAt === "number" && typeof session.user?.id === "string" ? session : null;
@@ -92,12 +99,12 @@ export function loadStoredSession(): BrowserSession | null {
   }
 }
 
-export function saveSession(session: BrowserSession) {
-  if (typeof window !== "undefined") window.localStorage.setItem(browserSessionStorageKey, JSON.stringify(session));
+export function saveSession(club: ClubContext, session: BrowserSession) {
+  if (typeof window !== "undefined") window.localStorage.setItem(browserSessionStorageKey(club), JSON.stringify(session));
 }
 
-export function clearSession() {
-  if (typeof window !== "undefined") window.localStorage.removeItem(browserSessionStorageKey);
+export function clearSession(club: ClubContext | null | undefined) {
+  if (typeof window !== "undefined" && club) window.localStorage.removeItem(browserSessionStorageKey(club));
 }
 
 export async function signOut(club: ClubContext, session: BrowserSession) {

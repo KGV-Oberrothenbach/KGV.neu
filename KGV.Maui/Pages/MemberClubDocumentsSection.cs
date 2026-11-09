@@ -64,7 +64,7 @@ internal sealed class MemberClubDocumentsSection : Border
         }};
     }
 
-    private bool CanManage => _userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand;
+    private bool CanManage => PermissionChecks.CanManageClubDocuments(_userContextState.CurrentUserContext);
     private static CollectionView CreateCollection<T>(ObservableCollection<T> source, Func<View> template, double height) => new() { ItemsSource = source, SelectionMode = SelectionMode.None, HeightRequest = height, ItemTemplate = new DataTemplate(template) };
 
     public async Task LoadAsync(MitgliedRecord? member)

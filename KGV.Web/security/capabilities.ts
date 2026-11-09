@@ -36,11 +36,11 @@ export function canRegisterHistoricalContracts(context: WebCapabilityContext): b
 }
 
 export function canArchiveDocuments(context: WebCapabilityContext): boolean {
-  return context?.role === "admin";
+  return context !== null && hasPermission(context.effectivePermissions, Permission.CanArchiveDocuments);
 }
 
 export function canManageClubSeasonConfiguration(context: WebCapabilityContext): boolean {
-  return context?.role === "admin";
+  return context !== null && hasPermission(context.effectivePermissions, Permission.CanManageClubSeasonConfiguration);
 }
 
 // The current permission contract intentionally keeps club and season settings
@@ -51,9 +51,9 @@ export function canManageClubConfiguration(context: WebCapabilityContext): boole
 }
 
 export function canConfigureUserMeterReadingSubmissions(context: WebCapabilityContext): boolean {
-  return context?.role === "admin" || context?.role === "vorstand";
+  return context !== null && hasPermission(context.effectivePermissions, Permission.CanManageClubDocuments);
 }
 
 export function canExportData(context: WebCapabilityContext): boolean {
-  return context?.role === "admin" || context?.role === "vorstand";
+  return context !== null && hasPermission(context.effectivePermissions, Permission.CanManageExports);
 }

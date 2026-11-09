@@ -75,7 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }).catch((error: Error) => {
       const invalidSession = sessionRef.current;
       if (invalidSession && selectedClub) void signOut(selectedClub, invalidSession);
-      clearSession();
+      clearSession(selectedClub);
       sessionRef.current = null;
       setSession(null);
       setAppUserContext(null);
@@ -87,7 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback((reason = "") => {
     const currentSession = sessionRef.current;
     if (currentSession && club) void releaseAllBrowserEditLocks({ club, session: currentSession }).catch(() => undefined).finally(() => signOut(club, currentSession));
-    clearSession();
+    clearSession(club);
     sessionRef.current = null;
     setSession(null);
     setAppUserContext(null);
@@ -119,6 +119,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [status, session, club, logout]);
 
   const selectClub = useCallback(async (code: string) => {
+    // A club selection starts a fresh authentication boundary. The prior
+    // project's token may never become the candidate session for this club.
+    clearSession(club ?? loadClub());
     const selectedClub = await resolveClub(code);
     setClub(selectedClub);
     setStatus("signed-out");
@@ -149,7 +152,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       const invalidSession = sessionRef.current;
       if (invalidSession && club) void signOut(club, invalidSession);
-      clearSession();
+      clearSession(club);
       sessionRef.current = null;
       setSession(null);
       setAppUserContext(null);
@@ -165,7 +168,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await establishSession(await signInWithSupabasePasskey(club), club);
     } catch (error) {
       if (isPasskeyCancellation(error)) throw error;
-      clearSession();
+      clearSession(club);
       sessionRef.current = null;
       setSession(null);
       setAppUserContext(null);

@@ -64,7 +64,7 @@ import { AssignMembersToContract } from "../features/maintenance/assignments/Ass
 import { MemberMaintenanceContracts } from "../features/maintenance/MemberMaintenanceContracts";
 import { ExpiringMaintenanceContracts } from "../features/maintenance/ExpiringMaintenanceContracts";
 import { maintenanceAccess } from "../services/maintenance/maintenance-access-service";
-import { getEffectivePermissions, getRolePermissions, hasPermission, Permission, PermissionAreas, preserveUncontrolledPermissions } from "../security/permissions";
+import { derivePermissionOverrides, getEffectivePermissions, getRolePermissions, hasPermission, Permission, PermissionAreas, preserveUncontrolledPermissions } from "../security/permissions";
 import { canArchiveDocuments, canExportData, canManageClubConfiguration, canManageClubSeasonConfiguration, canManageDocuments, canPerformYearEndClosing, canReadDocuments, canRegisterHistoricalContracts, createWebCapabilityContext } from "../security/capabilities";
 import { HistoricalContractRegistrationWorkflow } from "../features/documents/HistoricalContractRegistrationWorkflow";
 import { ClubConfiguration } from "../features/configuration/ClubConfiguration";
@@ -625,8 +625,7 @@ function UserRightsAdministration({ session, fixedMemberId }: { session: Browser
       if (level === "read") required |= area.read;
       if (level === "write") required |= area.write;
     }
-    const calculatedGrants = required & ~base;
-    const calculatedRevocations = (base & controllable) & ~required;
+    const { grants: calculatedGrants, revocations: calculatedRevocations } = derivePermissionOverrides(base, required);
     const grants = preserveUncontrolledPermissions(selectedUser.permission_grants, calculatedGrants);
     const revocations = preserveUncontrolledPermissions(selectedUser.permission_revocations, calculatedRevocations);
     setSaving(true); setMessage("");

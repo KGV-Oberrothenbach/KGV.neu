@@ -18,7 +18,7 @@ export async function loadAppUserContext(club: ClubContext, session: BrowserSess
   if (role !== "admin" && role !== "vorstand" && role !== "user") throw new Error("Für dieses Konto ist kein gültiger KGV-Zugang hinterlegt. Bitte wende dich an den Vorstand.");
   const isDemoAccount = Boolean(row.is_demo_account);
   session.isDemoAccount = isDemoAccount;
-  saveSession(session);
+  saveSession(club, session);
   return {
     userId: row.user_id,
     role,

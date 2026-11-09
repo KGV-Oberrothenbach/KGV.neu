@@ -1,3 +1,4 @@
+import { Permission, hasPermission } from "./permissions";
 import type { WebCapabilityContext } from "./capabilities";
-export const canUseSerialLetters=(context:WebCapabilityContext)=>context?.role==="admin"||context?.role==="vorstand";
-export const serienbriefAccessDenied="Für diese Funktion ist eine Berechtigung als Admin oder Vorstand erforderlich.";
+export const canUseSerialLetters=(context:WebCapabilityContext)=>context !== null && hasPermission(context.effectivePermissions, Permission.CanManageCommunicationWorkflows);
+export const serienbriefAccessDenied="Für diese Funktion ist eine Berechtigung für Kommunikationsvorgänge erforderlich.";

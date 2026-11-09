@@ -11,7 +11,7 @@ export async function signIn(club: ClubContext, email: string, password: string)
     expiresAt: Date.now() + (result.expires_in ?? 3600) * 1000,
     user: { id: result.user!.id!, email: result.user!.email },
   };
-  saveSession(session);
+  saveSession(club, session);
   return session;
 }
 

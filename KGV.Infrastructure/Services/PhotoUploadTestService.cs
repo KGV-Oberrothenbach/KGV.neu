@@ -1,6 +1,5 @@
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System;
 using System.IO;
@@ -22,12 +21,16 @@ namespace KGV.Infrastructure.Services
         private readonly ILogger<PhotoUploadTestService>? _logger;
         private readonly HttpClient _httpClient;
 
-        public PhotoUploadTestService(IAuthService authService, IConfiguration configuration, ILogger<PhotoUploadTestService>? logger)
+        public PhotoUploadTestService(IAuthService authService, ISupabaseClientFactory clientFactory, ILogger<PhotoUploadTestService>? logger)
         {
             _authService = authService ?? throw new ArgumentNullException(nameof(authService));
+            if (clientFactory == null) throw new ArgumentNullException(nameof(clientFactory));
             _logger = logger;
-            _supabaseUrl = (configuration["Supabase:Url"] ?? string.Empty).Trim();
-            _publishableKey = (configuration["Supabase:PublishableKey"] ?? configuration["Supabase:Key"] ?? string.Empty).Trim();
+            // The photo endpoints must use the same selected-project contract as
+            // authentication and all other Supabase calls; a packaged fallback
+            // configuration could otherwise target a different project.
+            _supabaseUrl = clientFactory.Url.Trim();
+            _publishableKey = clientFactory.Key.Trim();
             _httpClient = new HttpClient
             {
                 Timeout = TimeSpan.FromMinutes(3)

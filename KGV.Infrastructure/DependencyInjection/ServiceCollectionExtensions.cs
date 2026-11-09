@@ -67,7 +67,7 @@ namespace KGV.Infrastructure.DependencyInjection
             services.AddSingleton<IPhotoUploadTestService>(sp =>
                 new PhotoUploadTestService(
                     sp.GetRequiredService<IAuthService>(),
-                    configuration,
+                    sp.GetRequiredService<ISupabaseClientFactory>(),
                     sp.GetService<ILogger<PhotoUploadTestService>>()));
 
             return services;

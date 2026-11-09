@@ -20,8 +20,8 @@ const expectedBits = [
 for (const [name, bit] of expectedBits) assert.equal(Permission[name], 1 << bit, `${name} must match Core bit ${bit}`);
 assert.equal(Permission.CanPerformYearEndClosing, 8388608);
 assert.equal(getRolePermissions("user"), 10);
-assert.equal(getRolePermissions("vorstand"), 7855607);
-assert.equal(getRolePermissions("admin"), 16769015);
+assert.equal(getRolePermissions("vorstand"), 1920458231);
+assert.equal(getRolePermissions("admin"), 4278181879);
 assert.equal(hasPermission(getEffectivePermissions("vorstand", Permission.CanPerformYearEndClosing, 0), Permission.CanPerformYearEndClosing), true);
 assert.equal(hasPermission(getEffectivePermissions("admin", 0, Permission.CanPerformYearEndClosing), Permission.CanPerformYearEndClosing), false);
 assert.equal(hasPermission(getEffectivePermissions("user", Permission.CanPerformYearEndClosing, Permission.CanPerformYearEndClosing), Permission.CanPerformYearEndClosing), false);
@@ -29,11 +29,11 @@ assert.equal(hasPermission(getEffectivePermissions("user", Permission.CanPerform
 assert.equal(Permission.CanRegisterHistoricalContracts, 16777216);
 assert.equal(hasPermission(getEffectivePermissions("user", Permission.CanRegisterHistoricalContracts, 0), Permission.CanRegisterHistoricalContracts), true);
 assert.equal(hasPermission(getEffectivePermissions("admin", 0, Permission.CanRegisterHistoricalContracts), Permission.CanRegisterHistoricalContracts), false);
-const unknownFutureBit = 1 << 25;
+const unknownFutureBit = 2 ** 32;
 const preservedGrants = preserveUncontrolledPermissions(unknownFutureBit, Permission.CanManageRoles);
 const preservedRevocations = preserveUncontrolledPermissions(unknownFutureBit, Permission.CanManageRoles);
-assert.equal(preservedGrants, unknownFutureBit | Permission.CanManageRoles, "unknown grant bits must survive an editor save");
-assert.equal(preservedRevocations, unknownFutureBit | Permission.CanManageRoles, "unknown revocation bits must survive an editor save");
+assert.equal(preservedGrants, unknownFutureBit + Permission.CanManageRoles, "unknown grant bits must survive an editor save");
+assert.equal(preservedRevocations, unknownFutureBit + Permission.CanManageRoles, "unknown revocation bits must survive an editor save");
 assert.equal(preserveUncontrolledPermissions(0, unknownFutureBit), 0, "a stale editor must not introduce unknown bits");
 
 const pageSource = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");

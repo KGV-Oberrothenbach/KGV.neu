@@ -26,6 +26,13 @@ const PermissionBits = {
   CanManageAnnouncements: 1 << 22,
   CanPerformYearEndClosing: 1 << 23,
   CanRegisterHistoricalContracts: 1 << 24,
+  CanManageExports: 2 ** 25,
+  CanManageClubSeasonConfiguration: 2 ** 26,
+  CanManageDocumentTypes: 2 ** 27,
+  CanManageClubDocuments: 2 ** 28,
+  CanManageClubFunctions: 2 ** 29,
+  CanManageCommunicationWorkflows: 2 ** 30,
+  CanArchiveDocuments: 2 ** 31,
 } as const;
 
 // Camel-case aliases preserve the existing Web call sites while the Pascal-case
@@ -57,11 +64,23 @@ export const Permission = {
   manageAnnouncements: PermissionBits.CanManageAnnouncements,
   performYearEndClosing: PermissionBits.CanPerformYearEndClosing,
   registerHistoricalContracts: PermissionBits.CanRegisterHistoricalContracts,
+  manageExports: PermissionBits.CanManageExports,
+  manageClubSeasonConfiguration: PermissionBits.CanManageClubSeasonConfiguration,
+  manageDocumentTypes: PermissionBits.CanManageDocumentTypes,
+  manageClubDocuments: PermissionBits.CanManageClubDocuments,
+  manageClubFunctions: PermissionBits.CanManageClubFunctions,
+  manageCommunicationWorkflows: PermissionBits.CanManageCommunicationWorkflows,
+  archiveDocuments: PermissionBits.CanArchiveDocuments,
 } as const;
 
+const AllPermissionBits = Object.values(PermissionBits);
+const addPermission = (mask: number, permission: number) => hasPermission(mask, permission) ? mask : mask + permission;
+const removePermission = (mask: number, permission: number) => hasPermission(mask, permission) ? mask - permission : mask;
+const combinePermissions = (...permissions: number[]) => permissions.reduce((mask, permission) => addPermission(mask, permission), 0);
+
 const UserPermissions = Permission.CanViewMembers | Permission.CanSeeOwnDataOnly;
-const VorstandPermissions = Permission.CanSearchMembers | Permission.CanViewMembers | Permission.CanEditAllMembers | Permission.CanManageDocuments | Permission.CanReadMeters | Permission.CanManageMeterChanges | Permission.CanApproveMeterReadings | Permission.CanManageWorkHours | Permission.CanShowStammdaten | Permission.CanReadStammdaten | Permission.CanWriteStammdaten | Permission.CanReadParzellen | Permission.CanWriteParzellen | Permission.CanReadDocuments | Permission.CanReadWorkHours | Permission.CanReadRoles | Permission.CanManageWorkAssignments | Permission.CanManageAppointments | Permission.CanManageAnnouncements;
-const AdminPermissions = VorstandPermissions | Permission.CanManageRoles | Permission.CanCreateMitglied | Permission.CanPerformYearEndClosing;
+const VorstandPermissions = combinePermissions(Permission.CanSearchMembers, Permission.CanViewMembers, Permission.CanEditAllMembers, Permission.CanManageDocuments, Permission.CanReadMeters, Permission.CanManageMeterChanges, Permission.CanApproveMeterReadings, Permission.CanManageWorkHours, Permission.CanShowStammdaten, Permission.CanReadStammdaten, Permission.CanWriteStammdaten, Permission.CanReadParzellen, Permission.CanWriteParzellen, Permission.CanReadDocuments, Permission.CanReadWorkHours, Permission.CanReadRoles, Permission.CanManageWorkAssignments, Permission.CanManageAppointments, Permission.CanManageAnnouncements, Permission.CanManageExports, Permission.CanManageClubDocuments, Permission.CanManageClubFunctions, Permission.CanManageCommunicationWorkflows);
+const AdminPermissions = combinePermissions(VorstandPermissions, Permission.CanManageRoles, Permission.CanCreateMitglied, Permission.CanPerformYearEndClosing, Permission.CanManageClubSeasonConfiguration, Permission.CanManageDocumentTypes, Permission.CanArchiveDocuments);
 
 export function getRolePermissions(role: AppUserRole): number {
   if (role === "admin") return AdminPermissions;
@@ -70,7 +89,11 @@ export function getRolePermissions(role: AppUserRole): number {
 }
 
 export function applyPermissionOverrides(base: number, grants: number, revocations: number): number {
-  return (base | grants) & ~revocations;
+  return AllPermissionBits.reduce((effective, permission) => {
+    const granted = hasPermission(grants, permission);
+    const revoked = hasPermission(revocations, permission);
+    return revoked ? removePermission(effective, permission) : granted ? addPermission(effective, permission) : effective;
+  }, base);
 }
 
 export function getEffectivePermissions(role: AppUserRole, grants: number, revocations: number): number {
@@ -78,7 +101,7 @@ export function getEffectivePermissions(role: AppUserRole, grants: number, revoc
 }
 
 export function hasPermission(mask: number, permission: number): boolean {
-  return (mask & permission) === permission;
+  return Number.isSafeInteger(mask) && permission > 0 && Math.floor(mask / permission) % 2 === 1;
 }
 
 export const PermissionAreas = [
@@ -92,10 +115,28 @@ export const PermissionAreas = [
   { key: "rollen", label: "Rollen / Rechte", all: Permission.CanReadRoles | Permission.CanManageRoles, read: Permission.CanReadRoles, write: Permission.CanManageRoles },
   { key: "jahresabschluss", label: "Jahresabschluss", all: Permission.CanPerformYearEndClosing, read: Permission.CanPerformYearEndClosing, write: Permission.CanPerformYearEndClosing },
   { key: "altvertraege", label: "Historische Verträge", all: Permission.CanRegisterHistoricalContracts, read: Permission.CanRegisterHistoricalContracts, write: Permission.CanRegisterHistoricalContracts },
+  { key: "exporte", label: "Exporte", all: Permission.CanManageExports, read: Permission.CanManageExports, write: Permission.CanManageExports },
+  { key: "vereins_saison", label: "Vereins- / Saisonkonfiguration", all: Permission.CanManageClubSeasonConfiguration, read: Permission.CanManageClubSeasonConfiguration, write: Permission.CanManageClubSeasonConfiguration },
+  { key: "dokumenttypen", label: "Dokumenttypen", all: Permission.CanManageDocumentTypes, read: Permission.CanManageDocumentTypes, write: Permission.CanManageDocumentTypes },
+  { key: "vereinsunterlagen", label: "Vereinsunterlagen", all: Permission.CanManageClubDocuments, read: Permission.CanManageClubDocuments, write: Permission.CanManageClubDocuments },
+  { key: "vereinsfunktionen", label: "Vereinsfunktionen", all: Permission.CanManageClubFunctions, read: Permission.CanManageClubFunctions, write: Permission.CanManageClubFunctions },
+  { key: "kommunikation", label: "Kommunikationsvorgänge", all: Permission.CanManageCommunicationWorkflows, read: Permission.CanManageCommunicationWorkflows, write: Permission.CanManageCommunicationWorkflows },
+  { key: "dokumentarchiv", label: "Dokumentarchivierung", all: Permission.CanArchiveDocuments, read: Permission.CanArchiveDocuments, write: Permission.CanArchiveDocuments },
 ] as const;
 
-export const ControllablePermissionMask = PermissionAreas.reduce((mask, area) => mask | area.all, 0);
+export const ControllablePermissionMask = AllPermissionBits.reduce((mask, permission) => mask + permission, 0);
 
 export function preserveUncontrolledPermissions(existingPermissions: number, calculatedPermissions: number): number {
-  return (existingPermissions & ~ControllablePermissionMask) | (calculatedPermissions & ControllablePermissionMask);
+  return AllPermissionBits.reduce((result, permission) => !hasPermission(ControllablePermissionMask, permission)
+    ? result
+    : hasPermission(calculatedPermissions, permission)
+      ? addPermission(result, permission)
+      : removePermission(result, permission), existingPermissions);
+}
+
+export function derivePermissionOverrides(base: number, required: number): { grants: number; revocations: number } {
+  return AllPermissionBits.reduce((result, permission) => !hasPermission(ControllablePermissionMask, permission) ? result : ({
+    grants: hasPermission(required, permission) && !hasPermission(base, permission) ? addPermission(result.grants, permission) : result.grants,
+    revocations: hasPermission(base, permission) && !hasPermission(required, permission) ? addPermission(result.revocations, permission) : result.revocations,
+  }), { grants: 0, revocations: 0 });
 }
