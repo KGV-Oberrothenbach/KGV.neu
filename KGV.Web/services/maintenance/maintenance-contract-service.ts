@@ -36,7 +36,7 @@ export function normalizeAndValidateMaintenanceContract(draft: MaintenanceContra
   if (!Number.isInteger(draft.maxActiveAssignments) || draft.maxActiveAssignments < 1) return { error: "Das Kontingent muss mindestens 1 sein." };
   if (!Number.isFinite(credit) || credit < 0) return { error: "Die Arbeitsstunden-Gutschrift darf nicht negativ sein." };
   if (draft.exemptsFromDutyHours && credit > 0) return { error: "Vollbefreiung und eine positive Arbeitsstunden-Gutschrift können nicht gleichzeitig gesetzt werden." };
-  return { payload: { titel: title, beschreibung: draft.description?.trim() || null, bereich: draft.area?.trim() || null, max_aktive_zuordnungen: draft.maxActiveAssignments, befreit_von_pflichtstunden: draft.exemptsFromDutyHours, arbeitsstunden_gutschrift: credit, aktiv: draft.active, bemerkung: draft.note?.trim() || null, is_demo: false } };
+  return { payload: { titel: title, beschreibung: draft.description?.trim() || null, bereich: draft.area?.trim() || null, max_aktive_zuordnungen: draft.maxActiveAssignments, befreit_von_pflichtstunden: draft.exemptsFromDutyHours, arbeitsstunden_gutschrift: credit, aktiv: draft.active, bemerkung: draft.note?.trim() || null } };
 }
 
 export async function saveMaintenanceContract(club: ClubContext, session: BrowserSession, id: number | null, draft: MaintenanceContractDraft, fundamentalChange = false): Promise<MaintenanceContract> {

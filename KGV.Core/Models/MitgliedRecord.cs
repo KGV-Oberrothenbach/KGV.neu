@@ -34,8 +34,6 @@ namespace KGV.Core.Models
         [Column("auth_user_id")]
         public Guid? AuthUserId { get; set; }
 
-        [Column("is_demo")]
-        public bool IsDemo { get; set; }
 
         // ===== Stammdaten =====
         [Column("geburtsdatum")]

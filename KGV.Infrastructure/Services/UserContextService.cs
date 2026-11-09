@@ -42,8 +42,6 @@ namespace KGV.Infrastructure.Services
             [JsonProperty("is_protected")]
             public bool IsProtected { get; set; }
 
-            [JsonProperty("is_demo_account")]
-            public bool IsDemoAccount { get; set; }
         }
 
         private readonly ISupabaseClientFactory _clientFactory;
@@ -95,7 +93,7 @@ namespace KGV.Infrastructure.Services
                     !string.Equals(record.Role, UserRoles.User, StringComparison.OrdinalIgnoreCase))
                     throw new KgvAccessDeniedException();
 
-                return _permissionService.CreateContext(userId, record.Role, record.MitgliedId, record.PermissionGrants, record.PermissionRevocations, record.IsDemoAccount);
+                return _permissionService.CreateContext(userId, record.Role, record.MitgliedId, record.PermissionGrants, record.PermissionRevocations);
             }
             catch (Exception ex)
             {

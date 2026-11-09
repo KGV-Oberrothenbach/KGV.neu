@@ -870,7 +870,6 @@ public sealed class HomeManagementPage : ContentPage, IQueryAttributable
             SichtbarBis = source.SichtbarBis,
             AnmeldungBis = source.AnmeldungBis,
             Aktiv = source.Aktiv,
-            IsDemo = source.IsDemo
         };
     }
 

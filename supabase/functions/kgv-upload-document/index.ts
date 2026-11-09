@@ -59,7 +59,6 @@ type AuthenticatedDocumentUser = {
   userId: string;
   role: string;
   mitgliedId: number | null;
-  isDemoAccount: boolean;
   permissionGrants: number;
   permissionRevocations: number;
 };
@@ -581,7 +580,7 @@ async function authenticateDocumentUser(authHeader: string) {
 
   const { data: appUser, error: appUserError } = await supabaseAdmin
     .from("app_user")
-    .select("role,mitglied_id,is_demo_account,permission_grants,permission_revocations")
+    .select("role,mitglied_id,permission_grants,permission_revocations")
     .eq("user_id", userData.user.id)
     .maybeSingle();
 
@@ -600,7 +599,6 @@ async function authenticateDocumentUser(authHeader: string) {
     userId: userData.user.id,
     role,
     mitgliedId,
-    isDemoAccount: appUser?.is_demo_account === true,
     permissionGrants: Number(appUser?.permission_grants ?? 0),
     permissionRevocations: Number(appUser?.permission_revocations ?? 0),
     supabaseAdmin,
@@ -661,28 +659,11 @@ async function verifyArchivePassword(value: string): Promise<boolean> {
   return (await sha256Hex(value)).toLowerCase() === configuredHash;
 }
 
-async function isDocumentInDemoScope(auth: { supabaseAdmin: SupabaseClient }, document: Pick<DriveDocumentRecord, "mitglied_id" | "parzelle_id">): Promise<boolean> {
-  const owner = document.mitglied_id
-    ? { table: "mitglied", id: document.mitglied_id }
-    : document.parzelle_id
-      ? { table: "parzelle", id: document.parzelle_id }
-      : null;
-  if (!owner) return false;
-
-  const { data, error } = await auth.supabaseAdmin
-    .from(owner.table)
-    .select("is_demo")
-    .eq("id", owner.id)
-    .maybeSingle();
-  if (error) throw new Error(`Dokument-Demo-Scope konnte nicht geprüft werden: ${error.message}`);
-  return data?.is_demo === true;
-}
-
-async function resolveUploadOwnerScope(auth: { supabaseAdmin: SupabaseClient }, ownerKind: OwnerKind, ownerId: number): Promise<boolean | null> {
+async function uploadOwnerExists(auth: { supabaseAdmin: SupabaseClient }, ownerKind: OwnerKind, ownerId: number): Promise<boolean> {
   const table = ownerKind === "mitglied" ? "mitglied" : "parzelle";
-  const { data, error } = await auth.supabaseAdmin.from(table).select("is_demo").eq("id", ownerId).maybeSingle();
+  const { data, error } = await auth.supabaseAdmin.from(table).select("id").eq("id", ownerId).maybeSingle();
   if (error) throw new Error(`Dokument-Owner konnte nicht geprüft werden: ${error.message}`);
-  return data ? data.is_demo === true : null;
+  return data !== null;
 }
 
 function hasAllowedDocumentType(file: File): boolean {
@@ -708,10 +689,6 @@ async function mayReadDocument(auth: AuthenticatedDocumentUser & { supabaseAdmin
     return null;
 
   if (document.archiviert_at)
-    return null;
-
-  // The service-role client bypasses RLS, so scope parity must precede role checks.
-  if (await isDocumentInDemoScope(auth, document as DriveDocumentRecord) !== auth.isDemoAccount)
     return null;
 
   const { data: historicalAccess, error: historicalError } = await auth.supabaseUser.rpc("can_access_historical_contract_document", { p_dokument_id: documentId, p_require_registered: false });
@@ -1040,8 +1017,7 @@ Deno.serve(async (req) => {
       if (memberAccess !== true) return errorResponse(403, "FORBIDDEN", "Mitglied liegt außerhalb des historischen Vertragsbereichs.", requestId);
     }
 
-    const ownerIsDemo = await resolveUploadOwnerScope(auth, ownerKind, ownerId);
-    if (ownerIsDemo === null || ownerIsDemo !== auth.isDemoAccount) {
+    if (!await uploadOwnerExists(auth, ownerKind, ownerId)) {
       return errorResponse(403, "FORBIDDEN", "Dieses Dokument ist für den aktuellen Benutzer nicht freigegeben.", requestId);
     }
     if (hasProvenance) {

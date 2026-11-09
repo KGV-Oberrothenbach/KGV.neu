@@ -62,7 +62,7 @@ test("member documents request only the selected member's active documents and l
     return new Response("[]", { status: 200, headers: { "content-type": "application/json" } });
   };
 
-  const session = { accessToken: "test-token", refreshToken: "test-refresh", expiresAt: 0, user: { id: "test-user" }, isDemoAccount: false };
+  const session = { accessToken: "test-token", refreshToken: "test-refresh", expiresAt: 0, user: { id: "test-user" } };
   const club = { vereinId: "club-id", vereinsCode: "test", vereinsname: "Testverein", supabaseUrl: "https://example.supabase.co", supabasePublishableKey: "test-key" };
   const memberDocuments = await loadDocumentsForOwner(club, session, { kind: "member", id: 314 });
   const memberRequest = requests.find((request) => request.pathname === "/rest/v1/dokument");
@@ -75,10 +75,6 @@ test("member documents request only the selected member's active documents and l
 
   const noDocuments = await loadDocumentsForOwner(club, session, { kind: "member", id: 271 });
   assert.deepEqual(noDocuments, [], "a member with no documents stays empty");
-
-  await loadDocumentsForOwner(club, { ...session, isDemoAccount: true }, { kind: "member", id: 314 });
-  const demoMemberDocumentRequest = requests.filter((request) => request.pathname === "/rest/v1/dokument").at(-1);
-  assert.equal(demoMemberDocumentRequest.searchParams.has("is_demo"), false, "demo document scope must also be left to RLS");
 
   await loadDocumentsForOwner(club, session, { kind: "parcel", id: 905 });
   const parcelRequest = requests.filter((request) => request.pathname === "/rest/v1/dokument").at(-1);
@@ -94,12 +90,8 @@ test("member documents request only the selected member's active documents and l
   const memberScopeRequest = requests.find((request) => request.pathname === "/rest/v1/mitglied");
   assert.equal(memberScopeRequest.searchParams.has("is_demo"), false);
 
-  await readSupabaseRest({ club, session: { ...session, isDemoAccount: true } }, "mitglied", { select: "id", id: "eq.314" });
-  const demoMemberScopeRequest = requests.filter((request) => request.pathname === "/rest/v1/mitglied").at(-1);
-  assert.equal(demoMemberScopeRequest.searchParams.has("is_demo"), false);
-
   const page = await readFile(new URL("../../app/page.tsx", import.meta.url), "utf8");
-  assert.match(page, /effectiveActiveId === "mitglied-dokumente" && selectedMemberId && <DocumentList session=\{session\} owner=\{memberDocumentOwner\(selectedMemberId\)\}/);
+  assert.match(page, /effectiveActiveId === "mitglied-dokumente" && selectedMemberId && <MemberDocumentWorkspace[^>]*session=\{session\} memberId=\{selectedMemberId\}/);
   const component = await readFile(new URL("../../features/documents/DocumentList.tsx", import.meta.url), "utf8");
   assert.match(component, /loadDocumentsForOwner\(club, session, currentOwner\)/);
 });

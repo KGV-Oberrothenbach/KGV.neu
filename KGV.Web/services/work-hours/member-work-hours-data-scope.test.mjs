@@ -48,7 +48,7 @@ test("member work-hours requests keep member and season filters without bypassin
     return new Response("[]", { status: 200, headers: { "content-type": "application/json" } });
   };
 
-  const session = { accessToken: "test-token", refreshToken: "test-refresh", expiresAt: 0, user: { id: "test-user" }, isDemoAccount: false };
+  const session = { accessToken: "test-token", refreshToken: "test-refresh", expiresAt: 0, user: { id: "test-user" } };
   const club = { vereinId: "club-id", vereinsCode: "test", vereinsname: "Testverein", supabaseUrl: "https://example.supabase.co", supabasePublishableKey: "test-key" };
   await loadMemberWorkHoursWorkspace(club, session, 314, 2026);
 
@@ -65,10 +65,6 @@ test("member work-hours requests keep member and season filters without bypassin
   await readSupabaseRest({ club, session }, "mitglied", { select: "id", id: "eq.314" });
   const memberRequest = requests.find((request) => request.pathname === "/rest/v1/mitglied");
   assert.equal(memberRequest.searchParams.has("is_demo"), false);
-
-  await readSupabaseRest({ club, session: { ...session, isDemoAccount: true } }, "mitglied", { select: "id", id: "eq.314" });
-  const demoMemberRequest = requests.filter((request) => request.pathname === "/rest/v1/mitglied").at(-1);
-  assert.equal(demoMemberRequest.searchParams.has("is_demo"), false);
 
   const component = await readFile(new URL("../../features/work-hours/MemberWorkHours.tsx", import.meta.url), "utf8");
   assert.match(component, /loadMemberWorkHoursWorkspace\(club, session, memberId, saisonId\)/);

@@ -391,7 +391,6 @@ public sealed class BekanntmachungEditorPage : ContentPage, IQueryAttributable
             SichtbarBis = visibleTo,
             SortOrder = sortOrder,
             Aktiv = _existingRecord?.Aktiv ?? true,
-            IsDemo = _existingRecord?.IsDemo ?? false
         };
 
         if (_existingRecord != null)
@@ -451,7 +450,7 @@ public sealed class BekanntmachungEditorPage : ContentPage, IQueryAttributable
         var targetActive = !existingRecord.Aktiv;
         if (!targetActive && !await DisplayAlertAsync("Bekanntmachung deaktivieren", $"Soll die Bekanntmachung „{existingRecord.Titel ?? "ohne Titel"}“ wirklich deaktiviert werden?", "Deaktivieren", "Abbrechen"))
             return;
-        var updateRecord = new BekanntmachungRecord { Id = existingRecord.Id, Titel = existingRecord.Titel, InhaltHtml = existingRecord.InhaltHtml, SichtbarAb = existingRecord.SichtbarAb, SichtbarBis = existingRecord.SichtbarBis, SortOrder = existingRecord.SortOrder, Aktiv = targetActive, CreatedAt = existingRecord.CreatedAt, UpdatedAt = existingRecord.UpdatedAt, IsDemo = existingRecord.IsDemo };
+        var updateRecord = new BekanntmachungRecord { Id = existingRecord.Id, Titel = existingRecord.Titel, InhaltHtml = existingRecord.InhaltHtml, SichtbarAb = existingRecord.SichtbarAb, SichtbarBis = existingRecord.SichtbarBis, SortOrder = existingRecord.SortOrder, Aktiv = targetActive, CreatedAt = existingRecord.CreatedAt, UpdatedAt = existingRecord.UpdatedAt };
         _statusLabel.Text = targetActive ? "Bekanntmachung wird wieder aktiviert." : "Bekanntmachung wird deaktiviert.";
         _statusLabel.TextColor = Colors.DarkSlateBlue;
         SetEnabledState(false);

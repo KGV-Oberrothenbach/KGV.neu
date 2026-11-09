@@ -16,7 +16,7 @@ namespace KGV.Core.Interfaces
         Task<List<string>> GetSeasonsAsync();
         Task<List<MitgliedRecord>> GetMitgliederAsync();
         Task<List<MitgliedRecord>> GetMitgliederForSearchAsync();
-        Task<ImpressumInfo> GetImpressumInfoAsync(bool includeDemo = false);
+        Task<ImpressumInfo> GetImpressumInfoAsync();
         Task<List<VereinsfunktionRecord>> GetVereinsfunktionenAsync();
         Task<List<VereinsfunktionBesetzungRecord>> GetVereinsfunktionBesetzungenAsync();
         Task<List<VereinsfunktionVertretungRecord>> GetVereinsfunktionVertretungenAsync();

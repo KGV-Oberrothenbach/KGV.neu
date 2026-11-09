@@ -41,6 +41,4 @@ public sealed class BekanntmachungRecord : BaseModel
     [Column("updated_at")]
     public DateTime? UpdatedAt { get; set; }
 
-    [Column("is_demo")]
-    public bool IsDemo { get; set; }
 }

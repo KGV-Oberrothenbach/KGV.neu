@@ -18,18 +18,17 @@ test("document upload keeps the multipart edge contract and forwards diagnostic 
   assert.match(repository, /Support-ID: \$\{requestId\}/);
   assert.match(edgeClient, /Authorization: `Bearer \$\{context\.session\.accessToken\}`/);
   assert.match(edgeClient, /apikey: publishableKey/);
-  assert.match(edgeClient, /headers: edgeHeaders\(context, options\.contentType\), body: options\.body/);
+  assert.match(edgeClient, /headers: edgeHeaders\(context, options\.contentType, options\.accept\), body: options\.body/);
   assert.doesNotMatch(repository, /Content-Type/);
 });
 
-test("edge upload scope remains a strict demo parity check", async () => {
+test("edge upload remains project-local and validates the owner without demo fields", async () => {
   const edge = await readFile(new URL("../../../supabase/functions/kgv-upload-document/index.ts", import.meta.url), "utf8");
-  assert.match(edge, /select\("role,mitglied_id,is_demo_account,permission_grants,permission_revocations"\)/);
-  assert.match(edge, /isDemoAccount: appUser\?\.is_demo_account === true/);
+  assert.match(edge, /select\("role,mitglied_id,permission_grants,permission_revocations"\)/);
   assert.match(edge, /permissionGrants: Number\(appUser\?\.permission_grants \?\? 0\)/);
   assert.match(edge, /permissionRevocations: Number\(appUser\?\.permission_revocations \?\? 0\)/);
-  assert.match(edge, /resolveUploadOwnerScope\(auth, ownerKind, ownerId\)/);
-  assert.match(edge, /ownerIsDemo === null \|\| ownerIsDemo !== auth\.isDemoAccount/);
+  assert.match(edge, /uploadOwnerExists\(auth, ownerKind, ownerId\)/);
+  assert.doesNotMatch(edge, /is_demo|isDemoAccount/);
   assert.match(edge, /errorResponse\(403, "FORBIDDEN", "Dieses Dokument ist für den aktuellen Benutzer nicht freigegeben.", requestId\)/);
 });
 

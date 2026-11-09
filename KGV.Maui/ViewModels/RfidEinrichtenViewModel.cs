@@ -228,7 +228,6 @@ public sealed class RfidEinrichtenViewModel : INotifyPropertyChanged
                 RfidStrom = SelectedParzelle.RfidStrom,
                 RfidWasser = SelectedParzelle.RfidWasser,
                 Aktiv = SelectedParzelle.Aktiv,
-                IsDemo = SelectedParzelle.IsDemo
             };
 
             var saved = await _supabaseService.UpdateParzelleStammdatenAsync(record);

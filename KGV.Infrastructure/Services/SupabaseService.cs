@@ -725,7 +725,6 @@ namespace KGV.Infrastructure.Services
                 var client = await EnsureClientAsync();
                 var response = await client.From<MitgliedRecord>().Get();
                 var members = response?.Models?
-                    .Where(x => !x.IsDemo)
                     .OrderBy(x => x.Name ?? string.Empty, StringComparer.CurrentCultureIgnoreCase)
                     .ThenBy(x => x.Vorname ?? string.Empty, StringComparer.CurrentCultureIgnoreCase)
                     .ThenBy(x => x.Email ?? string.Empty, StringComparer.CurrentCultureIgnoreCase)
@@ -777,7 +776,7 @@ namespace KGV.Infrastructure.Services
             return true;
         }, false);
 
-        public Task<ImpressumInfo> GetImpressumInfoAsync(bool includeDemo = false) => ExecuteAsync(
+        public Task<ImpressumInfo> GetImpressumInfoAsync() => ExecuteAsync(
             "GetImpressumInfoAsync",
             async () =>
             {
@@ -1246,7 +1245,6 @@ namespace KGV.Infrastructure.Services
                 Name = GetMembershipEndJsonString(member, "name"),
                 Role = GetMembershipEndJsonString(member, "role"),
                 AuthUserId = GetMembershipEndJsonGuid(member, "auth_user_id"),
-                IsDemo = GetMembershipEndJsonBoolean(member, "is_demo"),
                 Geburtsdatum = GetMembershipEndJsonDateTime(member, "geburtsdatum"),
                 Adresse = GetMembershipEndJsonString(member, "adresse"),
                 Plz = GetMembershipEndJsonString(member, "plz"),
@@ -3207,10 +3205,8 @@ namespace KGV.Infrastructure.Services
                 if (records.Count == 0)
                     return new List<ArbeitsstundeDTO>();
 
-                // Load raw member table so we can distinguish between
-                // - operational members (should be used for name resolution)
-                // - demo/test members (should be excluded)
-                // - missing members (no member row found) -> keep the Arbeitsstunde but fall back to neutral display
+                // Load members for name resolution. Missing member rows remain
+                // visible with a neutral fallback name.
                 var membersResponse = await client.From<MitgliedRecord>().Get();
                 var allMembers = membersResponse?.Models?
                     .ToDictionary(x => x.Id, x => x)
@@ -3226,7 +3222,7 @@ namespace KGV.Infrastructure.Services
                 System.Diagnostics.Debug.WriteLine($"KGV: SupabaseService: operativeMitglieder count = {operativeMitglieder.Count}");
                 Console.WriteLine($"KGV: SupabaseService: operativeMitglieder count = {operativeMitglieder.Count}");
 
-                // Keep fachlich offene Arbeitsstunden. Exclude rows that belong to a known demo/test member.
+                // Keep fachlich offene Arbeitsstunden for admitted members.
                 var filtered = afterOffen
                     .Where(x =>
                     {
@@ -3241,8 +3237,8 @@ namespace KGV.Infrastructure.Services
                     })
                     .ToList();
 
-                System.Diagnostics.Debug.WriteLine($"KGV: SupabaseService: count after demo/test filter = {filtered.Count}");
-                Console.WriteLine($"KGV: SupabaseService: count after demo/test filter = {filtered.Count}");
+                System.Diagnostics.Debug.WriteLine($"KGV: SupabaseService: count after member status filter = {filtered.Count}");
+                Console.WriteLine($"KGV: SupabaseService: count after member status filter = {filtered.Count}");
 
                 // Show a few example ids/status for debugging
                 var example = filtered.Take(5).Select(r => (Id: r.Id, Status: r.Status ?? "<null>", Freigegeben: r.Freigegeben)).ToList();
@@ -4196,13 +4192,12 @@ namespace KGV.Infrastructure.Services
             return await CreateDokumentAsync(uploadRequest);
         }
 
-        private async Task<int> LoadMitgliedsantragAntragsnummerAsync(long kommunikationsvorgangId, bool isDemo)
+        private async Task<int> LoadMitgliedsantragAntragsnummerAsync(long kommunikationsvorgangId)
         {
             var client = await EnsureClientAsync();
             var response = await client.From<FachnummerReservierungRecord>()
                 .Where(x => x.QuelleArt == "kommunikationsvorgang")
                 .Where(x => x.QuelleId == kommunikationsvorgangId)
-                .Where(x => x.IsDemo == isDemo)
                 .Get();
             var reservation = response.Models?.SingleOrDefault(x => x.Art == "mitgliedsantrag");
             if (reservation is null || reservation.Nummer is < 10000 or > 19999)
@@ -4223,7 +4218,7 @@ namespace KGV.Infrastructure.Services
                 throw new InvalidOperationException("Für dieses Mitglied kann aktuell kein Antrag erzeugt werden.");
 
             request.Antragsnummer = request.KommunikationsvorgangId > 0
-                ? await LoadMitgliedsantragAntragsnummerAsync(request.KommunikationsvorgangId, member.IsDemo)
+                ? await LoadMitgliedsantragAntragsnummerAsync(request.KommunikationsvorgangId)
                 : null;
 
             var beginnDatum = request.BeginnDatum == default
@@ -5052,7 +5047,7 @@ namespace KGV.Infrastructure.Services
 
                 var client = await EnsureClientAsync();
                 var contract = await GetWartungsvertragByIdInternalAsync(client, wartungsvertragId);
-                return contract != null && !contract.IsDemo ? contract : null;
+                return contract;
             },
             null);
 
@@ -5221,8 +5216,7 @@ namespace KGV.Infrastructure.Services
                     Aktiv = request.Aktiv,
                     Bemerkung = CleanOptionalText(request.Bemerkung),
                     CreatedAt = now,
-                    UpdatedAt = now,
-                    IsDemo = false
+                    UpdatedAt = now
                 };
 
                 await client.From<WartungsvertragInsertRecord>().Insert(insertRecord);
@@ -5237,12 +5231,10 @@ namespace KGV.Infrastructure.Services
                     Aktiv = insertRecord.Aktiv,
                     Bemerkung = insertRecord.Bemerkung,
                     CreatedAt = insertRecord.CreatedAt,
-                    UpdatedAt = insertRecord.UpdatedAt,
-                    IsDemo = insertRecord.IsDemo
+                    UpdatedAt = insertRecord.UpdatedAt
                 };
                 var response = await client.From<WartungsvertragRecord>().Get();
                 return response?.Models?
-                    .Where(x => !x.IsDemo)
                     .Where(x => IsSameWartungsvertragForReload(x, reloadCandidate))
                     .OrderByDescending(x => x.Id)
                     .FirstOrDefault();
@@ -5427,7 +5419,7 @@ namespace KGV.Infrastructure.Services
 
                 var client = await EnsureClientAsync();
                 var contract = await GetWartungsvertragByIdInternalAsync(client, wartungsvertragId);
-                if (contract == null || contract.IsDemo)
+                if (contract == null)
                     return CreateWartungsvertragAssignmentSaveResult(false, "Der ausgewählte Wartungsvertrag konnte nicht geladen werden.", requestedIds.Count, 0, 0);
 
                 var bundle = await LoadWartungsvertragBundleAsync();
@@ -5552,7 +5544,7 @@ namespace KGV.Infrastructure.Services
                 foreach (var contractId in requestedContractIds)
                 {
                     var contract = bundle.Contracts.FirstOrDefault(x => x.Id == contractId);
-                    if (contract == null || contract.IsDemo || !contract.Aktiv)
+                    if (contract == null || !contract.Aktiv)
                         continue;
 
                     if (activeContractIds.Contains(contractId))
@@ -6204,8 +6196,7 @@ namespace KGV.Infrastructure.Services
                     AnmeldungBis = NormalizeTimestampWithoutTimeZone(request.AnmeldungBis),
                     Aktiv = request.Aktiv,
                     CreatedAt = now,
-                    UpdatedAt = now,
-                    IsDemo = request.IsDemo
+                    UpdatedAt = now
                 };
 
                 if (!await InsertArbeitseinsatzAsync(insertRecord))
@@ -6227,8 +6218,7 @@ namespace KGV.Infrastructure.Services
                     AnmeldungBis = insertRecord.AnmeldungBis,
                     Aktiv = insertRecord.Aktiv,
                     CreatedAt = insertRecord.CreatedAt,
-                    UpdatedAt = insertRecord.UpdatedAt,
-                    IsDemo = insertRecord.IsDemo
+                    UpdatedAt = insertRecord.UpdatedAt
                 };
                 var reloadResponse = await client
                     .From<ArbeitseinsatzRecord>()
@@ -6328,8 +6318,7 @@ namespace KGV.Infrastructure.Services
                     SichtbarBis = NormalizeTimestampWithoutTimeZone(request.SichtbarBis),
                     Aktiv = request.Aktiv,
                     CreatedAt = now,
-                    UpdatedAt = now,
-                    IsDemo = request.IsDemo
+                    UpdatedAt = now
                 };
 
                 if (!await InsertTerminAsync(insertRecord))
@@ -6348,7 +6337,6 @@ namespace KGV.Infrastructure.Services
                     Aktiv = insertRecord.Aktiv,
                     CreatedAt = insertRecord.CreatedAt,
                     UpdatedAt = insertRecord.UpdatedAt
-                    ,IsDemo = insertRecord.IsDemo
                 };
                 var reloadResponse = await client
                     .From<TerminRecord>()
@@ -6446,8 +6434,7 @@ namespace KGV.Infrastructure.Services
                     SortOrder = request.SortOrder,
                     Aktiv = request.Aktiv,
                     CreatedAt = now,
-                    UpdatedAt = now,
-                    IsDemo = request.IsDemo
+                    UpdatedAt = now
                 };
 
                 await client.From<BekanntmachungInsertRecord>().Insert(insertRecord);
@@ -6461,7 +6448,6 @@ namespace KGV.Infrastructure.Services
                     Aktiv = insertRecord.Aktiv,
                     CreatedAt = insertRecord.CreatedAt,
                     UpdatedAt = insertRecord.UpdatedAt
-                    ,IsDemo = insertRecord.IsDemo
                 };
                 var reloadResponse = await client.From<BekanntmachungRecord>().Get();
                 var reloadItems = reloadResponse?.Models?
@@ -6780,8 +6766,7 @@ namespace KGV.Infrastructure.Services
                 ["anmeldung_bis"] = FormatPostgresTimestampWithoutTimeZone(record.AnmeldungBis),
                 ["aktiv"] = record.Aktiv,
                 ["created_at"] = FormatPostgresTimestampWithoutTimeZone(record.CreatedAt),
-                ["updated_at"] = FormatPostgresTimestampWithoutTimeZone(record.UpdatedAt),
-                ["is_demo"] = record.IsDemo
+                ["updated_at"] = FormatPostgresTimestampWithoutTimeZone(record.UpdatedAt)
             };
 
             return await SendPostgrestWriteAsync(HttpMethod.Post, "arbeitseinsatz", payload);
@@ -6803,8 +6788,7 @@ namespace KGV.Infrastructure.Services
                 ["sichtbar_bis"] = FormatPostgresTimestampWithoutTimeZone(NormalizeTimestampWithoutTimeZone(record.SichtbarBis)),
                 ["anmeldung_bis"] = FormatPostgresTimestampWithoutTimeZone(NormalizeTimestampWithoutTimeZone(record.AnmeldungBis)),
                 ["aktiv"] = record.Aktiv,
-                ["updated_at"] = FormatPostgresTimestampWithoutTimeZone(NormalizeTimestampWithoutTimeZone(DateTime.UtcNow)),
-                ["is_demo"] = record.IsDemo
+                ["updated_at"] = FormatPostgresTimestampWithoutTimeZone(NormalizeTimestampWithoutTimeZone(DateTime.UtcNow))
             };
 
             return await SendPostgrestWriteAsync(HttpMethod.Patch, $"arbeitseinsatz?id=eq.{record.Id}", payload);
@@ -6979,8 +6963,7 @@ namespace KGV.Infrastructure.Services
                 AnmeldungBis = NormalizeTimestampWithoutTimeZone(record.AnmeldungBis),
                 Aktiv = record.Aktiv,
                 CreatedAt = record.CreatedAt,
-                UpdatedAt = record.UpdatedAt,
-                IsDemo = record.IsDemo
+                UpdatedAt = record.UpdatedAt
             };
         }
 
@@ -6999,7 +6982,6 @@ namespace KGV.Infrastructure.Services
                 Aktiv = record.Aktiv,
                 CreatedAt = record.CreatedAt,
                 UpdatedAt = record.UpdatedAt
-                ,IsDemo = record.IsDemo
             };
         }
 
@@ -7016,7 +6998,6 @@ namespace KGV.Infrastructure.Services
                 Aktiv = record.Aktiv,
                 CreatedAt = record.CreatedAt,
                 UpdatedAt = record.UpdatedAt
-                ,IsDemo = record.IsDemo
             };
         }
 
@@ -7086,8 +7067,7 @@ namespace KGV.Infrastructure.Services
                 && left.SichtbarAb == right.SichtbarAb
                 && left.SichtbarBis == right.SichtbarBis
                 && left.AnmeldungBis == right.AnmeldungBis
-                && left.Aktiv == right.Aktiv
-                && left.IsDemo == right.IsDemo;
+                && left.Aktiv == right.Aktiv;
         }
 
         private async Task<List<StromzaehlerRecord>> GetStromzaehlerForParzelleAsync(int parzelleId)
@@ -7537,7 +7517,6 @@ namespace KGV.Infrastructure.Services
             var client = await EnsureClientAsync();
             var wartungsvertraegeResponse = await client.From<WartungsvertragRecord>().Get();
             var wartungsvertraege = wartungsvertraegeResponse?.Models?
-                .Where(x => !x.IsDemo)
                 .ToList()
                 ?? new List<WartungsvertragRecord>();
 
@@ -7581,7 +7560,7 @@ namespace KGV.Infrastructure.Services
         {
             var client = await EnsureClientAsync();
             var contract = await GetWartungsvertragByIdInternalAsync(client, wartungsvertragId);
-            if (contract == null || contract.IsDemo)
+            if (contract == null)
                 return CreateWartungsvertragAssignmentSaveResult(false, "Der ausgewählte Wartungsvertrag konnte nicht geladen werden.", mitgliedIds.Count, 0, 0);
 
             var bundle = await LoadWartungsvertragBundleAsync();
@@ -7797,7 +7776,7 @@ namespace KGV.Infrastructure.Services
         {
             var memberIds = operationalMemberIds.ToHashSet();
             var parzellenById = parzellen
-                .Where(x => x.Id > 0 && !x.IsDemo)
+                .Where(x => x.Id > 0)
                 .ToDictionary(x => x.Id);
 
             return belegungen

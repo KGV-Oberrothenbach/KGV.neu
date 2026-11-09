@@ -6,7 +6,6 @@ export type BrowserSession = {
   refreshToken: string;
   expiresAt: number;
   user: { id: string; email?: string };
-  isDemoAccount?: boolean;
 };
 
 export type AppUserContext = {
@@ -15,7 +14,6 @@ export type AppUserContext = {
   mitgliedId: number | null;
   permissionGrants: number;
   permissionRevocations: number;
-  isDemoAccount: boolean;
 };
 
 export type WorkspaceContext = {

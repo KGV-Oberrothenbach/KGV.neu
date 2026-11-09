@@ -18,7 +18,7 @@ async function loadTransport() {
 function context(overrides = {}) {
   return {
     club: { vereinId: "club-id", vereinsCode: "club", vereinsname: "Testverein", supabaseUrl: "https://example.supabase.co/", supabasePublishableKey: "public-key" },
-    session: { accessToken: "access-token", isDemoAccount: false },
+    session: { accessToken: "access-token" },
     ...overrides,
   };
 }

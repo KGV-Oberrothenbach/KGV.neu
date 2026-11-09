@@ -39,8 +39,6 @@ namespace KGV.Core.Models
         [Column("ist_vereinsgarten")]
         public bool IstVereinsgarten { get; set; }
 
-        [Column("is_demo")]
-        public bool IsDemo { get; set; }
 
         public string Name
         {

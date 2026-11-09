@@ -275,6 +275,66 @@ keine Demo-Parameter mehr an die Datenbank weiter.
 | Tests | .NET-Unit-/Contract-Tests, Web-Contract-Tests, Edge-Function-Tests, Web- und MAUI-Build; API-Tests mit einem Vereins- und einem Demo-Projektkontext. |
 | Abnahme | Kein produktiver Client-Select, Insert, Update, RPC-Parameter oder DTO erwartet ein entferntes Demo-Feld; beide Anwendungen funktionieren mit demselben fachlichen Schema. |
 
+#### D3 – Umsetzungs- und Abnahmestand (09.11.2026)
+
+**Status:** technisch abgeschlossen. B-01 bleibt offen; D4 bis D6 wurden nicht
+begonnen.
+
+Bereinigte Anwendungskomponenten:
+
+- Core-Records für Mitglied, Parzelle, Arbeitseinsatz, Bekanntmachung, Termin,
+  Wartungsvertrag und Fachnummerreservierung enthalten kein `IsDemo` mehr.
+  Insert-Mappings und `OperationalDataFilter` verwenden nur noch fachliche
+  Existenz- und Aufnahmestatusregeln und leiten keinen Scope aus Namen,
+  E-Mail-Adressen oder Datensatzmarkierungen ab.
+- `UserContext`, `PermissionService`, `AppUserRecord`, `AppUserInsertRecord`
+  und `UserContextService` erwarten kein `IsDemoAccount` mehr. Rollenbasis,
+  individuelle Gewährungen und individuelle Entzüge bleiben unverändert.
+- `SupabaseService` liest, schreibt und filtert keine `is_demo`-Felder mehr.
+  Mitgliedschaftsstatus, Vertragsstatus, Eigentümer- und Dokumentbeziehungen
+  bleiben erhalten. Die Fachnummerabfrage nutzt bis D4 die bestehende
+  Datenbankstruktur, ohne den Demo-Schlüssel clientseitig auszuwerten.
+- Web-Sitzung, Transportkontext, App-User-Kontext, Termin-, Bekanntmachungs-,
+  Wartungsvertrags-, Vereinsfunktions- und Zuordnungs-Repositories verwenden
+  keine Demo-Felder oder Demo-Queryfilter mehr.
+- Die MAUI-Editoren und RFID-/Impressum-Aufrufer reichen keine Demo-Felder
+  mehr weiter. Die in D1 abgesicherte Vereins- und Projektverbindung blieb
+  unverändert.
+- `kgv-upload-document` lädt keine Demo-Kontokennung und keinen Demo-Scope
+  mehr. Der Service-Role-Pfad prüft weiterhin Authentifizierung, effektive
+  Rechte, Archivstatus, Dokumentzugriff, Provenienz und die Existenz des
+  projektlokalen Owners. `kgv-request-first-login-otp` filtert Mitglieder
+  nicht mehr anhand textueller Demo-/Testmarker.
+
+Übergangskompatibilität:
+
+- Die D2-Datenbankspalten und der zusätzliche Rückgabewert von
+  `current_app_user_context` bleiben bis D5 bestehen; Clients ignorieren sie.
+- Historische SQL-Funktionssignaturen und der Boolean-Parameter der
+  Fachnummernreservierung bleiben bis D4 unverändert. D3 sendet oder bewertet
+  diesen Parameter nicht.
+- Historische Migrationen und ihre Regressionstests dürfen die alten Namen
+  weiterhin referenzieren. SMTP-Testempfänger sowie die Vereins-ID
+  `KGV-DEMO` sind projekt-/deploymentbezogene Sicherheits- beziehungsweise
+  Verbindungsmerkmale und keine datensatzinternen Scopes.
+
+Tatsächliche Prüfungen:
+
+- Core-/Infrastructure-Build: bestanden;
+- Web-Produktionsbuild: bestanden, nur bestehender Chunkgrößenhinweis;
+- MAUI-Android-Build: bestanden, 0 Fehler; bestehende `NU1902`/`NU1903`-
+  Warnungen zu `SixLabors.ImageSharp 2.1.13` wurden nicht fachfremd behoben;
+- gezielte Web-, Rechte-, Projektgrenzen-, Dokument-, Wartungs- und
+  Edge-Contract-Tests: **44/44 bestanden**;
+- Supabase-Regressionssuite: **87/87 bestanden**;
+- .NET-Suite: **414/419 bestanden**. Die fünf verbleibenden, bereits
+  fachfremden Fehler betreffen zwei veraltete Rollenmaskenerwartungen, zwei
+  PDF-Vorlagenkompatibilitätstests und einen sichtbaren PDF-Dateinamentest.
+  Die aktualisierten D3-Filter- und Mappingtests kompilieren und bestehen.
+
+Für D3 war keine neue Datenbankmigration erforderlich. Es erfolgten keine
+produktiven Zugriffe, Deployments oder verknüpften Supabase-Pushes.
+
 ### D4 – Nummernverwaltung konfliktfrei entkoppeln
 
 **Ziel:** `fachnummer_reservierung` ohne Demo-Anteil schlüsselfähig machen,

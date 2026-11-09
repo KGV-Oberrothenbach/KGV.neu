@@ -43,13 +43,10 @@ test("REST transport leaves row scope to the configured database and RLS", async
     return new Response(JSON.stringify([]), { status: 200, headers: { "content-type": "application/json" } });
   };
 
-  const context = { club: { vereinId: "club", vereinsCode: "test", vereinsname: "Testverein", supabaseUrl: "https://example.supabase.co/", supabasePublishableKey: "test-key" }, session: { accessToken: "test-token", isDemoAccount: false } };
+  const context = { club: { vereinId: "club", vereinsCode: "test", vereinsname: "Testverein", supabaseUrl: "https://example.supabase.co/", supabasePublishableKey: "test-key" }, session: { accessToken: "test-token" } };
   for (const table of tables) {
     await readSupabaseRest(context, table, { select: "id" });
     assert.equal(requests.at(-1).searchParams.has("is_demo"), false, `${table} must not receive a client-side demo filter`);
   }
-  await readSupabaseRest({ ...context, session: { ...context.session, isDemoAccount: true } }, "mitglied", { select: "id" });
-  assert.equal(requests.at(-1).searchParams.has("is_demo"), false);
-  await readSupabaseRest(context, "mitglied", { select: "id", is_demo: "eq.custom" });
-  assert.equal(requests.at(-1).searchParams.get("is_demo"), "eq.custom");
+  assert.doesNotMatch(await readFile(new URL("./supabase/client-context.ts", import.meta.url), "utf8"), /isDemoAccount|is_demo/);
 });

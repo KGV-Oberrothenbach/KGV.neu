@@ -98,7 +98,7 @@ public sealed class ImpressumPage : ContentPage
             _statusLabel.Text = "Impressum wird geladen.";
             _statusLabel.IsVisible = true;
 
-            var info = await _supabaseService.GetImpressumInfoAsync(_userContextState.CurrentUserContext?.IsDemoAccount == true) ?? new ImpressumInfo();
+            var info = await _supabaseService.GetImpressumInfoAsync() ?? new ImpressumInfo();
             ApplyClubInfo(info);
             _kontaktgruppen = info.Kontaktgruppen.ToList();
             ApplyVisibleItems();

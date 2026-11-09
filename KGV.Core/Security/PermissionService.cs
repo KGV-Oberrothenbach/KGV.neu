@@ -5,7 +5,7 @@ namespace KGV.Core.Security
     public interface IPermissionService
     {
         PermissionFlags GetPermissions(UserRole role);
-        UserContext CreateContext(Guid userId, string? role, long? mitgliedId, long? grantedPermissions = null, long? revokedPermissions = null, bool isDemoAccount = false);
+        UserContext CreateContext(Guid userId, string? role, long? mitgliedId, long? grantedPermissions = null, long? revokedPermissions = null);
     }
 
     public sealed class PermissionService : IPermissionService
@@ -81,14 +81,14 @@ namespace KGV.Core.Security
                | PermissionFlags.CanManageDocumentTypes
                | PermissionFlags.CanArchiveDocuments;
 
-        public UserContext CreateContext(Guid userId, string? role, long? mitgliedId, long? grantedPermissions = null, long? revokedPermissions = null, bool isDemoAccount = false)
+        public UserContext CreateContext(Guid userId, string? role, long? mitgliedId, long? grantedPermissions = null, long? revokedPermissions = null)
         {
             var parsedRole = UserRoles.Parse(role);
             var basePermissions = GetPermissions(parsedRole);
             var normalizedGrantedPermissions = NormalizeStoredPermissions(grantedPermissions);
             var normalizedRevokedPermissions = NormalizeStoredPermissions(revokedPermissions);
             var permissions = ApplyOverrides(basePermissions, normalizedGrantedPermissions, normalizedRevokedPermissions);
-            return new UserContext(userId, parsedRole, mitgliedId, permissions, basePermissions, normalizedGrantedPermissions, normalizedRevokedPermissions, isDemoAccount);
+            return new UserContext(userId, parsedRole, mitgliedId, permissions, basePermissions, normalizedGrantedPermissions, normalizedRevokedPermissions);
         }
     }
 }

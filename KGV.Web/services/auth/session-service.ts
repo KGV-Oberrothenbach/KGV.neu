@@ -22,7 +22,6 @@ async function refreshSession(club: ClubContext, current: BrowserSession): Promi
       refreshToken: refreshed.refresh_token!,
       expiresAt: Date.now() + refreshed.expires_in! * 1000,
       user: { id: refreshed.user!.id!, email: refreshed.user!.email ?? source.user.email },
-      isDemoAccount: source.isDemoAccount,
     };
     saveSession(club, session);
     return session;

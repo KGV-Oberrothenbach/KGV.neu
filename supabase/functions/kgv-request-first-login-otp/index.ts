@@ -69,31 +69,6 @@ function normalizeEmail(value: unknown): string {
   return String(value ?? "").trim().toLowerCase();
 }
 
-function containsOperationalMarker(value: string | null | undefined): boolean {
-  if (!value) {
-    return false;
-  }
-
-  const normalized = value.trim().toLowerCase();
-  return normalized.includes("demo")
-    || normalized.includes("test")
-    || normalized.includes("play store")
-    || normalized.includes("playstore")
-    || normalized.includes("example.com")
-    || normalized.includes("example.org")
-    || normalized.includes("example.net");
-}
-
-function isOperationalMember(member: MemberRow | null | undefined): member is MemberRow {
-  if (!member) {
-    return false;
-  }
-
-  return !containsOperationalMarker(member.vorname)
-    && !containsOperationalMarker(member.name)
-    && !containsOperationalMarker(member.email);
-}
-
 function buildFailureResponse(diagnosticCode: string) {
   return json(200, {
     success: false,
@@ -169,7 +144,6 @@ Deno.serve(async (req) => {
     }
 
     const matchingMembers = (memberRows ?? [])
-      .filter(isOperationalMember)
       .filter((member) => normalizeEmail(member.email) === normalizedEmail);
 
     if (matchingMembers.length !== 1) {

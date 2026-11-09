@@ -13,15 +13,14 @@ export type MaintenanceContractRow = {
   arbeitsstunden_gutschrift: number;
   aktiv: boolean;
   bemerkung: string | null;
-  is_demo: boolean;
 };
 
 export type MaintenanceContractWriteRow = Omit<MaintenanceContractRow, "id">;
 
-const select = "id,titel,beschreibung,bereich,max_aktive_zuordnungen,befreit_von_pflichtstunden,arbeitsstunden_gutschrift,aktiv,bemerkung,is_demo";
+const select = "id,titel,beschreibung,bereich,max_aktive_zuordnungen,befreit_von_pflichtstunden,arbeitsstunden_gutschrift,aktiv,bemerkung";
 
 export const listMaintenanceContracts = (club: ClubContext, session: BrowserSession) =>
-  readSupabaseRest<MaintenanceContractRow>({ club, session }, "wartungsvertraege", { select, is_demo: "eq.false", order: "titel.asc", limit: "500" });
+  readSupabaseRest<MaintenanceContractRow>({ club, session }, "wartungsvertraege", { select, order: "titel.asc", limit: "500" });
 
 export const listMaintenanceContractNumbers = (club: ClubContext, session: BrowserSession) =>
   readSupabaseRest<{ wartungsvertrag_id: number; vertragsnummer: number | null }>({ club, session }, "v_wartungsvertrag_fachnummer", { select: "wartungsvertrag_id,vertragsnummer", order: "wartungsvertrag_id.asc", limit: "1000" });
@@ -30,10 +29,10 @@ export const getMaintenanceContractNumber = async (club: ClubContext, session: B
   (await readSupabaseRest<{ wartungsvertrag_id: number; vertragsnummer: number | null }>({ club, session }, "v_wartungsvertrag_fachnummer", { select: "wartungsvertrag_id,vertragsnummer", wartungsvertrag_id: `eq.${id}`, limit: "1" }))[0]?.vertragsnummer ?? null;
 
 export const getMaintenanceContract = async (club: ClubContext, session: BrowserSession, id: number) =>
-  (await readSupabaseRest<MaintenanceContractRow>({ club, session }, "wartungsvertraege", { select, id: `eq.${id}`, is_demo: "eq.false", limit: "1" }))[0] ?? null;
+  (await readSupabaseRest<MaintenanceContractRow>({ club, session }, "wartungsvertraege", { select, id: `eq.${id}`, limit: "1" }))[0] ?? null;
 
 export const createMaintenanceContract = (club: ClubContext, session: BrowserSession, payload: MaintenanceContractWriteRow) =>
   writeWithBrowserEditLock<MaintenanceContractRow>({ club, session }, "wartungsvertraege", "POST", payload);
 
 export const updateMaintenanceContract = (club: ClubContext, session: BrowserSession, id: number, payload: MaintenanceContractWriteRow) =>
-  writeWithBrowserEditLock<MaintenanceContractRow>({ club, session }, "wartungsvertraege", "PATCH", payload, { id: `eq.${id}`, is_demo: "eq.false" });
+  writeWithBrowserEditLock<MaintenanceContractRow>({ club, session }, "wartungsvertraege", "PATCH", payload, { id: `eq.${id}` });

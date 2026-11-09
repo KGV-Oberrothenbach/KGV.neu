@@ -2,7 +2,6 @@ import type { ClubContext } from "../../models/auth/club";
 
 export type SupabaseTransportSession = {
   accessToken: string;
-  isDemoAccount?: boolean;
 };
 
 export type SupabaseClientContext = {

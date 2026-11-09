@@ -317,7 +317,6 @@ public sealed class TermineEditorPage : ContentPage, IQueryAttributable
             SichtbarAb = visibleFrom,
             SichtbarBis = visibleTo,
             Aktiv = _existingRecord?.Aktiv ?? true,
-            IsDemo = _existingRecord?.IsDemo ?? false
         };
 
         if (_existingRecord != null)
@@ -366,7 +365,6 @@ public sealed class TermineEditorPage : ContentPage, IQueryAttributable
             Aktiv = targetActive,
             CreatedAt = existingRecord.CreatedAt,
             UpdatedAt = existingRecord.UpdatedAt,
-            IsDemo = existingRecord.IsDemo
         };
 
         _statusLabel.Text = targetActive ? "Termin wird wieder aktiviert." : "Termin wird deaktiviert.";

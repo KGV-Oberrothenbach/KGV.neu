@@ -10,14 +10,11 @@ export async function loadAppUserContext(club: ClubContext, session: BrowserSess
     mitglied_id?: number | null;
     permission_grants?: number | null;
     permission_revocations?: number | null;
-    is_demo_account?: boolean | null;
   }>>({ club, session }, "current_app_user_context", {});
   const row = rows[0];
   if (!row?.user_id) throw new Error("Für dieses Konto ist kein gültiger KGV-Zugang hinterlegt. Bitte wende dich an den Vorstand.");
   const role = row.role?.toLowerCase();
   if (role !== "admin" && role !== "vorstand" && role !== "user") throw new Error("Für dieses Konto ist kein gültiger KGV-Zugang hinterlegt. Bitte wende dich an den Vorstand.");
-  const isDemoAccount = Boolean(row.is_demo_account);
-  session.isDemoAccount = isDemoAccount;
   saveSession(club, session);
   return {
     userId: row.user_id,
@@ -25,7 +22,6 @@ export async function loadAppUserContext(club: ClubContext, session: BrowserSess
     mitgliedId: row.mitglied_id ?? null,
     permissionGrants: row.permission_grants ?? 0,
     permissionRevocations: row.permission_revocations ?? 0,
-    isDemoAccount,
   };
 }
 

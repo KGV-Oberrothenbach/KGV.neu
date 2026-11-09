@@ -17,8 +17,6 @@ namespace KGV.Infrastructure.Models
         [Column("role")]
         public string? Role { get; set; }
 
-        [Column("is_demo_account")]
-        public bool IsDemoAccount { get; set; }
 
         [Column("permission_grants")]
         public long? PermissionGrants { get; set; }

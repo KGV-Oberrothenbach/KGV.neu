@@ -5,15 +5,19 @@ namespace KGV.Tests;
 
 public sealed class InsertRecordMappingTests
 {
-    [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public void TerminInsertMapping_PreservesDemoScope(bool isDemo)
-        => Assert.Equal(isDemo, new TerminRecord { IsDemo = isDemo }.ToInsertRecord().IsDemo);
+    [Fact]
+    public void TerminInsertMapping_PreservesBusinessFields()
+    {
+        var mapped = new TerminRecord { Titel = "Termin", Aktiv = true }.ToInsertRecord();
+        Assert.Equal("Termin", mapped.Titel);
+        Assert.True(mapped.Aktiv);
+    }
 
-    [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public void BekanntmachungInsertMapping_PreservesDemoScope(bool isDemo)
-        => Assert.Equal(isDemo, new BekanntmachungRecord { IsDemo = isDemo }.ToInsertRecord().IsDemo);
+    [Fact]
+    public void BekanntmachungInsertMapping_PreservesBusinessFields()
+    {
+        var mapped = new BekanntmachungRecord { Titel = "Hinweis", InhaltHtml = "<p>Text</p>" }.ToInsertRecord();
+        Assert.Equal("Hinweis", mapped.Titel);
+        Assert.Equal("<p>Text</p>", mapped.InhaltHtml);
+    }
 }
