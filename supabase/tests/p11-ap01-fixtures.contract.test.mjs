@@ -51,10 +51,12 @@ test("export metadata foundation precedes its first historical consumer", async 
 
 test("season finance foundation precedes the historical-season copy", async () => {
   const foundation = await read("supabase/migrations/20260924220000_saison_finance_foundation.sql");
-  for (const column of ["pacht_pro_qm", "mitgliedsbeitrag", "mitgliedsbeitrag_nebenmitglied", "aufnahmegebuehr", "gebuehr_bauantrag", "is_demo"]) {
+  for (const column of ["pacht_pro_qm", "mitgliedsbeitrag", "mitgliedsbeitrag_nebenmitglied", "aufnahmegebuehr", "gebuehr_bauantrag"]) {
     assert.match(foundation, new RegExp(`add column if not exists ${column}`));
   }
   assert.match(foundation, /alter column pacht_pro_qm set not null/);
+  const cleanup = await read("supabase/migrations/20261109130000_p11_demo_cleanup_d5_physical_schema.sql");
+  assert.match(cleanup, /alter table public\.saison drop column is_demo/);
 });
 
 test("local template replay fixture covers every historically guarded storage object", async () => {

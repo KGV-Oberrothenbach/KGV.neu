@@ -2,6 +2,13 @@
 -- Reproduzierbare Testfälle für die zentrale Pflichtstunden-Auswertung 2026.
 -- Die E-Mail-Adressen dienen nur als stabile technische Kennung für ein erneutes Ausführen.
 
+select set_config(
+  'request.jwt.claim.sub',
+  '00000000-0000-0000-0000-00000000d600',
+  false
+);
+select set_config('request.jwt.claim.role', 'authenticated', false);
+
 do $$
 declare
     v_saison_id bigint;
@@ -95,14 +102,22 @@ begin
         returning id into v_wartungsvertrag_id;
     end if;
 
-    delete from public.wartungsvertrag_zuordnungen
-    where wartungsvertrag_id = v_wartungsvertrag_id
-      and hauptmitglied_id = v_wartung_member_id;
+    update public.wartungsvertrag_zuordnungen
+       set vertragspartei_mitglied_id = v_wartung_member_id,
+           gueltig_ab = date '2026-01-01',
+           gueltig_bis = null,
+           bemerkung = 'Synthetischer Testfall 2026'
+     where wartungsvertrag_id = v_wartungsvertrag_id
+       and hauptmitglied_id = v_wartung_member_id;
 
-    insert into public.wartungsvertrag_zuordnungen
-        (wartungsvertrag_id, hauptmitglied_id, gueltig_ab, gueltig_bis, bemerkung)
-    values
-        (v_wartungsvertrag_id, v_wartung_member_id, date '2026-01-01', null, 'Demo-Testfall 2026');
+    if not found then
+        insert into public.wartungsvertrag_zuordnungen
+            (wartungsvertrag_id, hauptmitglied_id,
+             vertragspartei_mitglied_id, gueltig_ab, gueltig_bis, bemerkung)
+        values
+            (v_wartungsvertrag_id, v_wartung_member_id, v_wartung_member_id,
+             date '2026-01-01', null, 'Synthetischer Testfall 2026');
+    end if;
 end;
 $$;
 

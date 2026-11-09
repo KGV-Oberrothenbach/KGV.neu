@@ -44,12 +44,12 @@ where h.id is null;
 select z.id, z.zaehlernummer, z.medium, z.anlagenbereich, z.status
 from public.zaehler z
 left join public.hauptzaehler_messstelle h
-  on h.medium = z.medium and h.anlagenbereich = z.anlagenbereich
+  on h.medium = z.medium::text and h.anlagenbereich = z.anlagenbereich
 where z.ist_hauptzaehler = true and h.id is null;
 
 select z.medium, z.anlagenbereich, z.status, count(*) as zaehler_anzahl,
        count(a.id) as ablesungen
-from public.zaehler z left join public.ablesung a on a.zaehler_id = z.id
+from public.zaehler z left join public.zaehler_ablesung a on a.zaehler_id = z.id
 where z.ist_hauptzaehler = true
 group by z.medium, z.anlagenbereich, z.status
 order by z.medium, z.anlagenbereich, z.status;

@@ -12,6 +12,25 @@ Nicht mehr einzeln aufgeführt sind die vielen wiederholten Zwischenstände wie:
 - mehrfach gleiche Buildaufrufe
 - schrittweise Diagnose-Iterationen, wenn das Ergebnis später sauber zusammengeführt werden konnte
 
+## 2026-11-09 – P11 Demo-Bereinigung D6
+
+- Die D6-Migration castet den Hauptzähler-Prüfstatus vor `coalesce` zu
+  `text`, sichert die notwendigen EXECUTE-Grants und ist wiederholbar.
+- Der Protected-Account-Test prüft den finalen effektiven-Rechte-Vertrag;
+  synthetische DemoDB-Baseline und alle Seeds folgen dem D5-Schema ohne
+  Datenzeilenmarker.
+- Sechs veraltete Web-Testannahmen wurden auf die aktiven Verträge
+  aktualisiert, ohne Sicherheitsprüfungen zu schwächen. Web-Node-Suite
+  215/215, Supabase-/Edge-Tests 87/87 und lokale nummerierte SQL-Tests 15/15
+  bestanden. Die vier DemoDB-Seeds liefen lokal zweimal erfolgreich.
+- Core-/Infrastructure-, MAUI-Android- und Web-Build erfolgreich. Die
+  .NET-Gesamtsuite bleibt bei 414/419; es sind exakt die fünf bereits bei D5
+  dokumentierten Rollenmasken-, Mitgliedsantrag-Vorlagen- und
+  PDF-Dateinamenfehler.
+- Keine Anwendung verwendet Demo-Datenmarker; `KGV-DEMO` ist lediglich eine
+  Vereins-ID. Produktive Datenbanken und Deployments blieben unberührt.
+  B-01 bleibt als zwingender Betriebsnachweis vor dem Rollout offen.
+
 ## 2026-10-30 – G13b Google-Play-Artefakte
 
 - `AWR.bat` verwendet ausschließlich signierte `*-Signed.apk`- und

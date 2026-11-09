@@ -2,6 +2,29 @@
 
 ---
 
+## 2026-11-09 – P11 Demo-Bereinigung D6 lokal abgeschlossen
+
+- D6 ergänzt die idempotente Korrektur des G6-Jahresverbrauchs-Enumfehlers
+  sowie minimale EXECUTE-Rechte für Rollen-, Provisionierungs- und
+  Kontextfunktionen. Der Protected-Account-Vertrag ist ohne Demo-Sonderfall
+  regressionsgesichert.
+- Vereins- und Demo-Fixtures verwenden weiterhin ausschließlich synthetische
+  Daten und das finale D5-Schema. Die vier DemoDB-Seed-Dateien bestanden zwei
+  vollständige lokale Durchläufe.
+- Sechs nachweislich veraltete Web-Testannahmen wurden aktualisiert, ohne
+  Sicherheitsprüfungen abzuschwächen. Web-Node-Tests 215/215, Supabase-/Edge-
+  Tests 87/87 und nummerierte lokale SQL-Regressionen 15/15 bestanden.
+- Frischer lokaler Supabase-Neuaufbau und Wiederholung der D6-Migration
+  bestanden. Web-, Core-/Infrastructure- und MAUI-Android-Builds bestanden.
+- Die .NET-Gesamtsuite bleibt bei 414/419 mit denselben fünf bereits unter
+  D5 dokumentierten Rollenmasken-, Vorlagen- und Dateinamen-Altfehlern.
+- Keine Anwendung verwendet Demo-Zeilenmarker; `KGV-DEMO` bleibt nur ein
+  Beispiel für eine Vereins-ID. Keine Produktivdatenbank, kein Deployment
+  und kein `db push --linked`.
+- B-01 ist weiterhin offen und bleibt eine zwingende Betriebsfreigabe vor
+  jedem produktiven Rollout; die lokale technische D6-Abnahme ist keine
+  Betriebsfreigabe.
+
 ## 2026-10-30 – G13b Google-Play-Artefakte zentralisiert
 
 - `AWR.bat` nimmt nur noch als `-Signed` erzeugte APK/AAB-Dateien an und legt

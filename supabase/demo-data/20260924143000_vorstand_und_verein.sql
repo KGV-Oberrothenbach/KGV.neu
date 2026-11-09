@@ -2,6 +2,13 @@
 -- Bildet die Fachlogik der Originaldatenbank nach:
 -- Vorstand ist ein befreiender Wartungsvertrag, der Verein selbst nicht.
 
+select set_config(
+  'request.jwt.claim.sub',
+  '00000000-0000-0000-0000-00000000d600',
+  false
+);
+select set_config('request.jwt.claim.role', 'authenticated', false);
+
 do $$
 declare
     v_vorstand_vertrag_id bigint;
@@ -39,16 +46,15 @@ begin
 
     if v_vorstand_vertrag_id is null then
         insert into public.wartungsvertraege
-            (titel, beschreibung, bereich, max_aktive_zuordnungen, befreit_von_pflichtstunden, aktiv, bemerkung, is_demo)
+            (titel, beschreibung, bereich, max_aktive_zuordnungen, befreit_von_pflichtstunden, aktiv, bemerkung)
         values
             ('Vorstand', 'Befreiung von Pflichtstunden für Vorstandsmitglieder.', 'Vorstand/Bauausschuß', 7, true, true,
-             'Demo-Abbild der Vorstand-Regel aus der Originaldatenbank.', true)
+             'Synthetisches Abbild der Vorstand-Regel aus der VereinsDB.')
         returning id into v_vorstand_vertrag_id;
     else
         update public.wartungsvertraege
         set befreit_von_pflichtstunden = true,
-            aktiv = true,
-            is_demo = true
+            aktiv = true
         where id = v_vorstand_vertrag_id;
     end if;
 
@@ -60,9 +66,11 @@ begin
     where id = v_d01_mitglied_id;
 
     insert into public.wartungsvertrag_zuordnungen
-        (wartungsvertrag_id, hauptmitglied_id, gueltig_ab, gueltig_bis, bemerkung, is_demo)
-    select v_vorstand_vertrag_id, v_d01_mitglied_id, date '2026-01-01', null,
-           'Demo: Vorstand/Admin auf D01 – von Pflichtstunden befreit.', true
+        (wartungsvertrag_id, hauptmitglied_id, vertragspartei_mitglied_id,
+         gueltig_ab, gueltig_bis, bemerkung)
+    select v_vorstand_vertrag_id, v_d01_mitglied_id, v_d01_mitglied_id,
+           date '2026-01-01', null,
+           'Synthetisch: Vorstand/Admin auf D01 – von Pflichtstunden befreit.'
     where not exists (
         select 1
         from public.wartungsvertrag_zuordnungen z
@@ -79,7 +87,7 @@ begin
         role = 'user',
         aktiv = true,
         ist_kgv = true,
-        bemerkung = 'Demo: Verein für Leerstands- und Allgemeinflächen-Berechnungen.'
+        bemerkung = 'Synthetischer Verein für Leerstands- und Allgemeinflächen-Berechnungen.'
     where id = v_d02_mitglied_id;
 end;
 $$;

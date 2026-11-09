@@ -25,8 +25,8 @@ export function edgeHarness(options = {}) {
   const driveFiles=new Map();
   const document = {id:77,mitglied_id:2,parzelle_id:null,drive_file_id:"drive-77",dateiname:"vertrag.pdf",mime_type:"application/pdf",archiviert_at:null,...options.document};
   const tables = {
-    app_user:[{user_id:userId,role:options.role??"user",mitglied_id:1,is_demo_account:false,permission_grants:granted,permission_revocations:revoked}],
-    dokument:[document],mitglied:[{id:2,is_demo:false}],
+    app_user:[{user_id:userId,role:options.role??"user",mitglied_id:1,permission_grants:granted,permission_revocations:revoked}],
+    dokument:[document],mitglied:[{id:2}],
     pachtvertragsfassung:[{dokument_id:77,pachtverhaeltnis_id:12,wirksam_ab:"2010-01-01"}],
     pachtverhaeltnis_beteiligung:(options.numbers??[1042,1048]).map(n=>({pachtverhaeltnis_id:12,gueltig_ab:"1998-01-01",gueltig_bis:null,mitglied:{mitgliedsnummer:n}})),
     parzellen_belegung:[], historical_contract_operation:[],

@@ -14,7 +14,7 @@ test("prepared signature uploads are authorized server-side and do not expose a 
   assert.match(edge, /current_app_user_context/);
   assert.match(edge, /status !== "zur_signatur"/);
   assert.match(edge, /position\.status !== "offen"/);
-  assert.match(edge, /crypto\.randomUUID\(\)/);
+  assert.match(edge, /stableObjectId\(hash\)/);
   assert.match(edge, /crypto\.subtle\.digest\("SHA-256"/);
   assert.match(edge, /admin\.storage\.from\(bucket\)\.upload/);
   assert.doesNotMatch(migration, /create policy prepared_contract_signatures_read_admin/);

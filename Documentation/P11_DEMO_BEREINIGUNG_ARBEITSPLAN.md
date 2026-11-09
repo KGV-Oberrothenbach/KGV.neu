@@ -442,9 +442,10 @@ aktiven Schema entfernen.
 
 #### D5 – Umsetzungs- und Abnahmestand (09.11.2026)
 
-**Status:** lokal technisch abgeschlossen. B-01 bleibt als betrieblicher
-Freigabe-Blocker offen; D6 wurde nicht begonnen. Es erfolgten kein produktiver
-Zugriff, kein Deployment und kein `db push --linked`.
+**Status zum D5-Abschluss:** lokal technisch abgeschlossen. B-01 bleibt als
+betrieblicher Freigabe-Blocker offen; D6 war zu diesem Zeitpunkt noch nicht
+begonnen. Es erfolgten kein produktiver Zugriff, kein Deployment und kein
+`db push --linked`.
 
 Migration und physischer Schemaabbau:
 
@@ -509,12 +510,10 @@ Lokale Abnahme:
   Altfehler betreffen zwei veraltete Rollenmaskenerwartungen, zwei
   PDF-Vorlagenkompatibilitätstests und einen sichtbaren PDF-Dateinamentest.
 
-Verbleibende historische Demo-Bezeichnungen stehen ausschließlich in
-unveränderten historischen Migrationen und isolierten historischen
-Testfixtures beziehungsweise in noch umzubauenden D6-Seeds/Tests. D6 muss
-diese Fixtures auf den gemeinsamen Zielvertrag umstellen und die
-Gesamtabnahme beider Projektkonfigurationen durchführen. B-01 bleibt bis zum
-separaten betrieblichen Nachweis offen.
+Zum D5-Abschluss standen noch D6-Seeds und Tests auf den gemeinsamen
+Zielvertrag um. Der folgende D6-Abschnitt dokumentiert deren technische
+Abnahme. B-01 bleibt davon unabhängig bis zum separaten betrieblichen
+Nachweis offen.
 
 ### D6 – Seeds, Tests, Dokumentation und Endabnahme
 
@@ -529,7 +528,67 @@ dauerhaft regressionsgesichert.
 | Abhängigkeiten | D1 bis D5. |
 | Risiken | Tests können scheinbar grün sein, wenn sie alte Fixtures nicht mehr ausführen; lokale Seeds dürfen keine Produktivdaten imitieren oder externe Dienste ansprechen. |
 | Tests | Vollständiger lokaler Neuaufbau je Seed, alle Supabase-Regressionen, RPC-1 bis RPC-6, Edge-Tests, Web-/MAUI-Build und die in P11 geforderten Rechte-Regressionen. |
-| Abnahme | Beide lokalen Projektkonfigurationen lassen sich mit gleichem Schema und jeweils passenden synthetischen Daten aufbauen; alle Tests verwenden keine Demo-Zeilenmarkierung mehr; D0-Blocker B-01 ist geschlossen. |
+| Abnahme | Technische D6-Abnahme: lokaler Neuaufbau und synthetische Seeds bestehen; aktive Tests und Anwendungen verwenden keine Demo-Zeilenmarkierung mehr. B-01 bleibt ein separater Betriebsnachweis und blockiert weiterhin jede produktive Freigabe. |
+
+#### D6 – lokale technische Abnahme (09.11.2026)
+
+**Status:** lokal technisch abgeschlossen; keine betriebliche oder produktive
+Freigabe. B-01 bleibt offen und ist vor einem Rollout weiterhin zwingend
+nachzuweisen.
+
+Umsetzung:
+
+- `20261109140000_p11_d6_fix_jahresverbrauch_pruefstatus_enum.sql` castet den
+  Prüfstatus vor `coalesce` zu `text`, wodurch der ungültige Enum-Leerwert
+  entfällt. Die Korrektur erhält den übrigen RPC-Vertrag und ist bei erneuter
+  Ausführung idempotent.
+- Dieselbe Migration beschränkt EXECUTE für Rollenverwaltung,
+  Benutzerverknüpfung und Kontext-/Rechtefunktionen auf die vorgesehenen
+  Rollen. Insbesondere bleiben Provisionierung service-only und anonyme
+  Rollenverwaltungsaufrufe gesperrt.
+- DemoDB-Fixtures verwenden synthetische Projekt-Baseline-Daten,
+  `invalid.example`-Adressen und keine Demo-Zeilenmarker. Pflichtstunden-,
+  Vorstands-/Vereins- und manuelle Zähler-Fixtures wurden auf den D5-
+  Schemavertrag umgestellt; der Seed benennt den synthetischen Benutzer statt
+  eines Demo-Datenmerkmals.
+- Die frühere demo-spezifische Admin-Vertragsprüfung wurde durch
+  `protected-account-final.contract.test.mjs` ersetzt. Der Ersatz prüft
+  weiterhin effektive Rechte, geschützte Konten, Rollenverwaltung und
+  `is_protected`; die Negativtests der SQL-Sicherheitssuite bleiben bestehen.
+- Sechs nachweislich veraltete Web-Testannahmen wurden auf die aktiven
+  Migrationen, `long`-Permissions, deterministische Signaturobjekt-IDs,
+  kanonische Vorlagenzeilenenden und den datenbankgesteuerten Export-Key
+  angepasst. Keine Autorisierungsprüfung wurde entfernt oder abgeschwächt.
+
+Lokale Abnahme:
+
+- `supabase db reset --local --yes`: vollständiger Neuaufbau einschließlich
+  D6-Migration und Vereins-Seed bestanden; die D6-Migration danach nochmals
+  direkt angewendet und ihre Wiederholbarkeit bestätigt;
+- nummerierte SQL-Regressionen: **15/15 bestanden**, darunter D2, D4, D5,
+  D6, AP-02A-RPC 1 bis 6, RFID, Zähler und G6-Jahresverbrauch;
+- alle vier synthetischen DemoDB-Seed-Dateien in zwei vollständigen
+  Durchläufen: **8/8 Ausführungen bestanden**;
+- Supabase-/Edge-Node-Verträge: **87/87 bestanden**;
+- vollständige Web-Node-Suite: **215/215 bestanden**; ESLint für geänderte
+  Web-Vertragsdateien bestanden;
+- Web-Produktionsbuild bestanden; bestehender Hinweis auf große Bundles;
+- Core-/Infrastructure-Build und MAUI-Android-Build bestanden, jeweils ohne
+  Fehler. Bestehende `NU1902`/`NU1903`-Hinweise zu ImageSharp bleiben offen;
+- vollständige `.NET`-Testsuite: **414/419 bestanden**. Es sind unverändert
+  dieselben fünf in D5 dokumentierten Altfehler: zwei veraltete
+  Rollenmasken-Erwartungen, zwei Mitgliedsantrag-Vorlagen-Regressionen und
+  ein sichtbarer PDF-Dateiname. Die Fehlermenge und Kategorien haben sich
+  gegenüber dem D5-Stand nicht verändert.
+- In aktiven Core-, Infrastructure-, MAUI- und Web-Anwendungsquellen wurden
+  keine Demo-Zeilenmarker oder Demo-Datenkennzeichnungen gefunden.
+  `KGV-DEMO` bleibt ausschließlich ein Beispiel für eine Vereins-ID und
+  damit ein Verbindungsmerkmal, kein Datenmerkmal.
+
+Es wurden keine Produktivdatenbanken verbunden oder verändert, kein
+Deployment ausgeführt und kein `db push --linked` aufgerufen. B-01 bleibt
+als manuell zu erbringender, lesender Betriebsnachweis offen und verhindert
+unverändert den produktiven Rollout.
 
 ## Reihenfolge und Stop-Kriterien
 

@@ -6,7 +6,7 @@ const read = (path) => readFile(new URL(path, import.meta.url), "utf8");
 
 test("meter workflow RPCs are connected from productive Web and MAUI screens", async () => {
   const [migration, leaseFix, page, webService, repository, webRequests, navigation, mauiReading, mauiChange, mauiRequests, mauiService, shell] = await Promise.all([
-    read("../../../supabase/migrations/20261030150000_meter_workflow_unification.sql"),
+    read("../../../supabase/migrations/20261030150200_meter_workflow_unification.sql"),
     read("../../../supabase/migrations/20261030151000_meter_change_request_lease_date.sql"),
     read("../../app/page.tsx"),
     read("meter-change-service.ts"),

@@ -6,7 +6,7 @@ const [flags, web, sql] = await Promise.all([
   readFile(new URL("./permissions.ts", import.meta.url), "utf8"),
   readFile(new URL("../../supabase/migrations/20261011130000_g13_permission_contract.sql", import.meta.url), "utf8"),
 ]);
-for (let bit = 0; bit <= 24; bit += 1) assert.match(flags, new RegExp(`1 << ${bit}`));
+for (let bit = 0; bit <= 24; bit += 1) assert.match(flags, new RegExp(`1L? << ${bit}`));
 assert.match(flags, /CanPerformYearEndClosing\s*=\s*1L? << 23/);
 assert.match(sql, /when 'admin' then 16769015::bigint/);
 assert.match(sql, /when 'vorstand' then 7855607::bigint/);
@@ -17,7 +17,7 @@ assert.equal(bits.CanPerformYearEndClosing, 8388608);
 assert.equal(bits.CanRegisterHistoricalContracts, 16777216);
 assert.equal(Object.values(bits).reduce((mask, bit) => mask | bit, 0), 33554431);
 assert.match(web, /const UserPermissions = Permission\.CanViewMembers \| Permission\.CanSeeOwnDataOnly/);
-assert.match(web, /const AdminPermissions = VorstandPermissions \| Permission\.CanManageRoles \| Permission\.CanCreateMitglied \| Permission\.CanPerformYearEndClosing/);
+assert.match(web, /const AdminPermissions = combinePermissions\(VorstandPermissions, Permission\.CanManageRoles, Permission\.CanCreateMitglied, Permission\.CanPerformYearEndClosing, Permission\.CanManageClubSeasonConfiguration, Permission\.CanManageDocumentTypes, Permission\.CanArchiveDocuments\)/);
 
 const mauiAuthorizationFiles = [
   "../../KGV.Maui/Pages/ExportPage.cs",

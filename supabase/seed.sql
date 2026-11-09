@@ -25,7 +25,7 @@ insert into public.p11_ap01_test_fixture (fixture_id, rule_ids, description, dat
   ('vereinsgarten', array['P11-R15'], 'Vereinsgartensegment ohne finanzielle Verbrauchsverteilung.',
    '{"parzelle":"P11-P-05","bezug_typ":"verein","umlagefaehig":false}'::jsonb),
   ('individuelle-rechte', array['P11-R01', 'P11-R02'], 'User mit Zählergewährung sowie privilegierte Rollen mit Entzug.',
-   '{"user_mit_gewaehrung":"P11-U-1001","admin_mit_entzug":"P11-U-1002","vorstand_mit_entzug":"P11-U-1003","demo_user":"P11-U-9001"}'::jsonb)
+   '{"user_mit_gewaehrung":"P11-U-1001","admin_mit_entzug":"P11-U-1002","vorstand_mit_entzug":"P11-U-1003","synthetischer_projektbenutzer":"P11-U-9001"}'::jsonb)
 on conflict (fixture_id) do update
 set rule_ids = excluded.rule_ids,
     description = excluded.description,

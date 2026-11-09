@@ -7,6 +7,7 @@ const migrationUrl = new URL("../../../supabase/migrations/20261010140000_g11_ap
 async function readWorkHoursSources() {
   const [
     migration,
+    exportDefinitionMigration,
     exportMigration,
     exportGateway,
     webRepository,
@@ -20,6 +21,7 @@ async function readWorkHoursSources() {
     exportPdf,
   ] = await Promise.all([
     readFile(migrationUrl, "utf8"),
+    readFile(new URL("../../../supabase/migrations/20260923223000_export_arbeitsstunden_uebersicht.sql", import.meta.url), "utf8"),
     readFile(new URL("../../../supabase/migrations/20261010141000_g11_fix_work_hours_export_views.sql", import.meta.url), "utf8"),
     readFile(new URL("../../../supabase/migrations/20261015210000_generic_export_gateway.sql", import.meta.url), "utf8"),
     readFile(new URL("../../repositories/work-hours/work-hours-repository.ts", import.meta.url), "utf8"),
@@ -35,7 +37,7 @@ async function readWorkHoursSources() {
   const fnStart = migration.indexOf("CREATE FUNCTION public.fn_berechne_pflichtstunden_status");
   const fnEnd = migration.indexOf("\n$$;", fnStart);
   assert.ok(fnStart >= 0 && fnEnd > fnStart, "central SQL function should be present");
-  return { functionSql: migration.slice(fnStart, fnEnd), migration, exportMigration, exportGateway, webRepository, webSummary, webHome, webMemberWorkHours, mauiService, mauiSummary, mauiMemberDetail, mauiExport, exportPdf };
+  return { functionSql: migration.slice(fnStart, fnEnd), migration, exportDefinitionMigration, exportMigration, exportGateway, webRepository, webSummary, webHome, webMemberWorkHours, mauiService, mauiSummary, mauiMemberDetail, mauiExport, exportPdf };
 }
 
 function applyDatabaseContractEffect(contracts, requiredHours, seasonStart = "2026-01-01", seasonEnd = "2026-12-31") {
@@ -115,7 +117,7 @@ test("Web and MAUI read and only display the central duty-hours view values", as
 });
 
 test("work-hours exports reuse central view measures and do not calculate maintenance effects", async () => {
-  const { exportMigration, exportGateway, mauiExport, exportPdf } = await readWorkHoursSources();
+  const { exportDefinitionMigration, exportMigration, exportGateway, mauiExport, exportPdf } = await readWorkHoursSources();
   assert.match(exportMigration, /from public\.v_pflichtstunden_uebersicht v/);
   assert.match(exportMigration, /coalesce\(v\.wartungsvertrag_gutschrift_stunden, 0\)/);
   assert.match(exportMigration, /coalesce\(v\.hat_wartungsvertrag, false\)/);
@@ -123,8 +125,8 @@ test("work-hours exports reuse central view measures and do not calculate mainte
   assert.match(exportMigration, /coalesce\(v\.offene_stunden, 0\)/);
   assert.match(exportGateway, /rpc_export_arbeitsstunden_uebersicht_json/);
   assert.match(exportGateway, /from public\.rpc_export_arbeitsstunden_uebersicht\(/);
-  assert.match(mauiExport, /"arbeitsstunden_uebersicht"/);
-  assert.match(mauiExport, /RunProtectedExportRpcAsync\(SelectedDefinition\?\.ExportKey/);
+  assert.match(exportDefinitionMigration, /\('arbeitsstunden_uebersicht', 'Arbeitsstundenübersicht'/);
+  assert.match(mauiExport, /RunProtectedExportRpcAsync\(definition\.ExportKey \?\? string\.Empty/);
   assert.match(exportPdf, /BuildArbeitsstundenPdf\(rows\)/);
   assert.doesNotMatch(exportPdf, /WartungsvertragGutschrift|BefreitVonPflichtstunden|pflichtstunden_soll\s*[=+*/-]/);
 });
