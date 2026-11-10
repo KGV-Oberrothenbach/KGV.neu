@@ -26,7 +26,8 @@ Deno.serve(async (request) => {
     const { data: userData, error: userError } = await caller.auth.getUser();
     if (userError || !userData.user) return json({ success: false, message: "Keine gültige Session." }, 401);
     const { data: context, error: contextError } = await caller.rpc("current_app_user_context");
-    if (contextError || !context?.some((entry: { role?: string }) => entry.role === "admin" || entry.role === "vorstand")) return json({ success: false, message: "Keine Berechtigung." }, 403);
+    const callerMemberId = context?.[0]?.mitglied_id;
+    if (contextError || !Number.isSafeInteger(callerMemberId)) return json({ success: false, message: "Keine zugeordnete Unterzeichneridentität." }, 403);
     const body = await request.json();
     const id = Number(body?.kommunikationsvorgang_id), revision = Number(body?.signatur_revision), key = body?.signatur_schluessel;
     const png = decodePng(body?.png_base64);
@@ -36,7 +37,7 @@ Deno.serve(async (request) => {
     const { data: contract, error: contractError } = await admin.from("kommunikationsvorgang").select("id,status,revision,signatur_revision").eq("id", id).maybeSingle();
     if (contractError || !contract || !["zur_signatur", "letzte_pruefung", "erledigt"].includes(contract.status) || contract.revision !== revision || contract.signatur_revision !== revision)
       return json({ success: false, message: "Der Vertragsvorgang ist nicht für diese Signaturrevision geöffnet." }, 409);
-    const { data: position, error: positionError } = await admin.from("prepared_contract_signatur").select("id,status,storage_path,signatur_sha256").eq("kommunikationsvorgang_id", id).eq("signatur_revision", revision).eq("signatur_schluessel", key).maybeSingle();
+    const { data: position, error: positionError } = await admin.from("prepared_contract_signatur").select("id,status,storage_path,signatur_sha256,unterzeichner_typ,mitglied_id").eq("kommunikationsvorgang_id", id).eq("signatur_revision", revision).eq("signatur_schluessel", key).maybeSingle();
     if (positionError || !position) return json({ success: false, message: "Die Signaturposition wurde nicht vorbereitet." }, 409);
     if (position.status === "unterschrieben") {
       if (position.signatur_sha256 === hash && position.storage_path)
@@ -45,6 +46,10 @@ Deno.serve(async (request) => {
     }
     if (position.status !== "offen" || contract.status !== "zur_signatur")
       return json({ success: false, message: "Diese Signaturposition ist nicht mehr unterschreibbar." }, 409);
+    if (position.unterzeichner_typ === "vereinsunterzeichner") {
+      const { data: source } = await admin.from("prepared_contract_signatur_snapshot_person").select("id").eq("kommunikationsvorgang_id", id).eq("signatur_revision", revision).eq("mitglied_id", callerMemberId).maybeSingle();
+      if (!source) return json({ success: false, message: "Keine gültige Unterzeichnerberechtigung." }, 403);
+    } else if (position.mitglied_id !== callerMemberId) return json({ success: false, message: "Die Signatur gehört nicht zum angemeldeten Mitglied." }, 403);
     const objectId = stableObjectId(hash);
     const storagePath = `${id}/${revision}/${key}/${objectId}.png`;
     const { error: uploadError } = await admin.storage.from(bucket).upload(storagePath, png, { contentType: "image/png", upsert: true });
