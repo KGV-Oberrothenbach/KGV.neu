@@ -52,18 +52,26 @@ select id as wrong_member_id from public.mitglied where name='P11 RPC7 FalscherP
 -- synthetic source documents. The RPC's own provenance checks remain active.
 set local session_replication_role=replica;
 insert into public.kommunikationsvorgang(vorgangstyp,dokumenttyp,status,mitglied_id,parzelle_id,revision,entwurf_daten)
-values ('vertrag_signatur','pachtvertrag','letzte_pruefung',:'hauptpaechter_id',:'parzelle_id',1,'{}')
+values ('vertrag_signatur','pachtvertrag','entwurf',:'hauptpaechter_id',:'parzelle_id',1,'{}')
 returning id as vorgang_id \gset
-insert into public.dokument(parzelle_id,mitglied_id,storage_path,titel,dateiname,mime_type,source_kommunikationsvorgang_id,source_revision)
-values (:'parzelle_id',:'hauptpaechter_id','p11/rpc7-valid.pdf','P11 RPC7 gültig','p11-rpc7-valid.pdf','application/pdf',:'vorgang_id',1)
+insert into public.dokument(parzelle_id,storage_path,titel,dateiname,mime_type,source_kommunikationsvorgang_id,source_revision)
+values (:'parzelle_id','p11/rpc7-valid.pdf','P11 RPC7 gültig','p11-rpc7-valid.pdf','application/pdf',:'vorgang_id',1)
 returning id as dokument_id \gset
-update public.kommunikationsvorgang set final_dokument_id=:'dokument_id' where id=:'vorgang_id';
-insert into public.dokument(parzelle_id,mitglied_id,storage_path,titel,dateiname,mime_type)
-values (:'other_parzelle_id',:'hauptpaechter_id','p11/rpc7-wrong-parcel.pdf','P11 RPC7 falsche Parzelle','p11-rpc7-wrong-parcel.pdf','application/pdf')
+update public.kommunikationsvorgang
+   set status='letzte_pruefung', final_dokument_id=:'dokument_id'
+ where id=:'vorgang_id';
+insert into public.dokument(parzelle_id,storage_path,titel,dateiname,mime_type)
+values (:'other_parzelle_id','p11/rpc7-wrong-parcel.pdf','P11 RPC7 falsche Parzelle','p11-rpc7-wrong-parcel.pdf','application/pdf')
 returning id as wrong_parzelle_dokument_id \gset
-insert into public.dokument(parzelle_id,mitglied_id,storage_path,titel,dateiname,mime_type)
-values (:'parzelle_id',:'wrong_member_id','p11/rpc7-wrong-member.pdf','P11 RPC7 falscher Pächter','p11-rpc7-wrong-member.pdf','application/pdf')
+insert into public.kommunikationsvorgang(vorgangstyp,dokumenttyp,status,mitglied_id,parzelle_id,revision,entwurf_daten)
+values ('vertrag_signatur','pachtvertrag','entwurf',:'hauptpaechter_id',:'other_parzelle_id',1,'{}')
+returning id as wrong_member_vorgang_id \gset
+insert into public.dokument(parzelle_id,storage_path,titel,dateiname,mime_type,source_kommunikationsvorgang_id,source_revision)
+values (:'other_parzelle_id','p11/rpc7-wrong-member.pdf','P11 RPC7 falscher Pächter','p11-rpc7-wrong-member.pdf','application/pdf',:'wrong_member_vorgang_id',1)
 returning id as wrong_member_dokument_id \gset
+update public.kommunikationsvorgang
+   set status='letzte_pruefung', final_dokument_id=:'wrong_member_dokument_id'
+ where id=:'wrong_member_vorgang_id';
 set local session_replication_role=origin;
 
 insert into p11_rpc7_ids values
@@ -92,7 +100,7 @@ begin
   select count(*) into v_before from public.pachtverhaeltnis;
   begin perform public.register_pachtverhaeltnis_erstvertrag(v.other_parzelle_id,v.hauptpaechter_id,date '2026-11-11',v.dokument_id,date '2026-11-11',date '2026-11-12',v.granted_user); raise exception 'RPC7 mismatched dates unexpectedly succeeded'; exception when sqlstate '23514' then null; end;
   begin perform public.register_pachtverhaeltnis_erstvertrag(v.other_parzelle_id,v.hauptpaechter_id,date '2026-11-11',v.dokument_id,date '2026-11-11',date '2026-11-11',v.granted_user); raise exception 'RPC7 document parcel mismatch unexpectedly succeeded'; exception when sqlstate '23514' then null; end;
-  begin perform public.register_pachtverhaeltnis_erstvertrag(v.parzelle_id,v.wrong_member_id,date '2026-11-11',v.wrong_member_dokument_id,date '2026-11-11',date '2026-11-11',v.granted_user); raise exception 'RPC7 workflow party mismatch unexpectedly succeeded'; exception when sqlstate '23514' then null; end;
+  begin perform public.register_pachtverhaeltnis_erstvertrag(v.other_parzelle_id,v.wrong_member_id,date '2026-11-11',v.wrong_member_dokument_id,date '2026-11-11',date '2026-11-11',v.granted_user); raise exception 'RPC7 workflow party mismatch unexpectedly succeeded'; exception when sqlstate '23514' then null; end;
   if (select count(*) from public.pachtverhaeltnis) <> v_before then raise exception 'RPC7 invalid requests left a partial lease'; end if;
   -- A second first-contract registration on the same parcel is rejected and leaves the original intact.
   begin perform public.register_pachtverhaeltnis_erstvertrag(v.parzelle_id,v.hauptpaechter_id,date '2026-11-10',v.dokument_id,date '2026-11-10',date '2026-11-10',v.granted_user); raise exception 'RPC7 duplicate registration unexpectedly succeeded'; exception when sqlstate '23505' then null; end;
