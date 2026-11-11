@@ -11,8 +11,12 @@ Deno.serve(async request => {
     const url = required("SUPABASE_URL"), anon = required("SUPABASE_ANON_KEY"), service = required("SUPABASE_SERVICE_ROLE_KEY");
     const caller = createClient(url, anon, { global: { headers: { Authorization: authorization } } }); const admin = createClient(url, service);
     const { data: user } = await caller.auth.getUser(); if (!user.user) return json({ success: false, message: "Keine gültige Session." }, 401);
-    const { data: context, error: contextError } = await caller.rpc("current_app_user_context");
-    if (contextError || !context?.some((x: { role?: string }) => x.role === "admin" || x.role === "vorstand")) return json({ success: false, message: "Keine Berechtigung." }, 403);
+    // Discard archives prepared documents as well as changing the contract state.
+    // Keep this wrapper aligned with the service-only RPC's combined effective
+    // right (CanCreateMitglied | CanManageDocuments), including per-user grants
+    // and administrative revocations.
+    const { data: permitted, error: permissionError } = await caller.rpc("has_effective_permission", { p_permission: 524304 });
+    if (permissionError || permitted !== true) return json({ success: false, message: "Keine Berechtigung." }, 403);
     const body = await request.json(); const id = Number(body?.kommunikationsvorgang_id), revision = Number(body?.expected_revision);
     if (!Number.isSafeInteger(id) || id <= 0 || !Number.isSafeInteger(revision) || revision < 1) return json({ success: false, message: "Kommunikationsvorgang und Revision sind erforderlich." }, 400);
     const { data, error } = await admin.rpc("discard_prepared_contract", { p_kommunikationsvorgang_id: id, p_expected_revision: revision, p_discarded_by: user.user.id });

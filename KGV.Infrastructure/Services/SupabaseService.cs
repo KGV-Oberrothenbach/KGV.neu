@@ -4914,7 +4914,7 @@ namespace KGV.Infrastructure.Services
                 var driveFileId = CleanOptionalText(existingRecord.DriveFileId);
                 if (!string.IsNullOrWhiteSpace(driveFileId))
                 {
-                    var driveDeleteResult = await DeleteDokumentFromDriveAsync(driveFileId);
+                    var driveDeleteResult = await DeleteDokumentFromDriveAsync(existingRecord.Id, driveFileId);
                     if (!driveDeleteResult.Success)
                         return driveDeleteResult;
                 }
@@ -8630,7 +8630,7 @@ namespace KGV.Infrastructure.Services
                 && Regex.IsMatch(normalizedDateiname, @"^.+_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.[^./\\]+$", RegexOptions.CultureInvariant);
         }
 
-        private async Task<DokumentDeleteResult> DeleteDokumentFromDriveAsync(string driveFileId)
+        private async Task<DokumentDeleteResult> DeleteDokumentFromDriveAsync(long dokumentId, string driveFileId)
         {
             var token = await _authService.GetAccessTokenAsync();
             if (string.IsNullOrWhiteSpace(token))
@@ -8645,7 +8645,7 @@ namespace KGV.Infrastructure.Services
             {
                 using var message = new HttpRequestMessage(HttpMethod.Delete, endpoint)
                 {
-                    Content = new StringContent(JsonSerializer.Serialize(new { drive_file_id = driveFileId }))
+                    Content = new StringContent(JsonSerializer.Serialize(new { document_id = dokumentId, drive_file_id = driveFileId }))
                 };
                 message.Content.Headers.ContentType = MediaTypeHeaderValue.Parse("application/json");
                 message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);

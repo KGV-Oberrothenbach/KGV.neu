@@ -34,6 +34,7 @@ type ApiErrorCode =
   | "INTERNAL_ERROR";
 
 type DeleteDocumentRequest = {
+  document_id?: number | string | null;
   drive_file_id?: string | null;
   fileId?: string | null;
 };
@@ -612,12 +613,11 @@ async function requireAdminOrVorstand(authHeader: string, existingAuth?: Awaited
   if (!auth.ok)
     return auth;
 
-  const { role } = auth;
-  if (role !== "admin" && role !== "vorstand") {
-    return { ok: false as const, status: 403, message: "Nur Admin oder Vorstand dürfen Dokumente verwalten." };
-  }
+  const { data: permitted, error: permissionError } = await auth.supabaseUser.rpc("has_effective_permission", { p_permission: 16 });
+  if (permissionError || permitted !== true)
+    return { ok: false as const, status: 403, message: "Keine Berechtigung zur Dokumentverwaltung." };
 
-  logStep("auth passed", { role });
+  logStep("auth passed", { userId: auth.userId });
   return auth;
 }
 
@@ -943,10 +943,21 @@ Deno.serve(async (req) => {
       const auth = await requireAdminOrVorstand(authHeader);
       if (!auth.ok) return errorResponse(auth.status, "UNAUTHORIZED", auth.message, requestId);
       const payload = await req.json() as DeleteDocumentRequest;
+      const documentId = Number(payload.document_id);
       const driveFileId = (payload.drive_file_id ?? payload.fileId ?? "").trim();
-      if (!driveFileId) {
-        return errorResponse(400, "BAD_REQUEST", "drive_file_id fehlt für das Löschen.", requestId);
+      if (!Number.isSafeInteger(documentId) || documentId <= 0 || !driveFileId) {
+        return errorResponse(400, "BAD_REQUEST", "Dokument und zugeordnete Drive-Datei sind für das Löschen erforderlich.", requestId);
       }
+
+      const { data: document, error: documentError } = await auth.supabaseAdmin
+        .from("dokument")
+        .select("id,drive_file_id,archiviert_at")
+        .eq("id", documentId)
+        .is("archiviert_at", null)
+        .maybeSingle();
+      if (documentError) throw new Error(`Dokument vor dem Löschen nicht prüfbar: ${documentError.message}`);
+      if (!document || String(document.drive_file_id ?? "").trim() !== driveFileId)
+        return errorResponse(403, "FORBIDDEN", "Die Drive-Datei gehört nicht zum angegebenen aktiven Dokument.", requestId);
 
       const accessToken = await getGoogleAccessToken();
       await deleteDriveFile(accessToken, driveFileId);
@@ -954,6 +965,7 @@ Deno.serve(async (req) => {
       return json(200, {
         success: true,
         message: "Datei erfolgreich gelöscht.",
+        document_id: documentId,
         drive_file_id: driveFileId,
         request_id: requestId,
       });
