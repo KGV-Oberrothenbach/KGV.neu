@@ -61,8 +61,8 @@ public sealed class PermissionServiceTests
     }
 
     [Theory]
-    [InlineData(UserRole.Admin, 16769015L)]
-    [InlineData(UserRole.Vorstand, 7855607L)]
+    [InlineData(UserRole.Admin, 4278181879L)]
+    [InlineData(UserRole.Vorstand, 1920458231L)]
     [InlineData(UserRole.User, 10L)]
     public void RolePermissions_MatchSharedEffectivePermissionMasks(UserRole role, long expectedMask)
     {

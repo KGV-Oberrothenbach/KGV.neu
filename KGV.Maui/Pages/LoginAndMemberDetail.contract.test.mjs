@@ -25,3 +25,11 @@ test("membership-application lookup failures cannot enable a duplicate applicati
   assert.match(member, /Erstellung ist vorsorglich gesperrt/);
   assert.match(member, /await LoadOptionalMemberDetailsAsync\(member, memberDto\);[\s\S]*?UpdateFormActions\(memberDto\);/);
 });
+
+test("member administration uses effective permissions rather than the administrative role base", () => {
+  assert.match(member, /var canManageUsers = PermissionChecks\.CanManageRoleManagement\(_userContextState\.CurrentUserContext\)/);
+  assert.match(member, /PermissionChecks\.CanEditAllMembers\(_userContextState\.CurrentUserContext\)/);
+  assert.match(member, /if \(!PermissionChecks\.CanManageRoleManagement\(_userContextState\.CurrentUserContext\)\)/);
+  assert.doesNotMatch(member, /_userContextState\.CurrentUserContext\?\.Role is UserRole\.Admin or UserRole\.Vorstand/);
+  assert.doesNotMatch(member, /currentUserContext\?\.Role is UserRole\.Admin or UserRole\.Vorstand/);
+});

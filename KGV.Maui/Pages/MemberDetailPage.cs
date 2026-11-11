@@ -459,7 +459,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
 
     private void UpdateAdminActions(MemberDTO? member)
     {
-        var canManageUsers = _userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand;
+        var canManageUsers = PermissionChecks.CanManageRoleManagement(_userContextState.CurrentUserContext);
         var canEditEmailInMemberContext = member != null && !_hasLinkedAppUser;
 
         _emailEntry.IsReadOnly = !canEditEmailInMemberContext;
@@ -474,7 +474,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         _nutzerHinzufuegenButton.IsEnabled = _nutzerHinzufuegenButton.IsVisible && !string.IsNullOrWhiteSpace(member?.Email);
 
         _appUserHintLabel.Text = !canManageUsers || member == null
-            ? "Benutzerverwaltung und Nutzer hinzufügen sind mobil nur für Admin oder Vorstand verfügbar."
+            ? "Benutzerverwaltung und Nutzer hinzufügen erfordern das Fachrecht Rollenverwaltung."
             : _hasLinkedAppUser
                 ? "Für dieses Mitglied besteht bereits ein App-User. Weitere Auth-Aktionen laufen über die gebundene Benutzerverwaltung."
                 : string.IsNullOrWhiteSpace(member.Email)
@@ -621,7 +621,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
             && member?.Id is > 0
             && member.IstHauptmitglied
             && !member.MitgliedEnde.HasValue
-            && _userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand;
+            && PermissionChecks.CanEditAllMembers(_userContextState.CurrentUserContext);
 
         _cancelMembershipButton.IsVisible = canManageMembership;
     }
@@ -700,10 +700,9 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         if (_memberRecord == null)
             return;
 
-        var currentRole = _userContextState.CurrentUserContext?.Role;
-        if (currentRole is not UserRole.Admin and not UserRole.Vorstand)
+        if (!PermissionChecks.CanManageRoleManagement(_userContextState.CurrentUserContext))
         {
-            await DisplayAlertAsync("Hinweis", "Nutzer hinzufügen ist mobil nur für Admin oder Vorstand freigegeben.", "OK");
+            await DisplayAlertAsync("Hinweis", "Nutzer hinzufügen erfordert das Fachrecht Rollenverwaltung.", "OK");
             return;
         }
 
@@ -979,13 +978,13 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         var currentUserContext = _userContextState.CurrentUserContext;
         var canSave = _isCreateMode
             ? PermissionChecks.CanCreateMitglied(currentUserContext)
-            : currentUserContext?.Role is UserRole.Admin or UserRole.Vorstand;
+            : PermissionChecks.CanEditAllMembers(currentUserContext);
 
         if (!canSave)
         {
             await DisplayAlertAsync("Hinweis", _isCreateMode
                 ? "Mitglieder anlegen ist mobil nur mit dem Fachrecht 'CreateMitglied' oder als Admin/Vorstand freigegeben."
-                : "Stammdaten können mobil nur von Admin oder Vorstand gespeichert werden.", "OK");
+                : "Stammdaten können mobil nur mit dem Fachrecht 'EditAllMembers' gespeichert werden.", "OK");
             return;
         }
 
