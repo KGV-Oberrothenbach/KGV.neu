@@ -38,11 +38,11 @@ test("board signatures and snapshots stay separate, including representation tex
   assert.match(source, /in Vertretung für/);
 });
 
-test("v4 ignores request signature fields and preserves positions on failures", () => {
-  const v4Match = /template\.fieldSpecVersion === membershipApplicationFieldSpecV4\) \{([\s\S]*?)\r?\n      \} else \{/.exec(source);
-  assert.ok(v4Match);
-  const v4Block = v4Match[1];
-  assert.match(v4Block, /loadPersistentMembershipV4Signatures/);
-  assert.doesNotMatch(v4Block, /body\.signature_/);
+test("persistent membership finalization ignores request signature fields and preserves positions on failures", () => {
+  const persistentMatch = /if \(usesPersistentMembershipSignatures\(action, template\.fieldSpecVersion\)\) \{([\s\S]*?)\r?\n      \} else \{/.exec(source);
+  assert.ok(persistentMatch);
+  const persistentBlock = persistentMatch[1];
+  assert.match(persistentBlock, /loadPersistentMembershipSignatures/);
+  assert.doesNotMatch(persistentBlock, /body\.signature_/);
   assert.doesNotMatch(source, /prepared_contract_signatur"\)\.delete|prepared_contract_signatur"\)\.update/);
 });

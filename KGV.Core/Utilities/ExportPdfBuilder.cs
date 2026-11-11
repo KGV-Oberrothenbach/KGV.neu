@@ -18,6 +18,10 @@ namespace KGV.Core.Utilities
 
         public static byte[] BuildExportPdf(string exportKey, IReadOnlyList<AppExportColumnDefinitionRecord> columns, IReadOnlyList<Dictionary<string, string>> rows)
         {
+            ArgumentNullException.ThrowIfNull(exportKey);
+            ArgumentNullException.ThrowIfNull(columns);
+            ArgumentNullException.ThrowIfNull(rows);
+
             PdfSharpFontResolverInitializer.EnsureInitialized();
 
             if (string.Equals(exportKey, "arbeitsstunden_uebersicht", StringComparison.OrdinalIgnoreCase))
