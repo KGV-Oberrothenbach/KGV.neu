@@ -626,8 +626,9 @@ async function requireAdmin(authHeader: string) {
   if (!auth.ok)
     return auth;
 
-  if (auth.role !== "admin")
-    return { ok: false as const, status: 403, message: "Nur Admin dürfen Dokumente archivieren." };
+  const { data: permitted, error: permissionError } = await auth.supabaseUser.rpc("has_effective_permission", { p_permission: 2147483648 });
+  if (permissionError || permitted !== true)
+    return { ok: false as const, status: 403, message: "Keine Berechtigung zur Dokumentarchivierung." };
 
   return auth;
 }
