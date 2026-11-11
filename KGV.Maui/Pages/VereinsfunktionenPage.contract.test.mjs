@@ -3,7 +3,8 @@ import { readFile } from "node:fs/promises";
 
 const page = await readFile(new URL("./VereinsfunktionenPage.cs", import.meta.url), "utf8");
 const service = await readFile(new URL("../../KGV.Infrastructure/Services/SupabaseService.cs", import.meta.url), "utf8");
-assert.match(page, /UserRole\.Admin or UserRole\.Vorstand/);
+assert.match(page, /PermissionChecks\.CanManageClubFunctions\(_user\.CurrentUserContext\)/);
+assert.doesNotMatch(page, /UserRole\.Admin or UserRole\.Vorstand/);
 assert.match(page, /SaveVereinsfunktionBesetzungAsync/);
 assert.match(page, /SaveVereinsfunktionVertretungAsync/);
 assert.match(page, /SaveVereinsfunktionVerwendungAsync/);
