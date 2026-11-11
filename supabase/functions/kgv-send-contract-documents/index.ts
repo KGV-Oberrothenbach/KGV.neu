@@ -56,6 +56,8 @@ Deno.serve(async request => {
     const url = required("SUPABASE_URL");
     const caller = createClient(url, required("SUPABASE_ANON_KEY"), { global: { headers: { Authorization: authorization } } });
     admin = createClient(url, required("SUPABASE_SERVICE_ROLE_KEY"));
+    const { data: callerIdentity, error: callerIdentityError } = await caller.auth.getUser();
+    if (callerIdentityError || !callerIdentity.user) return json({ success: false, message: "Keine gültige Session." }, 401);
     const { data: claim, error: claimError } = await caller.rpc("claim_contract_dispatch", { p_versandinstanz_id: dispatchId });
     if (claimError || !claim?.[0]) return json({ success: false, message: "Versand nicht berechtigt oder nicht beanspruchbar." }, 403);
     claimed = true;
