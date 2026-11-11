@@ -22,11 +22,11 @@ public sealed class DocumentTemplateRegressionTests
         var final = FinalFrom(preview);
         var signed = DocumentGenerationPipeline.ApplySignatures(preview, final, new[]
         {
-            new PdfSignatureCaptureAssignment("unterschrift_antragsteller", Capture()),
-            new PdfSignatureCaptureAssignment("unterschrift_verein", Capture()),
-            new PdfSignatureCaptureAssignment("datenschutz_unterschrift_antragsteller", Capture())
+            new PdfSignatureCaptureAssignment("unterschrift_antragsteller_antrag", Capture()),
+            new PdfSignatureCaptureAssignment("unterschrift_vorstand_1", Capture()),
+            new PdfSignatureCaptureAssignment("unterschrift_antragsteller_datenschutz", Capture())
         });
-        AssertValidPdf(signed.FileContent, 1);
+        AssertValidPdf(signed.FileContent, 2);
     }
 
     [Fact]
@@ -112,8 +112,10 @@ public sealed class DocumentTemplateRegressionTests
     private static SaisonRecord Season() => new() { Jahr = 2026, PachtProQm = .25m, PachtFaelligAm = new DateTime(2026, 3, 31) };
     private static VereinskonfigurationSnapshot Club() => new()
     {
-        VereinName = "KGV Musterverein", VereinRegisterangabe = "VR 123", DokumentOrt = "Zwickau",
-        Kontoinhaber = "KGV Musterverein", Bankname = "Musterbank", Iban = "DE00123456780000000000", Bic = "MUSTDEFFXXX"
+        VereinName = "KGV Musterverein", VereinRegisterangabe = "VR 123", VereinEmail = "vorstand@example.test", DokumentOrt = "Zwickau",
+        Kontoinhaber = "KGV Musterverein", Bankname = "Musterbank", Iban = "DE00123456780000000000", Bic = "MUSTDEFFXXX",
+        VerwendungszweckMitgliedsantrag = "Mitgliedsbeitrag", StandardHinweistext = "Der Verein verarbeitet die Angaben zur Mitgliedschaft.",
+        DatenschutzText = "Datenschutzhinweis", DatenschutzVersion = "2026-01"
     };
 
     private static DigitalSignatureCapture Capture() => new()

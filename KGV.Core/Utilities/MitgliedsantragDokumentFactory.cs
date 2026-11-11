@@ -306,21 +306,23 @@ namespace KGV.Core.Utilities
                 ["unterschrift_ort"] = data.UnterschriftOrt,
                 ["unterschrift_datum"] = data.UnterschriftDatum,
 
-                ["unterschrift_antragsteller"] = string.Empty,
-                ["unterschrift_zweite_partei"] = string.Empty,
+                ["unterschrift_antragsteller_antrag"] = string.Empty,
+                ["unterschrift_zweite_partei_antrag"] = string.Empty,
                 ["unterschrift_zweite_partei_bezeichnung"] = string.Empty,
-                ["unterschrift_verein"] = string.Empty,
-                ["vereins_unterzeichner"] = string.Empty,
+                ["unterschrift_antragsteller_datenschutz"] = string.Empty,
+                ["mitglied_datenschutz_unterschrift_bezeichnung"] = string.Empty,
                 ["mitglied_einwilligung_info_mail"] = data.CheckInfoMail,
                 ["mitglied_einwilligung_rechnung_mail"] = data.CheckRechnungMail,
                 ["mitglied_einwilligung_whatsapp"] = data.CheckWhatsapp,
-                ["mitglied_datenschutz_unterschrift"] = string.Empty,
-                ["mitglied_datenschutz_unterschrift_bezeichnung"] = string.Empty,
                 ["zweite_partei_einwilligung_info_mail"] = string.Empty,
                 ["zweite_partei_einwilligung_rechnung_mail"] = string.Empty,
                 ["zweite_partei_einwilligung_whatsapp"] = string.Empty,
-                ["zweite_partei_datenschutz_unterschrift"] = string.Empty,
-                ["zweite_partei_datenschutz_unterschrift_bezeichnung"] = string.Empty
+                ["unterschrift_zweite_partei_datenschutz"] = string.Empty,
+                ["zweite_partei_datenschutz_unterschrift_bezeichnung"] = string.Empty,
+                ["unterschrift_vorstand_1"] = string.Empty,
+                ["vereinsunterzeichner_1"] = string.Empty,
+                ["unterschrift_vorstand_2"] = string.Empty,
+                ["vereinsunterzeichner_2"] = string.Empty
             };
         }
 

@@ -30,8 +30,8 @@ public static partial class SichtbarerDateiname
     }
 
     private static bool IsTechnicalPdfCacheName(string value)
-        => string.Equals(value, "kgv_pdf", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(value, "kgv-pdf", StringComparison.OrdinalIgnoreCase);
+        => string.Equals(value.TrimEnd('-', '_'), "kgv_pdf", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value.TrimEnd('-', '_'), "kgv-pdf", StringComparison.OrdinalIgnoreCase);
 
     private static string Sanitize(string? value, string fallback)
     {

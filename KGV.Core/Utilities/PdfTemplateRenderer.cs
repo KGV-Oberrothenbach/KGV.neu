@@ -40,6 +40,7 @@ public static class PdfTemplateRenderer
         ArgumentNullException.ThrowIfNull(fields);
         ArgumentNullException.ThrowIfNull(values);
         options ??= PdfTemplateRenderOptions.Default;
+        PdfSharpFontResolverInitializer.EnsureInitialized();
         using var input = new MemoryStream(templatePdf);
         using var document = PdfReader.Open(input, PdfDocumentOpenMode.Modify);
         foreach (var page in document.Pages) page.Annotations.Clear();
