@@ -136,6 +136,16 @@ Die alternative Probe mit `PDFsharp` 6.2.4 (zu diesem Release MIT) wurde bewusst
 
 **Status nach Fortsetzung:** ImageSharp-Sicherheitsblocker **nicht beseitigt**; technische AP-02A-Abnahme weiterhin **nein**. Der unveränderte Core-Build ist erfolgreich, meldet aber erwartungsgemäß die fünf NU1902/NU1903-Advisories. B-01 bleibt unabhängig offen.
 
+### A7.3-Fortsetzung – Lizenzvalidierung und sichere ImageSharp-Aktualisierung (abgeschlossen)
+
+Die vom Verein lokal bereitgestellte `KGV.Core/sixlabors.lic` wurde ausschließlich auf Existenz geprüft und vom Release-Build technisch akzeptiert; ihr Inhalt wurde weder gelesen noch protokolliert. `.gitignore` schließt `sixlabors.lic` global aus, `git check-ignore` bestätigt den Ausschluss und die Lizenzdatei ist nicht versioniert. `SixLabors.ImageSharp` wurde in `KGV.Core` von 2.1.13 auf 4.1.3 aktualisiert; MAUI-Android bezieht die sichere Version transitiv über Core.
+
+Der NuGet-Audit für Core und MAUI-Android meldet keine anfälligen Pakete mehr. Die fünf früheren ImageSharp-Advisories sind damit aus dem aufzulösenden Paketgraphen entfernt. Die Lizenz wurde durch erfolgreiche Core-, Infrastructure- und MAUI-Android-Release-Builds sowie einen erfolgreichen MAUI-Android-Release-Publish validiert; es trat kein Six-Labors-Lizenzfehler auf. Die Release-Artefaktprüfung fand keine Referenz auf ImageSharp 2.1.13.
+
+Ausgeführt und bestanden: vollständige .NET-Suite 419/419; PDF-/Mitgliedsantrag-/Signaturregression 95/95; sichtbare-PDF-Dateinamen-Vertrag 3/3; Export-PDF-Edge-Verträge 12/12. Die vorhandenen Nullable-Warnungen in Core/Infrastructure sowie der Node-Modultyp-Hinweis bleiben als separat bekannte Qualitätsrisiken erhalten; neue NuGet-Sicherheitswarnungen oder ImageSharp-Lizenzwarnungen wurden nicht festgestellt.
+
+**Entscheidung (ersetzt den ImageSharp-Teil der vorigen A7.3-Entscheidung):** Der ImageSharp-Sicherheitsblocker ist **beseitigt** und die technische AP-02A-Abnahme ist **ja**. Die betriebliche Produktionsfreigabe bleibt **nein**, bis B-01 die reale Edge-Bereitstellung, Projektbindung und Secrets für VereinsDB/DemoDB nachweist.
+
 ## A2.1 – Mitgliedschafts- und Auth-RPCs (abgeschlossen)
 
 Die aktive lokale PostgreSQL-Definition nach D6 wurde inventarisiert. `update_app_user_access(uuid,text,bigint,bigint)` und `unlink_app_user(uuid)` sind korrekt mit effektivem `CanManageRoles` (`512`) geschützt; `unlink_app_user` sperrt zusätzlich `is_protected`. `provision_app_user_link(bigint,uuid,text)` ist `SECURITY DEFINER` mit festem `search_path` und ausschließlich für `service_role` ausführbar. Seine einzige privilegierte Edge-Aufrufkette (`kgv-invite-user`) validiert zunächst den Bearer-Token über `supabaseUser.auth.getUser`, prüft mit diesem Token `has_effective_permission(512)` und ruft erst danach die service-role-only RPC auf. Damit wurde keine clientseitig erreichbare Provisionierungsumgehung festgestellt.

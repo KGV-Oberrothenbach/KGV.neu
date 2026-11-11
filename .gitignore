@@ -15,6 +15,9 @@ appsettings.json
 appsettings.*.json
 !appsettings.example.json
 
+# Local Six Labors license material; never commit license keys or files.
+sixlabors.lic
+
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
 
