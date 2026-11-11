@@ -19,8 +19,8 @@ Deno.serve(async (request) => {
     const admin = createClient(url, serviceKey);
     const { data: userData, error: userError } = await caller.auth.getUser();
     if (userError || !userData.user) return json({ success: false, message: "Keine gültige Session." }, 401);
-    const { data: context, error: contextError } = await caller.rpc("current_app_user_context");
-    if (contextError || !context?.some((item: { role?: string }) => item.role === "admin" || item.role === "vorstand")) return json({ success: false, message: "Keine Berechtigung." }, 403);
+    const { data: permitted, error: permissionError } = await caller.rpc("has_effective_permission", { p_permission: 268435456 });
+    if (permissionError || permitted !== true) return json({ success: false, message: "Keine Berechtigung." }, 403);
     const body = await request.json(); const memberId = Number(body?.mitglied_id); const versionIds = Array.isArray(body?.vereinsdokument_fassung_ids) ? body.vereinsdokument_fassung_ids.map(Number) : [];
     if (!Number.isSafeInteger(memberId) || versionIds.length === 0 || versionIds.some((id) => !Number.isSafeInteger(id)) || new Set(versionIds).size !== versionIds.length) return json({ success: false, message: "Mitglied und eindeutige Dokumentfassungen sind erforderlich." }, 400);
     const { data: member, error: memberError } = await admin.from("mitglied").select("id,vorname,name,email").eq("id", memberId).maybeSingle();
