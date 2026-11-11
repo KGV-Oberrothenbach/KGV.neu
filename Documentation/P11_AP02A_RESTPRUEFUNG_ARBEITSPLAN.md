@@ -48,6 +48,8 @@ Bereits korrekt bewertet: `complete_aufnahmebestaetigung` prüft Vorgangstyp, St
 
 ## A3.5 – Vereinsdokumente und Freigaben (abgeschlossen)
 
+Ergänzung: `20261111131000_p11_ap02a_a35_club_document_reads.sql` stellt auch die Status- und Historien-RPCs auf `CanManageClubDocuments` um.
+
 Die aktiven RPCs für Fassungen, Papier-/Digitalbereitstellungen, Status, Historie und Dokumenttypen sowie ihre RLS-Policies und Grants wurden geprüft. Die direkten Admin-/Vorstandsprüfungen in den schreibenden Vereinsdokument-RPCs und der digitalen Versand-Edge-Kette ignorierten individuelle Gewährungen und Entzüge. Migration `20261111130000_p11_ap02a_a35_club_documents.sql` verwendet für Fassungen und Bereitstellungen `CanManageClubDocuments` (`268435456`), für Dokumenttypen getrennt `CanManageDocumentTypes` (`134217728`) und ersetzt die `dokumenttyp`-Schreibpolicy entsprechend. Der service-role-only digitale Pfad bindet weiterhin den übergebenen Auslöser an `app_user`/Mitglied und prüft dessen effektives Recht; die Edge-Function validiert JWT und dieses Recht vor Service-Role-Zugriff. Fassungshistorie, unveränderliche Dateimetadaten, Storno-/Historienguard, Gültigkeit und bestehende RLS-Lesegrenzen bleiben erhalten. Der rückrollbare Test `20261111130000_p11_ap02a_a35_club_documents_funktionstest.sql` belegt Gewährung, fehlendes Recht, Admin-Entzug, Fassung, Papierbereitstellung und den getrennten Dokumenttyp-Pfad. Voll-Replay mit 202 Migrationen, relevante Dokument-/Vertragsregressionen und Web-Build bestanden.
 
 ## A2.1 – Mitgliedschafts- und Auth-RPCs (abgeschlossen)
