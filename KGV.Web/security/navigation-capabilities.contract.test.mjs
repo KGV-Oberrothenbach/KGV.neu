@@ -33,10 +33,13 @@ assert.match(communicationFactory, /Create\(CommunicationArea area\)/);
 assert.doesNotMatch(communicationFactory, /Create\(\)/);
 assert.match(menu, /CanManageRoleManagement\(currentContext\)/);
 assert.doesNotMatch(menu, /Benutzerverwaltung ist nur für Admin/);
-assert.match(navigation, /canManageAdministration/);
+assert.doesNotMatch(navigation, /canManageAdministration/);
 assert.match(navigation, /canRegisterHistoricalContracts/);
 assert.match(navigation, /canManageSeasonConfiguration/);
 assert.match(navigation, /canPerformYearEndClosing/);
+assert.match(navigation, /canManageClubDocuments/);
+assert.match(navigation, /canManageClubFunctions/);
+assert.match(navigation, /canReadDocumentTypes/);
 for (const id of ["ablesen-erfassen", "jae-erfassen", "zaehlerwechsel", "rfid-einrichten", "ablesungen-freigeben"]) {
   assert.ok(navigationConfig.includes(`"${id}"`), `missing direct meter area ${id}`);
 }
@@ -48,4 +51,9 @@ const workspaceRender = page.slice(page.indexOf('<article className="content-are
 assert.doesNotMatch(workspaceRender, /\{activeId ===/);
 assert.match(workspaceRender, /\.has\(effectiveActiveId\)/);
 assert.match(page, /canExport=\{canExportData\(capabilityContext\)\}/);
+assert.match(page, /canManageClubDocuments\(capabilityContext\)/);
+assert.match(page, /canManageDocumentTypes\(capabilityContext\)/);
+assert.match(page, /canManageClubFunctions\(capabilityContext\)/);
+const administrationRender = page.slice(page.indexOf('{effectiveActiveId === "vereinsunterlagen"'));
+assert.doesNotMatch(administrationRender, /context\.role === "admin" \|\| context\.role === "vorstand"/);
 assert.doesNotMatch(page, /context\.role !== "user"/);

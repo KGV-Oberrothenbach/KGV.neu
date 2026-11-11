@@ -24,6 +24,9 @@ const {
   canPerformYearEndClosing,
   canArchiveDocuments,
   canManageClubSeasonConfiguration,
+  canManageClubDocuments,
+  canManageDocumentTypes,
+  canManageClubFunctions,
   canConfigureUserMeterReadingSubmissions,
   canExportData,
 } = capabilities;
@@ -36,6 +39,10 @@ const user = createWebCapabilityContext("user");
 const documentReader = createWebCapabilityContext("user", Permission.CanReadDocuments);
 const documentManager = createWebCapabilityContext("user", Permission.CanManageDocuments);
 const memberEditor = createWebCapabilityContext("user", Permission.CanEditAllMembers);
+const clubDocumentManager = createWebCapabilityContext("user", Permission.CanManageClubDocuments);
+const documentTypeManager = createWebCapabilityContext("user", Permission.CanManageDocumentTypes);
+const clubFunctionManager = createWebCapabilityContext("user", Permission.CanManageClubFunctions);
+const revokedClubDocumentAdmin = createWebCapabilityContext("admin", 0, Permission.CanManageClubDocuments);
 
 assert.equal(canPerformYearEndClosing(admin), true);
 assert.equal(canPerformYearEndClosing(revokedAdmin), false);
@@ -61,8 +68,12 @@ assert.equal(canConfigureUserMeterReadingSubmissions(user), false);
 assert.equal(canExportData(admin), true);
 assert.equal(canExportData(vorstand), true);
 assert.equal(canExportData(user), false);
+assert.equal(canManageClubDocuments(clubDocumentManager), true);
+assert.equal(canManageClubDocuments(revokedClubDocumentAdmin), false);
+assert.equal(canManageDocumentTypes(documentTypeManager), true);
+assert.equal(canManageClubFunctions(clubFunctionManager), true);
 
-for (const check of [canReadDocuments, canManageDocuments, canReadRoleManagement, canManageRoleManagement, canPerformYearEndClosing, canArchiveDocuments, canManageClubSeasonConfiguration, canConfigureUserMeterReadingSubmissions, canExportData]) {
+for (const check of [canReadDocuments, canManageDocuments, canReadRoleManagement, canManageRoleManagement, canPerformYearEndClosing, canArchiveDocuments, canManageClubSeasonConfiguration, canManageClubDocuments, canManageDocumentTypes, canManageClubFunctions, canConfigureUserMeterReadingSubmissions, canExportData]) {
   assert.equal(check(null), false, "missing capability context must fail closed");
 }
 

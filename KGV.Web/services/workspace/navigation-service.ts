@@ -20,7 +20,6 @@ export type NavigationCapabilities = {
   canManageMaintenance: boolean;
   canApproveWorkHours: boolean;
   canExport: boolean;
-  canManageAdministration: boolean;
   canManageProcesses: boolean;
   canAccessCommunication: boolean;
   openProcessCount: number;
@@ -73,14 +72,12 @@ export function buildNavigation(capabilities: NavigationCapabilities): Workspace
       items: [
         ...(capabilities.canAccessParcels ? [navigationConfig.groups.administration.items.parcels] : []),
         ...(capabilities.canManageMaintenance ? [navigationConfig.groups.administration.items.maintenance] : []),
-        ...(capabilities.canManageAdministration ? [
-          navigationConfig.groups.administration.items.seasons,
-          navigationConfig.groups.administration.items.annualClosing,
-          navigationConfig.groups.administration.items.club,
-          navigationConfig.groups.administration.items.clubDocuments,
-          navigationConfig.groups.administration.items.clubFunctions,
-          navigationConfig.groups.administration.items.documentTypes,
-        ] : []),
+        ...(capabilities.canManageSeasonConfiguration ? [navigationConfig.groups.administration.items.seasons] : []),
+        ...(capabilities.canPerformYearEndClosing ? [navigationConfig.groups.administration.items.annualClosing] : []),
+        ...(capabilities.canManageClubConfiguration ? [navigationConfig.groups.administration.items.club] : []),
+        ...(capabilities.canManageClubDocuments ? [navigationConfig.groups.administration.items.clubDocuments] : []),
+        ...(capabilities.canManageClubFunctions ? [navigationConfig.groups.administration.items.clubFunctions] : []),
+        ...(capabilities.canReadDocumentTypes ? [navigationConfig.groups.administration.items.documentTypes] : []),
         ...(capabilities.canRegisterHistoricalContracts ? [navigationConfig.groups.administration.items.backfillContracts] : []),
       ],
     },

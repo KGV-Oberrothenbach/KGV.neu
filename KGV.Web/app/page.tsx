@@ -65,7 +65,7 @@ import { MemberMaintenanceContracts } from "../features/maintenance/MemberMainte
 import { ExpiringMaintenanceContracts } from "../features/maintenance/ExpiringMaintenanceContracts";
 import { maintenanceAccess } from "../services/maintenance/maintenance-access-service";
 import { derivePermissionOverrides, getEffectivePermissions, getRolePermissions, hasPermission, Permission, PermissionAreas, preserveUncontrolledPermissions } from "../security/permissions";
-import { canArchiveDocuments, canExportData, canManageClubConfiguration, canManageClubSeasonConfiguration, canManageDocuments, canPerformYearEndClosing, canReadDocuments, canRegisterHistoricalContracts, createWebCapabilityContext } from "../security/capabilities";
+import { canArchiveDocuments, canExportData, canManageClubConfiguration, canManageClubDocuments, canManageClubFunctions, canManageClubSeasonConfiguration, canManageDocumentTypes, canManageDocuments, canPerformYearEndClosing, canReadDocuments, canRegisterHistoricalContracts, createWebCapabilityContext } from "../security/capabilities";
 import { HistoricalContractRegistrationWorkflow } from "../features/documents/HistoricalContractRegistrationWorkflow";
 import { ClubConfiguration } from "../features/configuration/ClubConfiguration";
 import { ExportCenter } from "../features/export/ExportCenter";
@@ -242,14 +242,13 @@ function WorkspaceContent({ session, email, club, context, onLogout, onChangeClu
     canManageMaintenance: has(Permission.editAllMembers),
     canApproveWorkHours: has(Permission.manageWorkHours),
     canExport: canExportData(capabilityContext),
-    canManageAdministration: context.role === "admin",
     canManageProcesses: canAccessCommunication,
     canManageSeasonConfiguration: canManageClubSeasonConfiguration(capabilityContext),
     canPerformYearEndClosing: canPerformYearEndClosing(capabilityContext),
     canManageClubConfiguration: canManageClubConfiguration(capabilityContext),
-    canManageClubDocuments: context.role === "admin" || context.role === "vorstand",
-    canReadDocumentTypes: context.role === "admin" || context.role === "vorstand",
-    canManageClubFunctions: context.role === "admin" || context.role === "vorstand",
+    canManageClubDocuments: canManageClubDocuments(capabilityContext),
+    canReadDocumentTypes: canManageDocumentTypes(capabilityContext),
+    canManageClubFunctions: canManageClubFunctions(capabilityContext),
     canRegisterHistoricalContracts: canRegisterHistoricalContracts(capabilityContext),
     canSearchMembers: has(Permission.searchMembers),
     canAccessCommunication,
@@ -299,16 +298,16 @@ function WorkspaceContent({ session, email, club, context, onLogout, onChangeClu
           {effectiveActiveId === "verlauf" && canAccessCommunication && <CommunicationCenter session={session} userId={session.user.id} area="history" onChanged={() => void refreshOpenProcessCount()} />}
           {effectiveActiveId === "saisons" && <SeasonManagement session={session} onSeasonSaved={(saved) => { setSeasons((current) => [...current.filter((item) => item.id !== saved.id), saved].sort((a, b) => b.jahr - a.jahr)); selectWorkspaceSeason(saved); }} />}
           {effectiveActiveId === "verein" && <ClubConfiguration key={club.vereinId} session={session} canManage={canManageClubConfiguration(capabilityContext)} />}
-          {effectiveActiveId === "vereinsunterlagen" && (context.role === "admin" || context.role === "vorstand") && <ClubDocumentsManagement key={club.vereinId} session={session} />}
-          {effectiveActiveId === "dokumenttypen" && (context.role === "admin" || context.role === "vorstand") && <DocumentTypeManagement key={club.vereinId} session={session} canManage={context.role === "admin"} />}
-          {effectiveActiveId === "vereinsfunktionen" && (context.role === "admin" || context.role === "vorstand") && <ClubFunctionManagement key={club.vereinId} session={session} />}
+          {effectiveActiveId === "vereinsunterlagen" && canManageClubDocuments(capabilityContext) && <ClubDocumentsManagement key={club.vereinId} session={session} />}
+          {effectiveActiveId === "dokumenttypen" && canManageDocumentTypes(capabilityContext) && <DocumentTypeManagement key={club.vereinId} session={session} canManage />}
+          {effectiveActiveId === "vereinsfunktionen" && canManageClubFunctions(capabilityContext) && <ClubFunctionManagement key={club.vereinId} session={session} />}
           {effectiveActiveId === "mitglied-arbeitsstunden" && selectedMemberId && <MemberWorkHours key={`${club.vereinId}:${session.user.id}:${selectedMemberId}:${workspaceContext.saisonId ?? "none"}`} session={session} memberId={selectedMemberId} saisonId={workspaceContext.saisonId} canEditOwn={selectedMemberId === context.mitgliedId} canManageWorkHours={has(Permission.manageWorkHours)} />}
           {effectiveActiveId === "mitglied-wartung" && selectedMemberId && <MaintenanceContracts session={session} memberId={selectedMemberId} canManage={has(Permission.editAllMembers)} />}
           {effectiveActiveId === "mitglied-dokumente" && selectedMemberId && <MemberDocumentWorkspace key={`${club.vereinId}:${selectedMemberId}`} session={session} memberId={selectedMemberId} accessContext={documentAccessContext} />}
           {effectiveActiveId === "mitglied-admin" && selectedMemberId && <UserRightsAdministration key={`${club.vereinId}:${session.user.id}:${selectedMemberId}`} session={session} fixedMemberId={selectedMemberId} />}
           {effectiveActiveId === "mitglied-gaerten" && selectedMemberId && <MemberGardensWorkspace key={`${club.vereinId}:${selectedMemberId}`} session={session} memberId={selectedMemberId} selectedParcelId={selectedParcelId} onSelect={selectParcel} canAssign={has(Permission.createMember)} canCreateLeaseContract={has(Permission.manageDocuments)} />}
           {effectiveActiveId === "mitglied-protokolle" && selectedMemberId && <ParcelProtocolsWorkspace session={session} memberId={selectedMemberId} currentBoardMemberId={context.mitgliedId} />}
-          {effectiveActiveId === "mitglied-stammdaten" && (selectedMemberId || creatingMember) && <MemberStammdaten session={session} memberId={creatingMember ? null : selectedMemberId} canEdit={creatingMember || has(Permission.editAllMembers) || (selectedMemberId === context.mitgliedId && has(Permission.seeOwnData))} canCreate={creatingMember} canManageSecondary={has(Permission.editAllMembers)} canManageDocuments={has(Permission.manageDocuments)} canManageClubDocuments={context.role === "admin" || context.role === "vorstand"} editPermissions={{ actorMemberId: context.mitgliedId, canEditOwnMember: has(Permission.seeOwnData), canEditAllMembers: has(Permission.editAllMembers) }} createPermissions={{ canCreateMember: has(Permission.createMember) }} onSaved={(member) => { setSelectedMember({ id: member.id, mitgliedsnummer: member.mitgliedsnummer, vorname: member.vorname, name: member.name }); selectMember(member.id); setActiveId("mitglied-stammdaten"); }} onCancel={() => { setCreatingMember(false); setActiveId("mitglieder"); }} />}
+          {effectiveActiveId === "mitglied-stammdaten" && (selectedMemberId || creatingMember) && <MemberStammdaten session={session} memberId={creatingMember ? null : selectedMemberId} canEdit={creatingMember || has(Permission.editAllMembers) || (selectedMemberId === context.mitgliedId && has(Permission.seeOwnData))} canCreate={creatingMember} canManageSecondary={has(Permission.editAllMembers)} canManageDocuments={has(Permission.manageDocuments)} canManageClubDocuments={canManageClubDocuments(capabilityContext)} editPermissions={{ actorMemberId: context.mitgliedId, canEditOwnMember: has(Permission.seeOwnData), canEditAllMembers: has(Permission.editAllMembers) }} createPermissions={{ canCreateMember: has(Permission.createMember) }} onSaved={(member) => { setSelectedMember({ id: member.id, mitgliedsnummer: member.mitgliedsnummer, vorname: member.vorname, name: member.name }); selectMember(member.id); setActiveId("mitglied-stammdaten"); }} onCancel={() => { setCreatingMember(false); setActiveId("mitglieder"); }} />}
         </article>
       </section>
     </main>
