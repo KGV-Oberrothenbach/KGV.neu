@@ -709,15 +709,25 @@ async function mayReadDocument(auth: AuthenticatedDocumentUser & { supabaseAdmin
   if (boardAccess === true)
     return document as DriveDocumentRecord;
 
-  const isManager = auth.role === "admin" || auth.role === "vorstand";
-  if (isManager)
+  const { data: documentManagementAccess, error: documentManagementError } = await auth.supabaseUser
+    .rpc("has_any_effective_permission", { p_permissions: 65536 | 16 });
+  if (documentManagementError)
+    throw new Error("Dokumentenfachrecht konnte nicht geprüft werden.");
+  if (documentManagementAccess === true)
+    return document as DriveDocumentRecord;
+
+  // This caller-bound RPC applies P11-R05 to active and formally ended
+  // members.  Do not re-create the rule from request values in this
+  // service-role path.
+  const { data: ownHistoryAccess, error: ownHistoryError } = await auth.supabaseUser
+    .rpc("can_access_own_member_history_document", { p_dokument_id: documentId });
+  if (ownHistoryError)
+    throw new Error("Eigenzugriff auf die Dokumenthistorie konnte nicht geprüft werden.");
+  if (ownHistoryAccess === true)
     return document as DriveDocumentRecord;
 
   if (!auth.mitgliedId)
     return null;
-
-  if (document.mitglied_id === auth.mitgliedId)
-    return document as DriveDocumentRecord;
 
   if (!document.parzelle_id)
     return null;

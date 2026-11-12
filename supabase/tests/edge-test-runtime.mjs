@@ -19,7 +19,8 @@ export function loadStamp() {
 export function edgeHarness(options = {}) {
   const userId = "11111111-1111-1111-1111-111111111111";
   const granted = options.grants ?? 16777216, revoked = options.revocations ?? 0;
-  const permission = Boolean((granted & ~revoked) & 16777216);
+  const effectivePermissions = ((options.basePermissions ?? 0) | granted) & ~revoked;
+  const permission = Boolean(effectivePermissions & 16777216);
   const calls = {rpc:[],writes:[],uploads:[],marks:0,clients:[],driveCreates:[],driveAttempts:[],removals:[]};
   let operation=null, stampLease=null, sourceBytes=options.source??new Uint8Array(), stamped=false;
   const driveFiles=new Map();
@@ -52,6 +53,8 @@ export function edgeHarness(options = {}) {
     if(name==="can_register_historical_contracts")return {data:permission,error:null};
     if(name==="can_access_historical_contract_member")return {data:permission&&args.p_mitglied_id===2,error:null};
     if(name==="can_access_historical_contract_document")return {data:permission&&args.p_dokument_id===77&&options.context!==false&&document.archiviert_at===null&&(!args.p_require_registered||options.registered!==false),error:null};
+    if(name==="has_any_effective_permission")return {data:Boolean(effectivePermissions & args.p_permissions),error:null};
+    if(name==="can_access_own_member_history_document")return {data:options.ownHistoryAccess===true&&args.p_dokument_id===77,error:null};
     throw new Error("Unexpected user RPC: "+name);
   };
   const admin = {
