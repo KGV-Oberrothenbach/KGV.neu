@@ -17,15 +17,16 @@ type DriveUploadResult = {
 
 type AuthenticatedPhotoUser = {
   userId: string;
-  role: string;
-  mitgliedId: number | null;
+  supabaseUser: ReturnType<typeof createClient>;
 };
 
 type MeterReadingPhotoRecord = {
   id: number;
+  ablesedatum: string;
+  art: UploadKind;
   foto_drive_file_id: string | null;
   foto_dateiname: string | null;
-  zaehler: { parzelle_id: number | null } | null;
+  zaehler: { parzelle_id: number | null; medium: Medium; parzelle: { garten_nr: string | null; Anlage: string | null } | null } | null;
 };
 
 const GOOGLE_TOKEN_REFRESH_TIMEOUT_MS = 15_000;
@@ -492,8 +493,9 @@ async function downloadDriveFile(accessToken: string, driveFileId: string): Prom
 async function authenticatePhotoUser(authHeader: string) {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (!supabaseUrl || !serviceRoleKey) {
-    throw new Error("SUPABASE_URL oder SUPABASE_SERVICE_ROLE_KEY fehlt.");
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+  if (!supabaseUrl || !serviceRoleKey || !anonKey) {
+    throw new Error("Supabase-Serverkonfiguration fehlt.");
   }
 
   const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
@@ -507,29 +509,21 @@ async function authenticatePhotoUser(authHeader: string) {
     return { ok: false as const, status: 401, message: "Ungültiger oder abgelaufener Benutzer-Token." };
   }
 
-  const { data: appUser, error: appUserError } = await supabaseAdmin
-    .from("app_user")
-    .select("role,mitglied_id")
-    .eq("user_id", userData.user.id)
-    .maybeSingle();
-  if (appUserError) {
-    return { ok: false as const, status: 500, message: "Benutzerrolle konnte nicht geladen werden." };
-  }
-
-  const rawMitgliedId = appUser?.mitglied_id;
   return {
     ok: true as const,
     userId: userData.user.id,
-    role: (appUser?.role ?? "").trim().toLowerCase(),
-    mitgliedId: typeof rawMitgliedId === "number" && Number.isSafeInteger(rawMitgliedId) && rawMitgliedId > 0 ? rawMitgliedId : null,
     supabaseAdmin,
+    // All caller-dependent decisions run through PostgREST with the validated
+    // user JWT.  The service client is used only after authorization to access
+    // the private Drive object or write its trusted provenance.
+    supabaseUser: createClient(supabaseUrl, anonKey, { global: { headers: { Authorization: `Bearer ${jwt}` } } }),
   };
 }
 
 async function mayReadMeterReadingPhoto(auth: AuthenticatedPhotoUser & { supabaseAdmin: ReturnType<typeof createClient> }, ablesungId: number): Promise<MeterReadingPhotoRecord | null> {
   const { data: reading, error: readingError } = await auth.supabaseAdmin
     .from("zaehler_ablesung")
-    .select("id,foto_drive_file_id,foto_dateiname,zaehler:zaehler_id(parzelle_id)")
+    .select("id,ablesedatum,art,foto_drive_file_id,foto_dateiname,zaehler:zaehler_id(parzelle_id,medium,parzelle:parzelle_id(garten_nr,Anlage))")
     .eq("id", ablesungId)
     .maybeSingle();
   if (readingError) {
@@ -537,65 +531,12 @@ async function mayReadMeterReadingPhoto(auth: AuthenticatedPhotoUser & { supabas
   }
   if (!reading) return null;
 
-  if (auth.role === "admin" || auth.role === "vorstand") return reading as MeterReadingPhotoRecord;
-  const parzelleId = reading.zaehler?.parzelle_id;
-  if (!auth.mitgliedId || !parzelleId) return null;
-
-  const today = new Date().toISOString().slice(0, 10);
-  const { data: occupancy, error: occupancyError } = await auth.supabaseAdmin
-    .from("parzellen_belegung")
-    .select("id")
-    .eq("parzelle_id", parzelleId)
-    .eq("mitglied_id", auth.mitgliedId)
-    .lte("von_datum", today)
-    .or(`bis_datum.is.null,bis_datum.gte.${today}`)
-    .limit(1)
-    .maybeSingle();
-  if (occupancyError) {
-    throw new Error(`Parzellenrechte konnten nicht geprüft werden: ${occupancyError.message}`);
-  }
-
-  return occupancy ? reading as MeterReadingPhotoRecord : null;
-}
-
-async function requireAdminOrVorstand(authHeader: string) {
-  logStep("auth start");
-  const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-
-  if (!supabaseUrl || !serviceRoleKey) {
-    throw new Error("SUPABASE_URL oder SUPABASE_SERVICE_ROLE_KEY fehlt.");
-  }
-
-  const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
-
-  const jwt = authHeader.replace(/^Bearer\s+/i, "").trim();
-  if (!jwt) {
-    return { ok: false as const, status: 401, message: "Kein Bearer-Token vorhanden." };
-  }
-
-  const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(jwt);
-  if (userError || !userData.user) {
-    return { ok: false as const, status: 401, message: "Ungültiger oder abgelaufener Benutzer-Token." };
-  }
-
-  const { data: appUser, error: appUserError } = await supabaseAdmin
-    .from("app_user")
-    .select("role")
-    .eq("user_id", userData.user.id)
-    .maybeSingle();
-
-  if (appUserError) {
-    return { ok: false as const, status: 500, message: "Benutzerrolle konnte nicht geladen werden." };
-  }
-
-  const role = (appUser?.role ?? "").trim().toLowerCase();
-  if (role !== "admin" && role !== "vorstand") {
-    return { ok: false as const, status: 403, message: "Nur Admin oder Vorstand dürfen Fotos hochladen." };
-  }
-
-  logStep("auth passed", { role });
-  return { ok: true as const, userId: userData.user.id, role };
+  const [{ data: canRead, error: permissionError }, { data: ownsHistory, error: ownError }] = await Promise.all([
+    auth.supabaseUser.rpc("has_effective_permission", { p_permission: 32 }),
+    auth.supabaseUser.rpc("can_access_own_meter_reading", { p_ablesung_id: ablesungId }),
+  ]);
+  if (permissionError || ownError) throw new Error("Ablesungsfoto-Rechte konnten nicht geprüft werden.");
+  return canRead === true || ownsHistory === true ? reading as MeterReadingPhotoRecord : null;
 }
 
 Deno.serve(async (req) => {
@@ -647,11 +588,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    const auth = await requireAdminOrVorstand(authHeader);
-    if (!auth.ok) {
-      logStep("return error", { step: "auth failed", status: auth.status, requestId });
-      return errorResponse(auth.status, "UNAUTHORIZED", auth.message, requestId);
-    }
+    const auth = await authenticatePhotoUser(authHeader);
+    if (!auth.ok) return errorResponse(auth.status, "UNAUTHORIZED", auth.message, requestId);
 
     const rootFolderId = readGoogleDriveRootFolderId();
 
@@ -669,11 +607,7 @@ Deno.serve(async (req) => {
 
     logStep("formData parsed", {
       hasFile: form.get("file") instanceof File,
-      hasKind: form.has("kind"),
-      hasMedium: form.has("medium"),
-      hasDatum: form.has("datum"),
-      hasAnlage: form.has("anlage"),
-      hasGarten: form.has("garten"),
+      hasReadingId: form.has("ablesung_id"),
     });
 
     const file = form.get("file");
@@ -682,45 +616,22 @@ Deno.serve(async (req) => {
       return errorResponse(400, "BAD_REQUEST", "Datei-Feld 'file' fehlt.", requestId);
     }
 
-    const rawDate = String(form.get("datum") ?? "").trim();
-    const kind = normalizeKind(String(form.get("kind") ?? ""));
-    const medium = normalizeMedium(String(form.get("medium") ?? ""));
-    const date = normalizeDateOnly(rawDate);
-    const anlageRaw = String(form.get("anlage") ?? "").trim();
-    const gardenRaw = String(form.get("garten") ?? "").trim();
-    const meterNumberRaw = String(form.get("zaehlernummer") ?? "").trim();
-
-    if (!kind) {
-      logStep("return error", { step: "kind validate", status: 400, requestId });
-      return errorResponse(400, "BAD_REQUEST", "Ungültiges Feld 'kind'. Erlaubt: ablesung, ausbau, einbau.", requestId);
-    }
-
-    if (!medium) {
-      logStep("return error", { step: "medium validate", status: 400, requestId });
-      return errorResponse(400, "BAD_REQUEST", "Ungültiges Feld 'medium'. Erlaubt: strom, wasser.", requestId);
-    }
-
-    if (!date) {
-      logStep("return error", { step: "datum validate", status: 400, rawDate, requestId });
-      return errorResponse(400, "BAD_REQUEST", "Ungültiges Feld 'datum'. Erwartet YYYY-MM-DD oder dd.MM.yyyy.", requestId);
-    }
-
-    if (!anlageRaw) {
-      logStep("return error", { step: "anlage validate", status: 400, requestId });
-      return errorResponse(400, "BAD_REQUEST", "Feld 'anlage' fehlt.", requestId);
-    }
-
-    if (!gardenRaw) {
-      logStep("return error", { step: "garten validate", status: 400, requestId });
-      return errorResponse(400, "BAD_REQUEST", "Feld 'garten' fehlt.", requestId);
-    }
+    const ablesungId = Number(form.get("ablesung_id"));
+    if (!Number.isSafeInteger(ablesungId) || ablesungId <= 0) return errorResponse(400, "BAD_REQUEST", "ablesung_id fehlt oder ist ungültig.", requestId);
+    const reading = await mayReadMeterReadingPhoto(auth, ablesungId);
+    if (!reading || !reading.zaehler || reading.foto_drive_file_id) return errorResponse(403, "UNAUTHORIZED", "Dieses Ablesungsfoto darf nicht gespeichert werden.", requestId);
+    const kind = normalizeKind(reading.art);
+    const medium = normalizeMedium(reading.zaehler.medium);
+    const date = normalizeDateOnly(reading.ablesedatum);
+    const anlageRaw = reading.zaehler.parzelle?.Anlage ?? "Hauptzaehler";
+    const gardenRaw = reading.zaehler.parzelle?.garten_nr ?? "Hauptzaehler";
+    if (!kind || !medium || !date) return errorResponse(409, "BAD_REQUEST", "Die Ablesung besitzt keine gültige Foto-Provenance.", requestId);
+    const meterNumberRaw = "";
 
     logStep("input normalized / validated", {
       kind,
       medium,
-      rawDate,
-      normalizedDate: date,
-      hasMeterNumber: !meterNumberRaw ? false : true,
+      ablesungId,
     });
 
     const anlage = sanitizeSegment(anlageRaw);
@@ -757,16 +668,19 @@ Deno.serve(async (req) => {
     logStep("drive upload success", { fileId: upload.id, fileName: upload.name });
 
     const relativePath = `${folderSegments.join("/")}/${upload.name}`;
+    const { data: linked, error: linkError } = await auth.supabaseAdmin
+      .from("zaehler_ablesung")
+      .update({ foto_pfad: relativePath, foto_drive_file_id: upload.id, foto_dateiname: upload.name })
+      .eq("id", ablesungId)
+      .is("foto_drive_file_id", null)
+      .select("id")
+      .maybeSingle();
+    if (linkError || !linked) throw new Error("Ablesungsfoto konnte nicht unveränderlich verknüpft werden.");
 
     logStep("return success", { requestId, relativePath });
     return json(200, {
       success: true,
-      file_id: upload.id,
-      file_name: upload.name,
-      relative_path: relativePath,
-      web_view_link: upload.webViewLink ?? null,
-      uploaded_by_user_id: auth.userId,
-      role: auth.role,
+      message: "Ablesungsfoto wurde geschützt gespeichert und verknüpft.",
       request_id: requestId,
     });
   } catch (error) {

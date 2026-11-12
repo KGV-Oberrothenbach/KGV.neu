@@ -3,7 +3,7 @@ import { claimPendingMeterPhotoRetry, countPendingMeterPhotos, enqueuePendingMet
 import { getBrowserClientInstanceId } from "../../lib/browser/client-instance";
 import { getConnectivitySnapshot } from "../../lib/browser/connectivity";
 import { type BrowserSession } from "../../lib/supabase-auth";
-import { linkReadingPhoto, openReadingPhoto, uploadReadingPhoto, type ReadingPhotoDetails, type UploadedReadingPhoto } from "../../repositories/readings/reading-photo-repository";
+import { openReadingPhoto, uploadReadingPhoto, type ReadingPhotoDetails } from "../../repositories/readings/reading-photo-repository";
 
 export type ReadingPhotoResult = { status: "uploaded" | "queued" | "failed" | "no-photo" | "already-in-flight"; message: string };
 export type ReadingPhotoInput = { clubId: string; readingId: number; file: File | null; details: ReadingPhotoDetails; wifiOnly: boolean };
@@ -30,8 +30,7 @@ const failed = async (item: PendingMeterPhoto, error: string, incrementAttempt: 
   return next;
 };
 
-const completeLink = async (club: ClubContext, session: BrowserSession, item: PendingMeterPhoto, photo: UploadedReadingPhoto) => {
-  await linkReadingPhoto(club, session, item.readingId, photo);
+const completeLink = async (item: PendingMeterPhoto) => {
   await removePendingMeterPhoto(item.id);
 };
 
@@ -44,15 +43,8 @@ export async function handleReadingPhoto(club: ClubContext, session: BrowserSess
     return { status: "queued", message: decision.reason };
   }
   try {
-    const photo = await uploadReadingPhoto(club, session, input.file, input.details);
-    try {
-      await linkReadingPhoto(club, session, input.readingId, photo);
-      return { status: "uploaded", message: "Foto wurde hochgeladen und mit der Ablesung verknüpft." };
-    } catch (cause) {
-      const item = await enqueuePendingMeterPhoto({ clubId: input.clubId, ownerUserId: owner, readingId: input.readingId, fileName: input.file.name || `ablesung-${input.readingId}.jpg`, contentType: input.file.type || "image/jpeg", content: input.file, details: input.details });
-      await failed({ ...item, uploadedFileId: photo.fileId, uploadedFileName: photo.fileName, uploadedRelativePath: photo.relativePath }, cause instanceof Error ? cause.message : "Foto konnte nicht mit der Ablesung verknüpft werden.", true);
-      return { status: "failed", message: "Foto wurde hochgeladen, die Verknüpfung wird später erneut versucht." };
-    }
+    const photo = await uploadReadingPhoto(club, session, input.readingId, input.file, input.details);
+    return { status: "uploaded", message: photo.message };
   } catch (cause) {
     const item = await enqueuePendingMeterPhoto({ clubId: input.clubId, ownerUserId: owner, readingId: input.readingId, fileName: input.file.name || `ablesung-${input.readingId}.jpg`, contentType: input.file.type || "image/jpeg", content: input.file, details: input.details });
     await failed(item, cause instanceof Error ? cause.message : "Upload fehlgeschlagen.", true);
@@ -79,15 +71,9 @@ export async function retryPendingReadingPhoto(club: ClubContext, session: Brows
     try {
       attempted = { ...claim.item, status: "uploading" as const, lastError: null, lastAttemptAt: now(), attemptCount: claim.item.attemptCount + 1 };
       await putPendingMeterPhoto(attempted);
-      const photo = attempted.uploadedFileId && attempted.uploadedRelativePath
-        ? { fileId: attempted.uploadedFileId, fileName: attempted.uploadedFileName || attempted.fileName, relativePath: attempted.uploadedRelativePath }
-        : await uploadReadingPhoto(club, session, pendingPhotoFile(attempted), attempted.details);
-      if (!attempted.uploadedFileId) {
-        attempted = { ...attempted, uploadedFileId: photo.fileId, uploadedFileName: photo.fileName, uploadedRelativePath: photo.relativePath };
-        await putPendingMeterPhoto(attempted);
-      }
-      await completeLink(club, session, attempted, photo);
-      return { status: "uploaded", message: "Foto wurde hochgeladen und mit der Ablesung verknüpft." };
+      const photo = await uploadReadingPhoto(club, session, attempted.readingId, pendingPhotoFile(attempted), attempted.details);
+      await completeLink(attempted);
+      return { status: "uploaded", message: photo.message };
     } catch (cause) {
       try {
         await failed(attempted, cause instanceof Error ? cause.message : "Upload oder Verknüpfung fehlgeschlagen.", false);

@@ -141,3 +141,71 @@ AP-02B.3. B-01 bleibt unabhängig als betrieblicher Bereitstellungsnachweis
 offen.
 
 **Abnahme AP-02B.2:** vollständig abgenommen.
+
+## AP-02B.3 – Geschützte Dateien, Zählerfotos und Downloadlinks (in Umsetzung)
+
+### Bestätigter Befund und Umsetzung
+
+Die Ablesungs-RLS ließ über eine zeitlich unbegrenzte Eigenbelegung auch nach
+R10-relevanter Nachpächterübernahme die zugehörigen Ablesungen und damit ihre
+Fotoverweise sichtbar. Der Drive-Fotoproxy verwendete außerdem für `admin` und
+`vorstand` eine direkte Rollenabkürzung; individuelle Entzüge von
+`CanReadMeters` wirkten dort nicht. Schließlich konnte ein Client über den
+direkten Tabellen-PATCH beliebige Drive-Datei-IDs und Pfade einer Ablesung
+zuordnen; der privilegierte Proxy hätte diese IDs anschließend abgerufen.
+
+Migration `20261112110000_p11_ap02b3_protected_file_access.sql` ersetzt den
+Eigenzweig durch `can_access_own_meter_reading(bigint)`. Der SECURITY-DEFINER-
+Helfer bindet an `auth.uid()` und delegiert die Mitgliedschaftsfrist R05 und
+die Nachpächtergrenze R10 an den vorhandenen caller-gebundenen
+Parzellenhelfer. Verwaltungszugriff bleibt beim effektiven `CanReadMeters`.
+Der Trigger `guard_meter_reading_photo_provenance` sperrt browserseitige
+Foto-/Drive-Provenance sowohl beim Insert als auch beim Update; bereits
+verknüpfte Nachweise sind unveränderlich.
+
+Der Foto-Upload erhält jetzt zwingend die Ablesungs-ID, autorisiert sie per
+JWT-gebundenem User-Client gegen `CanReadMeters` oder den Eigenhelfer und
+leitet Pfad, Datum, Parzelle, Medium und Ableseart ausschließlich aus dem
+gespeicherten Ablesungsdatensatz ab. Erst danach schreibt die vertrauenswürdige
+Service-Role-Kette die einmalige Drive-Provenance. Der Client erhält weder
+Drive-ID noch Web-Link und kann keine direkte Datenbankverknüpfung mehr
+ausführen. Der Web-Viewer entfernt den Legacy-Fallback auf beliebige
+`http(s)`-Pfade und ruft ausschließlich den autorisierten Proxy auf; seine
+Antwort trägt `Cache-Control: private, no-store`.
+
+Bereits ausgestellte externe Drive- oder Storage-Bearer-Links können technisch
+bis zu ihrem jeweiligen Ablauf gültig bleiben. Der korrigierte Pfad stellt
+keine solchen Links mehr aus und prüft jede neue Proxy-Anfrage erneut. Eine
+sofortige serverseitige Widerrufbarkeit historisch bereits ausgegebener
+Bearer-URLs ist damit ausdrücklich nicht behauptet.
+
+### Test- und Abnahmenachweis
+
+Der vollständige lokale `supabase db reset --local` einschließlich Seed
+verarbeitete 212 Migrationen einschließlich der neuen AP-02B.3-Migration.
+Die rückrollbare Fixture
+`20261112110000_p11_ap02b3_protected_file_access_funktionstest.sql` lief als
+`authenticated` mit `ROLLBACK`: berechtigter Eigenzugriff, Fremd-/manipulierte
+Provenance, geplanter und tatsächlicher Nachpächterwechsel sowie ein
+individuell von `CanReadMeters` entzogener Administrator werden geprüft.
+Sie bestätigt, dass keine unberechtigte Tabellenänderung oder Fotoverknüpfung
+stattfindet. Die aktiven RLS-Policy und EXECUTE-Grants wurden danach direkt
+im lokalen PostgreSQL kontrolliert.
+
+Die R05- und R10-Fixtures bestanden erneut mit `ROLLBACK`. Die gesamte
+lokale Edge-Vertragssuite bestand mit 92/92; der neue Web-Fotovertrag prüft
+die verpflichtende Ablesungs-ID, das Fehlen browserseitiger Drive-IDs, die
+caller-gebundene Autorisierung und `private, no-store`. Die geänderte Edge
+Function startete lokal ohne Deployment. Web-Dokumentproxy und SQL-
+Berechtigungsverträge sowie der Produktionsbuild bestanden. Die vollständige
+.NET-Suite besteht mit 419/419; Core, Infrastructure und MAUI-Android bauen
+erfolgreich. Bestehende Nullable- und Web-Chunk-Hinweise bleiben unverändert.
+
+**Abnahme AP-02B.3:** vollständig abgenommen.
+
+**AP-02B-Gesamtabnahme:** technisch abgenommen. R05 (ehemalige Mitglieder),
+R10 (ehemalige Pächter) und der serverseitig autorisierte neue Datei-/Fotoabruf
+sind durch lokale Nachweise abgedeckt. B-01 bleibt als betrieblicher Nachweis
+der tatsächlichen Edge-Bereitstellung offen. Die unvermeidbare Restlaufzeit
+historisch bereits ausgegebener Bearer-Links ist kein neuer Freigabepfad und
+muss bis zum Ablauf solcher Links als Restrisiko berücksichtigt werden.
