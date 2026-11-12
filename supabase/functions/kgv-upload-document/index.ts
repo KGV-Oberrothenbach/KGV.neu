@@ -726,6 +726,13 @@ async function mayReadDocument(auth: AuthenticatedDocumentUser & { supabaseAdmin
   if (ownHistoryAccess === true)
     return document as DriveDocumentRecord;
 
+  const { data: ownLeaseHistoryAccess, error: ownLeaseHistoryError } = await auth.supabaseUser
+    .rpc("can_access_own_historical_lease_document", { p_dokument_id: documentId });
+  if (ownLeaseHistoryError)
+    throw new Error("Eigenzugriff auf die Pachtunterlagen konnte nicht geprüft werden.");
+  if (ownLeaseHistoryAccess === true)
+    return document as DriveDocumentRecord;
+
   if (!auth.mitgliedId)
     return null;
 

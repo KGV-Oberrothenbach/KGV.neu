@@ -74,3 +74,70 @@ nach Ablauf der Frist keine Dokumentmetadaten oder Drive-Inhalte mehr frei.
 
 **Abnahme AP-02B.1:** vollständig abgenommen. B-01 bleibt unabhängig davon
 offen.
+
+## AP-02B.2 – Historienzugriff ehemaliger Pächter (abgeschlossen)
+
+### Bestätigter Befund und Umsetzung
+
+Die aktiven RLS-Policies `parzelle_select_assigned_or_admin` und
+`parzellen_belegung_select_own_or_admin` erlaubten einem Mitglied seine
+eigenen alten Belegungen und die zugehörige Parzelle zeitlich unbegrenzt. Für
+Pachtvertragsdokumente konnte außerdem der R05-Eigenzweig greifen, obwohl ein
+Nachpächter die Parzelle bereits tatsächlich übernommen hatte. Damit waren
+neue Parzellendaten beziehungsweise spätere Vertragsunterlagen nicht
+ausreichend von der früheren Pächterberechtigung getrennt.
+
+Migration `20261112100000_p11_ap02b2_former_tenant_privacy.sql` führt eng
+gebundene Eigenhelfer für Belegung, Parzelle, Pachtverhältnis und
+vertragsgebundene Dokumente ein. Sie leiten das Mitglied ausschließlich aus
+`auth.uid()`/`current_mitglied_id()` ab. Eine Belegung eines anderen Mitglieds
+auf derselben Parzelle beendet den Sonderzugriff erst, wenn ihr
+`von_datum` tatsächlich erreicht ist; geplante Zukunftsbelegungen bleiben
+unwirksam. Nach einer tatsächlichen Übernahme bleiben weder Parzelle,
+frühere Belegung, Pachtverhältnis, Vertragsfassung noch das alte
+Pachtvertragsdokument sichtbar. Ein unabhängiges weiteres historisches
+Pachtverhältnis bleibt dagegen zugänglich.
+
+Der R05-Helfer schließt nun Pachtvertragsfassungen aus; diese laufen
+ausschließlich über die strengere R10-Prüfung. Das bewahrt den Eigenzugriff
+auf sonstige Mitgliedshistorie bei fortbestehender aktiver oder passiver
+Mitgliedschaft und verhindert zugleich, dass R05 die Nachpächtergrenze
+umgeht. Parzellenlesen/-schreiben verwendet jetzt die bestehenden effektiven
+Rechte `CanReadParzellen`/`CanWriteParzellen`; die vorhandene
+Vertragsverwaltungsberechtigung `CanCreateMitglied` bleibt für die
+administrative Vertragsansicht erhalten. Individuelle Entzüge wirken in allen
+Verwaltungszweigen.
+
+Der Drive-Downloadpfad fragt zusätzlich die caller-gebundene
+`can_access_own_historical_lease_document`-RPC ab. Freie Mitglieds-,
+Parzellen- oder Dokument-IDs bilden keine Autorisierungsquelle. Bestehende
+historische Daten, Fassungen und Provenance werden nicht verändert.
+
+### Test- und Abnahmenachweis
+
+Der vollständige lokale Neuaufbau einschließlich Seed lief mit 211 Migrationen
+erfolgreich durch. Die aktive RLS-Policy- und EXECUTE-Grant-Prüfung bestätigt
+die effektiven Verwaltungs- und die getrennten Eigenzweige.
+
+Die rückrollbare, echte PostgreSQL-/RLS-Fixture
+`supabase/tests/20261112100000_p11_ap02b2_former_tenant_privacy_funktionstest.sql`
+lief als `authenticated` und endete mit `ROLLBACK`. Sie belegt eigenen
+Pachtzugriff vor der Übernahme, eine geplante Zukunftsbelegung ohne vorzeitige
+Sperre, die Sperre mit tatsächlicher Übernahme, Fremd-/manipulierte IDs,
+mehrere historische Pachtverhältnisse, fortbestehende Mitgliedschaft und
+nichtpachtbezogene R05-Historie, vollständigen administrativen Entzug sowie
+Schreib-/Provenanceschutz.
+
+Die R05-Fixture sowie Erstvertrags-, Neufassungs- und Dokumentarchivierungs-
+Regressionen bestanden jeweils mit `ROLLBACK`. Die vollständige Edge-Suite
+bestand mit 92/92, einschließlich des neuen R10-Downloadvertrags. Die
+Web-Dokumentproxy- und SQL-Berechtigungsverträge sowie der Web-
+Produktionsbuild bestanden. Core, Infrastructure und MAUI-Android bauen; die
+vollständige .NET-Suite besteht mit 419/419. Bestehende Nullable-Warnungen und
+der Web-Chunk-Size-Hinweis bleiben unverändert.
+
+Bereits ausgegebene Storage-Links und ihre Laufzeiten bleiben planmäßig
+AP-02B.3. B-01 bleibt unabhängig als betrieblicher Bereitstellungsnachweis
+offen.
+
+**Abnahme AP-02B.2:** vollständig abgenommen.

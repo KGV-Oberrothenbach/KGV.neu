@@ -56,6 +56,7 @@ export function edgeHarness(options = {}) {
     if(name==="has_effective_permission")return {data:Boolean(effectivePermissions & args.p_permission),error:null};
     if(name==="has_any_effective_permission")return {data:Boolean(effectivePermissions & args.p_permissions),error:null};
     if(name==="can_access_own_member_history_document")return {data:options.ownHistoryAccess===true&&args.p_dokument_id===77,error:null};
+    if(name==="can_access_own_historical_lease_document")return {data:options.ownLeaseHistoryAccess===true&&args.p_dokument_id===77,error:null};
     throw new Error("Unexpected user RPC: "+name);
   };
   const admin = {
