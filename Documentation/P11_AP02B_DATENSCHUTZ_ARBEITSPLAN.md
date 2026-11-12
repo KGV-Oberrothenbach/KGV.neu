@@ -28,7 +28,7 @@ die neue caller-gebundene RPC; frei übergebene Mitglieds- oder Dokumentdaten
 werden nicht als Berechtigungsgrundlage verwendet. Es wird keine automatische
 Beendigung von Mitgliedschaft oder Zugang eingeführt.
 
-### Testnachweis und offener technischer Blocker
+### Test- und Abnahmenachweis
 
 Die neue rückrollbare lokale PostgreSQL/RLS-Fixture
 `supabase/tests/20261112090000_p11_ap02b1_former_member_history_access_funktionstest.sql`
@@ -36,24 +36,41 @@ deckt aktiven Eigenzugriff, beendete Mitgliedschaft innerhalb der Frist,
 31.12./01.01.-Grenze, abgelaufene Frist, fremde/manipulierte IDs, fehlenden
 Mitgliedskontext, direkten RLS-Zugriff, effektive Dokumentverwaltung,
 administrativen Entzug sowie unveränderten Zustand nach abgewiesenem Schreiben
-ab. Sie wurde noch nicht gegen die lokale Supabase-PostgreSQL-Instanz
-ausgeführt: Docker Desktop ist in der aktuellen Sitzung nicht erreichbar
-(`//./pipe/dockerDesktopLinuxEngine` fehlt), sodass `supabase start` vor dem
-Migrationslauf endet. Der vollständige Neuaufbau, die Ausführung dieser SQL-
-Fixture und die daran anschließenden Dokument-/Mitgliedschaftsregressionen
-bleiben daher offen.
+ab. Sie wurde gegen die lokale Supabase-PostgreSQL-Instanz als Rolle
+`authenticated` ausgeführt und endete mit `ROLLBACK`. Der Test bestätigt die
+aktive und die beendete Eigenmitgliedschaft innerhalb der Frist, die Sperre
+nach Fristablauf, fremde/manipulierte IDs, fehlenden Mitgliedskontext,
+effektive Dokumentverwaltung, den vollständigen Entzug der beiden möglichen
+Dokumentleserechte (`CanReadDocuments | CanManageDocuments`) sowie den
+unveränderten Zustand nach einem abgewiesenen Schreibversuch. Die
+Datumsgrenze wird ohne Systemuhränderung über die reine Fristberechnung für
+31.12. und 01.01. reproduzierbar verifiziert; die RLS-Ausführung prüft diese
+Berechnung mit relativ zur lokalen Serverzeit angelegten Mitgliedschaften.
+
+Nach dem kontrollierten Start von Docker Desktop und WSL2 lief der vollständige
+lokale `supabase db reset --local` einschließlich Seed erfolgreich durch. Die
+lokale Datenbank enthält 210 angewendete Migrationen einschließlich
+`20261112090000_p11_ap02b1_former_member_history_access.sql`. Die aktive
+Definition, die `dokument_select_effective`-Policy sowie die EXECUTE-Grants
+für `authenticated` und `service_role` wurden anschließend direkt im lokalen
+PostgreSQL geprüft. Die betroffenen A2.1-, A3.5- und A3.6-Fixtures bestanden
+ebenfalls jeweils mit `ROLLBACK`.
 
 Der isolierte Edge-Vertragstest
-`supabase/tests/former-member-history-edge.test.mjs` wurde erfolgreich
-ausgeführt. Er belegt die JWT-gebundene R05-RPC-Abfrage, die Ablehnung eines
-abgelaufenen Eigenzugriffs, die Ablehnung einer manipulierten Dokument-ID,
-individuelle Dokumentleserechte und den administrativen Entzug. Es erfolgen
-keine externen Uploads oder Downloads.
+`supabase/tests/former-member-history-edge.test.mjs` wurde zusammen mit der
+vollständigen Edge-Vertragssuite erfolgreich ausgeführt (90/90). Sie belegt
+die JWT-gebundene R05-RPC-Abfrage, die Ablehnung eines abgelaufenen
+Eigenzugriffs, die Ablehnung einer manipulierten Dokument-ID, individuelle
+Dokumentleserechte und den administrativen Entzug. Es erfolgen keine externen
+Uploads oder Downloads. Die Web-Dokumentproxy- und SQL-
+Berechtigungsverträge sowie der Web-Produktionsbuild bestanden. Core,
+Infrastructure und MAUI-Android bauen; die vollständige .NET-Suite besteht
+mit 419/419. Bekannte Core-/Infrastructure-Nullable-Warnungen und der
+Web-Chunk-Size-Hinweis bleiben unverändert.
 
 Der Schutz zeitlich begrenzter bereits ausgegebener Storage-Links bleibt
 planmäßig AP-02B.3. Die hier geprüften REST/RLS- und Drive-Proxy-Pfade geben
 nach Ablauf der Frist keine Dokumentmetadaten oder Drive-Inhalte mehr frei.
 
-**Abnahme AP-02B.1:** noch offen bis zum erfolgreichen lokalen Supabase-
-Neuaufbau und den echten PostgreSQL-/RLS-Regressionen. B-01 bleibt unabhängig
-davon offen.
+**Abnahme AP-02B.1:** vollständig abgenommen. B-01 bleibt unabhängig davon
+offen.

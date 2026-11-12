@@ -53,6 +53,7 @@ export function edgeHarness(options = {}) {
     if(name==="can_register_historical_contracts")return {data:permission,error:null};
     if(name==="can_access_historical_contract_member")return {data:permission&&args.p_mitglied_id===2,error:null};
     if(name==="can_access_historical_contract_document")return {data:permission&&args.p_dokument_id===77&&options.context!==false&&document.archiviert_at===null&&(!args.p_require_registered||options.registered!==false),error:null};
+    if(name==="has_effective_permission")return {data:Boolean(effectivePermissions & args.p_permission),error:null};
     if(name==="has_any_effective_permission")return {data:Boolean(effectivePermissions & args.p_permissions),error:null};
     if(name==="can_access_own_member_history_document")return {data:options.ownHistoryAccess===true&&args.p_dokument_id===77,error:null};
     throw new Error("Unexpected user RPC: "+name);

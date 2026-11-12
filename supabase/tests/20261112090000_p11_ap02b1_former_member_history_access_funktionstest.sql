@@ -34,12 +34,12 @@ select
   0,0,0,0;
 
 insert into public.app_user(user_id,mitglied_id,role,permission_grants,permission_revocations)
-select '00000000-0000-0000-0000-00000000b211',active_member_id,'user',0,0 from p11_b21_ids
-union all select '00000000-0000-0000-0000-00000000b212',grace_member_id,'user',0,0 from p11_b21_ids
-union all select '00000000-0000-0000-0000-00000000b213',expired_member_id,'user',0,0 from p11_b21_ids
-union all select '00000000-0000-0000-0000-00000000b214',foreign_member_id,'user',0,0 from p11_b21_ids
-union all select '00000000-0000-0000-0000-00000000b215',(select id from public.mitglied where auth_user_id='00000000-0000-0000-0000-00000000b215'),'user',65536,0 from p11_b21_ids
-union all select '00000000-0000-0000-0000-00000000b216',(select id from public.mitglied where auth_user_id='00000000-0000-0000-0000-00000000b216'),'admin',0,65536 from p11_b21_ids
+select '00000000-0000-0000-0000-00000000b211'::uuid,active_member_id,'user',0,0 from p11_b21_ids
+union all select '00000000-0000-0000-0000-00000000b212'::uuid,grace_member_id,'user',0,0 from p11_b21_ids
+union all select '00000000-0000-0000-0000-00000000b213'::uuid,expired_member_id,'user',0,0 from p11_b21_ids
+union all select '00000000-0000-0000-0000-00000000b214'::uuid,foreign_member_id,'user',0,0 from p11_b21_ids
+union all select '00000000-0000-0000-0000-00000000b215'::uuid,(select id from public.mitglied where auth_user_id='00000000-0000-0000-0000-00000000b215'),'user',65536,0 from p11_b21_ids
+union all select '00000000-0000-0000-0000-00000000b216'::uuid,(select id from public.mitglied where auth_user_id='00000000-0000-0000-0000-00000000b216'),'admin',0,65552 from p11_b21_ids
 on conflict(user_id) do update set mitglied_id=excluded.mitglied_id,role=excluded.role,permission_grants=excluded.permission_grants,permission_revocations=excluded.permission_revocations;
 
 set local session_replication_role=replica;
