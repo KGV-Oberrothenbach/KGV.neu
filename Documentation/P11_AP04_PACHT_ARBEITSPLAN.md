@@ -127,3 +127,26 @@ historisches Original. Dieser WIP ist **nicht abgenommen**, weil die geforderte
 lokale Supabase-Neuaufbau-/Signatur-E2E-Ausführung in der bereitgestellten
 Umgebung noch nicht möglich war.
 
+Nachprüfung 26.2: Der Docker-freie PGlite-Regressionstest wurde nach
+Installation der versionierten `supabase/tests`-Abhängigkeiten tatsächlich
+ausgeführt: `npm test --prefix supabase/tests` meldete **92 bestanden, 0
+fehlgeschlagen**. Das ist ein realer SQL-/Historien-Regressionstest, deckt die
+vollständige Supabase-Auth-/Storage- und die neue AP-04.4-Signaturkette jedoch
+nicht ab. Der Web-Produktionsbuild (`npm run build --prefix KGV.Web`) bestand.
+Core und Infrastructure konnten nicht gebaut werden, weil die lokal vorhandene
+ImageSharp-Version 4.1.3 einen nicht bereitgestellten Lizenzschlüssel verlangt;
+zusätzlich war NuGet im Sandbox-Netz nicht erreichbar. Docker Desktop war
+vorhand, sein Daemon war jedoch nicht über die lokale Named Pipe erreichbar;
+Supabase CLI und `psql` fehlen. Deshalb wurden lokaler Supabase-Neuaufbau,
+AP-04.1–04.4-SQL-Fixtures, echte Prepared-Signatur-E2E-, RLS- und
+Parallelitätstests nicht als bestanden dokumentiert.
+
+Migration `20261113161000_p11_ap04d_signature_plan_and_document_binding.sql`
+schließt zwei beim Review der WIP-Migration gefundene Lücken: Die vertraglich
+sichtbare Klausel mit Fläche/Anschlüssen/Begründung wird in
+`draft.additionalAgreements` eingefroren und damit vom bestehenden
+PDF-Generator in `weitere_vereinbarungen` übernommen. Außerdem wird die
+Bindung getrennt in zusammengesetzte PL/pgSQL-Variablen geladen und verlangt
+explizit die Signaturpositionen `lease.member`, `vorstand_1`, `vorstand_2`
+sowie bei Bedarf `lease.second_party` in genau der eingefrorenen Revision.
+
