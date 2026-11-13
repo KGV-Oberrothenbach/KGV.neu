@@ -1,0 +1,14 @@
+begin;
+create temporary table p11_ap04d_ids(u uuid, lease_id bigint, parcel_id bigint) on commit drop;
+insert into public.mitglied(name,vorname,aktiv,aufnahme_status) values('P11 AP04D','Test',true,'aufgenommen');
+insert into public.app_user(user_id,mitglied_id,role,permission_grants,permission_revocations) values('00000000-0000-0000-0000-000000000471',(select id from public.mitglied where name='P11 AP04D'),'user',524288,0);
+insert into public.parzelle(id,garten_nr,"Anlage",flaeche_qm,hat_strom,hat_wasser) values(9471,'P11-471','Test',100,false,false);
+insert into public.pachtverhaeltnis(parzelle_id,urspruenglicher_pachtbeginn) values(9471,current_date-2);
+insert into p11_ap04d_ids select '00000000-0000-0000-0000-000000000471',(select id from public.pachtverhaeltnis where parzelle_id=9471),9471;
+insert into public.pachtverhaeltnis_beteiligung(pachtverhaeltnis_id,mitglied_id,rolle,gueltig_ab) select lease_id,(select id from public.mitglied where name='P11 AP04D'),'hauptpaechter',current_date-2 from p11_ap04d_ids;
+grant select on p11_ap04d_ids to authenticated;
+set local role authenticated;
+do $$ declare x p11_ap04d_ids%rowtype; begin select * into x from p11_ap04d_ids; perform set_config('request.jwt.claim.sub',x.u::text,true); begin update public.parzelle set flaeche_qm=101 where id=x.parcel_id; raise exception 'direct running contract change accepted'; exception when sqlstate '42501' then null; end; begin perform public.wende_signierte_parzellen_vertragsaenderung_an(x.lease_id,999999,101,true,false,'test'); raise exception 'unsigned change accepted'; exception when sqlstate in ('23514','P0002') then null; end; end $$;
+reset role;
+do $$ begin if (select flaeche_qm from public.parzelle where id=9471)<>100 then raise exception 'rejected change was persisted'; end if; end $$;
+rollback;

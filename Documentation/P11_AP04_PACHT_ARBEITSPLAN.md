@@ -99,3 +99,10 @@ Folgebelegungsabschluss, geplante versus tatsächliche Übernahme,
 Nachsorgeabschluss und abgewiesene operative Parallelbelegung.
 
 **Abnahme AP-04.3:** vollständig abgenommen. B-01 bleibt offen.
+
+## AP-04.4 – Vertragsänderungen und historische Korrekturen
+
+Migration 20261113150000_p11_ap04d_contract_change_history.sql sperrt direkte Änderungen von Fläche und Anschlüssen während laufender Pacht. Die autorisierte RPC verlangt eine abgeschlossene, zum Verhältnis gehörende Vertragsfassung und schreibt Vorher/Nachher, Begründung, Akteur und Zeitpunkt in den unveränderlichen Auditnachweis. Abgeschlossene Pachtverhältnisse und Beteiligungen sind gegen stille Updates geschützt. Der lokale Neuaufbau und die rückrollbare authenticated-Guard-Fixture bestanden.
+
+**Abnahme AP-04.4:** teilweise – der positive End-to-End-Nachweis einer real vollständig signierten Vertragsänderung ist noch nicht als Fixture abgebildet.
+
