@@ -80,3 +80,36 @@ bestanden. Core, Infrastructure und MAUI-Android bauen fehlerfrei.
 
 **Abnahme AP-03.2:** vollständig abgenommen; die Umsetzung des operativen
 Pachtwechsels einschließlich einer etwaigen Statusautomatik bleibt AP-04.
+
+## AP-03.3 – Mitgliedsanträge und Aufnahmeentscheidung
+
+### Befund und Umsetzung
+
+Der bestehende Antragsprozess prüft serverseitig Finaldokument, Revision,
+Pflichtsignaturen und den eingefrorenen Funktions-Snapshot; Stimmen sind
+versioniert und identische Wiederholungen idempotent. Der Start der
+Vorstandsbearbeitung verwendete bereits effektiv `CanCreateMitglied` (524288).
+Die abschließende Aufnahme-/Ablehnungsentscheidung prüfte dagegen nur die
+Vereinsfunktionsbesetzung. Damit konnte ein individuell entzogener
+Entscheider trotz fehlender effektiver Fachberechtigung entscheiden.
+
+Migration `20261113110000_p11_ap03c_membership_admission_effective_decision.sql`
+verlangt deshalb für `kann_mitgliedsaufnahme_entscheiden()` und den direkten
+Entscheidungs-RPC beide Bedingungen: aktuelle Funktionszuständigkeit und
+effektives `CanCreateMitglied`. Sie erhält den Snapshot-, Nein-/Sitzungs-,
+Idempotenz-, Dokumentprovenance- und Aufnahmebestätigungsprozess unverändert.
+
+### Nachweis
+
+Der vollständige lokale Neuaufbau einschließlich Seed bestand mit 216
+Migrationen. Die rückrollbare `authenticated`-Fixture
+`20261113110000_p11_ap03c_membership_admission_effective_decision_funktionstest.sql`
+bestätigt die individuelle Gewährung und den Vorrang eines administrativen
+Entzugs. Die Mitgliedsantrags-E2E-Suite bestand mit 6/6, die
+Vorstandsworkflow-/Web-Verträge mit 10/10 und der neue Berechtigungsvertrag.
+Die .NET-Suite besteht mit 419/419; Web-Produktionsbuild sowie Core,
+Infrastructure und MAUI-Android bauen fehlerfrei. Die bekannten Nullable-
+und Web-Chunk-Warnungen bestehen fort.
+
+**Abnahme AP-03.3:** vollständig abgenommen. B-01 bleibt als betrieblicher
+Deployment- und Projektzuordnungsnachweis offen.
