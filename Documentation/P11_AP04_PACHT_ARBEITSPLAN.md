@@ -221,3 +221,12 @@ AP-04.4-Funktionstests, PGlite-Regressionen und Web-Produktionsbuild. Die
 CI-Seed-Prüfung wurde danach von einer bloßen Boolean-Ausgabe in eine
 fehlschlagende PostgreSQL-Assertion überführt.
 
+# AP-04.4 – Nachtrag 26.9
+
+`20261113163000_p11_ap04d_snapshot_integrity.sql` verschärft die Bindung der
+signierten Vertragsänderung: Wiederholungen dürfen nur denselben vollständigen
+Snapshot (Fläche, Strom, Wasser und Begründung) wiederverwenden. Der sichtbare
+Vertragszusatz wird kanonisch aus genau diesem Snapshot erzeugt und beim
+Fassungsabschluss vollständig geprüft. Der AP-04.4-SQL-Test prüft diese
+Ausführungsregeln als P11-T07-N-Regression.
+
