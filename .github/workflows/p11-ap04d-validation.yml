@@ -50,8 +50,11 @@ jobs:
           # config.toml is maintained with the repository's pinned 2.83 CLI.
           # Newer CLIs reject its supported [inbucket] section before startup.
           version: 2.83.0
-      - name: Start isolated local Supabase stack
-        run: supabase start
+      - name: Start isolated AP-04.4 Supabase stack
+        # The E2E needs PostgreSQL, Auth/API, Storage and Edge Runtime only.
+        # Excluding unrelated services reduces memory use, without suppressing
+        # health checks for any service in the tested contract path.
+        run: supabase start -x studio,logflare,vector,realtime,imgproxy,mailpit,postgres-meta,supavisor
       - name: Rebuild local-only database
         run: supabase db reset --local
       - name: Verify AP-01 local seed catalog
@@ -81,6 +84,23 @@ jobs:
         # This file is deliberately not discovered by the generic node:test
         # run: it requires the locally rebuilt PostgreSQL/Supabase stack.
         run: P11_LOCAL_DB_URL="postgresql://postgres:postgres@127.0.0.1:54322/postgres" node supabase/tests/p11-ap04d-signed-change.e2e.mjs
+      - name: Capture local Supabase diagnostics
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p p11-ap04d-diagnostics
+          docker ps -a --no-trunc > p11-ap04d-diagnostics/docker-ps.txt
+          docker stats --no-stream > p11-ap04d-diagnostics/docker-stats.txt || true
+          docker inspect $(docker ps -aq) --format '{{.Name}} exit={{.State.ExitCode}} oom={{.State.OOMKilled}} error={{.State.Error}}' > p11-ap04d-diagnostics/docker-state.txt || true
+          docker logs supabase_db_03_Arbeitsstand > p11-ap04d-diagnostics/postgres.log 2>&1 || true
+      - name: Publish AP-04.4 diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p11-ap04d-local-supabase-diagnostics
+          path: p11-ap04d-diagnostics
+          if-no-files-found: warn
+          retention-days: 7
       - name: Stop local Supabase stack
         if: always()
         run: supabase stop --no-backup

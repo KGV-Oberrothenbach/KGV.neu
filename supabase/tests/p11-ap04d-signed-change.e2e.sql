@@ -1,14 +1,9 @@
--- P11-T07-P (first executable slice): real authenticated preparation and
--- idempotency.  Final PDF/signature completion remains in the Edge workflow.
+-- P11-T07-P: real PostgreSQL preparation contract. The protected change table
+-- is inspected only after RESET ROLE; authenticated callers use the RPC.
 begin;
 insert into auth.users(id,aud,role,email,encrypted_password,email_confirmed_at,raw_app_meta_data,raw_user_meta_data,created_at,updated_at) values ('00000000-0000-0000-0000-000000009701','authenticated','authenticated','p11-t07p@example.test','x',now(),'{}','{}',now(),now());
 insert into public.mitglied(name,vorname,aktiv,aufnahme_status,auth_user_id) values('P11 T07P','Pächter',true,'aufgenommen','00000000-0000-0000-0000-000000009701') returning id as member_id \gset
--- Inserting mitglied.auth_user_id fires trg_sync_app_user_from_mitglied.
--- Upsert its row instead of inserting a second primary key record.
-insert into public.app_user(user_id,mitglied_id,role,permission_grants,permission_revocations)
-values('00000000-0000-0000-0000-000000009701',:member_id,'vorstand',524288,0)
-on conflict (user_id) do update set mitglied_id=excluded.mitglied_id,role=excluded.role,
-  permission_grants=excluded.permission_grants,permission_revocations=excluded.permission_revocations;
+insert into public.app_user(user_id,mitglied_id,role,permission_grants,permission_revocations) values('00000000-0000-0000-0000-000000009701',:member_id,'vorstand',524288,0) on conflict (user_id) do update set mitglied_id=excluded.mitglied_id,role=excluded.role,permission_grants=excluded.permission_grants,permission_revocations=excluded.permission_revocations;
 set local session_replication_role=replica;
 insert into public.parzelle(garten_nr,"Anlage",flaeche_qm,hat_strom,hat_wasser) values('P11-T07P','Test',100,false,false) returning id as parcel_id \gset
 insert into public.kommunikationsvorgang(vorgangstyp,dokumenttyp,status,mitglied_id,parzelle_id,revision,entwurf_daten) values('vertrag_signatur','pachtvertrag','erledigt',:member_id,:parcel_id,1,'{"draft":{"startDate":"2026-01-01"}}') returning id as source_id \gset
@@ -20,10 +15,41 @@ set local session_replication_role=origin;
 set local role authenticated;
 select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000009701',true);
 select * from public.bereite_signierte_parzellen_vertragsaenderung_vor(:predecessor_id,120,true,false,'P11-T07-P Fläche und Strom') \gset
+select set_config('p11.change_id', :pacht_vertragsaenderung_id::text, true);
+select set_config('p11.process_id', :kommunikationsvorgang_id::text, true);
+select set_config('p11.predecessor_id', :predecessor_id::text, true);
+reset role;
+
+set local role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000009701',true);
+select * from public.bereite_signierte_parzellen_vertragsaenderung_vor(:predecessor_id,120,true,false,'P11-T07-P Fläche und Strom') \gset repeat_
+select set_config('p11.repeat_change_id', :repeat_pacht_vertragsaenderung_id::text, true);
+select set_config('p11.repeat_process_id', :repeat_kommunikationsvorgang_id::text, true);
+reset role;
 do $$ begin
- if (select aenderungsstand->>'flaeche_qm' from public.pacht_vertragsaenderung where id=:'pacht_vertragsaenderung_id') <> '120' then raise exception 'frozen area missing'; end if;
- if not exists(select 1 from public.kommunikationsvorgang where id=:'kommunikationsvorgang_id' and entwurf_daten #>> '{draft,additionalAgreements}' like '%Fläche 120%' and entwurf_daten #>> '{draft,additionalAgreements}' like '%Strom ja%') then raise exception 'visible frozen clause missing'; end if;
+ if current_setting('p11.change_id') <> current_setting('p11.repeat_change_id') or current_setting('p11.process_id') <> current_setting('p11.repeat_process_id') then raise exception 'identical retry was not idempotent'; end if;
 end $$;
-select * from public.bereite_signierte_parzellen_vertragsaenderung_vor(:predecessor_id,120,true,false,'P11-T07-P Fläche und Strom');
-do $$ begin perform public.bereite_signierte_parzellen_vertragsaenderung_vor(:predecessor_id,121,true,false,'P11-T07-P Fläche und Strom'); raise exception 'different area accepted'; exception when sqlstate '23505' then null; end $$;
+
+set local role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000009701',true);
+do $$ begin
+ perform public.bereite_signierte_parzellen_vertragsaenderung_vor(current_setting('p11.predecessor_id')::bigint,121,true,false,'P11-T07-P Fläche und Strom');
+ raise exception 'different retry accepted';
+exception when sqlstate '23505' then null; end $$;
+reset role;
+update public.app_user set permission_revocations=524288 where user_id='00000000-0000-0000-0000-000000009701';
+set local role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000009701',true);
+do $$ begin
+ perform public.bereite_signierte_parzellen_vertragsaenderung_vor(current_setting('p11.predecessor_id')::bigint,120,true,false,'P11-T07-P Fläche und Strom');
+ raise exception 'individual revocation accepted';
+exception when sqlstate '42501' then null; end $$;
+reset role;
+do $$ declare c public.pacht_vertragsaenderung%rowtype; v_expected_hash text; v_clause text; begin
+ select * into c from public.pacht_vertragsaenderung where id=current_setting('p11.change_id')::bigint;
+ v_expected_hash:=encode(pg_catalog.sha256(convert_to(c.aenderungsstand::text,'utf8')),'hex');
+ v_clause:=public.p11_contract_change_clause(c.aenderungsstand,c.begruendung);
+ if c.aenderungsstand <> '{"flaeche_qm": 120, "hat_strom": true, "hat_wasser": false}'::jsonb or c.aenderungs_hash<>v_expected_hash or c.begruendung<>'P11-T07-P Fläche und Strom' then raise exception 'snapshot, SHA-256, or reason is incorrect'; end if;
+ if not exists(select 1 from public.kommunikationsvorgang k where k.id=current_setting('p11.process_id')::bigint and k.entwurf_daten #>> '{draft,p11_contract_change_hash}'=c.aenderungs_hash and position(v_clause in coalesce(k.entwurf_daten #>> '{draft,additionalAgreements}',''))>0) then raise exception 'visible frozen clause is incorrect'; end if;
+end $$;
 rollback;

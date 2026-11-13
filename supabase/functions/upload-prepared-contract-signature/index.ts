@@ -27,8 +27,9 @@ Deno.serve(async (request) => {
     if (userError || !userData.user) return json({ success: false, message: "Keine gültige Session." }, 401);
     const { data: context, error: contextError } = await caller.rpc("current_app_user_context");
     const callerMemberId = context?.[0]?.mitglied_id;
-    const callerRole = context?.[0]?.role;
     if (contextError || !Number.isSafeInteger(callerMemberId)) return json({ success: false, message: "Keine zugeordnete Unterzeichneridentität." }, 403);
+    const { data: effectivePermissions, error: permissionError } = await caller.rpc("current_effective_permissions");
+    if (permissionError) return json({ success: false, message: "Berechtigungen konnten nicht geprüft werden." }, 403);
     const body = await request.json();
     const id = Number(body?.kommunikationsvorgang_id), revision = Number(body?.signatur_revision), key = body?.signatur_schluessel;
     const png = decodePng(body?.png_base64);
@@ -52,7 +53,10 @@ Deno.serve(async (request) => {
     // workstation account to be the tenant made the Web flow unable to submit
     // a tenant signature at all.  The guarded save RPC still records and
     // validates the actual signer (and the frozen board snapshot).
-    const administrativeCaller = callerRole === "admin" || callerRole === "vorstand";
+    // Role labels alone are insufficient: an individual revocation must take
+    // effect immediately.  524288 is the contract-administration capability
+    // required by the guarded signature persistence RPC as well.
+    const administrativeCaller = (Number(effectivePermissions) & 524288) === 524288;
     if (position.unterzeichner_typ === "vereinsunterzeichner" && !administrativeCaller) {
       const { data: source } = await admin.from("prepared_contract_signatur_snapshot_person").select("id").eq("kommunikationsvorgang_id", id).eq("signatur_revision", revision).eq("mitglied_id", callerMemberId).maybeSingle();
       if (!source) return json({ success: false, message: "Keine gültige Unterzeichnerberechtigung." }, 403);
