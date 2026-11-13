@@ -76,6 +76,9 @@ jobs:
             supabase/tests/20261113150000_p11_ap04d_contract_change_funktionstest.sql; do
             psql "$db_url" -v ON_ERROR_STOP=1 -f "$fixture"
           done
+      - name: P11-T07-P – Real signed lease amendment E2E
+        shell: bash
+        run: P11_LOCAL_DB_URL="postgresql://postgres:postgres@127.0.0.1:54322/postgres" node supabase/tests/p11-ap04d-signed-change.e2e.test.mjs
       - name: Stop local Supabase stack
         if: always()
         run: supabase stop --no-backup
