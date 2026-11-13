@@ -84,6 +84,17 @@ jobs:
         # This file is deliberately not discovered by the generic node:test
         # run: it requires the locally rebuilt PostgreSQL/Supabase stack.
         run: P11_LOCAL_DB_URL="postgresql://postgres:postgres@127.0.0.1:54322/postgres" node supabase/tests/p11-ap04d-signed-change.e2e.mjs
+      - name: CX-01 – Real local signature workflow E2E
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          P11_LOCAL_API_URL="$API_URL" \
+          P11_LOCAL_ANON_KEY="$ANON_KEY" \
+          P11_LOCAL_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" \
+          P11_LOCAL_DB_URL="$DB_URL" \
+          CX01_RESULT_PATH="p11-ap04d-diagnostics/cx01-results.json" \
+          node supabase/tests/cx01-signature-workflow.e2e.mjs
       - name: Capture local Supabase diagnostics
         if: always()
         shell: bash

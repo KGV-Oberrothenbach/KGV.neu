@@ -63,7 +63,11 @@ Deno.serve(async (request) => {
     } else if (!administrativeCaller && position.unterzeichner_typ !== "vereinsunterzeichner" && position.mitglied_id !== callerMemberId) return json({ success: false, message: "Die Signatur gehört nicht zum angemeldeten Mitglied." }, 403);
     const objectId = stableObjectId(hash);
     const storagePath = `${id}/${revision}/${key}/${objectId}.png`;
-    const { error: uploadError } = await admin.storage.from(bucket).upload(storagePath, png, { contentType: "image/png", upsert: true });
+    const { error: uploadError } = await admin.storage.from(bucket).upload(storagePath, png, {
+      contentType: "image/png",
+      upsert: true,
+      metadata: { sha256: hash },
+    });
     if (uploadError) throw new Error(uploadError.message);
     return json({ success: true, storage_path: storagePath, sha256: hash });
   } catch (error) {
