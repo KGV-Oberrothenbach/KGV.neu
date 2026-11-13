@@ -196,3 +196,14 @@ Bestand, in dem die fehlerhafte Migration wider Erwarten bereits als angewandt
 registriert ist, ist vor einem Rollout ein separates Kompatibilitätskonzept
 erforderlich.
 
+Der ungepatchte CI-Lauf
+[`43455308904`](https://github.com/KGV-Oberrothenbach/KGV.neu/actions/runs/43455308904)
+bestätigte anschließend, dass alle versionierten Migrationen – einschließlich
+der beiden korrigierten Stellen und `20261113161000` – vollständig chronologisch
+angewandt werden. Der Neuaufbau scheiterte erst beim bestehenden lokalen Seed:
+`supabase/seed.sql` erstellt und befüllt `p11_ap01_test_fixture`, doch der
+Supabase-Seed-Runner meldete beim Batchversand `relation
+public.p11_ap01_test_fixture does not exist` (`42P01`). Deshalb wurden die
+AP-04-Fixtures noch nicht erreicht. Dieser Seed-Fehler liegt außerhalb der
+genehmigten Migrationsreparatur; keine Änderung daran wurde vorgenommen.
+
