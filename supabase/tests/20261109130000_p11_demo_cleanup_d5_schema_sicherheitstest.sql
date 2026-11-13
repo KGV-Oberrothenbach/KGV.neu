@@ -57,6 +57,15 @@ begin
     raise exception 'D5 Fachnummer RPC contract is not the D4 three-argument contract';
   end if;
 
+  if to_regprocedure('public.rpc_export_mitgliederliste(text,boolean)') is null
+     or to_regprocedure('public.rpc_export_rfid_status(text,text)') is null then
+    raise exception 'D5 removed a legacy export overload';
+  end if;
+  if pg_get_functiondef('public.rpc_export_mitgliederliste(text,boolean)'::regprocedure) ilike '%is_demo%'
+     or pg_get_functiondef('public.rpc_export_rfid_status(text,text)'::regprocedure) ilike '%is_demo%' then
+    raise exception 'D5 legacy export overload still contains a Demo filter';
+  end if;
+
   if not exists (
     select 1 from information_schema.columns
      where table_schema = 'public' and table_name = 'app_user'
@@ -64,6 +73,40 @@ begin
   ) then
     raise exception 'D5 removed is_protected';
   end if;
+end;
+$$;
+
+-- Exercise both retained overloads against the real rebuilt schema. LIMIT 0
+-- still plans and resolves every referenced table/column without exporting
+-- member data from the fixture.
+select * from public.rpc_export_mitgliederliste('name',null) limit 0;
+select * from public.rpc_export_rfid_status(null,'alle') limit 0;
+
+-- Reproduce the additional physical columns found in the historical DemoDB
+-- and prove that the guarded D5 operation removes only the column, not rows.
+do $$
+declare
+  v_table text;
+  v_before bigint;
+  v_after bigint;
+begin
+  foreach v_table in array array[
+    'arbeitseinsatz_anmeldung','arbeitsstunde','client_diagnostics_log','dokument',
+    'impressum_funktion_slot','mitglied_gesetzlicher_vertreter','mitglied_saison',
+    'parzellen_belegung','vereinskonfiguration','wartungsvertrag_zuordnungen',
+    'zaehler','zaehler_ablesung'
+  ] loop
+    if to_regclass(format('public.%I',v_table)) is null then
+      continue;
+    end if;
+    execute format('select count(*) from public.%I',v_table) into v_before;
+    execute format('alter table public.%I add column is_demo boolean',v_table);
+    execute format('alter table public.%I drop column is_demo',v_table);
+    execute format('select count(*) from public.%I',v_table) into v_after;
+    if v_after is distinct from v_before then
+      raise exception 'D5 historical column removal changed rows in %',v_table;
+    end if;
+  end loop;
 end;
 $$;
 

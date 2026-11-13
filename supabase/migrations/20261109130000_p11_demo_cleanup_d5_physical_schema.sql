@@ -1678,6 +1678,92 @@ AS $function$
       p.garten_nr, p."Anlage", p.id
   ) r;
 $function$;
+
+-- The historical DemoDB still exposes two legacy export overloads.  They are
+-- not used by the current generic export gateway, but remain a public API for
+-- older clients.  Keep their result contracts and remove only the obsolete
+-- row-level Demo predicates before the physical columns are dropped.
+CREATE OR REPLACE FUNCTION public.rpc_export_mitgliederliste(
+  p_sortierung text DEFAULT 'name'::text,
+  p_aktiv_filter boolean DEFAULT NULL::boolean
+) RETURNS TABLE(
+  sortierung text, mitgliedsnr bigint, name text, vorname text,
+  strasse_hsnr text, plz text, ort text, telefon text, mobil text, email text,
+  geburtsdatum date, bemerkung text, whatsapp text, rechnung_per_mail text,
+  info_per_mail text, auth_user text, aktiv text, mitglied_seit date,
+  pachtgaerten text, sort_name text, sort_mitgliedsnr bigint,
+  sort_gartennummer integer
+) LANGUAGE sql STABLE SET search_path TO 'public', 'pg_temp' AS $function$
+  with settings as (
+    select case lower(coalesce(p_sortierung,'name'))
+      when 'mitgliedsnr' then 'mitgliedsnr'
+      when 'gartennummer' then 'garten'
+      else 'name' end as modern_sortierung,
+      case when p_aktiv_filter is null then 'alle'
+        when p_aktiv_filter then 'aktiv' else 'inaktiv' end as modern_filter
+  ), rows as (
+    select e.value
+    from settings s
+    cross join lateral public.rpc_export_mitgliederliste(s.modern_filter,s.modern_sortierung) e(value)
+  )
+  select
+    case lower(coalesce(p_sortierung,'name')) when 'mitgliedsnr' then 'mitgliedsnr'
+      when 'gartennummer' then 'gartennummer' else 'name' end,
+    (value->>'mitgliedsnummer')::bigint,
+    value->>'name', value->>'vorname', value->>'adresse', value->>'plz',
+    value->>'ort', value->>'telefon', value->>'handy', value->>'email',
+    (value->>'geburtsdatum')::date, value->>'bemerkung',
+    case when coalesce((value->>'whatsapp_einwilligung')::boolean,false) then 'Ja' else 'Nein' end,
+    case when coalesce((value->>'email_rechnung_einwilligung')::boolean,false) then 'Ja' else 'Nein' end,
+    case when coalesce((value->>'email_info_einwilligung')::boolean,false) then 'Ja' else 'Nein' end,
+    case when coalesce((value->>'app_vorhanden')::boolean,false) then 'Ja' else 'Nein' end,
+    case when coalesce((value->>'ist_aktiv')::boolean,false) then 'Ja' else 'Nein' end,
+    (value->>'mitglied_seit')::date, coalesce(value->>'gaerten',''),
+    lower(coalesce(value->>'name',''))||'|'||lower(coalesce(value->>'vorname','')),
+    (value->>'mitgliedsnummer')::bigint,
+    (value->>'garten_sort_nr')::integer
+  from rows;
+$function$;
+
+CREATE OR REPLACE FUNCTION public.rpc_export_rfid_status(
+  p_anlage_filter text DEFAULT NULL::text,
+  p_status_filter text DEFAULT 'alle'::text
+) RETURNS TABLE(
+  anlage text, garten_nr text, mitgliedsnr bigint, name text, vorname text,
+  wasser_rfid text, strom_rfid text, wasser_eingerichtet text,
+  strom_eingerichtet text, beide_eingerichtet text, fehlt_irgendwas text,
+  sort_anlage text, sort_gartennummer integer
+) LANGUAGE sql STABLE SET search_path TO 'public', 'pg_temp' AS $function$
+  with basis as (
+    select p."Anlage" as anlage,p.garten_nr,m.id as mitgliedsnr,m.name,m.vorname,
+      p.rfid_wasser as wasser_rfid,p.rfid_strom as strom_rfid,
+      case when nullif(trim(coalesce(p.rfid_wasser,'')),'') is not null then 'Ja' else 'Nein' end wasser_eingerichtet,
+      case when nullif(trim(coalesce(p.rfid_strom,'')),'') is not null then 'Ja' else 'Nein' end strom_eingerichtet,
+      case when nullif(trim(coalesce(p.rfid_wasser,'')),'') is not null and nullif(trim(coalesce(p.rfid_strom,'')),'') is not null then 'Ja' else 'Nein' end beide_eingerichtet,
+      case when nullif(trim(coalesce(p.rfid_wasser,'')),'') is null or nullif(trim(coalesce(p.rfid_strom,'')),'') is null then 'Ja' else 'Nein' end fehlt_irgendwas,
+      nullif(regexp_replace(coalesce(p.garten_nr,''),'\D','','g'),'')::integer sort_gartennummer
+    from public.parzelle p
+    left join lateral (
+      select pb.mitglied_id from public.parzellen_belegung pb
+      where pb.parzelle_id=p.id and pb.von_datum<=current_date
+        and (pb.bis_datum is null or pb.bis_datum>=current_date)
+      order by pb.von_datum desc,pb.id desc limit 1
+    ) belegung on true
+    left join public.mitglied m on m.id=belegung.mitglied_id
+    where coalesce(p.aktiv,true)
+      and (p_anlage_filter is null or lower(trim(coalesce(p."Anlage",'')))=lower(trim(p_anlage_filter)))
+  )
+  select b.anlage,b.garten_nr,b.mitgliedsnr,b.name,b.vorname,b.wasser_rfid,b.strom_rfid,
+    b.wasser_eingerichtet,b.strom_eingerichtet,b.beide_eingerichtet,b.fehlt_irgendwas,
+    lower(coalesce(b.anlage,'')),b.sort_gartennummer
+  from basis b
+  where lower(coalesce(p_status_filter,'alle'))='alle'
+    or (lower(p_status_filter)='fehlt_irgendwas' and b.fehlt_irgendwas='Ja')
+    or (lower(p_status_filter)='beide_vorhanden' and b.beide_eingerichtet='Ja')
+    or (lower(p_status_filter)='wasser_fehlt' and b.wasser_eingerichtet='Nein')
+    or (lower(p_status_filter)='strom_fehlt' and b.strom_eingerichtet='Nein')
+  order by lower(coalesce(b.anlage,'')),coalesce(b.sort_gartennummer,2147483647),b.garten_nr;
+$function$;
 -- current_app_user_context has a changed OUT contract.  Its three direct
 -- Storage-policy dependencies are recreated explicitly without a column alias
 -- list tied to the old return type.
@@ -1744,6 +1830,22 @@ alter table public.parzelle drop column is_demo;
 alter table public.saison drop column is_demo;
 alter table public.termin drop column is_demo;
 alter table public.wartungsvertraege drop column is_demo;
+
+-- These columns exist in the historical DemoDB baseline but not in the
+-- repository's synthetic/full-rebuild baseline.  IF EXISTS keeps D5 valid for
+-- both schema histories; dropping a column never deletes the owning row.
+alter table if exists public.arbeitseinsatz_anmeldung drop column if exists is_demo;
+alter table if exists public.arbeitsstunde drop column if exists is_demo;
+alter table if exists public.client_diagnostics_log drop column if exists is_demo;
+alter table if exists public.dokument drop column if exists is_demo;
+alter table if exists public.impressum_funktion_slot drop column if exists is_demo;
+alter table if exists public.mitglied_gesetzlicher_vertreter drop column if exists is_demo;
+alter table if exists public.mitglied_saison drop column if exists is_demo;
+alter table if exists public.parzellen_belegung drop column if exists is_demo;
+alter table if exists public.vereinskonfiguration drop column if exists is_demo;
+alter table if exists public.wartungsvertrag_zuordnungen drop column if exists is_demo;
+alter table if exists public.zaehler drop column if exists is_demo;
+alter table if exists public.zaehler_ablesung drop column if exists is_demo;
 
 drop function public.p11_d2_force_allow_demo_access_false();
 drop function public.p11_d2_force_app_user_demo_false();
