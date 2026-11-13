@@ -150,3 +150,29 @@ Bindung getrennt in zusammengesetzte PL/pgSQL-Variablen geladen und verlangt
 explizit die Signaturpositionen `lease.member`, `vorstand_1`, `vorstand_2`
 sowie bei Bedarf `lease.second_party` in genau der eingefrorenen Revision.
 
+### AP-04.4 – CI-Nachweis 26.3 und Blocker
+
+Der isolierte GitHub-Actions-Workflow
+`.github/workflows/p11-ap04d-validation.yml` wurde auf GitHub tatsächlich
+ausgeführt. Im Lauf
+[`43435090662`](https://github.com/KGV-Oberrothenbach/KGV.neu/actions/runs/43435090662)
+bestand der Job `pglite-and-web`: PGlite-Regressionssuite und
+Web-Produktionsbuild waren grün. Der lokale Supabase-Neuaufbau begann auf einem
+GitHub-hosted Docker-Runner und wandte die Migrationen chronologisch an.
+
+Er scheiterte deterministisch in der bereits eingecheckten Migration
+`20261113160000_p11_ap04d_signed_change_authorization.sql` mit PostgreSQL
+`SQLSTATE 42601`: `record variable cannot be part of multiple-item INTO list`.
+Auslöser ist genau `select c.*, k.* into v_change, v_process` in
+`bind_pacht_vertragsaenderung_an_fassung`. Die spätere Migration
+`20261113161000...` enthält zwar die korrekte getrennte Zuweisung, kann wegen
+des Fehlers in der Vorgängermigration nie erreicht werden.
+
+Damit besteht ein unauflösbarer Konflikt zwischen der geforderten vollständigen
+Neuaufbauprüfung und der Vorgabe, historische Migrationen niemals zu ändern:
+Eine neue chronologische Migration kann einen Parsefehler einer früheren
+Migration nicht beheben. Bis zu einer ausdrücklichen Entscheidung, ob
+`20261113160000...` ausnahmsweise korrigiert/rebaset werden darf, bleiben der
+Supabase-Neuaufbau, die AP-04.4-Signatur-E2E, die SQL-Fixtures und die
+PostgreSQL-/RLS-/Parallelitätsnachweise offen.
+
