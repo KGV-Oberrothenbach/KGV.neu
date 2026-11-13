@@ -1846,6 +1846,8 @@ alter table if exists public.vereinskonfiguration drop column if exists is_demo;
 alter table if exists public.wartungsvertrag_zuordnungen drop column if exists is_demo;
 alter table if exists public.zaehler drop column if exists is_demo;
 alter table if exists public.zaehler_ablesung drop column if exists is_demo;
+alter table if exists public.app_user drop column if exists is_demo;
+alter table if exists public.auth_allowlist drop column if exists is_demo;
 
 drop function public.p11_d2_force_allow_demo_access_false();
 drop function public.p11_d2_force_app_user_demo_false();

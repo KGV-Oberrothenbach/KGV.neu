@@ -7,7 +7,7 @@ const historicalColumns = [
   "arbeitseinsatz_anmeldung", "arbeitsstunde", "client_diagnostics_log", "dokument",
   "impressum_funktion_slot", "mitglied_gesetzlicher_vertreter", "mitglied_saison",
   "parzellen_belegung", "vereinskonfiguration", "wartungsvertrag_zuordnungen",
-  "zaehler", "zaehler_ablesung",
+  "zaehler", "zaehler_ablesung", "app_user", "auth_allowlist",
 ];
 
 test("D5 removes every historical DemoDB-only column without CASCADE", () => {
