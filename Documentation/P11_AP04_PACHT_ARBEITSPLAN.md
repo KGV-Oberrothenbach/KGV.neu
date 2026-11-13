@@ -68,3 +68,34 @@ idempotenten Wiederholungsabschluss.
 **Abnahme AP-04.2:** Datenbankvertrag und RLS-Nachweis abgenommen; die
 bestehende Parzellenprotokoll-Oberfläche wird weiterverwendet. B-01 bleibt
 offen.
+
+## AP-04.3 – Pächterwechsel und nahtlose Folgebelegung
+
+### Befund und Umsetzung
+
+Die Vertragsregistrierung erzeugte bereits einen neuen eigenständigen
+Pachtvertrag mit Haupt-/Mitpächterbeteiligungen, aber die operative
+`parzellen_belegung` war nicht verbindlich an dieses neue Vertragsverhältnis
+gebunden. Migration `20261113140000_p11_ap04c_tenant_change_successor_occupancy.sql`
+ergänzt deshalb ausschließlich für neue Hauptpächterbeteiligungen eine
+serverseitige, eindeutig zugeordnete operative Folgebelegung. Eine
+bereichsbezogene Exclusion-Constraint verhindert überlappende Belegungen;
+das rechtliche Ende schließt die zugeordnete Belegung im selben Vorgang.
+
+Der Altvertrag bleibt unverändert historisch, der Folgepächter entsteht nur
+als neuer Vertrag. Die vorhandenen Mitgliedschaftsprüfungen für Pächter, die
+AP-04.1-Statusfolge und die AP-04.2-Nachsorgekette bleiben maßgeblich.
+Geplante Beteiligungen schließen Nachsorge nicht, erst die wirksam gewordene
+Hauptpächterbeteiligung tut dies transaktional. R10 bleibt über die bestehende
+wirksame Nachfolgebelegung durchgesetzt.
+
+### Nachweis
+
+Vollständiger lokaler Neuaufbau einschließlich Seed erfolgreich. Die
+rückrollbare `authenticated`-Fixture
+`20261113140000_p11_ap04c_tenant_change_funktionstest.sql` bestätigt
+individuelle Gewährung, Admin-Entzug, rechtliches Altvertragsende,
+Folgebelegungsabschluss, geplante versus tatsächliche Übernahme,
+Nachsorgeabschluss und abgewiesene operative Parallelbelegung.
+
+**Abnahme AP-04.3:** vollständig abgenommen. B-01 bleibt offen.
