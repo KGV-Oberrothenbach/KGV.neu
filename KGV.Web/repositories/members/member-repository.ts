@@ -66,10 +66,11 @@ export type MembershipEndRpcRow = {
   secondary_decision: MembershipEndDecision | null;
 };
 
-export const endMembership = async (club: ClubContext, session: BrowserSession, mainMemberId: number, decision: MembershipEndDecision | null) => {
+export const endMembership = async (club: ClubContext, session: BrowserSession, mainMemberId: number, decision: MembershipEndDecision | null, reason: string) => {
   const rows = await callSupabaseRpc<MembershipEndRpcRow[]>({ club, session }, "end_membership", {
     p_main_member_id: mainMemberId,
     p_secondary_decision: decision,
+    p_begruendung: reason,
   });
   return rows[0] ?? null;
 };

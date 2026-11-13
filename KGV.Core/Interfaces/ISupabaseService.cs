@@ -37,7 +37,7 @@ namespace KGV.Core.Interfaces
         [Obsolete("Der frühere Versand-Endpunkt wurde stillgelegt; SendMitgliedVereinsunterlagenDigitalAsync verwenden.")]
         Task<MitgliedRegelwerkeVersandResult> SendMitgliedRegelwerkeAsync(int mitgliedId);
         Task<bool> UpdateMitgliedAsync(MemberDTO dto, string userId);
-        Task<MembershipEndResult> EndMembershipAsync(int mainMemberId, MembershipEndDecision? secondaryDecision);
+        Task<MembershipEndResult> EndMembershipAsync(int mainMemberId, MembershipEndDecision? secondaryDecision, string reason);
 
         Task<ParzelleRecord?> GetParzelleByNumberAsync(string gartenNr);
         Task<List<ParzelleRecord>> GetAllParzellenAsync();

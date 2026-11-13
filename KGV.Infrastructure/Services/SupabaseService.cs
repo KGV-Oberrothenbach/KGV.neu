@@ -1140,10 +1140,12 @@ namespace KGV.Infrastructure.Services
             },
             false);
 
-        public async Task<MembershipEndResult> EndMembershipAsync(int mainMemberId, MembershipEndDecision? secondaryDecision)
+        public async Task<MembershipEndResult> EndMembershipAsync(int mainMemberId, MembershipEndDecision? secondaryDecision, string reason)
         {
             if (mainMemberId <= 0)
                 return MembershipEndResult.Failure("Hauptmitglied ist ungültig.");
+            if (string.IsNullOrWhiteSpace(reason))
+                return MembershipEndResult.Failure("Für die formelle Beendigung ist eine Begründung erforderlich.");
 
             try
             {
@@ -1161,7 +1163,8 @@ namespace KGV.Infrastructure.Services
                             MembershipEndDecision.EndSecondaryMember => "end_secondary",
                             MembershipEndDecision.PromoteSecondaryMember => "promote_secondary",
                             _ => null
-                        }
+                        },
+                        p_begruendung = reason.Trim()
                     }),
                     Encoding.UTF8,
                     "application/json");

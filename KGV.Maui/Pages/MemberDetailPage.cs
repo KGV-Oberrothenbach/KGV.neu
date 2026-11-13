@@ -667,6 +667,13 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         if (!confirmed)
             return;
 
+        var reason = await DisplayPromptAsync("Beendigungsgrund", "Bitte den formellen Grund dokumentieren:", "Weiter", "Abbrechen", keyboard: Keyboard.Text);
+        if (string.IsNullOrWhiteSpace(reason))
+        {
+            await DisplayAlertAsync("Hinweis", "Eine formelle Mitgliedschaftsbeendigung benötigt eine Begründung.", "OK");
+            return;
+        }
+
         var lockAcquired = await _supabaseService.TryLockMitgliedAsync(_memberRecord.Id, userId);
         if (!lockAcquired)
         {
@@ -676,7 +683,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
 
         try
         {
-            var result = await _supabaseService.EndMembershipAsync(_memberRecord.Id, decision);
+            var result = await _supabaseService.EndMembershipAsync(_memberRecord.Id, decision, reason);
             if (!result.Success || result.UpdatedMainMember == null)
             {
                 await DisplayAlertAsync("Fehler", string.IsNullOrWhiteSpace(result.Message) ? "Mitgliedschaft konnte nicht beendet werden." : result.Message, "OK");

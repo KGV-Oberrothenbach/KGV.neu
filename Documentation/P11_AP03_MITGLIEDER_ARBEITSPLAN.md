@@ -41,3 +41,42 @@ Bestehende Nullable- und Web-Chunk-Warnungen sind unverändert. B-01 bleibt
 als betrieblicher Edge-Bereitstellungsnachweis offen.
 
 **Abnahme AP-03.1:** vollständig abgenommen.
+
+## AP-03.2 – Mitgliedschaftsstatus und formelle Beendigung
+
+### Befund und Umsetzung
+
+`end_membership` verwendete bereits effektiv `CanEditAllMembers`, dokumentierte
+aber weder einen verpflichtenden formellen Grund noch Akteur und Zeitpunkt in
+einer revisionsfähigen Historie. Außerdem konnte ein Verwaltungsbenutzer das
+Mitgliedschaftsende über den generischen Mitglieder-PATCH setzen. Migration
+`20261113100000_p11_ap03b_formal_membership_termination.sql` führt deshalb
+die append-only Tabelle `mitgliedschaftsbeendigung_audit` ein, verlangt einen
+nichtleeren Grund, hält die bestehende Bearbeitungssperre ein und verweigert
+eine Beendigung bei wirksamer Pachtbeteiligung. Der Trigger
+`trg_guard_formal_membership_end` lässt Änderungen von `mitglied_ende` nur im
+formellen Vorgang zu. Web und MAUI erfassen und übertragen den Grund; der
+Aufruf bleibt an die effektive Capability gebunden.
+
+Die Beendigung einer Pacht wird nicht als Mitgliedschaftsende behandelt; diese
+Trennung wird durch die formelle RPC und die fehlende generische Enddatum-
+Freigabe bewahrt. Die konkrete Umstellung auf den im Datenmodell vorgesehenen
+passiven Status beim letzten Pachtende liegt weiterhin im Pachtwechselprozess
+(AP-04); AP-03.2 führt dafür keine neue, parallele Statusautomatik ein.
+
+### Nachweis
+
+Der lokale Neuaufbau einschließlich Seed bestand mit 215 Migrationen. Die
+rückrollbare `authenticated`-Fixture
+`20261113100000_p11_ap03b_formal_membership_termination_funktionstest.sql`
+bestätigt individuelle Gewährung, fehlendes Recht, administrativen Entzug,
+formellen Grund/Akteur/Audit, Nebenmitglied-Beförderung und die Ablehnung eines
+direkten Enddatum-PATCHes. Die A2.1-Mitgliedschaftsregression wurde für den
+verpflichtenden Grund angepasst und bestand ebenfalls.
+
+Die relevante Web-Berechtigungs- und Auth-Synchronisationssuite, R05/R10,
+die A2.1-Regression, der Web-Produktionsbuild sowie die .NET-Suite (419/419)
+bestanden. Core, Infrastructure und MAUI-Android bauen fehlerfrei.
+
+**Abnahme AP-03.2:** vollständig abgenommen; die Umsetzung des operativen
+Pachtwechsels einschließlich einer etwaigen Statusautomatik bleibt AP-04.

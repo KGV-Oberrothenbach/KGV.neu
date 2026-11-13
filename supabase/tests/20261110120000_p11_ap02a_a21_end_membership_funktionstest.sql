@@ -54,7 +54,7 @@ begin
 
   -- Individual grant succeeds and preserves the formal main/secondary outcome.
   perform set_config('request.jwt.claim.sub', v.granted_user::text, true);
-  select * into v_result from public.end_membership(v.granted_main_member, 'promote_secondary');
+  select * into v_result from public.end_membership(v.granted_main_member, 'promote_secondary', 'P11 A2.1 formeller Testgrund');
   if not coalesce(v_result.success, false) then
     raise exception 'P11 A2.1 positive CanEditAllMembers test did not return success';
   end if;
@@ -62,7 +62,7 @@ begin
   -- A user without the right cannot end another membership via the direct RPC.
   perform set_config('request.jwt.claim.sub', v.denied_user::text, true);
   begin
-    perform public.end_membership(v.denied_main_member, null);
+    perform public.end_membership(v.denied_main_member, null, 'P11 A2.1 unberechtigt');
     raise exception 'P11 A2.1 denied-user test unexpectedly succeeded';
   exception when sqlstate '42501' then null;
   end;
@@ -70,7 +70,7 @@ begin
   -- An individual revocation wins over the administrative role base.
   perform set_config('request.jwt.claim.sub', v.revoked_admin_user::text, true);
   begin
-    perform public.end_membership(v.revoked_main_member, null);
+    perform public.end_membership(v.revoked_main_member, null, 'P11 A2.1 Entzug');
     raise exception 'P11 A2.1 revoked-admin test unexpectedly succeeded';
   exception when sqlstate '42501' then null;
   end;
@@ -78,9 +78,9 @@ begin
   -- A permitted actor still cannot bypass the original formal-process checks.
   perform set_config('request.jwt.claim.sub', v.granted_user::text, true);
   begin
-    perform public.end_membership(v.denied_main_member, null);
+    perform public.end_membership(v.denied_main_member, null, 'P11 A2.1 fremde Sperre');
     raise exception 'P11 A2.1 foreign-lock test unexpectedly succeeded';
-  exception when sqlstate 'P0001' then null;
+  exception when sqlstate '55P03' then null;
   end;
 end;
 $$;

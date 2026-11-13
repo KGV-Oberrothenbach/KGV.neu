@@ -65,10 +65,11 @@ export function canEditMember(memberId: number, permissions: MemberEditPermissio
 export const getMember = getMemberById;
 export const loadSecondaryMemberForMembershipEnd = getSecondaryMemberByMainMemberId;
 
-export async function endMembership(club: ClubContext, session: BrowserSession, mainMemberId: number, decision: MembershipEndDecision | null) {
+export async function endMembership(club: ClubContext, session: BrowserSession, mainMemberId: number, decision: MembershipEndDecision | null, reason: string) {
   if (!Number.isInteger(mainMemberId) || mainMemberId <= 0) throw new Error("Hauptmitglied ist ungültig.");
+  if (!reason.trim()) throw new Error("Für die formelle Beendigung ist eine Begründung erforderlich.");
 
-  const result = await endMembershipRpc(club, session, mainMemberId, decision);
+  const result = await endMembershipRpc(club, session, mainMemberId, decision, reason.trim());
   if (!result) throw new Error("Die Mitgliedschaft konnte nicht beendet werden.");
   if (!result.success) throw new Error(result.message || "Die Mitgliedschaft konnte nicht beendet werden.");
   const updatedMainMember = result.updated_main_member;
