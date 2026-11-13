@@ -1,0 +1,69 @@
+name: P11 AP-04.4 validation
+
+on:
+  push:
+    branches: [work/p11-ap02a-demo-bereinigung]
+  pull_request:
+    branches: [work/p11-ap02a-demo-bereinigung]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pglite-and-web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            supabase/tests/package-lock.json
+            KGV.Web/package-lock.json
+      - name: Run isolated PGlite regressions
+        run: |
+          npm ci --prefix supabase/tests
+          npm test --prefix supabase/tests
+      - name: Build Web production bundle
+        run: |
+          npm ci --prefix KGV.Web
+          npm run build --prefix KGV.Web
+      - name: Publish test logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p11-ap04d-pglite-and-web-logs
+          path: |
+            supabase/tests
+            KGV.Web/dist
+          if-no-files-found: warn
+          retention-days: 7
+
+  local-supabase-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Start isolated local Supabase stack
+        run: supabase start
+      - name: Rebuild local-only database
+        run: supabase db reset --local
+      - name: Execute P11 AP-04 SQL fixtures
+        shell: bash
+        run: |
+          set -euo pipefail
+          db_url="postgresql://postgres:postgres@127.0.0.1:54322/postgres"
+          for fixture in \
+            supabase/tests/20261113120000_p11_ap04a_lease_end_membership_status_funktionstest.sql \
+            supabase/tests/20261113131000_p11_ap04b_aftercare_funktionstest.sql \
+            supabase/tests/20261113140000_p11_ap04c_tenant_change_funktionstest.sql \
+            supabase/tests/20261113150000_p11_ap04d_contract_change_funktionstest.sql; do
+            psql "$db_url" -v ON_ERROR_STOP=1 -f "$fixture"
+          done
+      - name: Stop local Supabase stack
+        if: always()
+        run: supabase stop --no-backup
