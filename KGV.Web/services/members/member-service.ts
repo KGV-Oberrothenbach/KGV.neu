@@ -1,7 +1,7 @@
 import type { ClubContext } from "../../models/auth/club";
 import { type BrowserSession } from "../../lib/supabase-auth";
 import { type Member, type MemberSearchResult } from "../../models/members/member";
-import { createMember, endMembership as endMembershipRpc, getMemberById, getMemberWorkspaceInfo, getSecondaryMemberByMainMemberId, listMembersForSearch, type MembershipEndDecision, updateMemberStammdaten } from "../../repositories/members/member-repository";
+import { createMember, endMembership as endMembershipRpc, getMemberById, getMemberWorkspaceInfo, getSecondaryMemberByMainMemberId, listMembersForSearch, type MembershipEndDecision, updateMemberStammdaten, updateOwnMemberContact } from "../../repositories/members/member-repository";
 import { listCurrentGardenNumbersByMemberId } from "../parcels/parcel-service";
 
 export async function loadMemberSearchResults(club: ClubContext, session: BrowserSession): Promise<MemberSearchResult[]> {
@@ -116,6 +116,20 @@ export async function updateExistingMember(club: ClubContext, session: BrowserSe
   const current = await getMemberById(club, session, memberId);
   if (!current) throw new Error("Das Mitglied konnte nicht geladen werden.");
   if (!canEditMember(memberId, permissions)) throw new Error("Für dieses Mitglied besteht keine Bearbeitungsberechtigung.");
+  const selfService = !permissions.canEditAllMembers && permissions.canEditOwnMember && permissions.actorMemberId === memberId;
+  if (selfService) {
+    const protectedFieldsChanged = input.vorname !== current.vorname || input.name !== current.name || input.email !== current.email
+      || input.geburtsdatum !== current.geburtsdatum || input.arbeitsstunden_altersregel_typ !== current.arbeitsstunden_altersregel_typ
+      || input.whatsapp_einwilligung !== current.whatsapp_einwilligung || input.email_rechnung_einwilligung !== current.email_rechnung_einwilligung
+      || input.email_info_einwilligung !== current.email_info_einwilligung || input.mitglied_seit !== current.mitglied_seit || input.bemerkung !== current.bemerkung;
+    if (protectedFieldsChanged) throw new Error("Im Eigenprofil dürfen nur Anschrift und Telefonnummern geändert werden. Die E-Mail-Adresse wird über den bestätigten Anmeldeadressweg geändert.");
+    const rows = await updateOwnMemberContact(club, session, {
+      adresse: input.adresse?.trim() || null, plz: input.plz?.trim() || null, ort: input.ort?.trim() || null,
+      telefon: input.telefon?.trim() || null, handy: input.handy?.trim() || null,
+    });
+    if (!rows[0]) throw new Error("Die Eigenänderung wurde nicht bestätigt.");
+    return rows[0];
+  }
   const vorname = input.vorname?.trim() ?? "";
   const name = input.name?.trim() ?? "";
   if (!vorname) throw new Error("Vorname ist erforderlich.");

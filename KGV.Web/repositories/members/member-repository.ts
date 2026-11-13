@@ -39,6 +39,15 @@ export const updateMemberStammdaten = (club: ClubContext, session: BrowserSessio
   id: `eq.${memberId}`,
 });
 
+export const updateOwnMemberContact = (club: ClubContext, session: BrowserSession, values: { adresse: string | null; plz: string | null; ort: string | null; telefon: string | null; handy: string | null }) =>
+  callSupabaseRpc<Member[]>({ club, session }, "update_own_member_contact", {
+    p_adresse: values.adresse,
+    p_plz: values.plz,
+    p_ort: values.ort,
+    p_telefon: values.telefon,
+    p_handy: values.handy,
+  });
+
 export const createMember = (club: ClubContext, session: BrowserSession, values: Record<string, unknown>) => writeWithBrowserEditLock<Member>({ club, session }, "mitglied", "POST", values);
 
 export const getSecondaryMemberByMainMemberId = (club: ClubContext, session: BrowserSession, mainMemberId: number) => readSupabaseRest<Member>({ club, session }, "mitglied", {

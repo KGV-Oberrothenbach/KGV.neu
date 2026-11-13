@@ -1116,7 +1116,7 @@ namespace KGV.Infrastructure.Services
                     return false;
 
                 var client = await EnsureClientAsync();
-                await client
+                var result = await client
                     .From<MitgliedRecord>()
                     .Where(x => x.Id == dto.Id)
                     .Set(x => x.Vorname, CleanRequiredText(dto.Vorname))
@@ -1136,7 +1136,7 @@ namespace KGV.Infrastructure.Services
                     .Set(x => x.MitgliedSeit, NormalizeDate(dto.MitgliedSeit))
                     .Update();
 
-                return true;
+                return result?.Models?.Count > 0;
             },
             false);
 
@@ -3086,21 +3086,16 @@ namespace KGV.Infrastructure.Services
             "UpdateOwnContactAsync",
             async () =>
             {
-                if (mitgliedId <= 0)
-                    return false;
-
                 var client = await EnsureClientAsync();
-                await client
-                    .From<MitgliedRecord>()
-                    .Where(x => x.Id == mitgliedId)
-                    .Set(x => x.Telefon, CleanOptionalText(telefon))
-                    .Set(x => x.Handy, CleanOptionalText(handy))
-                    .Set(x => x.Adresse, CleanOptionalText(adresse))
-                    .Set(x => x.Plz, CleanOptionalText(plz))
-                    .Set(x => x.Ort, CleanOptionalText(ort))
-                    .Update();
-
-                return true;
+                var updated = await client.Rpc<MitgliedRecord>("update_own_member_contact", new
+                {
+                    p_adresse = CleanOptionalText(adresse),
+                    p_plz = CleanOptionalText(plz),
+                    p_ort = CleanOptionalText(ort),
+                    p_telefon = CleanOptionalText(telefon),
+                    p_handy = CleanOptionalText(handy)
+                });
+                return updated != null;
             },
             false);
 
