@@ -54,6 +54,8 @@ jobs:
         run: supabase start
       - name: Rebuild local-only database
         run: supabase db reset --local
+      - name: Verify AP-01 local seed catalog
+        run: psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -c "select count(*) = 8 as fixture_catalog_complete from public.p11_ap01_test_fixture;"
       - name: Execute P11 AP-04 SQL fixtures
         shell: bash
         run: |
