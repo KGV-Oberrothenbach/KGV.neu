@@ -50,11 +50,6 @@ jobs:
           # config.toml is maintained with the repository's pinned 2.83 CLI.
           # Newer CLIs reject its supported [inbucket] section before startup.
           version: 2.83.0
-      - name: Temporarily repair known parser blocker for continuation test
-        # This only changes the disposable runner checkout.  It is deliberately
-        # not a claim that the committed migration chain is currently valid.
-        run: |
-          node -e "const fs=require('fs');const p='supabase/migrations/20261113160000_p11_ap04d_signed_change_authorization.sql';const s=fs.readFileSync(p,'utf8');const old='  select c.*, k.* into v_change, v_process\n  from public.pacht_vertragsaenderung c join public.kommunikationsvorgang k on k.id=c.kommunikationsvorgang_id\n  join public.dokument d on d.source_kommunikationsvorgang_id=k.id\n  where d.id=new.dokument_id for update of c,k;';const next='  select c.* into v_change\n  from public.pacht_vertragsaenderung c join public.kommunikationsvorgang k on k.id=c.kommunikationsvorgang_id\n  join public.dokument d on d.source_kommunikationsvorgang_id=k.id\n  where d.id=new.dokument_id for update of c;\n  if not found then return new; end if;\n  select k.* into v_process from public.kommunikationsvorgang k where k.id=v_change.kommunikationsvorgang_id for update;';if(!s.includes(old))throw new Error('Expected AP-04.4 parser blocker not found');fs.writeFileSync(p,s.replace(old,next));"
       - name: Start isolated local Supabase stack
         run: supabase start
       - name: Rebuild local-only database

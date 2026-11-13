@@ -98,11 +98,13 @@ create or replace function public.bind_pacht_vertragsaenderung_an_fassung()
 returns trigger language plpgsql security definer set search_path=public,pg_temp as $$
 declare v_change public.pacht_vertragsaenderung%rowtype; v_process public.kommunikationsvorgang%rowtype;
 begin
-  select c.*, k.* into v_change, v_process
+  select c.* into v_change
   from public.pacht_vertragsaenderung c join public.kommunikationsvorgang k on k.id=c.kommunikationsvorgang_id
   join public.dokument d on d.source_kommunikationsvorgang_id=k.id
-  where d.id=new.dokument_id for update of c,k;
+  where d.id=new.dokument_id for update of c;
   if not found then return new; end if;
+  select k.* into v_process from public.kommunikationsvorgang k
+  where k.id=v_change.kommunikationsvorgang_id for update;
   if new.pachtverhaeltnis_id is distinct from v_change.pachtverhaeltnis_id
      or new.vorgaenger_fassung_id is distinct from v_change.vorgaenger_fassung_id
      or v_process.entwurf_daten #>> '{draft,p11_contract_change_id}' is distinct from v_change.id::text
@@ -156,7 +158,8 @@ begin
  delete from public.p11_pacht_aenderung_ausfuehrung where pacht_vertragsaenderung_id=v_change.id;
  return true;
 end $$;
-revoke all on function public.wende_signierte_parzellen_vertragsaenderung_an(bigint,numeric,boolean,boolean,text) from public,anon,authenticated;
+revoke all on function public.wende_signierte_parzellen_vertragsaenderung_an(bigint,bigint,numeric,boolean,boolean,text) from public,anon,authenticated;
+drop function public.wende_signierte_parzellen_vertragsaenderung_an(bigint,bigint,numeric,boolean,boolean,text);
 revoke all on function public.wende_signierte_parzellen_vertragsaenderung_an(bigint) from public,anon;
 grant execute on function public.wende_signierte_parzellen_vertragsaenderung_an(bigint) to authenticated;
 

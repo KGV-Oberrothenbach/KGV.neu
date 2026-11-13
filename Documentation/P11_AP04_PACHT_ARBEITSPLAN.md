@@ -176,3 +176,23 @@ Migration nicht beheben. Bis zu einer ausdrücklichen Entscheidung, ob
 Supabase-Neuaufbau, die AP-04.4-Signatur-E2E, die SQL-Fixtures und die
 PostgreSQL-/RLS-/Parallelitätsnachweise offen.
 
+### AP-04.4 – Genehmigte Migrationsreparatur 26.5
+
+Der Auftraggeber hat die einmalige, auf die Migrationsausführbarkeit begrenzte
+Ausnahme für `20261113160000_p11_ap04d_signed_change_authorization.sql`
+erteilt. Es wurden ausschließlich zwei technische Defekte korrigiert:
+
+- Die ungültige Mehrfach-`INTO`-Zuweisung wurde in zwei gesperrte,
+  zusammengesetzt typisierte Abfragen aufgeteilt.
+- Der Berechtigungsentzug nennt nun die tatsächlich vorhandene Sechs-Parameter-
+  Überladung. Diese alte RPC wird anschließend ohne `CASCADE` gelöscht, damit
+  nur die neue Ein-Parameter-RPC als Änderungsweg verbleibt.
+
+Die temporäre CI-Manipulation wurde entfernt. Der folgende CI-Lauf prüft damit
+wieder ausschließlich den eingecheckten Migrationsbestand. Eine Prüfung einer
+bereits dauerhaft betriebenen Datenbank wurde nicht durchgeführt: Es besteht
+keine dafür autorisierte oder angebundene Datenbankverbindung. Für einen
+Bestand, in dem die fehlerhafte Migration wider Erwarten bereits als angewandt
+registriert ist, ist vor einem Rollout ein separates Kompatibilitätskonzept
+erforderlich.
+

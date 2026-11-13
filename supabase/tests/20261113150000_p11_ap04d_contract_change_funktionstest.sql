@@ -8,7 +8,7 @@ insert into p11_ap04d_ids select '00000000-0000-0000-0000-000000000471',(select 
 insert into public.pachtverhaeltnis_beteiligung(pachtverhaeltnis_id,mitglied_id,rolle,gueltig_ab) select lease_id,(select id from public.mitglied where name='P11 AP04D'),'hauptpaechter',current_date-2 from p11_ap04d_ids;
 grant select on p11_ap04d_ids to authenticated;
 set local role authenticated;
-do $$ declare x p11_ap04d_ids%rowtype; begin select * into x from p11_ap04d_ids; perform set_config('request.jwt.claim.sub',x.u::text,true); update public.parzelle set flaeche_qm=101 where id=x.parcel_id; if found then raise exception 'direct running contract change accepted'; end if; begin perform public.wende_signierte_parzellen_vertragsaenderung_an(x.lease_id,999999,101,true,false,'test'); raise exception 'unsigned change accepted'; exception when sqlstate '23514' then null; end; end $$;
+do $$ declare x p11_ap04d_ids%rowtype; begin select * into x from p11_ap04d_ids; perform set_config('request.jwt.claim.sub',x.u::text,true); update public.parzelle set flaeche_qm=101 where id=x.parcel_id; if found then raise exception 'direct running contract change accepted'; end if; if to_regprocedure('public.wende_signierte_parzellen_vertragsaenderung_an(bigint,bigint,numeric,boolean,boolean,text)') is not null then raise exception 'legacy contract-change RPC remains callable'; end if; end $$;
 reset role;
 do $$ begin if (select flaeche_qm from public.parzelle where id=9471)<>100 then raise exception 'rejected change was persisted'; end if; end $$;
 rollback;
