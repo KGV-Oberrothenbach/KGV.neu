@@ -104,5 +104,26 @@ Nachsorgeabschluss und abgewiesene operative Parallelbelegung.
 
 Migration 20261113150000_p11_ap04d_contract_change_history.sql sperrt direkte Änderungen von Fläche und Anschlüssen während laufender Pacht. Die autorisierte RPC verlangt eine abgeschlossene, zum Verhältnis gehörende Vertragsfassung und schreibt Vorher/Nachher, Begründung, Akteur und Zeitpunkt in den unveränderlichen Auditnachweis. Abgeschlossene Pachtverhältnisse und Beteiligungen sind gegen stille Updates geschützt. Der lokale Neuaufbau und die rückrollbare authenticated-Guard-Fixture bestanden.
 
-**Abnahme AP-04.4:** teilweise – der positive End-to-End-Nachweis einer real vollständig signierten Vertragsänderung ist noch nicht als Fixture abgebildet.
+**Abnahme AP-04.4:** offen – der positive End-to-End-Nachweis einer real vollständig signierten Vertragsänderung ist noch nicht als Fixture abgebildet.
+
+### AP-04.4 – WIP: bindende signierte Änderung und historische Berichtigung
+
+Migration `20261113160000_p11_ap04d_signed_change_authorization.sql` ergänzt den
+laufenden Prepared-Ersatzvertragsweg um einen serverseitig eingefrorenen
+Änderungsauftrag. Seine Werte und ihr SHA-256-Digest werden vor dem Start der
+Signaturrevision in den Prepared-Entwurf gebunden. Die beim Abschluss erzeugte
+Vertragsfassung wird nur bei vollständigen Pflichtsignaturen und exakt passender
+Bindung dem Auftrag zugeordnet. Die Anwendung akzeptiert anschließend keine
+frei übergebenen Fachwerte mehr; sie liest ausschließlich den eingefrorenen
+Stand. Das bisherige, vom Aufrufer setzbare GUC-Kennzeichen ist nicht mehr
+Autorisierungsnachweis. Ein privater, nur von der autorisierten RPC erzeugter
+Transaktionsnachweis schützt den Parzellen-Trigger.
+
+Historische Pachtverhältnisse, Beteiligungen, Belegungen und Vertragsfassungen
+werden als Originale erhalten. `pacht_historische_berichtigung` speichert den
+vorherigen und berichtigten Stand, Originalreferenz, Akteur, Zeitpunkt und
+Begründung unveränderlich. Der Änderungsweg ist ergänzend; er überschreibt kein
+historisches Original. Dieser WIP ist **nicht abgenommen**, weil die geforderte
+lokale Supabase-Neuaufbau-/Signatur-E2E-Ausführung in der bereitgestellten
+Umgebung noch nicht möglich war.
 
