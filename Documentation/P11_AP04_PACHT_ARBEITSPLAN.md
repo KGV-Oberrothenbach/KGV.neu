@@ -207,3 +207,11 @@ public.p11_ap01_test_fixture does not exist` (`42P01`). Deshalb wurden die
 AP-04-Fixtures noch nicht erreicht. Dieser Seed-Fehler liegt außerhalb der
 genehmigten Migrationsreparatur; keine Änderung daran wurde vorgenommen.
 
+Nachlauf 26.7: Die getrennten Seed-Dateien bestanden im CI; der Neuaufbau und
+die Prüfung auf acht AP-01-Fixtures waren erfolgreich. Die erste AP-04.1-
+Regression deckte anschließend einen Triggerfehler auf: die gemeinsame
+OR-Bedingung in `guard_abgeschlossene_pachtdaten` referenzierte für einen
+Beteiligungs-Trigger `old.beendet_am`, das dort nicht existiert. Migration
+`20261113162000_p11_ap04d_historical_guard_table_safe.sql` verwendet deshalb
+tabellenspezifische Zweige und erhält die unveränderte fachliche Sperre.
+
