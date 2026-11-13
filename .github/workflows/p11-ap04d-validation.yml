@@ -55,7 +55,15 @@ jobs:
       - name: Rebuild local-only database
         run: supabase db reset --local
       - name: Verify AP-01 local seed catalog
-        run: psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -c "select count(*) = 8 as fixture_catalog_complete from public.p11_ap01_test_fixture;"
+        run: |
+          psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 <<'SQL'
+          do $$
+          begin
+            if (select count(*) from public.p11_ap01_test_fixture) <> 8 then
+              raise exception 'AP-01 fixture catalog must contain exactly eight entries';
+            end if;
+          end $$;
+          SQL
       - name: Execute P11 AP-04 SQL fixtures
         shell: bash
         run: |

@@ -215,3 +215,9 @@ Beteiligungs-Trigger `old.beendet_am`, das dort nicht existiert. Migration
 `20261113162000_p11_ap04d_historical_guard_table_safe.sql` verwendet deshalb
 tabellenspezifische Zweige und erhält die unveränderte fachliche Sperre.
 
+Der CI-Lauf `43457509925` bestand anschließend vollständig: lokaler
+Supabase-Neuaufbau, beide Seed-Dateien, acht AP-01-Fixtures sowie AP-04.1 bis
+AP-04.4-Funktionstests, PGlite-Regressionen und Web-Produktionsbuild. Die
+CI-Seed-Prüfung wurde danach von einer bloßen Boolean-Ausgabe in eine
+fehlschlagende PostgreSQL-Assertion überführt.
+
