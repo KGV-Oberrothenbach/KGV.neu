@@ -27,6 +27,7 @@ Deno.serve(async (request) => {
     if (userError || !userData.user) return json({ success: false, message: "Keine gültige Session." }, 401);
     const { data: context, error: contextError } = await caller.rpc("current_app_user_context");
     const callerMemberId = context?.[0]?.mitglied_id;
+    const callerRole = context?.[0]?.role;
     if (contextError || !Number.isSafeInteger(callerMemberId)) return json({ success: false, message: "Keine zugeordnete Unterzeichneridentität." }, 403);
     const body = await request.json();
     const id = Number(body?.kommunikationsvorgang_id), revision = Number(body?.signatur_revision), key = body?.signatur_schluessel;
@@ -46,10 +47,16 @@ Deno.serve(async (request) => {
     }
     if (position.status !== "offen" || contract.status !== "zur_signatur")
       return json({ success: false, message: "Diese Signaturposition ist nicht mehr unterschreibbar." }, 409);
-    if (position.unterzeichner_typ === "vereinsunterzeichner") {
+    // The contract workstation is operated by an authorised administrator who
+    // records the signer selected in the frozen position.  Requiring that
+    // workstation account to be the tenant made the Web flow unable to submit
+    // a tenant signature at all.  The guarded save RPC still records and
+    // validates the actual signer (and the frozen board snapshot).
+    const administrativeCaller = callerRole === "admin" || callerRole === "vorstand";
+    if (position.unterzeichner_typ === "vereinsunterzeichner" && !administrativeCaller) {
       const { data: source } = await admin.from("prepared_contract_signatur_snapshot_person").select("id").eq("kommunikationsvorgang_id", id).eq("signatur_revision", revision).eq("mitglied_id", callerMemberId).maybeSingle();
       if (!source) return json({ success: false, message: "Keine gültige Unterzeichnerberechtigung." }, 403);
-    } else if (position.mitglied_id !== callerMemberId) return json({ success: false, message: "Die Signatur gehört nicht zum angemeldeten Mitglied." }, 403);
+    } else if (!administrativeCaller && position.unterzeichner_typ !== "vereinsunterzeichner" && position.mitglied_id !== callerMemberId) return json({ success: false, message: "Die Signatur gehört nicht zum angemeldeten Mitglied." }, 403);
     const objectId = stableObjectId(hash);
     const storagePath = `${id}/${revision}/${key}/${objectId}.png`;
     const { error: uploadError } = await admin.storage.from(bucket).upload(storagePath, png, { contentType: "image/png", upsert: true });

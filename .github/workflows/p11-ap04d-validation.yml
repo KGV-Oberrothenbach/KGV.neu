@@ -78,7 +78,9 @@ jobs:
           done
       - name: P11-T07-P – Real signed lease amendment E2E
         shell: bash
-        run: P11_LOCAL_DB_URL="postgresql://postgres:postgres@127.0.0.1:54322/postgres" node supabase/tests/p11-ap04d-signed-change.e2e.test.mjs
+        # This file is deliberately not discovered by the generic node:test
+        # run: it requires the locally rebuilt PostgreSQL/Supabase stack.
+        run: P11_LOCAL_DB_URL="postgresql://postgres:postgres@127.0.0.1:54322/postgres" node supabase/tests/p11-ap04d-signed-change.e2e.mjs
       - name: Stop local Supabase stack
         if: always()
         run: supabase stop --no-backup

@@ -3,7 +3,12 @@
 begin;
 insert into auth.users(id,aud,role,email,encrypted_password,email_confirmed_at,raw_app_meta_data,raw_user_meta_data,created_at,updated_at) values ('00000000-0000-0000-0000-000000009701','authenticated','authenticated','p11-t07p@example.test','x',now(),'{}','{}',now(),now());
 insert into public.mitglied(name,vorname,aktiv,aufnahme_status,auth_user_id) values('P11 T07P','Pächter',true,'aufgenommen','00000000-0000-0000-0000-000000009701') returning id as member_id \gset
-insert into public.app_user(user_id,mitglied_id,role,permission_grants,permission_revocations) values('00000000-0000-0000-0000-000000009701',:member_id,'user',524288,0);
+-- Inserting mitglied.auth_user_id fires trg_sync_app_user_from_mitglied.
+-- Upsert its row instead of inserting a second primary key record.
+insert into public.app_user(user_id,mitglied_id,role,permission_grants,permission_revocations)
+values('00000000-0000-0000-0000-000000009701',:member_id,'vorstand',524288,0)
+on conflict (user_id) do update set mitglied_id=excluded.mitglied_id,role=excluded.role,
+  permission_grants=excluded.permission_grants,permission_revocations=excluded.permission_revocations;
 set local session_replication_role=replica;
 insert into public.parzelle(garten_nr,"Anlage",flaeche_qm,hat_strom,hat_wasser) values('P11-T07P','Test',100,false,false) returning id as parcel_id \gset
 insert into public.kommunikationsvorgang(vorgangstyp,dokumenttyp,status,mitglied_id,parzelle_id,revision,entwurf_daten) values('vertrag_signatur','pachtvertrag','erledigt',:member_id,:parcel_id,1,'{"draft":{"startDate":"2026-01-01"}}') returning id as source_id \gset
