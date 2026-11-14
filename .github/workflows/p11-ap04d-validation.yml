@@ -52,6 +52,10 @@ jobs:
           cache-dependency-path: supabase/tests/package-lock.json
       - name: Install PDF E2E dependencies
         run: npm ci --prefix supabase/tests
+      - name: Install PDF QA tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes poppler-utils
       - uses: supabase/setup-cli@v1
         with:
           # config.toml is maintained with the repository's pinned 2.83 CLI.
