@@ -45,6 +45,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: supabase/tests/package-lock.json
+      - name: Install PDF E2E dependencies
+        run: npm ci --prefix supabase/tests
       - uses: supabase/setup-cli@v1
         with:
           # config.toml is maintained with the repository's pinned 2.83 CLI.
@@ -95,6 +102,21 @@ jobs:
           P11_LOCAL_DB_URL="$DB_URL" \
           CX01_RESULT_PATH="p11-ap04d-diagnostics/cx01-results.json" \
           node supabase/tests/cx01-signature-workflow.e2e.mjs
+      - name: CX-02 – Real signed lease PDF E2E
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          P11_LOCAL_API_URL="$API_URL" \
+          P11_LOCAL_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" \
+          CX01_RESULT_PATH="p11-ap04d-diagnostics/cx01-results.json" \
+          CX02_PDF_PATH="p11-ap04d-diagnostics/cx02-signed-lease.pdf" \
+          CX02_RESULT_PATH="p11-ap04d-diagnostics/cx02-results.json" \
+          node supabase/tests/cx02-signed-lease-pdf.e2e.mjs
+          pdfinfo p11-ap04d-diagnostics/cx02-signed-lease.pdf | tee p11-ap04d-diagnostics/cx02-pdfinfo.txt
+          pdftotext -layout p11-ap04d-diagnostics/cx02-signed-lease.pdf p11-ap04d-diagnostics/cx02-signed-lease.txt
+          node supabase/tests/cx02-pdf-text-qa.mjs p11-ap04d-diagnostics/cx02-signed-lease.txt p11-ap04d-diagnostics/cx02-results.json
+          pdftoppm -f 3 -singlefile -png -r 144 p11-ap04d-diagnostics/cx02-signed-lease.pdf p11-ap04d-diagnostics/cx02-page-3
       - name: Capture local Supabase diagnostics
         if: always()
         shell: bash

@@ -120,15 +120,26 @@ function pngChunk(type, data) {
 }
 
 function makePng(red, green, blue) {
+  const width = 120;
+  const height = 40;
   const header = Buffer.alloc(13);
-  header.writeUInt32BE(2, 0);
-  header.writeUInt32BE(2, 4);
+  header.writeUInt32BE(width, 0);
+  header.writeUInt32BE(height, 4);
   header.set([8, 6, 0, 0, 0], 8);
-  const row = Buffer.from([0, red, green, blue, 255, red, green, blue, 255]);
+  const rows = [];
+  for (let y = 0; y < height; y++) {
+    const row = Buffer.alloc(1 + width * 4);
+    for (let x = 0; x < width; x++) {
+      const curve = Math.round(20 + 7 * Math.sin(x / 8) + 3 * Math.sin(x / 3));
+      const ink = (x >= 4 && x <= 115 && Math.abs(y - curve) <= 1) || (x >= 18 && x <= 108 && Math.abs(y - 31) <= 1);
+      if (ink) row.set([red, green, blue, 255], 1 + x * 4);
+    }
+    rows.push(row);
+  }
   return Buffer.concat([
     Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
     pngChunk("IHDR", header),
-    pngChunk("IDAT", deflateSync(Buffer.concat([row, row]))),
+    pngChunk("IDAT", deflateSync(Buffer.concat(rows))),
     pngChunk("IEND", Buffer.alloc(0)),
   ]);
 }
@@ -192,7 +203,7 @@ try {
       p_flaeche_qm: 120,
       p_hat_strom: true,
       p_hat_wasser: false,
-      p_begruendung: "CX-01 synthetische Flächen- und Stromänderung",
+      p_begruendung: "Anpassung der Gartenfläche und Aufnahme des Stromanschlusses",
     });
     assert.equal(response.status, 200, JSON.stringify(data));
     processId = Number(one(data).kommunikationsvorgang_id);
@@ -420,6 +431,10 @@ try {
     unique_pngs_uploaded: uploads.unique_paths.size,
     pngs_read_back: uploads.read_back,
     signatures_bound: 3,
+    kommunikationsvorgang_id: processId,
+    signatur_revision: revision,
+    tenant_member_id: fixture.tenant_member_id,
+    parcel_id: fixture.parcel_id,
     complete: true,
     cases,
   };

@@ -2,8 +2,8 @@
 
 begin;
 
-insert into public.mitglied(name, vorname, aktiv, aufnahme_status, auth_user_id)
-values ('CX01 Pächter', 'Tessa', true, 'aufgenommen', :'tenant_user_id')
+insert into public.mitglied(name, vorname, geburtsdatum, adresse, plz, ort, telefon, email, aktiv, aufnahme_status, auth_user_id)
+values ('CX01 Pächter', 'Tessa', '1985-06-12', 'Testweg 1', '08056', 'Zwickau', '0375 123456', 'tessa.paechter@example.test', true, 'aufgenommen', :'tenant_user_id')
 returning id as tenant_member_id \gset
 
 insert into public.mitglied(name, vorname, aktiv, aufnahme_status, auth_user_id)
@@ -92,5 +92,6 @@ select json_build_object(
   'board2_member_id', :board2_member_id,
   'outsider_member_id', :outsider_member_id,
   'board1_assignment_id', :board1_assignment_id,
-  'board2_assignment_id', :board2_assignment_id
+  'board2_assignment_id', :board2_assignment_id,
+  'parcel_id', :parcel_id
 )::text;
