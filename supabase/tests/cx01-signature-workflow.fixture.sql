@@ -41,7 +41,8 @@ values ('CX01-LOCAL', 'Synthetische Testanlage', 100, false, false)
 returning id as parcel_id \gset
 
 insert into public.kommunikationsvorgang(vorgangstyp, dokumenttyp, status, mitglied_id, parzelle_id, revision, entwurf_daten)
-values ('vertrag_signatur', 'pachtvertrag', 'erledigt', :tenant_member_id, :parcel_id, 1, '{"draft":{"startDate":"2026-01-01"}}')
+values ('vertrag_signatur', 'pachtvertrag', 'erledigt', :tenant_member_id, :parcel_id, 1,
+  '{"draft":{"startDate":"2026-01-01"},"vereinsunterlagenNachweis":[{"dokumenttyp":"kleingartenordnung","bereitstellungsart":"papier","bereitgestellt_am":"2026-11-14T10:00:00Z","bemerkung":"CX-03 lokale Papierübergabe-Fixture"},{"dokumenttyp":"beitragsordnung","bereitstellungsart":"papier","bereitgestellt_am":"2026-11-14T10:00:00Z","bemerkung":"CX-03 lokale Papierübergabe-Fixture"},{"dokumenttyp":"arbeitsordnung","bereitstellungsart":"papier","bereitgestellt_am":"2026-11-14T10:00:00Z","bemerkung":"CX-03 lokale Papierübergabe-Fixture"}]}'::jsonb)
 returning id as source_id \gset
 
 insert into public.dokument(parzelle_id, storage_path, titel, dateiname, mime_type, source_kommunikationsvorgang_id, source_revision)
@@ -55,8 +56,8 @@ returning id as lease_id \gset
 insert into public.pachtverhaeltnis_beteiligung(pachtverhaeltnis_id, mitglied_id, rolle, gueltig_ab)
 values (:lease_id, :tenant_member_id, 'hauptpaechter', '2026-01-01');
 
-insert into public.pachtvertragsfassung(pachtverhaeltnis_id, dokument_id, fassungstyp)
-values (:lease_id, :document_id, 'erstvertrag')
+insert into public.pachtvertragsfassung(pachtverhaeltnis_id, dokument_id, fassungstyp, vertragsdatum, wirksam_ab)
+values (:lease_id, :document_id, 'erstvertrag', '2026-01-01', '2026-01-01')
 returning id as predecessor_id \gset
 set local session_replication_role = origin;
 

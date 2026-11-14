@@ -181,6 +181,16 @@ async function storageDownload(path, token = serviceKey, key = serviceKey) {
   return http(`/storage/v1/object/authenticated/${bucket}/${path}`, { token, key });
 }
 
+async function storageDownloadEventually(path) {
+  let result;
+  for (let attempt = 0; attempt < 6; attempt++) {
+    result = await storageDownload(path);
+    if (result.response.status === 200) return result;
+    await new Promise(resolve => setTimeout(resolve, 100 * (attempt + 1)));
+  }
+  return result;
+}
+
 let finalReport;
 try {
   const users = {};
@@ -327,7 +337,7 @@ try {
 
   await checked("all private PNGs are read back and byte/hash verified", "positive", async () => {
     for (const [uploadResult, image] of [[tenantUpload, tenantPng], [board1Upload, board1Png], [board2Upload, board2Png]]) {
-      const result = await storageDownload(uploadResult.storage_path);
+      const result = await storageDownloadEventually(uploadResult.storage_path);
       assert.equal(result.response.status, 200);
       const bytes = Buffer.from(result.data);
       assert.deepEqual(bytes.subarray(0, 8), Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
