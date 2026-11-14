@@ -1,49 +1,5 @@
--- CX-02: republish the exact v9 repository artifacts under a new immutable
--- catalog version with the correct checksum, then freeze the complete old/new
--- parcel state visibly. Published v9 metadata remains untouched.
-do $$
-begin
-  if exists (select 1 from public.pdf_template_catalog where template_key='pachtvertrag' and version='v10') then
-    raise exception 'PDF template pachtvertrag/v10 already exists';
-  end if;
-
-  -- Fresh local replays contain marker-only Storage rows. Mirror that marker
-  -- for v10 so migrations can replay; real environments must upload objects
-  -- before applying this catalog publication.
-  if exists (
-    select 1 from storage.objects
-     where bucket_id='pdf-templates' and name='templates/pachtvertrag/v9/template.pdf'
-       and metadata->>'local_replay_fixture'='true'
-  ) then
-    insert into storage.objects(bucket_id,name,metadata)
-    select 'pdf-templates',path,jsonb_build_object('local_replay_fixture',true)
-      from (values
-        ('templates/pachtvertrag/v10/template.pdf'),
-        ('templates/pachtvertrag/v10/field-spec.json')
-      ) as fixture(path)
-     where not exists (
-       select 1 from storage.objects existing
-        where existing.bucket_id='pdf-templates' and existing.name=fixture.path
-     );
-  end if;
-
-  if not exists (select 1 from storage.objects where bucket_id='pdf-templates' and name='templates/pachtvertrag/v10/template.pdf')
-     or not exists (select 1 from storage.objects where bucket_id='pdf-templates' and name='templates/pachtvertrag/v10/field-spec.json') then
-    raise exception 'Missing pachtvertrag/v10 Storage artifacts';
-  end if;
-
-  update public.pdf_template_catalog set aktiv=false where template_key='pachtvertrag' and aktiv=true;
-  insert into public.pdf_template_catalog(
-    template_key,version,storage_bucket,storage_path,content_type,checksum,
-    field_spec_path,field_spec_checksum,field_spec_version,renderer_version,status,aktiv,published_at)
-  values(
-    'pachtvertrag','v10','pdf-templates','templates/pachtvertrag/v10/template.pdf','application/pdf',
-    '0fa618ce6405e570c7a1de1588ad31df89029e7daf89ee2259d3106874277940',
-    'templates/pachtvertrag/v10/field-spec.json','fb68dbee212fc9ad618ba7e722b027e2b4d00238c4e4df72d00c5e2a5ff8fba0',
-    'pachtvertrag-field-spec/v9','top-left/v1','published',true,now());
-
-end;
-$$;
+-- CX-02: freeze the complete old/new parcel state visibly in the signed PDF.
+-- The already-published immutable v9 catalog entry remains unchanged.
 
 create or replace function public.bereite_signierte_parzellen_vertragsaenderung_vor(
  p_vorgaenger_fassung_id bigint,p_flaeche_qm numeric,p_hat_strom boolean,p_hat_wasser boolean,p_begruendung text)

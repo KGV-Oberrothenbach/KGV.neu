@@ -85,7 +85,7 @@ function removeLocalReplayPlaceholders() {
 set local session_replication_role=replica;
 delete from storage.objects
  where bucket_id='pdf-templates'
-   and name in ('templates/pachtvertrag/v10/template.pdf','templates/pachtvertrag/v10/field-spec.json')
+   and name in ('templates/pachtvertrag/v9/template.pdf','templates/pachtvertrag/v9/field-spec.json')
    and metadata->>'local_replay_fixture'='true';
 commit;`;
   const command = process.platform === "win32" ? "docker" : "psql";
@@ -169,11 +169,13 @@ try {
   assert.ok([processId, revision, memberId, parcelId].every(Number.isSafeInteger));
 
   const repositoryTemplate = new Uint8Array(await readFile(templatePath));
-  const repositoryFieldSpec = new Uint8Array(await readFile(fieldSpecPath));
+  // Git stores this text artifact with LF. Normalize Windows autocrlf checkouts
+  // before hashing/uploading so the bytes equal the published v9 checksum.
+  const repositoryFieldSpec = new TextEncoder().encode((await readFile(fieldSpecPath, "utf8")).replace(/\r\n/g, "\n"));
   await checked("repository v9 artifacts are uploaded to private local Storage", "positive", async () => {
     removeLocalReplayPlaceholders();
-    await uploadTemplateObject("templates/pachtvertrag/v10/template.pdf", repositoryTemplate, "application/pdf");
-    await uploadTemplateObject("templates/pachtvertrag/v10/field-spec.json", repositoryFieldSpec, "application/json");
+    await uploadTemplateObject("templates/pachtvertrag/v9/template.pdf", repositoryTemplate, "application/pdf");
+    await uploadTemplateObject("templates/pachtvertrag/v9/field-spec.json", repositoryFieldSpec, "application/json");
   });
 
   let loaded;
