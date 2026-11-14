@@ -3,6 +3,7 @@
 import assert from "node:assert/strict";
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
+import { spawnSync } from "node:child_process";
 import { PDFDict, PDFDocument, PDFName, PDFStream, StandardFonts, rgb } from "pdf-lib";
 import {
   assertLeaseSignaturePartyMatch,
@@ -14,6 +15,7 @@ import {
 
 const apiUrl = required("P11_LOCAL_API_URL").replace(/\/$/, "");
 const serviceKey = required("P11_LOCAL_SERVICE_ROLE_KEY");
+const dbUrl = required("P11_LOCAL_DB_URL");
 const cx01ResultPath = required("CX01_RESULT_PATH");
 const outputPath = required("CX02_PDF_PATH");
 const resultPath = process.env.CX02_RESULT_PATH;
@@ -76,6 +78,22 @@ async function uploadTemplateObject(path, bytes, contentType) {
     contentType,
     headers: { "x-upsert": "true" },
   });
+}
+
+function removeLocalReplayPlaceholders() {
+  const sql = `begin;
+set local session_replication_role=replica;
+delete from storage.objects
+ where bucket_id='pdf-templates'
+   and name in ('templates/pachtvertrag/v10/template.pdf','templates/pachtvertrag/v10/field-spec.json')
+   and metadata->>'local_replay_fixture'='true';
+commit;`;
+  const command = process.platform === "win32" ? "docker" : "psql";
+  const args = process.platform === "win32"
+    ? ["exec", "-i", "supabase_db_03_Arbeitsstand", "psql", "-U", "postgres", "-d", "postgres", "-X", "-v", "ON_ERROR_STOP=1"]
+    : [dbUrl, "-X", "-v", "ON_ERROR_STOP=1"];
+  const result = spawnSync(command, args, { encoding: "utf8", input: sql });
+  if (result.status !== 0) throw new Error(`local replay placeholder cleanup failed: ${result.stdout}\n${result.stderr}`);
 }
 
 const templateStore = {
@@ -153,6 +171,7 @@ try {
   const repositoryTemplate = new Uint8Array(await readFile(templatePath));
   const repositoryFieldSpec = new Uint8Array(await readFile(fieldSpecPath));
   await checked("repository v9 artifacts are uploaded to private local Storage", "positive", async () => {
+    removeLocalReplayPlaceholders();
     await uploadTemplateObject("templates/pachtvertrag/v10/template.pdf", repositoryTemplate, "application/pdf");
     await uploadTemplateObject("templates/pachtvertrag/v10/field-spec.json", repositoryFieldSpec, "application/json");
   });

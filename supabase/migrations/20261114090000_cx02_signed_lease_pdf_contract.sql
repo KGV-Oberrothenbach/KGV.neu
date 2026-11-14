@@ -41,6 +41,7 @@ begin
     '0fa618ce6405e570c7a1de1588ad31df89029e7daf89ee2259d3106874277940',
     'templates/pachtvertrag/v10/field-spec.json','fb68dbee212fc9ad618ba7e722b027e2b4d00238c4e4df72d00c5e2a5ff8fba0',
     'pachtvertrag-field-spec/v9','top-left/v1','published',true,now());
+
 end;
 $$;
 
