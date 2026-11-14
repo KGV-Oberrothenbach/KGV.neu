@@ -183,4 +183,4 @@ jobs:
       - name: Create synthetic MAUI build configuration
         run: Copy-Item appsettings.example.json appsettings.json
       - name: Build MAUI Android
-        run: dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -f net10.0-android --no-restore
+        run: dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -f net10.0-android
