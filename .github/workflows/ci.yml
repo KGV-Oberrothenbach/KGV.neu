@@ -18,7 +18,7 @@ jobs:
           dotnet-version: 9.0.x
 
       - name: Build Core
-        run: dotnet build KGV.Core/KGV.Core.csproj -c Release
+        run: dotnet build KGV.Core/KGV.Core.csproj -c Debug
 
       - name: Build Infrastructure
-        run: dotnet build KGV.Infrastructure/KGV.Infrastructure.csproj -c Release
+        run: dotnet build KGV.Infrastructure/KGV.Infrastructure.csproj -c Debug

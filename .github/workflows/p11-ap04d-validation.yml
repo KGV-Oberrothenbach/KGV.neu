@@ -134,6 +134,20 @@ jobs:
           CX02_PDF_PATH="p11-ap04d-diagnostics/cx02-signed-lease.pdf" \
           CX03_RESULT_PATH="p11-ap04d-diagnostics/cx03-results.json" \
           node supabase/tests/cx03-contract-change-history.e2e.mjs
+      - name: CX-04 – Membership application and board decision E2E
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          P11_LOCAL_API_URL="$API_URL" \
+          P11_LOCAL_ANON_KEY="$ANON_KEY" \
+          P11_LOCAL_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" \
+          P11_LOCAL_DB_URL="$DB_URL" \
+          CX04_PDF_PATH="p11-ap04d-diagnostics/cx04-signed-membership-application.pdf" \
+          CX04_RESULT_PATH="p11-ap04d-diagnostics/cx04-results.json" \
+          node supabase/tests/cx04-membership-application-board.e2e.mjs
+          pdfinfo p11-ap04d-diagnostics/cx04-signed-membership-application.pdf | tee p11-ap04d-diagnostics/cx04-pdfinfo.txt
+          pdftotext -layout p11-ap04d-diagnostics/cx04-signed-membership-application.pdf p11-ap04d-diagnostics/cx04-signed-membership-application.txt
       - name: Capture local Supabase diagnostics
         if: always()
         shell: bash
@@ -154,3 +168,19 @@ jobs:
       - name: Stop local Supabase stack
         if: always()
         run: supabase stop --no-backup
+
+  dotnet-and-maui:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Run .NET tests
+        run: dotnet test KGV.Tests/KGV.Tests.csproj -c Debug
+      - name: Restore MAUI Android workload
+        run: dotnet workload restore KGV.Maui/KGV.Maui.csproj
+      - name: Create synthetic MAUI build configuration
+        run: Copy-Item appsettings.example.json appsettings.json
+      - name: Build MAUI Android
+        run: dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -f net10.0-android --no-restore
