@@ -148,6 +148,17 @@ jobs:
           node supabase/tests/cx04-membership-application-board.e2e.mjs
           pdfinfo p11-ap04d-diagnostics/cx04-signed-membership-application.pdf | tee p11-ap04d-diagnostics/cx04-pdfinfo.txt
           pdftotext -layout p11-ap04d-diagnostics/cx04-signed-membership-application.pdf p11-ap04d-diagnostics/cx04-signed-membership-application.txt
+      - name: CX-05 – Historical contract registration E2E
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          P11_LOCAL_API_URL="$API_URL" \
+          P11_LOCAL_ANON_KEY="$ANON_KEY" \
+          P11_LOCAL_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" \
+          P11_LOCAL_DB_URL="$DB_URL" \
+          CX05_RESULT_PATH="p11-ap04d-diagnostics/cx05-results.json" \
+          node supabase/tests/cx05-historical-contract.e2e.mjs
       - name: Capture local Supabase diagnostics
         if: always()
         shell: bash
