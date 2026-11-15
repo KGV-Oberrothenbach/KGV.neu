@@ -17,7 +17,7 @@ alter table public.parzellen_belegung
   exclude using gist (
     parzelle_id with =,
     daterange(von_datum, coalesce(bis_datum + 1, 'infinity'::date), '[)') with &&
-  );
+  ) where (pachtverhaeltnis_id is not null);
 
 create or replace function public.sync_pachtverhaeltnis_belegung()
 returns trigger language plpgsql security definer set search_path=public,pg_temp as $$
