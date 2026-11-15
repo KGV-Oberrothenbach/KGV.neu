@@ -34,7 +34,7 @@ test("pending sources may be read but never stamped before relational registrati
 });
 test("no broadening of generic upload, deletion, parcel or prepared-contract operations",async()=>{
   for(const fields of [{historical_contract_type:null},{owner_kind:"parzelle"},{source_kommunikationsvorgang_id:"33",source_revision:"1"}]){const h=edgeHarness();assert.equal((await h.request(uploadRequest({fields}))).status,403);assert.equal(h.calls.uploads.length,0);}
-  const h=edgeHarness();assert.equal((await h.request(new Request("https://synthetic.invalid",{method:"DELETE",headers:{Authorization:"Bearer user-token","Content-Type":"application/json"},body:JSON.stringify({drive_file_id:"foreign-file"})}))).status,403);
+  const h=edgeHarness();assert.equal((await h.request(new Request("https://synthetic.invalid",{method:"DELETE",headers:{Authorization:"Bearer user-token","Content-Type":"application/json"},body:JSON.stringify({document_id:77,drive_file_id:"drive-77"})}))).status,405);assert.equal(h.calls.removals.length,0);assert.equal(h.calls.rpc.length,0);
 });
 test("unknown historical type and non-scan formats are rejected server-side",async()=>{
   const h=edgeHarness();assert.equal((await h.request(uploadRequest({fields:{historical_contract_type:"unrelated"}}))).status,400);

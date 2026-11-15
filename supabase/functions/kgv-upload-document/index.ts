@@ -33,12 +33,6 @@ type ApiErrorCode =
   | "GOOGLE_DRIVE_ERROR"
   | "INTERNAL_ERROR";
 
-type DeleteDocumentRequest = {
-  document_id?: number | string | null;
-  drive_file_id?: string | null;
-  fileId?: string | null;
-};
-
 type DownloadDocumentRequest = {
   action?: string | null;
   document_id?: number | string | null;
@@ -856,7 +850,11 @@ Deno.serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
-  if (req.method !== "POST" && req.method !== "DELETE") {
+  if (req.method === "DELETE") {
+    return errorResponse(405, "BAD_REQUEST", "Method not allowed", requestId);
+  }
+
+  if (req.method !== "POST") {
     return errorResponse(405, "BAD_REQUEST", "Method not allowed", requestId);
   }
 
@@ -953,38 +951,6 @@ Deno.serve(async (req) => {
           "Content-Disposition": `inline; filename="${safeFileName}"`,
           "Cache-Control": "private, no-store",
         },
-      });
-    }
-
-    if (req.method === "DELETE") {
-      const auth = await requireAdminOrVorstand(authHeader);
-      if (!auth.ok) return errorResponse(auth.status, "UNAUTHORIZED", auth.message, requestId);
-      const payload = await req.json() as DeleteDocumentRequest;
-      const documentId = Number(payload.document_id);
-      const driveFileId = (payload.drive_file_id ?? payload.fileId ?? "").trim();
-      if (!Number.isSafeInteger(documentId) || documentId <= 0 || !driveFileId) {
-        return errorResponse(400, "BAD_REQUEST", "Dokument und zugeordnete Drive-Datei sind für das Löschen erforderlich.", requestId);
-      }
-
-      const { data: document, error: documentError } = await auth.supabaseAdmin
-        .from("dokument")
-        .select("id,drive_file_id,archiviert_at")
-        .eq("id", documentId)
-        .is("archiviert_at", null)
-        .maybeSingle();
-      if (documentError) throw new Error(`Dokument vor dem Löschen nicht prüfbar: ${documentError.message}`);
-      if (!document || String(document.drive_file_id ?? "").trim() !== driveFileId)
-        return errorResponse(403, "FORBIDDEN", "Die Drive-Datei gehört nicht zum angegebenen aktiven Dokument.", requestId);
-
-      const accessToken = await getGoogleAccessToken();
-      await deleteDriveFile(accessToken, driveFileId);
-
-      return json(200, {
-        success: true,
-        message: "Datei erfolgreich gelöscht.",
-        document_id: documentId,
-        drive_file_id: driveFileId,
-        request_id: requestId,
       });
     }
 
