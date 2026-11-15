@@ -128,3 +128,41 @@ Der bekannte MAUI-Vollbuild bleibt mit 48 fachfremden Altfehlern in anderen Seit
 `20261028130000_phase10_wartungsvertrag_e2e_haertung.sql` enthält den Vertragspartei-Detail-RPC, idempotente Verlängerungsmitteilungen und die abbruchsichere Historie grundlegender Änderungen. Sie wurde nur versioniert, nicht ausgeführt. Es wurden keine Edge Functions deployt, keine Templates hochgeladen oder aktiviert, keine Produktionsdaten geändert und kein Release erzeugt.
 
 **Phase 10 – E2E Wartungsvertrag = 100 %.**
+
+## CX-06/26 – echter lokaler Dokumentworkflow
+
+CX-06 prüft den produktiven Wartungsvertragsweg zusätzlich gegen einen frisch
+zurückgesetzten lokalen Supabase-Stack. Das Fixture verwendet zwei getrennte
+Vertragsdefinitionen: einmal das Hauptmitglied und einmal ein Nebenmitglied als
+tatsächliche Vertragspartei. Für beide Vorgänge werden genau die drei
+Pflichtpositionen `mitglied`, `vorstand_1` und `vorstand_2` persistent gespeichert.
+Die PNG-Dateien werden über die echte Signatur-Edge-Function in den privaten
+Bucket geladen, wieder gelesen und über ihren SHA-256-Wert gebunden.
+
+Der Signaturstart eines Wartungsvertrags verlangt die effektive Berechtigung
+`CanEditAllMembers` (Bit 4). Andere Prepared-Vertragsarten behalten
+`CanCreateMitglied` (Bit 524288). Damit kann die vorhandene Wartungsvertrags-
+Verwaltung den Vorgang starten, während Einzelentzug und unberechtigte Benutzer
+weiterhin abgewiesen werden. Der service-only Abschluss bindet das Finaldokument
+nun auch dauerhaft an `wartungsvertrag_dokument_workflow` und setzt dessen Status
+auf `abgeschlossen`; identische Wiederholung bleibt idempotent.
+
+Der Test reserviert 90xxx erst beim Signaturstart, weist unterschiedliche Nummern
+den unterschiedlichen `wartungsvertrag_id`-Werten zu und weist einen
+Manipulationsversuch zurück. Ein eigener, anschließend vorzeitig abgebrochener
+Nummernfall belegt, dass eine bereits zugeteilte Nummer dauerhaft reserviert
+bleibt. Eine normale Folgezuordnung derselben Vertragsdefinition verwendet
+weiterhin dieselbe Nummer.
+
+Für die hashgebundene Wartungsvertrag-v2-Vorlage bereinigt der gemeinsame
+Produktiv-Renderer die dynamischen Tabellenzeilen und zeichnet die eingefrorenen
+Werte sowie Datum und Mitgliedssignatur an den vorgesehenen Positionen. Der
+resultierende Nachweis ist ein zweiseitiges A4-PDF ohne AcroForm oder Annotationen
+und mit drei eingebetteten Signaturbildern. Die CI prüft zusätzlich mit
+`pdftotext`, dass keine Handlebars-Platzhalter sichtbar bleiben und die erwarteten
+Nummern- und Unterzeichnertexte vorhanden sind.
+
+`supabase/tests/cx06-maintenance-contract.e2e.mjs` umfasst 23 erfolgreiche
+Prüfgruppen (10 positiv, 13 negativ). Das finale Dokument-Metadatenfixture ist
+ausdrücklich lokal-only; CX-06 behauptet keinen Upload zu Google Drive oder einem
+anderen externen Speicher.

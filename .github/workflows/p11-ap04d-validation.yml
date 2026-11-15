@@ -159,6 +159,27 @@ jobs:
           P11_LOCAL_DB_URL="$DB_URL" \
           CX05_RESULT_PATH="p11-ap04d-diagnostics/cx05-results.json" \
           node supabase/tests/cx05-historical-contract.e2e.mjs
+      - name: CX-06 – Maintenance contract document workflow E2E
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          P11_LOCAL_API_URL="$API_URL" \
+          P11_LOCAL_ANON_KEY="$ANON_KEY" \
+          P11_LOCAL_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" \
+          P11_LOCAL_SECRET_KEY="${SECRET_KEY:-}" \
+          P11_LOCAL_DB_URL="$DB_URL" \
+          CX06_PDF_PATH="p11-ap04d-diagnostics/cx06-signed-maintenance-contract.pdf" \
+          CX06_RESULT_PATH="p11-ap04d-diagnostics/cx06-results.json" \
+          node supabase/tests/cx06-maintenance-contract.e2e.mjs
+          pdfinfo p11-ap04d-diagnostics/cx06-signed-maintenance-contract.pdf | tee p11-ap04d-diagnostics/cx06-pdfinfo.txt
+          pdftotext -layout p11-ap04d-diagnostics/cx06-signed-maintenance-contract.pdf p11-ap04d-diagnostics/cx06-signed-maintenance-contract.txt
+          ! grep -Fq '{{' p11-ap04d-diagnostics/cx06-signed-maintenance-contract.txt
+          grep -Eq 'Vertrags-Nr\. 9[0-9]{4}' p11-ap04d-diagnostics/cx06-signed-maintenance-contract.txt
+          grep -Fq 'Nora CX06 Nebenmitglied' p11-ap04d-diagnostics/cx06-signed-maintenance-contract.txt
+          grep -Fq 'Vera CX06 Vorstand Eins' p11-ap04d-diagnostics/cx06-signed-maintenance-contract.txt
+          grep -Fq 'Viktor CX06 Vorstand Zwei' p11-ap04d-diagnostics/cx06-signed-maintenance-contract.txt
+          pdftoppm -f 1 -l 2 -png -r 144 p11-ap04d-diagnostics/cx06-signed-maintenance-contract.pdf p11-ap04d-diagnostics/cx06-page
       - name: Capture local Supabase diagnostics
         if: always()
         shell: bash

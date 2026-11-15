@@ -203,13 +203,82 @@ function drawSecondPrivatePartyLabels(pdf, role, font, pdfLib) {
   if (signaturePage) signaturePage.drawText(`Unterschrift ${party}`, { x: 42, y: signaturePage.getHeight() - 618, size: 8, font, color: rgb(.25, .28, .27) });
 }
 
+const maintenanceV2RectOverrides = {
+  wartungsvertrag_beschreibung: { y: 478 },
+  arbeitsstundenwirkung: { y: 635 },
+  wartungsvertrag_bemerkung: { y: 670 },
+  ort_datum: { y: 287 },
+  unterschrift_mitglied: { y: 345 },
+};
+
+function isMaintenanceV2(specs) {
+  const names = new Set(specs.map((field) => field.name));
+  return names.has("vertragsnummer")
+    && names.has("wartungsvertrag_titel")
+    && names.has("arbeitsstundenwirkung")
+    && names.has("unterschrift_mitglied")
+    && names.has("unterschrift_vorstand_2");
+}
+
+function prepareMaintenanceV2Template(pdf, specs, values, font, pdfLib) {
+  if (!isMaintenanceV2(specs)) return specs;
+  const { rgb } = pdfLib;
+  const first = pdf.getPages()[0];
+  const second = pdf.getPages()[1];
+  const cover = (page, x, y, w, h, color = rgb(1, 1, 1)) => page?.drawRectangle({ x, y: page.getHeight() - y - h, width: w, height: h, color, borderWidth: 0 });
+  const drawTop = (page, text, x, y, size = 8) => { if (text) page?.drawText(String(text), { x, y: page.getHeight() - y - size, size, font, color: rgb(0, 0, 0) }); };
+  const season = String(values.saisonjahr ?? "").trim();
+
+  // The immutable v2 draft contains visible handlebars.  Clear each complete
+  // dynamic row and redraw its stable label plus the frozen business value.
+  cover(first, 38, 137, 260, 19);
+  drawTop(first, `für die Saison ${season}`, 40, 140, 8.5);
+  cover(first, 38, 238, 520, 54);
+  drawTop(first, "Mitglied / Vertragspartner:", 40, 244, 8);
+  drawTop(first, values.mitglied_name, 190, 244, 8);
+  drawTop(first, "Mitgliedsnummer:", 40, 270, 8);
+  drawTop(first, values.mitgliedsnummer, 132, 270, 8);
+  drawTop(first, "Parzelle (soweit vorhanden):", 250, 270, 8);
+  drawTop(first, values.parzelle_nummer, 440, 270, 8);
+
+  cover(first, 38, 329, 520, 54);
+  drawTop(first, "Wartungsvertragsart:", 40, 334, 8);
+  drawTop(first, values.wartungsvertrag_titel, 180, 334, 8);
+  drawTop(first, "Bereich:", 40, 360, 8);
+  drawTop(first, values.wartungsvertrag_bereich, 180, 360, 8);
+  drawTop(first, "Saison:", 312, 360, 8);
+  drawTop(first, season, 400, 360, 8);
+
+  cover(first, 46, 475, 190, 20, rgb(.965, .975, .97));
+  cover(first, 38, 632, 520, 62);
+  drawTop(first, "Arbeitsstundenwirkung:", 40, 637, 8);
+  drawTop(first, values.arbeitsstundenwirkung, 180, 637, 8);
+  drawTop(first, "Bemerkung:", 40, 665, 8);
+  drawTop(first, values.wartungsvertrag_bemerkung, 105, 665, 8);
+
+  cover(second, 38, 192, 520, 38);
+  drawTop(second, `Dieser Wartungsvertrag gilt ausschließlich für die oben angegebene Saison ${season} und endet mit deren Ablauf. Der Vorstand kann`, 40, 195, 8);
+  drawTop(second, "den Wartungsvertrag jeweils durch Entscheidung um eine weitere Saison verlängern.", 40, 207, 8);
+
+  const manuallyRendered = new Set([
+    "mitglied_name", "mitgliedsnummer", "parzelle_nummer",
+    "wartungsvertrag_titel", "wartungsvertrag_bereich", "saisonjahr",
+    "arbeitsstundenwirkung", "wartungsvertrag_bemerkung",
+  ]);
+  return specs.filter((field) => !manuallyRendered.has(field.name)).map((field) => {
+    const override = maintenanceV2RectOverrides[field.name];
+    return override ? { ...field, rect: { ...field.rect, ...override } } : field;
+  });
+}
+
 export async function drawPdfTemplate(pdfLib, templateBytes, specs, values, signatures, secondPrivatePartyRole = "representative") {
   const { PDFDocument, PDFName, StandardFonts, rgb } = pdfLib;
   const pdf = await PDFDocument.load(templateBytes);
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   pdf.getPages().forEach((page) => page.node.delete(PDFName.of("Annots")));
   pdf.catalog.delete(PDFName.of("AcroForm"));
-  for (const field of specs) {
+  const effectiveSpecs = prepareMaintenanceV2Template(pdf, specs, values, font, pdfLib);
+  for (const field of effectiveSpecs) {
     const page = pdf.getPages()[field.page - 1];
     if (!page) throw new Error(`PDF-Feld '${field.name}' verweist auf eine fehlende Seite.`);
     const { x, y, w, h } = field.rect;
