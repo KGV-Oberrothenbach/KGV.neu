@@ -78,7 +78,9 @@
     <PackageReference Include="ZXing.Net.Maui.Controls" Version="0.10.4" />
   </ItemGroup>
   <ItemGroup>
-    <MauiAsset Include="..\appsettings.json" Link="appsettings.json" />
+    <!-- Eigene, lokale MAUI-Konfiguration: ausschliesslich Vereinsregister-Zugang.
+         Die gemeinsame Root-Konfiguration bleibt fuer Web und lokale Werkzeuge unveraendert. -->
+    <MauiAsset Include="appsettings.json" Link="appsettings.json" />
   </ItemGroup>
   <ItemGroup>
     <MauiSplashScreen Include="Resources\AppIcon\appicon.png" Color="#2E7D32" BaseSize="192,192" />

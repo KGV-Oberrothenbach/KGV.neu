@@ -14,6 +14,8 @@
 appsettings.json
 appsettings.*.json
 !appsettings.example.json
+# Enthält ausschließlich öffentliche Vereinsregister-Clientdaten.
+!KGV.Maui/appsettings.json
 
 # Local Six Labors license material; never commit license keys or files.
 sixlabors.lic

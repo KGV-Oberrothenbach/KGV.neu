@@ -19,9 +19,10 @@ namespace KGV.Infrastructure.DependencyInjection
             if (services == null) throw new ArgumentNullException(nameof(services));
             if (configuration == null) throw new ArgumentNullException(nameof(configuration));
 
-            services.AddSingleton<ISupabaseClientFactory>(sp => new SupabaseClientFactory(
-                configuration,
-                sp.GetRequiredService<IVereinskontext>()));
+            // Die Registrierung bleibt absichtlich lazy. Vor der Vereinsauswahl werden
+            // weder Factory noch Supabase-Client fuer die Auswahlseite benoetigt.
+            services.AddSingleton<ISupabaseClientFactory>(sp =>
+                new SupabaseClientFactory(sp.GetRequiredService<IVereinskontext>()));
 
             services.AddSingleton<IPermissionService, PermissionService>();
 

@@ -65,7 +65,7 @@ public static class MauiProgram
             });
 
             RunStartupStep("ADD_APPSETTINGS", () => AddAppSettings(builder.Configuration));
-            RunStartupStep("VALIDATE_SUPABASE_CONFIGURATION", () => ValidateSupabaseConfiguration(builder.Configuration));
+            RunStartupStep("VALIDATE_VEREINSREGISTER_CONFIGURATION", () => ValidateVereinsregisterConfiguration(builder.Configuration));
             RunStartupStep("LOAD_APPSETTINGS", () =>
             {
                 AppSettings.Load();
@@ -228,34 +228,52 @@ public static class MauiProgram
         }
     }
 
-    private static void ValidateSupabaseConfiguration(IConfiguration configuration)
+    private static void ValidateVereinsregisterConfiguration(IConfiguration configuration)
     {
-        var supabaseUrl = configuration["Supabase:Url"];
-        var supabaseKey = configuration["Supabase:PublishableKey"] ?? configuration["Supabase:Key"];
-
-        if (!string.IsNullOrWhiteSpace(supabaseUrl) && !string.IsNullOrWhiteSpace(supabaseKey))
-        {
-            AppFileLog.Marker("SUPABASE_CONFIG_PRESENT_YES");
-            AppFileLog.Info(StartupLogTag, $"Supabase-Konfiguration vorhanden. {BuildSupabaseConfigurationFingerprint(supabaseUrl, supabaseKey)}");
-            return;
-        }
+        var registryUrl = configuration["Vereinsregister:Url"]?.Trim();
+        var registryKey = configuration["Vereinsregister:PublishableKey"]?.Trim();
 
         var missingParts = new List<string>();
-        if (string.IsNullOrWhiteSpace(supabaseUrl))
+        if (string.IsNullOrWhiteSpace(registryUrl))
         {
-            missingParts.Add("Supabase:Url");
+            missingParts.Add("Vereinsregister:Url");
         }
 
-        if (string.IsNullOrWhiteSpace(supabaseKey))
+        if (string.IsNullOrWhiteSpace(registryKey))
         {
-            missingParts.Add("Supabase:PublishableKey");
+            missingParts.Add("Vereinsregister:PublishableKey");
         }
 
-        var message = $"Supabase-Fallback-Konfiguration fehlt in `appsettings.json`: {string.Join(", ", missingParts)}";
-        AppFileLog.Marker("SUPABASE_CONFIG_PRESENT_NO");
-        AppFileLog.Warning(StartupLogTag, message);
-        LogStartupError(message);
-        throw new InvalidOperationException(message);
+        if (missingParts.Count > 0)
+        {
+            var missingMessage = $"Vereinsregister-Konfiguration fehlt in `appsettings.json`: {string.Join(", ", missingParts)}";
+            AppFileLog.Marker("VEREINSREGISTER_CONFIG_PRESENT_NO");
+            AppFileLog.Warning(StartupLogTag, missingMessage);
+            LogStartupError(missingMessage);
+            throw new InvalidOperationException(missingMessage);
+        }
+
+        if (!Uri.TryCreate(registryUrl, UriKind.Absolute, out var registryUri)
+            || registryUri.Scheme != Uri.UriSchemeHttps)
+        {
+            const string invalidUrlMessage = "Vereinsregister:Url muss eine absolute HTTPS-URL sein.";
+            AppFileLog.Marker("VEREINSREGISTER_CONFIG_INVALID");
+            LogStartupError(invalidUrlMessage);
+            throw new InvalidOperationException(invalidUrlMessage);
+        }
+
+        if (registryKey!.IndexOfAny(['\r', '\n', '\0']) >= 0)
+        {
+            const string invalidKeyMessage = "Vereinsregister:PublishableKey enthält unzulässige Steuerzeichen.";
+            AppFileLog.Marker("VEREINSREGISTER_CONFIG_INVALID");
+            LogStartupError(invalidKeyMessage);
+            throw new InvalidOperationException(invalidKeyMessage);
+        }
+
+        AppFileLog.Marker("VEREINSREGISTER_CONFIG_PRESENT_YES");
+        AppFileLog.Info(
+            StartupLogTag,
+            $"Vereinsregister-Konfiguration vorhanden. {BuildConfigurationFingerprint(registryUrl, registryKey)}");
     }
 
     private static void RegisterUnhandledExceptionLogging()
@@ -321,18 +339,14 @@ public static class MauiProgram
         }
     }
 
-    private static string BuildSupabaseConfigurationFingerprint(string? url, string? key)
+    private static string BuildConfigurationFingerprint(string? url, string? key)
     {
         var host = Uri.TryCreate(url, UriKind.Absolute, out var uri)
             ? uri.Host
             : "invalid";
 
         var trimmedKey = (key ?? string.Empty).Trim();
-        var suffix = trimmedKey.Length >= 6
-            ? trimmedKey[^6..]
-            : trimmedKey;
-
-        return $"host={host} keyLength={trimmedKey.Length} keySuffix={suffix} keySha256={ComputeSha256(Encoding.UTF8.GetBytes(trimmedKey))}";
+        return $"host={host} keyLength={trimmedKey.Length} keySha256={ComputeSha256(Encoding.UTF8.GetBytes(trimmedKey))}";
     }
 
     private static string ComputeSha256(byte[] content)

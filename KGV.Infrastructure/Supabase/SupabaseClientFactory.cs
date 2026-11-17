@@ -1,6 +1,6 @@
 ﻿using System;
+using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Configuration;
 using Supabase;
 using KGV.Core.Interfaces;
 
@@ -11,36 +11,64 @@ namespace KGV.Infrastructure.Supabase
 {
     public class SupabaseClientFactory : ISupabaseClientFactory
     {
-        private readonly IConfiguration _config;
         private readonly IVereinskontext _vereinskontext;
+        private readonly SemaphoreSlim _initializationLock = new(1, 1);
         private SupabaseClient? _client;
+        private string? _clientUrl;
+        private string? _clientKey;
 
-        public string Url { get; }
-        public string Key { get; }
+        public string Url => GetRequiredCredentials().Url;
+        public string Key => GetRequiredCredentials().Key;
 
-        public SupabaseClientFactory(IConfiguration config, IVereinskontext vereinskontext)
+        public SupabaseClientFactory(IVereinskontext vereinskontext)
         {
-            _config = config;
-            _vereinskontext = vereinskontext;
-
-            Url = SupabaseHeaderValue.NormalizeRequired(
-                _vereinskontext.Aktuell?.SupabaseUrl ?? _config["Supabase:Url"],
-                "Supabase URL");
-            Key = SupabaseHeaderValue.NormalizeRequired(
-                _vereinskontext.Aktuell?.SupabasePublishableKey
-                ?? _config["Supabase:PublishableKey"]
-                ?? _config["Supabase:Key"],
-                "Supabase Publishable Key");
+            _vereinskontext = vereinskontext ?? throw new ArgumentNullException(nameof(vereinskontext));
         }
 
         public async Task<SupabaseClient> CreateAsync()
         {
-            if (_client != null) return _client;
+            var credentials = GetRequiredCredentials();
+            if (MatchesCachedClient(credentials))
+                return _client!;
 
-            _client = new SupabaseClient(Url, Key);
-            await _client.InitializeAsync();
+            await _initializationLock.WaitAsync();
+            try
+            {
+                credentials = GetRequiredCredentials();
+                if (MatchesCachedClient(credentials))
+                    return _client!;
 
-            return _client;
+                var client = new SupabaseClient(credentials.Url, credentials.Key);
+                await client.InitializeAsync();
+
+                _client = client;
+                _clientUrl = credentials.Url;
+                _clientKey = credentials.Key;
+                return client;
+            }
+            finally
+            {
+                _initializationLock.Release();
+            }
+        }
+
+        private bool MatchesCachedClient((string Url, string Key) credentials)
+            => _client is not null
+               && string.Equals(_clientUrl, credentials.Url, StringComparison.Ordinal)
+               && string.Equals(_clientKey, credentials.Key, StringComparison.Ordinal);
+
+        private (string Url, string Key) GetRequiredCredentials()
+        {
+            var context = _vereinskontext.Aktuell
+                ?? throw new InvalidOperationException(
+                    "Supabase-Zugriff ist ohne ausgewählten Vereinskontext nicht zulässig.");
+
+            var url = SupabaseHeaderValue.NormalizeRequired(context.SupabaseUrl, "Supabase URL des Vereins");
+            var key = SupabaseHeaderValue.NormalizeRequired(
+                context.SupabasePublishableKey,
+                "Supabase Publishable Key des Vereins");
+
+            return (url, key);
         }
     }
 }
