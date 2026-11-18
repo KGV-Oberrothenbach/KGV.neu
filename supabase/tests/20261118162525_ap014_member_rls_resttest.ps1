@@ -14,15 +14,18 @@ $suffix = [Guid]::NewGuid().ToString('N')
 $password = "AP014-$suffix-aA1!"
 $ownEmail = "ap014-rest-own-$suffix@example.test"
 $foreignEmail = "ap014-rest-foreign-$suffix@example.test"
+$deleteEmail = "ap014-rest-delete-$suffix@example.test"
 $adminHeaders = @{
     apikey = $ServiceRoleKey
     Authorization = "Bearer $ServiceRoleKey"
 }
 $ownUserId = $null
 $foreignUserId = $null
+$deleteUserId = $null
 $ownMemberId = $null
 $foreignMemberId = $null
 $createdMemberId = $null
+$deleteMemberId = $null
 
 function Invoke-JsonRequest {
     param(
@@ -51,8 +54,12 @@ try {
     $foreignUser = Invoke-JsonRequest Post "$LocalUrl/auth/v1/admin/users" $adminHeaders @{
         email = $foreignEmail; password = $password; email_confirm = $true
     }
+    $deleteUser = Invoke-JsonRequest Post "$LocalUrl/auth/v1/admin/users" $adminHeaders @{
+        email = $deleteEmail; password = $password; email_confirm = $true
+    }
     $ownUserId = if ($ownUser.user) { $ownUser.user.id } else { $ownUser.id }
     $foreignUserId = if ($foreignUser.user) { $foreignUser.user.id } else { $foreignUser.id }
+    $deleteUserId = if ($deleteUser.user) { $deleteUser.user.id } else { $deleteUser.id }
 
     $ownMember = Invoke-JsonRequest Post "$LocalUrl/rest/v1/mitglied" $adminHeaders @{
         name = 'AP014 REST Own'; vorname = 'Test'; aktiv = $true; aufnahme_status = 'aufgenommen'
@@ -64,6 +71,11 @@ try {
     } 'return=representation'
     $ownMemberId = @($ownMember)[0].id
     $foreignMemberId = @($foreignMember)[0].id
+    $deleteMember = Invoke-JsonRequest Post "$LocalUrl/rest/v1/mitglied" $adminHeaders @{
+        name = 'AP014 REST Delete'; vorname = 'Test'; aktiv = $false; aufnahme_status = 'antrag_offen'
+        email = $deleteEmail; erstellt_von_auth_user_id = $deleteUserId
+    } 'return=representation'
+    $deleteMemberId = @($deleteMember)[0].id
 
     Invoke-JsonRequest Post "$LocalUrl/rest/v1/app_user" $adminHeaders @{
         user_id = $ownUserId; mitglied_id = $ownMemberId; role = 'user'; permission_grants = 0; permission_revocations = 0
@@ -147,6 +159,31 @@ try {
         throw 'Individual CanCreateMitglied revocation did not remove creator scope.'
     }
 
+    # Even an actor whose effective CanEditAllMembers makes the row updatable
+    # cannot reassign or clear its immutable creator binding through REST.
+    Invoke-JsonRequest Patch "$LocalUrl/rest/v1/app_user?user_id=eq.$ownUserId" $adminHeaders @{
+        permission_grants = 524292; permission_revocations = 0
+    } | Out-Null
+    $creatorReassign = Invoke-JsonRequest Patch "$LocalUrl/rest/v1/mitglied?id=eq.$createdMemberId" $userHeaders @{
+        erstellt_von_auth_user_id = $foreignUserId
+    } 'return=representation'
+    if (@($creatorReassign).Count -ne 1 -or @($creatorReassign)[0].erstellt_von_auth_user_id -ne $ownUserId) {
+        throw 'Direct REST update reassigned the immutable member creator binding.'
+    }
+    $creatorClear = Invoke-JsonRequest Patch "$LocalUrl/rest/v1/mitglied?id=eq.$createdMemberId" $userHeaders @{
+        erstellt_von_auth_user_id = $null
+    } 'return=representation'
+    if (@($creatorClear).Count -ne 1 -or @($creatorClear)[0].erstellt_von_auth_user_id -ne $ownUserId) {
+        throw 'Direct REST update cleared the immutable member creator binding.'
+    }
+
+    Invoke-JsonRequest Delete "$LocalUrl/auth/v1/admin/users/$deleteUserId" $adminHeaders | Out-Null
+    $deleteUserId = $null
+    $memberAfterAuthDelete = Invoke-JsonRequest Get "$LocalUrl/rest/v1/mitglied?select=id,erstellt_von_auth_user_id&id=eq.$deleteMemberId" $adminHeaders
+    if (@($memberAfterAuthDelete).Count -ne 1 -or $null -ne @($memberAfterAuthDelete)[0].erstellt_von_auth_user_id) {
+        throw 'Deleting the auth user did not preserve the member row with a NULL creator binding.'
+    }
+
     [pscustomobject]@{
         AnonymousDenied = $true
         AuthenticatedOwnRows = 1
@@ -156,6 +193,10 @@ try {
         CreatorReloadRows = 1
         CreatorEditRows = 0
         CreatorRowsAfterRevocation = 0
+        CreatorReassignBlocked = $true
+        CreatorClearBlocked = $true
+        AuthUserDeleteSucceeded = $true
+        CreatorBindingCleared = $true
     }
 }
 finally {
@@ -168,6 +209,9 @@ finally {
     if ($createdMemberId) {
         Invoke-RestMethod -Method Delete -Uri "$LocalUrl/rest/v1/mitglied?id=eq.$createdMemberId" -Headers $adminHeaders -ErrorAction SilentlyContinue | Out-Null
     }
+    if ($deleteMemberId) {
+        Invoke-RestMethod -Method Delete -Uri "$LocalUrl/rest/v1/mitglied?id=eq.$deleteMemberId" -Headers $adminHeaders -ErrorAction SilentlyContinue | Out-Null
+    }
     if ($ownMemberId) {
         Invoke-RestMethod -Method Delete -Uri "$LocalUrl/rest/v1/mitglied?id=eq.$ownMemberId" -Headers $adminHeaders -ErrorAction SilentlyContinue | Out-Null
     }
@@ -179,5 +223,8 @@ finally {
     }
     if ($foreignUserId) {
         Invoke-RestMethod -Method Delete -Uri "$LocalUrl/auth/v1/admin/users/$foreignUserId" -Headers $adminHeaders -ErrorAction SilentlyContinue | Out-Null
+    }
+    if ($deleteUserId) {
+        Invoke-RestMethod -Method Delete -Uri "$LocalUrl/auth/v1/admin/users/$deleteUserId" -Headers $adminHeaders -ErrorAction SilentlyContinue | Out-Null
     }
 }
