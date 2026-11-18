@@ -22,6 +22,7 @@ $ownUserId = $null
 $foreignUserId = $null
 $ownMemberId = $null
 $foreignMemberId = $null
+$createdMemberId = $null
 
 function Invoke-JsonRequest {
     param(
@@ -101,11 +102,60 @@ try {
     }
     if (-not $anonDenied) { throw 'Anonymous REST request was not rejected.' }
 
+    # Regression: CanCreateMitglied may return and reload only the row created
+    # by this actor; it must not imply foreign-member visibility or edit-all.
+    Invoke-JsonRequest Patch "$LocalUrl/rest/v1/app_user?user_id=eq.$ownUserId" $adminHeaders @{
+        permission_grants = 524288; permission_revocations = 0
+    } | Out-Null
+
+    $createdMember = Invoke-JsonRequest Post "$LocalUrl/rest/v1/mitglied" $userHeaders @{
+        name = 'AP014 REST Created'; vorname = 'Test'; aktiv = $false; aufnahme_status = 'antrag_offen'
+        email = "ap014-rest-created-$suffix@example.test"; adresse = 'REST Erstellerweg 3'; plz = '03003'; ort = 'REST Erstellerort'
+    } 'return=representation'
+    if (@($createdMember).Count -ne 1) {
+        throw "CanCreateMitglied INSERT returned $(@($createdMember).Count) rows instead of one representation."
+    }
+    $createdMemberId = @($createdMember)[0].id
+
+    $createdReload = Invoke-JsonRequest Get "$LocalUrl/rest/v1/mitglied?select=id,email&id=eq.$createdMemberId" $userHeaders
+    if (@($createdReload).Count -ne 1 -or @($createdReload)[0].id -ne $createdMemberId) {
+        throw 'Creator could not reload the newly created member for the follow-up workflow.'
+    }
+
+    $createdView = Invoke-JsonRequest Get "$LocalUrl/rest/v1/v_mitglied_mitgliedsantrag_nachweisstatus?select=mitglied_id&mitglied_id=eq.$createdMemberId" $userHeaders
+    if (@($createdView).Count -ne 1 -or @($createdView)[0].mitglied_id -ne $createdMemberId) {
+        throw 'Membership-application view could not load the newly created member.'
+    }
+
+    $stillForeign = Invoke-JsonRequest Get "$LocalUrl/rest/v1/mitglied?select=id&id=eq.$foreignMemberId" $userHeaders
+    if (@($stillForeign).Count -ne 0) {
+        throw 'CanCreateMitglied exposed a foreign member row.'
+    }
+
+    $patchRows = Invoke-JsonRequest Patch "$LocalUrl/rest/v1/mitglied?id=eq.$createdMemberId" $userHeaders @{
+        name = 'AP014 REST Illicit Update'
+    } 'return=representation'
+    if (@($patchRows).Count -ne 0) {
+        throw 'CanCreateMitglied unexpectedly implied edit-all access.'
+    }
+
+    Invoke-JsonRequest Patch "$LocalUrl/rest/v1/app_user?user_id=eq.$ownUserId" $adminHeaders @{
+        permission_revocations = 524288
+    } | Out-Null
+    $afterRevocation = Invoke-JsonRequest Get "$LocalUrl/rest/v1/mitglied?select=id&id=eq.$createdMemberId" $userHeaders
+    if (@($afterRevocation).Count -ne 0) {
+        throw 'Individual CanCreateMitglied revocation did not remove creator scope.'
+    }
+
     [pscustomobject]@{
         AnonymousDenied = $true
         AuthenticatedOwnRows = 1
         ForeignRows = 0
         SecurityInvokerViewRows = 1
+        CreateReturningRows = 1
+        CreatorReloadRows = 1
+        CreatorEditRows = 0
+        CreatorRowsAfterRevocation = 0
     }
 }
 finally {
@@ -114,6 +164,9 @@ finally {
     }
     if ($foreignUserId) {
         Invoke-RestMethod -Method Delete -Uri "$LocalUrl/rest/v1/app_user?user_id=eq.$foreignUserId" -Headers $adminHeaders -ErrorAction SilentlyContinue | Out-Null
+    }
+    if ($createdMemberId) {
+        Invoke-RestMethod -Method Delete -Uri "$LocalUrl/rest/v1/mitglied?id=eq.$createdMemberId" -Headers $adminHeaders -ErrorAction SilentlyContinue | Out-Null
     }
     if ($ownMemberId) {
         Invoke-RestMethod -Method Delete -Uri "$LocalUrl/rest/v1/mitglied?id=eq.$ownMemberId" -Headers $adminHeaders -ErrorAction SilentlyContinue | Out-Null
