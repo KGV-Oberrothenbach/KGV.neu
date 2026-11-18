@@ -18,7 +18,7 @@ Stand: 18.11.2026
 ## Prüfungen
 
 DemoDB: 243 Migrationen.
-ProduktivDB: 241 Migrationen.
+ProduktivDB: 243 Migrationen.
 
 Bestanden:
 - Berechtigungsprüfungen der beiden Funktionen.
@@ -31,11 +31,21 @@ Bestanden:
 - Wiederholter Versandaufruf ist idempotent.
 - Synthetischer Test vollständig zurückgerollt.
 
-## Ausstehende Freigabeschritte
+## Abgeschlossene Freigabeschritte
 
-- Git-Review und Merge nach main.
-- Kontrollierte Übernahme in ProduktivDB.
-- Berechtigungs- und Regressionstests nach Übernahme.
+- Fast-Forward-Merge nach main erfolgreich.
+- Beide Migrationen in DemoDB und ProduktivDB installiert.
+- Beide Datenbanken auf 243 Migrationen.
+- Tatsächliche EXECUTE-Rechte beider Funktionen geprüft.
+- Unberechtigte Direktaufrufe in ProduktivDB abgewiesen.
+- Auth-Hook-Tests für zugelassene und nicht zugelassene E-Mails bestanden.
+- Funktionsdefinitionen zwischen DemoDB und ProduktivDB identisch.
+
+Produktivbackup: VDB_2026-11-18_20-45-23.
+Sicherungsbericht erfolgreich; vollständiger Restore nicht nachgewiesen.
+
+Die Sicherheitskorrektur AP-01.5/F1 ist abgeschlossen.
+Die allgemeine Produktionsreifeprüfung läuft weiter.
 
 Nicht durch diese Prüfung abgedeckt:
 - Vollständige Web-/MAUI-End-to-End-Tests.
