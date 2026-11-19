@@ -37,5 +37,5 @@ CREATE TRIGGER trg_sync_app_user_from_mitglied
 AFTER INSERT OR UPDATE OF auth_user_id ON public.mitglied
 FOR EACH ROW EXECUTE FUNCTION public.sync_app_user_from_mitglied();
 
-ALTER TABLE public.zaehler_ablesung ALTER COLUMN pruefstatus SET DEFAULT 'eingereicht'::text;
+ALTER TABLE public.zaehler_ablesung ALTER COLUMN pruefstatus SET DEFAULT 'eingereicht';
 COMMIT;
