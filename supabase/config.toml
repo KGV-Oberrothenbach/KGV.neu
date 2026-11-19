@@ -397,7 +397,7 @@ s3_secret_key = "env(S3_SECRET_KEY)"
 
 [functions.kgv-upload-photo]
 enabled = true
-verify_jwt = false
+verify_jwt = true
 import_map = "./functions/kgv-upload-photo/deno.json"
 # Uncomment to specify a custom file path to the entrypoint.
 # Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
@@ -449,7 +449,7 @@ entrypoint = "./functions/kgv-request-first-login-otp/index.ts"
 
 [functions.kgv-delete-user]
 enabled = true
-verify_jwt = false
+verify_jwt = true
 import_map = "./functions/kgv-delete-user/deno.json"
 entrypoint = "./functions/kgv-delete-user/index.ts"
 
