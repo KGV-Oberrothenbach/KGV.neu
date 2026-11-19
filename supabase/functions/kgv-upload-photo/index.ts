@@ -89,7 +89,7 @@ function readGoogleDriveRootFolderId(): string {
 
   if (!trimmedValue) {
     logStep("root folder validate failed", details);
-    throw new Error("Google Drive root folder id missing or empty");
+    throw new Error("Google-Drive-Secrets fehlen: root folder id missing or empty");
   }
 
   logStep("root folder validate result", details);
@@ -594,8 +594,6 @@ Deno.serve(async (req) => {
     const auth = await authenticatePhotoUser(authHeader);
     if (!auth.ok) return errorResponse(auth.status, "UNAUTHORIZED", auth.message, requestId);
 
-    const rootFolderId = readGoogleDriveRootFolderId();
-
     const contentType = req.headers.get("content-type") ?? "";
     if (!contentType.toLowerCase().includes("multipart/form-data")) {
       logStep("return error", { step: "content-type validate", status: 400, contentType, requestId });
@@ -661,6 +659,7 @@ Deno.serve(async (req) => {
       extension,
     });
 
+    const rootFolderId = readGoogleDriveRootFolderId();
     const accessToken = await getGoogleAccessToken();
     await verifyDriveRootFolder(accessToken, rootFolderId);
 
