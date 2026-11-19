@@ -1,6 +1,11 @@
 -- P11 AP-04.2: synthetic authenticated acceptance, fully rolled back.
 begin;
 create temporary table p11_ap04b_ids(u uuid, denied uuid, lease_id bigint, aftercare_id bigint, protocol_id bigint) on commit drop;
+-- Synthetic JWT identities must exist in auth.users for creator-FK checks.
+insert into auth.users(id,aud,role,email,encrypted_password,email_confirmed_at,raw_app_meta_data,raw_user_meta_data,created_at,updated_at)
+values
+ ('00000000-0000-0000-0000-000000000351','authenticated','authenticated','p11-ap04b-actor@example.test','x',now(),'{}','{}',now(),now()),
+ ('00000000-0000-0000-0000-000000000352','authenticated','authenticated','p11-ap04b-denied@example.test','x',now(),'{}','{}',now(),now());
 insert into public.mitglied(name,vorname,aktiv,aufnahme_status) values ('P11 AP04B Actor','Test',true,'aufgenommen'),('P11 AP04B Denied','Test',true,'aufgenommen');
 insert into public.app_user(user_id,mitglied_id,role,permission_grants,permission_revocations) values
  ('00000000-0000-0000-0000-000000000351',(select id from public.mitglied where name='P11 AP04B Actor'),'user',524288,0),('00000000-0000-0000-0000-000000000352',(select id from public.mitglied where name='P11 AP04B Denied'),'admin',0,524288);
