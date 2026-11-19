@@ -41,6 +41,14 @@ namespace KGV.Infrastructure.Services
         {
             if (request == null)
                 throw new ArgumentNullException(nameof(request));
+            if (request.AblesungId <= 0)
+                return new PhotoUploadTestResult
+                {
+                    Success = false,
+                    DiagnosticCode = "UPLOAD_READING_ID_MISSING",
+                    FailureStage = "before_request",
+                    ExceptionMessage = "Foto kann nur einer gespeicherten Ablesung zugeordnet werden."
+                };
 
             var token = await _authService.GetAccessTokenAsync();
             if (string.IsNullOrWhiteSpace(token))
@@ -270,14 +278,7 @@ namespace KGV.Infrastructure.Services
             var fileContent = new ByteArrayContent(fileBytes);
             fileContent.Headers.ContentType = MediaTypeHeaderValue.Parse(contentType);
             multipart.Add(fileContent, "file", fileName);
-            multipart.Add(new StringContent(request.Kind?.Trim() ?? string.Empty), "kind");
-            multipart.Add(new StringContent(request.Medium?.Trim() ?? string.Empty), "medium");
-            multipart.Add(new StringContent(request.Anlage?.Trim() ?? string.Empty), "anlage");
-            multipart.Add(new StringContent(request.Garten?.Trim() ?? string.Empty), "garten");
-            multipart.Add(new StringContent(request.Datum.ToString("yyyy-MM-dd")), "datum");
-            if (!string.IsNullOrWhiteSpace(request.Zaehlernummer))
-                multipart.Add(new StringContent(request.Zaehlernummer.Trim()), "zaehlernummer");
-
+            multipart.Add(new StringContent(request.AblesungId.ToString(System.Globalization.CultureInfo.InvariantCulture)), "ablesung_id");
             return multipart;
         }
 

@@ -2374,6 +2374,31 @@ namespace KGV.Infrastructure.Services
                 return true;
             }, false);
 
+        public Task<long?> CaptureMeterReadingWithIdAsync(AblesungInsertRecord request, bool ownSubmission) => ExecuteAsync<long?>(
+            "CaptureMeterReadingWithIdAsync",
+            async () =>
+            {
+                if (request is null || request.ZaehlerId <= 0)
+                    return null;
+                var client = await EnsureClientAsync();
+                var record = await client.Rpc<System.Text.Json.JsonElement>(
+                    ownSubmission ? "submit_own_meter_reading" : "capture_meter_reading", new
+                    {
+                        p_zaehler_id = request.ZaehlerId,
+                        p_ablesedatum = NormalizeDateTime(request.Ablesedatum).ToString("yyyy-MM-dd"),
+                        p_stand = request.Stand,
+                        p_art = AblesungArt.ToDatabaseValue(request.Art),
+                        p_foto_pfad = (string?)null,
+                        p_foto_dateiname = (string?)null,
+                        p_foto_drive_file_id = (string?)null
+                    });
+                if (record.ValueKind == System.Text.Json.JsonValueKind.Object
+                    && record.TryGetProperty("id", out var idValue)
+                    && idValue.TryGetInt64(out var id) && id > 0)
+                    return id;
+                return null;
+            }, null);
+
         public Task<bool> UpdateAblesungAsync(long ablesungId, DateTime ablesedatum, decimal stand, string? fotoPfad) => ExecuteAsync(
             "UpdateAblesungAsync",
             async () =>

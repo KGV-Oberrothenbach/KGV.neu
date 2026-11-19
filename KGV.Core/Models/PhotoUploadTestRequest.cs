@@ -4,6 +4,7 @@ namespace KGV.Core.Models
 {
     public sealed class PhotoUploadTestRequest
     {
+        public long AblesungId { get; set; }
         public string FileName { get; set; } = string.Empty;
         public string ContentType { get; set; } = "application/octet-stream";
         public byte[] FileContent { get; set; } = Array.Empty<byte>();

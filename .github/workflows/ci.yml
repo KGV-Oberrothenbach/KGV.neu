@@ -22,3 +22,51 @@ jobs:
 
       - name: Build Infrastructure
         run: dotnet build KGV.Infrastructure/KGV.Infrastructure.csproj -c Debug
+
+  node-web-contracts:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            supabase/tests/package-lock.json
+            KGV.Web/package-lock.json
+      - name: Install isolated SQL / Node dependencies
+        run: npm ci --prefix supabase/tests
+      - name: FIX-01 and regression tests
+        run: npm test --prefix supabase/tests
+      - name: Install Web dependencies
+        run: npm ci --prefix KGV.Web
+      - name: Critical Web security and contract tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test KGV.Web/security/*.contract.test.mjs KGV.Web/services/readings/*.test.mjs KGV.Web/services/readings/*.contract.test.mjs
+      - name: Web production build
+        run: npm run build --prefix KGV.Web
+
+  complete-local-release-validation:
+    uses: ./.github/workflows/p11-ap04d-validation.yml
+
+  dotnet10-release:
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: .NET tests
+        run: dotnet test KGV.Tests/KGV.Tests.csproj -c Debug
+      - name: MAUI Android workload
+        run: dotnet workload restore KGV.Maui/KGV.Maui.csproj
+      - name: Synthetic build configuration
+        run: Copy-Item appsettings.example.json appsettings.json
+      - name: MAUI Android build
+        run: dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -f net10.0-android

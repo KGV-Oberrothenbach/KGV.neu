@@ -25,6 +25,7 @@ public sealed class PendingPhotoUpload
     /// </summary>
     public Guid? OwnerUserId { get; init; }
 
+    public long AblesungId { get; init; }
     public string OperationType { get; init; } = string.Empty;
     public string Parzelle { get; init; } = string.Empty;
     public string Medium { get; init; } = string.Empty;

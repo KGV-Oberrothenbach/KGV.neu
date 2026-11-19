@@ -464,69 +464,68 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
         {
             var context = _activeResolution.Context;
 
-            PhotoUploadTestResult? photoResult = null;
-            if (hasPhoto)
-            {
-                var operationType = MapPhotoKind(_currentArt);
-                var pending = _pendingPhotoService.SaveAndEnqueue(
-                    _selectedPhotoContent!, operationType, context.ParzelleDisplayName,
-                    NormalizeMedium(context.Medium), _selectedPhotoContentType);
-
-                if (!_pendingPhotoService.TryLoadContent(pending, out var pendingContent) || pendingContent is not { Length: > 0 })
-                {
-                    _pendingPhotoService.MarkFailed(pending, "PENDING_FILE_READ_FAIL");
-                    _statusLabel.Text = "Das Foto konnte lokal nicht vorbereitet werden.";
-                    return;
-                }
-
-                if (!PendingPhotoUploadDecision.CanUploadNow(out _))
-                {
-                    _statusLabel.Text = PhotoUploadPreferences.WifiOnly
-                        ? "Foto wurde lokal gespeichert und wird automatisch bei WLAN hochgeladen."
-                        : "Foto wurde lokal gespeichert und wird automatisch hochgeladen, sobald wieder Internet verfügbar ist.";
-                    return;
-                }
-
-                photoResult = await _photoUploadService.UploadAsync(new PhotoUploadTestRequest
-                {
-                    FileName = pending.FileName, ContentType = pending.ContentType, FileContent = pendingContent,
-                    Kind = operationType, Medium = NormalizeMedium(context.Medium),
-                    Anlage = context.Anlage?.Trim() ?? string.Empty, Garten = context.GartenNr?.Trim() ?? string.Empty,
-                    Zaehlernummer = string.IsNullOrWhiteSpace(context.Zaehlernummer) ? null : context.Zaehlernummer.Trim(),
-                    Datum = _ablesedatumPicker.Date!.Value
-                });
-
-                if (!photoResult.Success || string.IsNullOrWhiteSpace(photoResult.RelativePath))
-                {
-                    _pendingPhotoService.MarkFailed(pending, photoResult.DiagnosticCode ?? "UPLOAD_FAILED");
-                    var message = string.IsNullOrWhiteSpace(photoResult.ErrorSummary) ? "Das Foto konnte nicht hochgeladen werden." : photoResult.ErrorSummary;
-                    if (!string.IsNullOrWhiteSpace(photoResult.RequestId)) message = $"{message}{Environment.NewLine}Support-ID: {photoResult.RequestId}";
-                    _statusLabel.Text = message;
-                    return;
-                }
-
-                _pendingPhotoService.MarkUploadedAndDeleteLocal(pending);
-            }
-
             var savesAsSubmission = IsOwnSubmissionMode && !IsDirectApprovalMode;
-
-            var readingSaved = await _supabaseService.CaptureMeterReadingAsync(new AblesungInsertRecord
+            // Erst Ablesung speichern: jedes Foto muss die echte Server-ID referenzieren.
+            var readingId = await _supabaseService.CaptureMeterReadingWithIdAsync(new AblesungInsertRecord
             {
                 ZaehlerId = context.AktiverZaehlerId.Value,
                 Ablesedatum = _ablesedatumPicker.Date!.Value,
                 Stand = stand,
                 Art = _currentArt,
-                FotoPfad = photoResult?.RelativePath,
-                FotoDateiname = string.IsNullOrWhiteSpace(photoResult?.FileName) ? null : photoResult.FileName,
-                FotoDriveFileId = string.IsNullOrWhiteSpace(photoResult?.FileId) ? null : photoResult.FileId,
                 Freigegeben = !savesAsSubmission,
                 Pruefstatus = savesAsSubmission ? AblesungPruefstatus.Eingereicht : AblesungPruefstatus.Freigegeben
             }, savesAsSubmission);
 
-            if (!readingSaved)
+            if (readingId is not > 0)
             {
                 _statusLabel.Text = "Die Ablesung konnte nicht gespeichert werden.";
                 return;
+            }
+
+            string photoNotice = string.Empty;
+            if (hasPhoto)
+            {
+                var operationType = MapPhotoKind(_currentArt);
+                var pending = _pendingPhotoService.SaveAndEnqueue(
+                    _selectedPhotoContent!, operationType, context.ParzelleDisplayName,
+                    NormalizeMedium(context.Medium), _selectedPhotoContentType, readingId.Value);
+
+                if (PendingPhotoUploadDecision.CanUploadNow(out _))
+                {
+                    if (!_pendingPhotoService.TryLoadContent(pending, out var pendingContent) || pendingContent is not { Length: > 0 })
+                    {
+                        _pendingPhotoService.MarkFailed(pending, "PENDING_FILE_READ_FAIL");
+                        photoNotice = " Das Foto bleibt lokal, bis ein erneuter Upload moeglich ist.";
+                    }
+                    else
+                    {
+                        try
+                        {
+                            var uploadResult = await _photoUploadService.UploadAsync(new PhotoUploadTestRequest
+                            {
+                                AblesungId = readingId.Value,
+                                FileName = pending.FileName,
+                                ContentType = pending.ContentType,
+                                FileContent = pendingContent
+                            });
+                            if (uploadResult.Success)
+                                _pendingPhotoService.MarkUploadedAndDeleteLocal(pending);
+                            else
+                            {
+                                _pendingPhotoService.MarkFailed(pending, uploadResult.ErrorSummary);
+                                photoNotice = " Das Foto wurde vorgemerkt; Upload noch offen.";
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine(ex);
+                            _pendingPhotoService.MarkFailed(pending, "UPLOAD_FAILED");
+                            photoNotice = " Das Foto wurde vorgemerkt; Upload noch offen.";
+                        }
+                    }
+                }
+                else
+                    photoNotice = " Das Foto bleibt lokal fuer den automatischen Upload.";
             }
 
             var defectUpdateFailed = _currentArt == AblesungArt.Normal
@@ -545,6 +544,7 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
 
             if (defectUpdateFailed)
                 successMessage += " Die Defekt-Markierung konnte nicht gespeichert werden.";
+            successMessage += photoNotice;
 
             await DisplayAlertAsync("OK", successMessage, "OK");
             await ResetAndRestartScanAsync(clearWorkflow: true);

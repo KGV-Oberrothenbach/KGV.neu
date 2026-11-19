@@ -452,3 +452,25 @@ enabled = true
 verify_jwt = false
 import_map = "./functions/kgv-delete-user/deno.json"
 entrypoint = "./functions/kgv-delete-user/index.ts"
+
+[functions.kgv-invite-user]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/kgv-invite-user/index.ts"
+
+[functions.kgv-send-club-documents]
+enabled = true
+verify_jwt = true
+import_map = "./functions/kgv-send-club-documents/deno.json"
+entrypoint = "./functions/kgv-send-club-documents/index.ts"
+
+[functions.kgv-send-contract-documents]
+enabled = true
+verify_jwt = true
+import_map = "./functions/kgv-send-contract-documents/deno.json"
+entrypoint = "./functions/kgv-send-contract-documents/index.ts"
+
+[functions.upload-prepared-contract-signature]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/upload-prepared-contract-signature/index.ts"

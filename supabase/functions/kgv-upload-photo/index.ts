@@ -25,6 +25,7 @@ type MeterReadingPhotoRecord = {
   ablesedatum: string;
   art: UploadKind;
   foto_drive_file_id: string | null;
+  foto_pfad: string | null;
   foto_dateiname: string | null;
   zaehler: { parzelle_id: number | null; medium: Medium; parzelle: { garten_nr: string | null; Anlage: string | null } | null } | null;
 };
@@ -167,7 +168,8 @@ function normalizeMedium(value: string | null): Medium | null {
 
 function normalizeKind(value: string | null): UploadKind | null {
   const v = (value ?? "").trim().toLowerCase();
-  return v === "ablesung" || v === "ausbau" || v === "einbau" ? v : null;
+  return v === "normal" || v === "jea" || v === "ablesung" ? "ablesung"
+    : v === "ausbau" || v === "einbau" ? v : null;
 }
 
 function normalizeDateOnly(value: string | null): string | null {
@@ -523,7 +525,7 @@ async function authenticatePhotoUser(authHeader: string) {
 async function mayReadMeterReadingPhoto(auth: AuthenticatedPhotoUser & { supabaseAdmin: ReturnType<typeof createClient> }, ablesungId: number): Promise<MeterReadingPhotoRecord | null> {
   const { data: reading, error: readingError } = await auth.supabaseAdmin
     .from("zaehler_ablesung")
-    .select("id,ablesedatum,art,foto_drive_file_id,foto_dateiname,zaehler:zaehler_id(parzelle_id,medium,parzelle:parzelle_id(garten_nr,Anlage))")
+    .select("id,ablesedatum,art,foto_drive_file_id,foto_pfad,foto_dateiname,zaehler:zaehler_id(parzelle_id,medium,parzelle:parzelle_id(garten_nr,Anlage))")
     .eq("id", ablesungId)
     .maybeSingle();
   if (readingError) {
@@ -576,7 +578,7 @@ Deno.serve(async (req) => {
       const driveResponse = await downloadDriveFile(await getGoogleAccessToken(), driveFileId);
       const contentType = driveResponse.headers.get("content-type") || "image/jpeg";
       const safeFileName = (reading.foto_dateiname ?? "ablesungsfoto.jpg").replace(/[\r\n"]/g, "_");
-      logStep("drive photo download success", { requestId, ablesungId, role: auth.role });
+      logStep("drive photo download success", { requestId, ablesungId });
       return new Response(driveResponse.body, {
         status: 200,
         headers: {
@@ -584,6 +586,7 @@ Deno.serve(async (req) => {
           "Content-Type": contentType,
           "Content-Disposition": `inline; filename="${safeFileName}"`,
           "Cache-Control": "private, no-store",
+          "X-Content-Type-Options": "nosniff",
         },
       });
     }
@@ -616,10 +619,20 @@ Deno.serve(async (req) => {
       return errorResponse(400, "BAD_REQUEST", "Datei-Feld 'file' fehlt.", requestId);
     }
 
+    // Bilder sind keine beliebigen Dateiuploads: MIME und Groesse vor Drive pruefen.
+    if (file.size <= 0 || file.size > 10 * 1024 * 1024 ||
+        !["image/jpeg", "image/png", "image/webp"].includes(file.type.toLowerCase())) {
+      return errorResponse(400, "BAD_REQUEST", "Nur JPG, PNG oder WebP bis 10 MiB erlaubt.", requestId);
+    }
     const ablesungId = Number(form.get("ablesung_id"));
     if (!Number.isSafeInteger(ablesungId) || ablesungId <= 0) return errorResponse(400, "BAD_REQUEST", "ablesung_id fehlt oder ist ungültig.", requestId);
+    // Historisches LESEN ist bewusst keine Schreibberechtigung.
+    const { data: canUpload, error: canUploadError } = await auth.supabaseUser.rpc(
+      "can_upload_meter_reading_photo", { p_ablesung_id: ablesungId });
+    if (canUploadError) throw new Error("Ablesungsfoto-Schreibrecht konnte nicht sicher geprueft werden.");
+    if (canUpload !== true) return errorResponse(403, "UNAUTHORIZED", "Kein Recht zum Hochladen dieses Ablesungsfotos.", requestId);
     const reading = await mayReadMeterReadingPhoto(auth, ablesungId);
-    if (!reading || !reading.zaehler || reading.foto_drive_file_id) return errorResponse(403, "UNAUTHORIZED", "Dieses Ablesungsfoto darf nicht gespeichert werden.", requestId);
+    if (!reading || !reading.zaehler || reading.foto_drive_file_id || reading.foto_pfad || reading.foto_dateiname) return errorResponse(403, "UNAUTHORIZED", "Dieses Ablesungsfoto darf nicht gespeichert werden.", requestId);
     const kind = normalizeKind(reading.art);
     const medium = normalizeMedium(reading.zaehler.medium);
     const date = normalizeDateOnly(reading.ablesedatum);
@@ -637,7 +650,8 @@ Deno.serve(async (req) => {
     const anlage = sanitizeSegment(anlageRaw);
     const garden = sanitizeSegment(gardenRaw);
     const year = date.slice(0, 4);
-    const extension = guessExtension(file);
+    const extension = file.type.toLowerCase() === "image/png" ? ".png"
+      : file.type.toLowerCase() === "image/webp" ? ".webp" : ".jpg";
     const fileName = buildFileName({
       date,
       kind,
@@ -665,7 +679,7 @@ Deno.serve(async (req) => {
       file,
     });
 
-    logStep("drive upload success", { fileId: upload.id, fileName: upload.name });
+    logStep("drive upload success", { fileName: upload.name });
 
     const relativePath = `${folderSegments.join("/")}/${upload.name}`;
     const { data: linked, error: linkError } = await auth.supabaseAdmin
@@ -673,9 +687,20 @@ Deno.serve(async (req) => {
       .update({ foto_pfad: relativePath, foto_drive_file_id: upload.id, foto_dateiname: upload.name })
       .eq("id", ablesungId)
       .is("foto_drive_file_id", null)
+      .is("foto_pfad", null)
+      .is("foto_dateiname", null)
       .select("id")
       .maybeSingle();
-    if (linkError || !linked) throw new Error("Ablesungsfoto konnte nicht unveränderlich verknüpft werden.");
+    if (linkError || !linked) {
+      // Best-effort orphan cleanup; ein erneuter Upload bleibt nachvollziehbar.
+      try {
+        await fetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(upload.id)}`, {
+          method: "DELETE", headers: { Authorization: `Bearer ${accessToken}` },
+          signal: AbortSignal.timeout(DRIVE_UPLOAD_TIMEOUT_MS),
+        });
+      } catch (cleanupError) { logError("orphan cleanup failed", cleanupError); }
+      throw new Error("Ablesungsfoto konnte nicht unveränderlich verknüpft werden.");
+    }
 
     logStep("return success", { requestId, relativePath });
     return json(200, {

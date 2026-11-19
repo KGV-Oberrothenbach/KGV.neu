@@ -23,10 +23,13 @@ public sealed class PendingPhotoService
         string parzelle,
         string medium,
         string contentType,
+        long ablesungId,
         DateTimeOffset? now = null)
     {
         if (content is not { Length: > 0 })
             throw new ArgumentException("Foto-Inhalt fehlt.", nameof(content));
+        if (ablesungId <= 0)
+            throw new ArgumentOutOfRangeException(nameof(ablesungId), "Foto benoetigt eine gespeicherte Ablesung.");
 
         var vereinId = _vereinskontext.Aktuell?.VereinId
             ?? throw new InvalidOperationException("Foto kann ohne ausgewählten Verein nicht vorgemerkt werden.");
@@ -44,6 +47,7 @@ public sealed class PendingPhotoService
             Id = id,
             VereinId = vereinId,
             OwnerUserId = ownerUserId,
+            AblesungId = ablesungId,
             OperationType = operationType,
             Parzelle = parzelle,
             Medium = medium,

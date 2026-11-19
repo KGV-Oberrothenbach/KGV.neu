@@ -108,6 +108,14 @@ public sealed class PendingPhotoSyncService
                     continue;
                 }
 
+                if (latest.AblesungId <= 0)
+                {
+                    // Altdaten ohne beweisbare Zuordnung bleiben lokal; niemals raten.
+                    _pendingPhotoService.MarkFailed(latest, "Ablesungs-ID fehlt. Kein automatischer Upload moeglich.");
+                    result.Failed++;
+                    continue;
+                }
+
                 if (!_pendingPhotoService.TryLoadContent(latest, out var content) || content is not { Length: > 0 })
                 {
                     _pendingPhotoService.MarkFailed(latest, "Lokale Foto-Datei fehlt.");
@@ -124,6 +132,7 @@ public sealed class PendingPhotoSyncService
                 {
                     uploadResult = await _uploadService.UploadAsync(new PhotoUploadTestRequest
                     {
+                        AblesungId = latest.AblesungId,
                         FileName = latest.FileName,
                         ContentType = latest.ContentType,
                         FileContent = content,

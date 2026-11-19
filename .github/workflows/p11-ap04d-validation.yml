@@ -6,6 +6,7 @@ on:
   pull_request:
     branches: [work/p11-ap02a-demo-bereinigung]
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
@@ -87,7 +88,8 @@ jobs:
             supabase/tests/20261113120000_p11_ap04a_lease_end_membership_status_funktionstest.sql \
             supabase/tests/20261113131000_p11_ap04b_aftercare_funktionstest.sql \
             supabase/tests/20261113140000_p11_ap04c_tenant_change_funktionstest.sql \
-            supabase/tests/20261113150000_p11_ap04d_contract_change_funktionstest.sql; do
+            supabase/tests/20261113150000_p11_ap04d_contract_change_funktionstest.sql \
+            supabase/tests/20261119011000_fix02_fix03_db_guards.sql; do
             psql "$db_url" -v ON_ERROR_STOP=1 -f "$fixture"
           done
       - name: P11-T07-P – Real signed lease amendment E2E
