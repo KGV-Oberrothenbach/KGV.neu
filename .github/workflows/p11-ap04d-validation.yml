@@ -85,6 +85,7 @@ jobs:
           set -euo pipefail
           db_url="postgresql://postgres:postgres@127.0.0.1:54322/postgres"
           for fixture in \
+            supabase/tests/20261111120000_p11_ap02a_a34_contract_dispatch_funktionstest.sql \
             supabase/tests/20261113120000_p11_ap04a_lease_end_membership_status_funktionstest.sql \
             supabase/tests/20261113131000_p11_ap04b_aftercare_funktionstest.sql \
             supabase/tests/20261113140000_p11_ap04c_tenant_change_funktionstest.sql \

@@ -74,17 +74,19 @@ select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000f42'
 select set_config('request.jwt.claim.role','authenticated',true);
 do $$ declare ids p11_a34_ids%rowtype; begin select * into ids from p11_a34_ids;
   begin perform public.prepare_contract_dispatch(ids.contract_id,null); raise exception 'missing right succeeded'; exception when sqlstate '42501' then null; end;
+  begin perform public.claim_contract_dispatch(2147483647); raise exception 'missing right claim succeeded'; exception when sqlstate '42501' then null; end;
 end $$;
 select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000f43',true);
 select set_config('request.jwt.claim.role','authenticated',true);
 do $$ declare ids p11_a34_ids%rowtype; begin select * into ids from p11_a34_ids;
   begin perform public.prepare_contract_dispatch(ids.contract_id,null); raise exception 'revoked admin succeeded'; exception when sqlstate '42501' then null; end;
+  begin perform public.claim_contract_dispatch(2147483647); raise exception 'revoked admin claim succeeded'; exception when sqlstate '42501' then null; end;
 end $$;
 select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000f44',true);
 select set_config('request.jwt.claim.role','authenticated',true);
 do $$ declare ids p11_a34_ids%rowtype; d p11_a34_dispatches%rowtype; begin select * into ids from p11_a34_ids; select * into d from p11_a34_dispatches;
   begin perform public.prepare_contract_dispatch(ids.contract_id,null); raise exception 'foreign caseworker succeeded'; exception when sqlstate '42501' then null; end;
-  begin perform public.claim_contract_dispatch(d.initial_dispatch_id); raise exception 'foreign claim succeeded'; exception when sqlstate '40001' then null; end;
+  begin perform public.claim_contract_dispatch(d.initial_dispatch_id); raise exception 'foreign claim succeeded'; exception when sqlstate 'PT403' then null; end;
 end $$;
 
 -- Provenance, status, revision and manipulated redispatch references must not create partial snapshots.
@@ -98,6 +100,33 @@ do $$ declare ids p11_a34_ids%rowtype; before_count integer; after_count integer
   begin perform public.prepare_contract_dispatch(ids.contract_id,987654321); raise exception 'manipulated redispatch reference succeeded'; exception when sqlstate '23514' then null; end;
   select count(*) into after_count from public.versandinstanz where kommunikationsvorgang_id=ids.contract_id;
   if before_count<>after_count then raise exception 'rejected dispatch changed state'; end if;
+end $$;
+
+-- The assigned caller can claim exactly once. Missing and already claimed
+-- dispatches fail with a non-retryable PostgREST status and do not change state.
+do $$
+declare d p11_a34_dispatches%rowtype; claimed record;
+begin
+  select * into d from p11_a34_dispatches;
+  begin
+    perform public.claim_contract_dispatch(2147483647);
+    raise exception 'missing dispatch claim succeeded';
+  exception when sqlstate 'PT403' then null;
+  end;
+  select * into claimed from public.claim_contract_dispatch(d.initial_dispatch_id);
+  if claimed.id is distinct from d.initial_dispatch_id
+     or nullif(claimed.betreff, '') is null
+     or nullif(claimed.mailtext, '') is null then
+    raise exception 'valid dispatch claim returned an incomplete result';
+  end if;
+  if (select status from public.versandinstanz where id=d.initial_dispatch_id) <> 'wird_versendet' then
+    raise exception 'valid dispatch claim did not persist its claim status';
+  end if;
+  begin
+    perform public.claim_contract_dispatch(d.initial_dispatch_id);
+    raise exception 'already claimed dispatch succeeded';
+  exception when sqlstate 'PT403' then null;
+  end;
 end $$;
 reset role;
 
@@ -114,6 +143,7 @@ set local role authenticated;
 select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000f41',true);
 select set_config('request.jwt.claim.role','authenticated',true);
 do $$ declare d p11_a34_dispatches%rowtype; first_id bigint; repeated_id bigint; begin select * into d from p11_a34_dispatches;
+  begin perform public.claim_contract_dispatch(d.initial_dispatch_id); raise exception 'completed dispatch claim succeeded'; exception when sqlstate 'PT403' then null; end;
   first_id:=public.create_contract_redispatch(d.initial_dispatch_id);
   repeated_id:=public.create_contract_redispatch(d.initial_dispatch_id);
   if first_id<>repeated_id then raise exception 'redispatch was not idempotent'; end if;

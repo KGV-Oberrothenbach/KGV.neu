@@ -49,6 +49,20 @@ test('RW02: Vertragsversand prüft Identität vor Versand-Claim', () => {
   assert.match(s, /callerIdentityError\s*\|\|\s*!callerIdentity\.user/);
 });
 
+test('RW02: nicht beanspruchbarer Vertragsversand endet ohne retrybares SQLSTATE als HTTP 403', () => {
+  const migration = readFileSync(join(
+    root,
+    'supabase',
+    'migrations',
+    '20261119163603_fix_contract_dispatch_retry_timeout.sql',
+  ), 'utf8');
+  const edge = source('kgv-send-contract-documents');
+  assert.match(migration, /create or replace function public\.claim_contract_dispatch\(p_versandinstanz_id bigint\)/i);
+  assert.match(migration, /raise sqlstate 'PT403'/i);
+  assert.doesNotMatch(migration, /errcode\s*=\s*'40001'/i);
+  assert.match(edge, /if \(claimError \|\| !claim\?\.\[0\]\) return json\([^;]+, 403\)/);
+});
+
 test('RW02: Signaturupload prüft Berechtigungen und die eingefrorene Signaturposition', () => {
   const s = source('upload-prepared-contract-signature');
   assert.match(s, /current_app_user_context/);
