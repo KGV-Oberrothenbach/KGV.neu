@@ -7,10 +7,11 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-type RequestBody = { mitgliedId?: unknown; dryRun?: unknown };
+type RequestBody = { mitgliedId?: unknown; expectedAuthUserId?: unknown; dryRun?: unknown };
+const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function send(status: number, body: unknown) {
-  return new Response(JSON.stringify(body), {
+  return new Response(JSON.stringify({ contractVersion: 2, ...(body as Record<string, unknown>) }), {
     status,
     headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' },
   });
@@ -38,13 +39,14 @@ Deno.serve(async (request: Request) => {
   if (typeof mitgliedId !== 'number' || !Number.isSafeInteger(mitgliedId) || mitgliedId <= 0) {
     return send(400, { outcome: 'bad_request', message: 'mitgliedId muss eine positive ganze Zahl sein.' });
   }
+  if (typeof body?.expectedAuthUserId !== 'string' || !uuid.test(body.expectedAuthUserId)) {
+    return send(400, { outcome: 'bad_request', message: 'Erwartete Auth-Benutzer-ID fehlt oder ist ungültig.' });
+  }
 
   const callerClient = createClient(url, userKey, {
     global: { headers: { Authorization: authorization } },
     auth: { persistSession: false, autoRefreshToken: false },
   });
-  // The service client and its key never leave the server. Caller identity
-  // is independently checked against the Auth server, never taken from JSON.
   const adminClient = createClient(url, serviceKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
@@ -57,12 +59,12 @@ Deno.serve(async (request: Request) => {
   try {
     const outcome = await performAccountDeletion({
       callerClient, adminClient, callerId: caller.data.user.id,
-      memberId: mitgliedId, dryRun: body.dryRun === true,
+      memberId: mitgliedId, expectedAuthUserId: body.expectedAuthUserId,
+      dryRun: body.dryRun === true,
     });
     const { httpStatus, ...payload } = outcome;
     return send(httpStatus, { ...payload, mitgliedId });
   } catch (_error) {
-    // Do not return raw database errors or user/profile details to API callers.
     return send(503, { outcome: 'error', message: 'Benutzerkontovorgang konnte nicht sicher abgeschlossen werden.' });
   }
 });

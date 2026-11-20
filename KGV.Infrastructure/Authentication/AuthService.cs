@@ -1,4 +1,4 @@
-﻿using KGV.Core.Interfaces;
+using KGV.Core.Interfaces;
 using KGV.Core.Models;
 using KGV.Core.Security;
 using KGV.Infrastructure.Models;
@@ -541,8 +541,9 @@ namespace KGV.Infrastructure.Authentication
         {
             if (user == null)
                 throw new ArgumentNullException(nameof(user));
-
-            if (!user.MitgliedId.HasValue || user.MitgliedId.Value <= 0)
+            if (!user.MitgliedId.HasValue || user.MitgliedId.Value <= 0 || user.AuthUserId == null)
+                return false;
+            if (string.Equals(user.AuthUserId.Value.ToString("D"), CurrentUserId, StringComparison.OrdinalIgnoreCase))
                 return false;
 
             try
@@ -554,21 +555,43 @@ namespace KGV.Infrastructure.Authentication
                     return false;
                 }
 
-                var client = await GetClientAsync();
+                var accessToken = await GetAccessTokenAsync();
+                if (string.IsNullOrWhiteSpace(accessToken))
+                    return false;
 
-                await client
-                    .From<MitgliedRecord>()
-                    .Where(x => x.Id == user.MitgliedId.Value)
-                    .Set(x => x.AuthUserId, (Guid?)null)
-                    .Update();
+                using var httpClient = new HttpClient();
+                foreach (var dryRun in new[] { true, false })
+                {
+                    using var request = new HttpRequestMessage(HttpMethod.Post,
+                        $"{_clientFactory.Url.TrimEnd('/')}/functions/v1/kgv-delete-user");
+                    request.Headers.Add("apikey", _clientFactory.Key);
+                    request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+                    request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                    request.Content = new StringContent(
+                        JsonSerializer.Serialize(new {
+                            mitgliedId = user.MitgliedId.Value,
+                            expectedAuthUserId = user.AuthUserId.Value.ToString("D"),
+                            dryRun
+                        }), Encoding.UTF8, "application/json");
 
-                await client
-                    .From<AppUserRecord>()
-                    .Where(x => x.MitgliedId == user.MitgliedId.Value)
-                    .Delete();
-
-                var statusAfterRemoval = await GetMemberUserLinkStatusAsync(user.MitgliedId.Value);
-                return statusAfterRemoval?.Status == Core.Models.MemberUserLinkStatus.None;
+                    using var response = await httpClient.SendAsync(request);
+                    var content = await response.Content.ReadAsStringAsync();
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        LogDiagnosticWarning($"REMOVE_USER_EDGE_REJECT mitgliedId={user.MitgliedId.Value} status={(int)response.StatusCode}");
+                        return false;
+                    }
+                    using var document = JsonDocument.Parse(content);
+                    if (!document.RootElement.TryGetProperty("contractVersion", out var version)
+                        || !version.TryGetInt32(out var contractVersion) || contractVersion != 2
+                        || !document.RootElement.TryGetProperty("outcome", out var outcome))
+                        return false;
+                    var expectedOutcome = dryRun ? "eligible" : "deleted";
+                    if (!string.Equals(outcome.GetString(), expectedOutcome, StringComparison.Ordinal))
+                        return false;
+                    if (!dryRun) return true;
+                }
+                return false;
             }
             catch (Exception ex)
             {
@@ -576,7 +599,6 @@ namespace KGV.Infrastructure.Authentication
                 return false;
             }
         }
-
         public async Task<bool> RequestEmailChangeAsync(string newEmail)
         {
             if (string.IsNullOrWhiteSpace(newEmail))

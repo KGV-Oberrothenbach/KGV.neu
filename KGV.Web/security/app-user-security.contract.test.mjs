@@ -15,6 +15,6 @@ assert.doesNotMatch(migration, /delete from auth\.users/);
 assert.match(migration, /user_id = auth\.uid\(\) or public\.has_effective_permission\(262144\) or public\.has_effective_permission\(512\)/);
 assert.match(migration, /revoke insert, update, delete on table public\.app_user from authenticated/);
 assert.match(page, /callSupabaseRpc<void>\(\{ club, session \}, "update_app_user_access"/);
-assert.match(page, /callSupabaseRpc<void>\(\{ club, session \}, "unlink_app_user"/);
+assert.doesNotMatch(page, /callSupabaseRpc<void>\(\{ club, session \}, "unlink_app_user"/);
 assert.doesNotMatch(page, /writeSupabase<AppUserAdmin>\(session, "app_user", "PATCH"/);
 assert.doesNotMatch(page, /deleteSupabase\(session, "app_user"/);

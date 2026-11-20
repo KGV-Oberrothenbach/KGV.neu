@@ -40,3 +40,23 @@ export async function sendPasswordReset(club: ClubContext, session: BrowserSessi
     { email: email.trim() },
   );
 }
+
+export async function deleteAppUser(club: ClubContext, session: BrowserSession, memberId: number, expectedAuthUserId: string) {
+  // Old deployed Functions ignore expectedAuthUserId. Never send a deleting
+  // request unless the live backend explicitly proves the v2 contract.
+  const verified = await invokeEdgeFunction<{ outcome?: string; message?: string; contractVersion?: number }>(
+    { club, session }, "kgv-delete-user",
+    { mitgliedId: memberId, expectedAuthUserId, dryRun: true },
+  );
+  if (verified?.contractVersion !== 2 || verified?.outcome !== "eligible") {
+    throw new Error(verified?.message ?? "Der sichere Lösch-Endpunkt ist noch nicht bereit.");
+  }
+  const outcome = await invokeEdgeFunction<{ outcome?: string; message?: string; contractVersion?: number }>(
+    { club, session }, "kgv-delete-user",
+    { mitgliedId: memberId, expectedAuthUserId, dryRun: false },
+  );
+  if (outcome?.contractVersion !== 2 || outcome?.outcome !== "deleted") {
+    throw new Error(outcome?.message ?? "Das Auth-Konto wurde nicht gelöscht.");
+  }
+  return outcome;
+}
