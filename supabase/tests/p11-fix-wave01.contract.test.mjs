@@ -20,6 +20,7 @@ test('FIX-02: photo write entitlement differs from historical read entitlement',
   assert.match(edge, /"X-Content-Type-Options": "nosniff"/);
   assert.match(edge, /zaehler:zaehler_id\(parzelle_id,medium,zaehlernummer,/);
   assert.match(edge, /const meterNumberRaw = reading\.zaehler\.zaehlernummer;/);
+  assert.match(edge, /const isoMatch = .*\(\?:\[T \].*\.exec\(v\);/);
 });
 
 test('FIX-02: Web and MAUI send file plus reading ID, not trusted photo metadata', () => {

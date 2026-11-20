@@ -175,7 +175,7 @@ function normalizeKind(value: string | null): UploadKind | null {
 function normalizeDateOnly(value: string | null): string | null {
   const v = (value ?? "").trim();
 
-  const isoMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v);
+  const isoMatch = /^(\d{4})-(\d{2})-(\d{2})(?:[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?)?$/.exec(v);
   if (isoMatch) {
     const [, year, month, day] = isoMatch;
     return normalizeDateParts(Number(year), Number(month), Number(day));
