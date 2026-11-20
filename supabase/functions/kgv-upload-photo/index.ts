@@ -27,7 +27,7 @@ type MeterReadingPhotoRecord = {
   foto_drive_file_id: string | null;
   foto_pfad: string | null;
   foto_dateiname: string | null;
-  zaehler: { parzelle_id: number | null; medium: Medium; parzelle: { garten_nr: string | null; Anlage: string | null } | null } | null;
+  zaehler: { parzelle_id: number | null; medium: Medium; zaehlernummer: string | null; parzelle: { garten_nr: string | null; Anlage: string | null } | null } | null;
 };
 
 const GOOGLE_TOKEN_REFRESH_TIMEOUT_MS = 15_000;
@@ -525,7 +525,7 @@ async function authenticatePhotoUser(authHeader: string) {
 async function mayReadMeterReadingPhoto(auth: AuthenticatedPhotoUser & { supabaseAdmin: ReturnType<typeof createClient> }, ablesungId: number): Promise<MeterReadingPhotoRecord | null> {
   const { data: reading, error: readingError } = await auth.supabaseAdmin
     .from("zaehler_ablesung")
-    .select("id,ablesedatum,art,foto_drive_file_id,foto_pfad,foto_dateiname,zaehler:zaehler_id(parzelle_id,medium,parzelle:parzelle_id(garten_nr,Anlage))")
+    .select("id,ablesedatum,art,foto_drive_file_id,foto_pfad,foto_dateiname,zaehler:zaehler_id(parzelle_id,medium,zaehlernummer,parzelle:parzelle_id(garten_nr,Anlage))")
     .eq("id", ablesungId)
     .maybeSingle();
   if (readingError) {
@@ -637,7 +637,7 @@ Deno.serve(async (req) => {
     const anlageRaw = reading.zaehler.parzelle?.Anlage ?? "Hauptzaehler";
     const gardenRaw = reading.zaehler.parzelle?.garten_nr ?? "Hauptzaehler";
     if (!kind || !medium || !date) return errorResponse(409, "BAD_REQUEST", "Die Ablesung besitzt keine gültige Foto-Provenance.", requestId);
-    const meterNumberRaw = "";
+    const meterNumberRaw = reading.zaehler.zaehlernummer;
 
     logStep("input normalized / validated", {
       kind,
