@@ -27,6 +27,7 @@ import SeasonPicker from "../features/navigation/SeasonPicker";
 import MobileNavigation from "../features/navigation/MobileNavigation";
 import WorkspaceHeader from "../features/navigation/WorkspaceHeader";
 import { buildNavigation } from "../services/workspace/navigation-service";
+import { getDashboardManagementTargets } from "../services/workspace/dashboard-management-targets";
 import { useWorkspaceContext, WorkspaceContextProvider } from "../contexts/WorkspaceContext";
 import { getSeasons } from "../services/seasons/season-service";
 import type { Season } from "../models/seasons/season";
@@ -255,10 +256,18 @@ function WorkspaceContent({ session, email, club, context, onLogout, onChangeClu
     openProcessCount,
   });
   const allNavigationItems = navigationGroups.flatMap((group) => [...(group.target ? [group.target] : []), ...group.items]);
-  const allowedNavigationIds = new Set(allNavigationItems.map((item) => item.id));
+  // These three pages are opened from the start screen rather than the sidebar.
+  // They must be reachable only when the corresponding effective right exists.
+  const dashboardManagementTargets = getDashboardManagementTargets({
+    canManageWorkAssignments: has(Permission.manageWorkAssignments),
+    canManageAppointments: has(Permission.manageAppointments),
+    canManageAnnouncements: has(Permission.manageAnnouncements),
+  });
+  const permittedTargets = [...allNavigationItems, ...dashboardManagementTargets];
+  const allowedNavigationIds = new Set(permittedTargets.map((item) => item.id));
   const fallbackActiveId = allowedNavigationIds.has("start") ? "start" : allNavigationItems[0]?.id ?? "";
   const effectiveActiveId = allowedNavigationIds.has(activeId) ? activeId : fallbackActiveId;
-  const active = allNavigationItems.find((item) => item.id === effectiveActiveId) ?? allNavigationItems[0];
+  const active = permittedTargets.find((item) => item.id === effectiveActiveId) ?? allNavigationItems[0];
   return (
     <main className="workspace">
       <WorkspaceHeader clubName={club.kurzname || club.vereinsname} email={email} role={context.role} onLogout={onLogout} onChangeClub={onChangeClub} pendingPhotoCount={pendingPhotoCount} />
