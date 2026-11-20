@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { createClient } from "npm:@supabase/supabase-js@2";
 import nodemailer from "npm:nodemailer@6.9.10";
+import { resolveWelcomeMailRouting } from "./welcome-mail-routing.mjs";
 
 type InviteRequest = {
   mitgliedId: number;
@@ -564,8 +565,11 @@ async function sendWelcomeMail(
   });
 
   const originalRecipient = email.trim();
-  const testRecipient = String(Deno.env.get("SMTP_TEST_RECIPIENT") ?? "").trim();
-  const recipient = testRecipient || originalRecipient;
+  const { recipient, testRecipient } = resolveWelcomeMailRouting(
+    Deno.env.get("SUPABASE_URL"),
+    originalRecipient,
+    Deno.env.get("SMTP_TEST_RECIPIENT"),
+  );
   const subject = `${testRecipient ? "[DEMO TEST] " : ""}Willkommen beim KGV-App-Zugang`;
   const testNoticeText = testRecipient ? `\n\n---\nDEMO-Testversand\nUrsprünglich vorgesehener Empfänger:\n${originalRecipient}\n---` : "";
   const testNoticeHtml = testRecipient ? `<hr><p><strong>DEMO-Testversand</strong><br>Ursprünglich vorgesehener Empfänger: ${originalRecipient}</p>` : "";
@@ -744,6 +748,25 @@ Deno.serve(async (req: Request) => {
           outcome: "error",
           errorCode: "ServerConfig",
           message: "Server-Konfiguration unvollständig.",
+        },
+        500,
+      );
+    }
+
+    // Reject unsafe SMTP test routing before creating or linking any user.
+    try {
+      resolveWelcomeMailRouting(
+        supabaseUrl,
+        "",
+        Deno.env.get("SMTP_TEST_RECIPIENT"),
+      );
+    } catch {
+      return json(
+        {
+          success: false,
+          outcome: "error",
+          errorCode: "ServerConfig",
+          message: "E-Mail-Testumleitung in diesem Projekt nicht zulaessig.",
         },
         500,
       );
