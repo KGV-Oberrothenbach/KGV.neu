@@ -2,12 +2,14 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 const source = await readFile(new URL("./index.ts", import.meta.url), "utf8");
-test("signature upload validates JWT, signer identity and effective administrative capability", () => {
+test("signature upload binds signer and administrative workflow to named right", () => {
   assert.match(source, /caller\.auth\.getUser\(\)/);
   assert.match(source, /callerMemberId/);
   assert.match(source, /prepared_contract_signatur_snapshot_person/);
   assert.match(source, /position\.mitglied_id !== callerMemberId/);
-  assert.match(source, /current_effective_permissions/);
-  assert.match(source, /effectivePermissions\) & 524288/);
-  assert.doesNotMatch(source, /\["admin", "vorstand"\]\.includes/);
+  assert.match(source, /ap02_has_effective_right/);
+  assert.match(source, /p_fachrecht: "vertrag\.vorbereiten"/);
+  assert.match(source, /canPrepareContract === true/);
+  assert.doesNotMatch(source, /current_effective_permissions/);
+  assert.doesNotMatch(source, /effectivePermissions\) & 524288/);
 });

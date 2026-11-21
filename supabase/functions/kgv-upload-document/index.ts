@@ -54,8 +54,6 @@ type AuthenticatedDocumentUser = {
   userId: string;
   role: string;
   mitgliedId: number | null;
-  permissionGrants: number;
-  permissionRevocations: number;
 };
 
 type DriveDocumentRecord = {
@@ -575,7 +573,7 @@ async function authenticateDocumentUser(authHeader: string) {
 
   const { data: appUser, error: appUserError } = await supabaseAdmin
     .from("app_user")
-    .select("role,mitglied_id,permission_grants,permission_revocations")
+    .select("role,mitglied_id")
     .eq("user_id", userData.user.id)
     .maybeSingle();
 
@@ -594,8 +592,6 @@ async function authenticateDocumentUser(authHeader: string) {
     userId: userData.user.id,
     role,
     mitgliedId,
-    permissionGrants: Number(appUser?.permission_grants ?? 0),
-    permissionRevocations: Number(appUser?.permission_revocations ?? 0),
     supabaseAdmin,
     // Authenticated RPCs reuse the database permission evaluator, including revocations.
     supabaseUser: createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY") ?? serviceRoleKey, { global: { headers: { Authorization: authHeader } }, auth: { persistSession: false } }),
@@ -607,7 +603,7 @@ async function requireAdminOrVorstand(authHeader: string, existingAuth?: Awaited
   if (!auth.ok)
     return auth;
 
-  const { data: permitted, error: permissionError } = await auth.supabaseUser.rpc("has_effective_permission", { p_permission: 16 });
+  const { data: permitted, error: permissionError } = await auth.supabaseUser.rpc("ap02_has_effective_right", { p_fachrecht: "dokument.verwalten" });
   if (permissionError || permitted !== true)
     return { ok: false as const, status: 403, message: "Keine Berechtigung zur Dokumentverwaltung." };
 
@@ -620,7 +616,7 @@ async function requireAdmin(authHeader: string) {
   if (!auth.ok)
     return auth;
 
-  const { data: permitted, error: permissionError } = await auth.supabaseUser.rpc("has_effective_permission", { p_permission: 2147483648 });
+  const { data: permitted, error: permissionError } = await auth.supabaseUser.rpc("ap02_has_effective_right", { p_fachrecht: "dokument.archivieren" });
   if (permissionError || permitted !== true)
     return { ok: false as const, status: 403, message: "Keine Berechtigung zur Dokumentarchivierung." };
 
@@ -703,11 +699,13 @@ async function mayReadDocument(auth: AuthenticatedDocumentUser & { supabaseAdmin
   if (boardAccess === true)
     return document as DriveDocumentRecord;
 
-  const { data: documentManagementAccess, error: documentManagementError } = await auth.supabaseUser
-    .rpc("has_any_effective_permission", { p_permissions: 65536 | 16 });
-  if (documentManagementError)
+  const [{ data: canReadDocuments, error: readRightError }, { data: canManageDocuments, error: manageRightError }] = await Promise.all([
+    auth.supabaseUser.rpc("ap02_has_effective_right", { p_fachrecht: "dokument.lesen" }),
+    auth.supabaseUser.rpc("ap02_has_effective_right", { p_fachrecht: "dokument.verwalten" }),
+  ]);
+  if (readRightError || manageRightError)
     throw new Error("Dokumentenfachrecht konnte nicht geprüft werden.");
-  if (documentManagementAccess === true)
+  if (canReadDocuments === true || canManageDocuments === true)
     return document as DriveDocumentRecord;
 
   // This caller-bound RPC applies P11-R05 to active and formally ended
@@ -1001,7 +999,10 @@ Deno.serve(async (req) => {
     if (hasProvenance && (!sourceProcessId || !Number.isSafeInteger(sourceRevision) || sourceRevision! < 1)) {
       return errorResponse(400, "BAD_REQUEST", "Dokument-Provenienz ist unvollständig.", requestId);
     }
-    if (hasProvenance && !["admin", "vorstand"].includes(auth.role)) {
+    const { data: mayPrepareContract, error: provenanceRightError } = hasProvenance
+      ? await auth.supabaseUser.rpc("ap02_has_effective_right", { p_fachrecht: "vertrag.vorbereiten" })
+      : { data: false, error: null };
+    if (hasProvenance && (provenanceRightError || mayPrepareContract !== true)) {
       return errorResponse(403, "FORBIDDEN", "Dokument-Provenienz darf nur durch die Vertragsbearbeitung gesetzt werden.", requestId);
     }
 

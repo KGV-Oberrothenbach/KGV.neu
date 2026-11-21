@@ -16,7 +16,7 @@ test("P11 FIX-04: effective club document permission guards privileged send", as
   const config = await readFile(new URL("../../config.toml", import.meta.url), "utf8");
 
   const authentication = source.indexOf("caller.auth.getUser()");
-  const permission = source.indexOf('caller.rpc("has_effective_permission"');
+  const permission = source.indexOf('caller.rpc("ap02_has_effective_right"');
   const memberLookup = source.indexOf('admin.from("mitglied")');
 
   assert.ok(authentication >= 0, "authenticated identity required");

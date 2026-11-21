@@ -28,7 +28,7 @@ Deno.serve(async (request) => {
     const { data: context, error: contextError } = await caller.rpc("current_app_user_context");
     const callerMemberId = context?.[0]?.mitglied_id;
     if (contextError || !Number.isSafeInteger(callerMemberId)) return json({ success: false, message: "Keine zugeordnete Unterzeichneridentität." }, 403);
-    const { data: effectivePermissions, error: permissionError } = await caller.rpc("current_effective_permissions");
+    const { data: canPrepareContract, error: permissionError } = await caller.rpc("ap02_has_effective_right", { p_fachrecht: "vertrag.vorbereiten" });
     if (permissionError) return json({ success: false, message: "Berechtigungen konnten nicht geprüft werden." }, 403);
     const body = await request.json();
     const id = Number(body?.kommunikationsvorgang_id), revision = Number(body?.signatur_revision), key = body?.signatur_schluessel;
@@ -56,7 +56,7 @@ Deno.serve(async (request) => {
     // Role labels alone are insufficient: an individual revocation must take
     // effect immediately.  524288 is the contract-administration capability
     // required by the guarded signature persistence RPC as well.
-    const administrativeCaller = (Number(effectivePermissions) & 524288) === 524288;
+    const administrativeCaller = canPrepareContract === true;
     if (position.unterzeichner_typ === "vereinsunterzeichner" && !administrativeCaller) {
       const { data: source } = await admin.from("prepared_contract_signatur_snapshot_person").select("id").eq("kommunikationsvorgang_id", id).eq("signatur_revision", revision).eq("mitglied_id", callerMemberId).maybeSingle();
       if (!source) return json({ success: false, message: "Keine gültige Unterzeichnerberechtigung." }, 403);

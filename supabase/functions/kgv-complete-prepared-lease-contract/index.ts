@@ -18,7 +18,7 @@ Deno.serve(async (request) => {
     // The service-only completion RPC validates this actor again.  This caller-side
     // check must use the same effective right so individual grants and revocations
     // are honoured before the privileged hop.
-    const { data: permitted, error: permissionError } = await caller.rpc("has_effective_permission", { p_permission: 524288 });
+    const { data: permitted, error: permissionError } = await caller.rpc("ap02_has_effective_right", { p_fachrecht: "pachtvertrag.verwalten" });
     if (permissionError || permitted !== true) return json({ success: false, code: "FORBIDDEN", message: "Keine Berechtigung." }, 403);
     const body = await request.json(); const id = Number(body?.kommunikationsvorgang_id), revision = Number(body?.expected_revision);
     if (!Number.isSafeInteger(id) || id <= 0 || !Number.isSafeInteger(revision) || revision < 1) return json({ success: false, code: "INVALID_REQUEST", message: "Kommunikationsvorgang und Revision sind erforderlich." }, 400);

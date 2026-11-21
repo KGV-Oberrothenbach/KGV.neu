@@ -534,7 +534,7 @@ async function mayReadMeterReadingPhoto(auth: AuthenticatedPhotoUser & { supabas
   if (!reading) return null;
 
   const [{ data: canRead, error: permissionError }, { data: ownsHistory, error: ownError }] = await Promise.all([
-    auth.supabaseUser.rpc("has_effective_permission", { p_permission: 32 }),
+    auth.supabaseUser.rpc("ap02_has_effective_right", { p_fachrecht: "zaehler.lesen" }),
     auth.supabaseUser.rpc("can_access_own_meter_reading", { p_ablesung_id: ablesungId }),
   ]);
   if (permissionError || ownError) throw new Error("Ablesungsfoto-Rechte konnten nicht geprüft werden.");

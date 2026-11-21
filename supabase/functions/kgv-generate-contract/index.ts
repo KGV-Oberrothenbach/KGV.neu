@@ -144,6 +144,18 @@ async function authenticate(req: Request) {
   return { admin, userId: authData.user.id, role, authorization: req.headers.get("Authorization") ?? "" };
 }
 
+async function requireFachrecht(auth: Awaited<ReturnType<typeof authenticate>>, fachrecht: string): Promise<void> {
+  const url = Deno.env.get("SUPABASE_URL") ?? "";
+  const anon = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+  if (!url || !anon || !auth.authorization.startsWith("Bearer ")) throw new Error("AUTH:Benutzerauthentifizierung fehlt.");
+  const caller = createClient(url, anon, {
+    global: { headers: { Authorization: auth.authorization } },
+    auth: { persistSession: false, autoRefreshToken: false }
+  });
+  const { data: permitted, error } = await caller.rpc("ap02_has_effective_right", { p_fachrecht: fachrecht });
+  if (error || permitted !== true) throw new Error("AUTH:Benanntes Fachrecht fehlt.");
+}
+
 async function sha256(bytes: Uint8Array) { const digest = await crypto.subtle.digest("SHA-256", bytes); return Array.from(new Uint8Array(digest), (value) => value.toString(16).padStart(2, "0")).join(""); }
 async function loadPublishedPdfTemplate(auth: Awaited<ReturnType<typeof authenticate>>, descriptor: PdfTemplateDescriptor) {
   return loadSharedPublishedPdfTemplate(createSupabaseTemplateStore(auth.admin), descriptor);
@@ -314,11 +326,13 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return errorResponse(405, "BAD_REQUEST", "Methode nicht erlaubt.", requestId);
   try {
-    const auth = await authenticate(req); const body = await req.json() as RequestBody; if(body.action === "sign-existing") { if (!['admin','vorstand'].includes(auth.role)) throw new Error("AUTH:Nur Admin oder Vorstand dürfen Vertragsdokumente erzeugen."); return await signExisting(auth,body); } const type = body.type; let memberId = Number(body.member_id); const action = body.action ?? "preview";
+    const auth = await authenticate(req); const body = await req.json() as RequestBody; if(body.action === "sign-existing") { await requireFachrecht(auth, "vertrag.vorbereiten"); return await signExisting(auth,body); } const type = body.type; let memberId = Number(body.member_id); const action = body.action ?? "preview";
     const sourceKommunikationsvorgangId = Number(body.kommunikationsvorgang_id ?? body.source_kommunikationsvorgang_id); let sourceRevision = Number(body.source_revision);
     if (!type) return errorResponse(400, "BAD_REQUEST", "Dokumenttyp ist erforderlich.", requestId);
-    if (type === "wartungsvertrag_verlaengerung") { const { data: allowed, error: allowedError } = await auth.admin.rpc("ist_wartungsvertrag_entscheidung_berechtigt", { p_auth_user_id: auth.userId }); if (allowedError || allowed !== true) throw new Error("AUTH:Keine fachliche Berechtigung zur Wartungsvertragsentscheidung."); }
-    else if (!['admin','vorstand'].includes(auth.role)) throw new Error("AUTH:Nur Admin oder Vorstand dürfen Vertragsdokumente erzeugen.");
+    if (type === "wartungsvertrag_verlaengerung") { await requireFachrecht(auth, "mitgliedschaft.verwalten"); const { data: allowed, error: allowedError } = await auth.admin.rpc("ist_wartungsvertrag_entscheidung_berechtigt", { p_auth_user_id: auth.userId }); if (allowedError || allowed !== true) throw new Error("AUTH:Keine fachliche Berechtigung zur Wartungsvertragsentscheidung."); }
+    else await requireFachrecht(auth, type === "pachtvertrag" ? "pachtvertrag.verwalten"
+      : type === "aufnahmebestaetigung" ? "mitgliedschaft.entscheiden"
+      : type === "wartungsvertrag" ? "mitgliedschaft.verwalten" : "vertrag.vorbereiten");
     if (action === "finalize" && type === "mitgliedsantrag" && (!Number.isSafeInteger(sourceKommunikationsvorgangId) || sourceKommunikationsvorgangId <= 0)) return errorResponse(400, "BAD_REQUEST", "Kommunikationsvorgang ist für die Finalisierung erforderlich.", requestId);
     if (type === "wartungsvertrag" && action !== "finalize" && action !== "preview") return errorResponse(400, "BAD_REQUEST", "Wartungsverträge werden ausschließlich aus dem persistenten Signaturvorgang erzeugt.", requestId);
     if (type === "aufnahmebestaetigung" && action !== "finalize") return errorResponse(400, "BAD_REQUEST", "Aufnahmebestätigungen werden ausschließlich final nach der positiven Aufnahmeentscheidung erzeugt.", requestId);

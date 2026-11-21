@@ -1,17 +1,9 @@
 // Reparaturblock 03: an account may only be deleted after a durable, member-bound
 // SQL reservation. Restoration is one SQL transaction and never trusts JSON roles.
-const CAN_MANAGE_ROLES = 512n;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function result(status, outcome, message) {
   return { httpStatus: status, outcome, message };
-}
-
-function bit(value) {
-  if (typeof value === 'bigint') return value;
-  if (typeof value === 'number' && Number.isSafeInteger(value)) return BigInt(value);
-  if (typeof value === 'string' && /^\d+$/.test(value)) return BigInt(value);
-  throw new Error('Invalid permission bit field');
 }
 
 async function restoreReservation(admin, userId, operationId) {
@@ -70,7 +62,7 @@ export async function performAccountDeletion({ callerClient, adminClient, caller
   }
 
   const target = await adminClient.from('app_user')
-    .select('user_id,mitglied_id,role,permission_grants,permission_revocations,is_protected')
+    .select('user_id,mitglied_id,is_protected')
     .eq('user_id', authUserId).maybeSingle();
   if (target.error || !target.data || Number(target.data.mitglied_id) !== memberId) {
     return result(409, 'blocked', 'Die Benutzerzuordnung ist unvollständig oder verändert.');
@@ -78,7 +70,6 @@ export async function performAccountDeletion({ callerClient, adminClient, caller
   if (target.data.is_protected) {
     return result(403, 'forbidden', 'Geschützte Konten dürfen nicht gelöscht werden.');
   }
-
   // AP-02.4B: new Admin holders are protected from the legacy delete endpoint
   // even when their legacy permission bit is absent. Fail closed on DB errors.
   const targetAdminRole = await adminClient.from('app_user_zusatzrolle')
@@ -92,19 +83,15 @@ export async function performAccountDeletion({ callerClient, adminClient, caller
     .select('user_id').eq('user_id', authUserId).maybeSingle();
   if (targetProtectedIdentity.error) return result(503, 'error', 'Kontoschutz konnte nicht sicher geprüft werden.');
   if (targetProtectedIdentity.data) return result(403, 'forbidden', 'Geschützte Konten dürfen nicht gelöscht werden.');
-  const base = await adminClient.rpc('permission_role_base', { p_role: target.data.role });
-  if (base.error || base.data == null) {
-    return result(503, 'error', 'Zielberechtigung konnte nicht sicher geprüft werden.');
+
+  // AP-02.4J: Zielberechtigungen aus dem autoritativen Fachrechte-Kern,
+  // nie aus alten Rollenbits oder historischen individuellen Masken ableiten.
+  const rights = await adminClient.rpc('ap02_calculate_user_rights', { p_user_id: authUserId });
+  if (rights.error || !Array.isArray(rights.data) || rights.data.length !== 55) {
+    return result(503, 'error', 'Fachrechte des Zielkontos konnten nicht sicher geprüft werden.');
   }
-  let targetPermissions;
-  try {
-    targetPermissions = (bit(base.data) | bit(target.data.permission_grants))
-      & ~bit(target.data.permission_revocations);
-  } catch {
-    return result(503, 'error', 'Ungültige Berechtigungsdaten; Löschung gesperrt.');
-  }
-  if ((targetPermissions & CAN_MANAGE_ROLES) === CAN_MANAGE_ROLES) {
-    return result(403, 'forbidden', 'Rollenverwalter benötigen ein gesondertes Löschverfahren.');
+  if (rights.data.some((r) => r.code === 'berechtigungen.verwalten' && r.erlaubt === true)) {
+    return result(403, 'forbidden', 'Fachrechte-Verwalter benötigen ein gesondertes Löschverfahren.');
   }
 
   const existing = await adminClient.from('auth_user_delete_lock')

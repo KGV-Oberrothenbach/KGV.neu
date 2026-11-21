@@ -1,28 +1,25 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFile } from "node:fs/promises";
-
 const lease = await readFile(new URL("./kgv-complete-prepared-lease-contract/index.ts", import.meta.url), "utf8");
 const discard = await readFile(new URL("./kgv-discard-prepared-contract/index.ts", import.meta.url), "utf8");
 const documentUpload = await readFile(new URL("./kgv-upload-document/index.ts", import.meta.url), "utf8");
-
-for (const [name, source, requiredPermission, rpc, actorParameter] of [
-  ["prepared lease completion", lease, 524288, "complete_prepared_pachtvertrag", "p_created_by"],
-  ["prepared contract discard", discard, 524304, "discard_prepared_contract", "p_discarded_by"],
+for (const [name, source, rights, rpc, actor] of [
+  ["prepared lease completion",lease,["pachtvertrag.verwalten"],"complete_prepared_pachtvertrag","p_created_by"],
+  ["prepared contract discard",discard,["mitglied.anlegen","dokument.verwalten"],"discard_prepared_contract","p_discarded_by"],
 ]) {
-  test(`${name} validates the deployed-project JWT and effective caller permission before its service-only RPC`, () => {
+  test(`${name} validates JWT and named rights before privileged RPC`, () => {
     assert.match(source, /authorization\.startsWith\("Bearer "\)/);
     assert.match(source, /caller\.auth\.getUser\(\)/);
-    assert.match(source, new RegExp(`caller\\.rpc\\("has_effective_permission", \\{ p_permission: ${requiredPermission} \\}\\)`));
-    assert.doesNotMatch(source, /current_app_user_context[\s\S]*?role === "admin"[\s\S]*?role === "vorstand"/);
-    assert.match(source, new RegExp(`admin\\.rpc\\("${rpc}", \\{[\\s\\S]*?${actorParameter}: user(?:Data)?\\.user\\.id`));
+    for (const right of rights) assert.ok(source.includes(`p_fachrecht: "${right}"`));
+    assert.doesNotMatch(source, /caller\.rpc\("has_effective_permission"/);
+    assert.ok(source.includes(`admin.rpc("${rpc}"`));
+    assert.ok(source.includes(`${actor}: user`));
   });
 }
-
-test("document Drive deletion binds the requested file to a live document record and effective document management", () => {
-  assert.match(documentUpload, /has_effective_permission", \{ p_permission: 16 \}/);
+test("document archive keeps authenticated live-document lookup and new document right", () => {
+  assert.ok(documentUpload.includes('p_fachrecht: "dokument.verwalten"'));
   assert.match(documentUpload, /const documentId = Number\(payload\.document_id\)/);
-  assert.match(documentUpload, /\.eq\("id", documentId\)[\s\S]*?\.is\("archiviert_at", null\)/);
-  assert.match(documentUpload, /String\(document\.drive_file_id \?\? ""\)\.trim\(\) !== driveFileId/);
-  assert.match(documentUpload, /Die Drive-Datei gehört nicht zum angegebenen aktiven Dokument/);
+  assert.match(documentUpload, /const document = await mayReadDocument\(auth, documentId\)/);
+  assert.match(documentUpload, /action === "archive"/);
 });

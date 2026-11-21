@@ -15,8 +15,11 @@ Deno.serve(async request => {
     // Keep this wrapper aligned with the service-only RPC's combined effective
     // right (CanCreateMitglied | CanManageDocuments), including per-user grants
     // and administrative revocations.
-    const { data: permitted, error: permissionError } = await caller.rpc("has_effective_permission", { p_permission: 524304 });
-    if (permissionError || permitted !== true) return json({ success: false, message: "Keine Berechtigung." }, 403);
+    const [{ data: mayCreate, error: createError }, { data: mayManageDocuments, error: docError }] = await Promise.all([
+      caller.rpc("ap02_has_effective_right", { p_fachrecht: "mitglied.anlegen" }),
+      caller.rpc("ap02_has_effective_right", { p_fachrecht: "dokument.verwalten" }),
+    ]);
+    if (createError || docError || mayCreate !== true || mayManageDocuments !== true) return json({ success: false, message: "Keine Berechtigung." }, 403);
     const body = await request.json(); const id = Number(body?.kommunikationsvorgang_id), revision = Number(body?.expected_revision);
     if (!Number.isSafeInteger(id) || id <= 0 || !Number.isSafeInteger(revision) || revision < 1) return json({ success: false, message: "Kommunikationsvorgang und Revision sind erforderlich." }, 400);
     const { data, error } = await admin.rpc("discard_prepared_contract", { p_kommunikationsvorgang_id: id, p_expected_revision: revision, p_discarded_by: user.user.id });

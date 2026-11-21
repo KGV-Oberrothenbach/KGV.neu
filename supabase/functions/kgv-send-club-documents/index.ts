@@ -19,7 +19,7 @@ Deno.serve(async (request) => {
     const admin = createClient(url, serviceKey);
     const { data: userData, error: userError } = await caller.auth.getUser();
     if (userError || !userData.user) return json({ success: false, message: "Keine gültige Session." }, 401);
-    const { data: permitted, error: permissionError } = await caller.rpc("has_effective_permission", { p_permission: 268435456 });
+    const { data: permitted, error: permissionError } = await caller.rpc("ap02_has_effective_right", { p_fachrecht: "vereinsunterlagen.verwalten" });
     if (permissionError || permitted !== true) return json({ success: false, message: "Keine Berechtigung." }, 403);
     const body = await request.json(); const memberId = Number(body?.mitglied_id); const versionIds = Array.isArray(body?.vereinsdokument_fassung_ids) ? body.vereinsdokument_fassung_ids.map(Number) : [];
     if (!Number.isSafeInteger(memberId) || versionIds.length === 0 || versionIds.some((id) => !Number.isSafeInteger(id)) || new Set(versionIds).size !== versionIds.length) return json({ success: false, message: "Mitglied und eindeutige Dokumentfassungen sind erforderlich." }, 400);
