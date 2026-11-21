@@ -816,13 +816,13 @@ Deno.serve(async (req: Request) => {
 
     const callerUserId = userData.user.id;
 
-    // This RPC executes with the caller's JWT, so grants and revocations are
-    // evaluated by the central database permission contract.
+    // AP-02.4B: Authorize invitations with the live V2 Admin permission,
+    // evaluated by the caller-bound SQL RPC before any service-role mutation.
     const { data: canManageRoles, error: permissionError } = await supabaseUser
-      .rpc("has_effective_permission", { p_permission: 512 });
+      .rpc("ap02_can_manage_rights");
 
     if (permissionError || canManageRoles !== true) {
-      console.log("[kgv-invite-user] reject403: missing CanManageRoles", {
+      console.log("[kgv-invite-user] reject403: missing Fachrechte 2.0 Admin permission", {
         requestId,
         clientRequestId,
         error: safeErrorInfo(permissionError),

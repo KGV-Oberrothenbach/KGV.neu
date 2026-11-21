@@ -50,11 +50,10 @@ export async function performAccountDeletion({ callerClient, adminClient, caller
     return result(401, 'forbidden', 'Authentifizierter Benutzer fehlt.');
   }
 
-  const permission = await callerClient.rpc('has_effective_permission', {
-    p_permission: Number(CAN_MANAGE_ROLES),
-  });
+  // AP-02.4B: check effective V2 Admin permission using the caller's JWT.
+  const permission = await callerClient.rpc('ap02_can_manage_rights');
   if (permission.error || permission.data !== true) {
-    return result(403, 'forbidden', 'CanManageRoles fehlt oder konnte nicht geprüft werden.');
+    return result(403, 'forbidden', 'Fachrechte 2.0: Admin-Berechtigung fehlt oder konnte nicht geprüft werden.');
   }
 
   const member = await adminClient.from('mitglied')
@@ -80,6 +79,19 @@ export async function performAccountDeletion({ callerClient, adminClient, caller
     return result(403, 'forbidden', 'Geschützte Konten dürfen nicht gelöscht werden.');
   }
 
+  // AP-02.4B: new Admin holders are protected from the legacy delete endpoint
+  // even when their legacy permission bit is absent. Fail closed on DB errors.
+  const targetAdminRole = await adminClient.from('app_user_zusatzrolle')
+    .select('user_id')
+    .eq('user_id', authUserId)
+    .eq('zusatzrolle_code', 'admin')
+    .maybeSingle();
+  if (targetAdminRole.error) return result(503, 'error', 'Ziel-Adminrolle konnte nicht sicher geprüft werden.');
+  if (targetAdminRole.data) return result(403, 'forbidden', 'Admin-Zusatzrollen können nicht über diese Funktion gelöscht werden.');
+  const targetProtectedIdentity = await adminClient.from('protected_admin_identity')
+    .select('user_id').eq('user_id', authUserId).maybeSingle();
+  if (targetProtectedIdentity.error) return result(503, 'error', 'Kontoschutz konnte nicht sicher geprüft werden.');
+  if (targetProtectedIdentity.data) return result(403, 'forbidden', 'Geschützte Konten dürfen nicht gelöscht werden.');
   const base = await adminClient.rpc('permission_role_base', { p_role: target.data.role });
   if (base.error || base.data == null) {
     return result(503, 'error', 'Zielberechtigung konnte nicht sicher geprüft werden.');

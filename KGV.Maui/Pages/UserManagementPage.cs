@@ -1,4 +1,5 @@
 using KGV.Core.Models;
+using KGV.Core.Interfaces;
 using KGV.Maui.ViewModels;
 using Microsoft.Maui;
 using Microsoft.Maui.Controls;
@@ -10,10 +11,12 @@ namespace KGV.Maui.Pages;
 public sealed class UserManagementPage : ContentPage
 {
     private readonly UserManagementViewModel _viewModel;
+    private readonly ISupabaseClientFactory _v2ClientFactory;
 
-    public UserManagementPage(UserManagementViewModel viewModel)
+    public UserManagementPage(UserManagementViewModel viewModel, ISupabaseClientFactory v2ClientFactory)
     {
         _viewModel = viewModel;
+        _v2ClientFactory = v2ClientFactory ?? throw new ArgumentNullException(nameof(v2ClientFactory));
         BindingContext = _viewModel;
         Title = "Benutzerverwaltung";
 
@@ -100,6 +103,13 @@ public sealed class UserManagementPage : ContentPage
         roleSection.Children.Add(roleHintLabel);
         roleSection.Children.Add(saveRoleButton);
 
+        var v2RightsButton = new Button { Text = "Fachrechte 2.0 Ã¶ffnen" };
+        v2RightsButton.Clicked += async (_, _) =>
+        {
+            var memberId = _viewModel.SelectedUser?.MitgliedId;
+            await Navigation.PushAsync(new FachrechteV2AdministrationPage(_v2ClientFactory, memberId));
+        };
+
         var inviteButton = new Button();
         inviteButton.SetBinding(Button.TextProperty, nameof(UserManagementViewModel.InviteActionText));
         inviteButton.SetBinding(IsEnabledProperty, nameof(UserManagementViewModel.CanInvite));
@@ -161,6 +171,7 @@ public sealed class UserManagementPage : ContentPage
                     usersView,
                     selectedSection,
                     roleSection,
+                    v2RightsButton,
                     emailHintLabel,
                     inviteButton,
                     resetButton,

@@ -16,16 +16,21 @@ namespace KGV.Maui;
 public partial class App : Application
 {
     private static readonly TimeSpan ResumeTimeoutThreshold = TimeSpan.FromMinutes(15);
+    private static readonly TimeSpan FachrechteV2ReloadInterval = TimeSpan.FromSeconds(60);
 
     private readonly IServiceProvider _services;
     private readonly UserContextState _userContextState;
     private readonly IVereinskontext _vereinskontext;
     private readonly IClientInstanceIdProvider _clientInstanceIdProvider;
+    private readonly FachrechteV2SnapshotService _fachrechteV2SnapshotService;
     private Window? _mainWindow;
     private IDispatcherTimer? _inactivityTimer;
     private DateTime _lastUserActivityUtc = DateTime.UtcNow;
     private string? _pendingLoginMessage;
     private bool _resumeTimeoutResetInProgress;
+    private bool _fachrechteV2RefreshInProgress;
+    private bool _fachrechteV2ErrorLogged;
+    private DateTime _fachrechteV2LastAttemptUtc = DateTime.MinValue;
 
     public App(IServiceProvider services, UserContextState userContextState, IVereinskontext vereinskontext, IClientInstanceIdProvider clientInstanceIdProvider)
     {
@@ -33,6 +38,7 @@ public partial class App : Application
         _userContextState = userContextState;
         _vereinskontext = vereinskontext;
         _clientInstanceIdProvider = clientInstanceIdProvider;
+        _fachrechteV2SnapshotService = new FachrechteV2SnapshotService(services.GetRequiredService<ISupabaseClientFactory>());
     }
 
     protected override Window CreateWindow(IActivationState? activationState)
@@ -49,6 +55,8 @@ public partial class App : Application
         _mainWindow.Resumed += async (_, _) =>
         {
             await HandleWindowResumedAsync();
+            if (_userContextState.CurrentUserId != null && _userContextState.CurrentUserContext != null)
+                await RefreshFachrechteV2Async(force: true);
             _lastUserActivityUtc = DateTime.UtcNow;
             _inactivityTimer?.Start();
         };
@@ -85,7 +93,10 @@ public partial class App : Application
 
         var inactiveFor = DateTime.UtcNow - _lastUserActivityUtc;
         if (inactiveFor <= ResumeTimeoutThreshold)
+        {
+            await RefreshFachrechteV2Async();
             return;
+        }
 
         await ResetToLoginAfterInactivityAsync(inactiveFor);
     }
@@ -158,6 +169,8 @@ public partial class App : Application
             currentWindow.Page = nextRootPage;
             _mainWindow = currentWindow;
         });
+        if (_userContextState.CurrentUserId != null && _userContextState.CurrentUserContext != null)
+            _ = RefreshFachrechteV2Async(force: true);
     }
 
     private Page CreateRootPage(string? preferredContentRoute = null)
@@ -237,6 +250,49 @@ public partial class App : Application
         }
     }
 
+    private async Task RefreshFachrechteV2Async(bool force = false)
+    {
+        // Nur Schattenstatus laden; kein Einfluss auf bisherige Navigation.
+        var userId = _userContextState.CurrentUserId;
+        if (userId == null || _userContextState.CurrentUserContext == null)
+        {
+            _userContextState.ClearFachrechteV2();
+            return;
+        }
+        var now = DateTime.UtcNow;
+        if (_fachrechteV2RefreshInProgress ||
+            (!force && now - _fachrechteV2LastAttemptUtc < FachrechteV2ReloadInterval))
+            return;
+
+        _fachrechteV2RefreshInProgress = true;
+        _fachrechteV2LastAttemptUtc = now;
+        try
+        {
+            var rights = await _fachrechteV2SnapshotService.LoadAsync();
+            if (_userContextState.CurrentUserId == userId)
+            {
+                _userContextState.SetFachrechteV2(rights);
+                _fachrechteV2ErrorLogged = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            if (_userContextState.CurrentUserId == userId)
+            {
+                _userContextState.ClearFachrechteV2();
+                if (!_fachrechteV2ErrorLogged)
+                {
+                    Services.Diagnostics.AppFileLog.Warning("KGV.FachrechteV2", $"Schattenrechte momentan nicht verfuegbar: {ex.GetType().Name}");
+                    _fachrechteV2ErrorLogged = true;
+                }
+            }
+        }
+        finally
+        {
+            _fachrechteV2RefreshInProgress = false;
+        }
+    }
+
     private Task ResetToLoginAfterInactivityAsync(TimeSpan inactiveFor)
         => ResetToLoginAsync(
             "APP_IDLE_TIMEOUT_TRIGGERED",
@@ -309,6 +365,7 @@ public partial class App : Application
         _userContextState.CurrentNebenMitgliedId = null;
         _userContextState.CurrentAppMode = null;
         _userContextState.CurrentUserContext = null;
+        _userContextState.ClearFachrechteV2();
 
         _services.GetService<MemberContextState>()?.Clear();
         _services.GetService<ParzellenContextState>()?.Clear();

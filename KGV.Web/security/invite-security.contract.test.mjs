@@ -6,7 +6,7 @@ const migration = await readFile(new URL("../../supabase/migrations/202610111500
 const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
 const maui = await readFile(new URL("../../KGV.Maui/ViewModels/UserManagementViewModel.cs", import.meta.url), "utf8");
 
-assert.match(functionSource, /supabaseUser\s*\.rpc\("has_effective_permission", \{ p_permission: 512 \}\)/);
+assert.match(functionSource, /supabaseUser\s*\.rpc\("ap02_can_manage_rights"\)/);
 assert.doesNotMatch(functionSource, /callerRole !== "admin"/);
 assert.match(functionSource, /canManageRoles !== true/);
 assert.match(functionSource, /inviteMethod !== "otp"/);

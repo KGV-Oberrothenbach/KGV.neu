@@ -13,6 +13,7 @@ import { isSupabaseClubConfigured } from "../../lib/supabase/client-context";
 import type { ClubContext } from "../../models/auth/club";
 import { releaseAllBrowserEditLocks } from "../../services/concurrency/edit-lock-service";
 import { loadAppUserContext } from "../../services/users/app-user-service";
+import { loadMyFachrechteV2, type FachrechtV2Row } from "../../services/users/fachrechte-v2-service";
 import { signIn as signInWithPassword } from "../../services/auth/auth-service";
 import { isPasskeyCancellation, registerPasskey as registerSupabasePasskey, signInWithPasskey as signInWithSupabasePasskey } from "../../services/auth/passkey-service";
 import { resolveClub } from "../../services/auth/club-service";
@@ -24,6 +25,9 @@ type AuthContextValue = {
   status: AuthStatus;
   session: BrowserSession | null;
   appUserContext: AppUserContext | null;
+  // AP-02.3A: nur ein lesender V2-Schattenstatus, nicht als API-Guard verwenden.
+  fachrechteV2: readonly FachrechtV2Row[] | null;
+  fachrechteV2Status: "loading" | "ready" | "unavailable";
   club: ClubContext | null;
   message: string;
   selectClub: (code: string) => Promise<void>;
@@ -40,6 +44,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>("checking");
   const [session, setSession] = useState<BrowserSession | null>(null);
   const [appUserContext, setAppUserContext] = useState<AppUserContext | null>(null);
+  const [fachrechteV2, setFachrechteV2] = useState<readonly FachrechtV2Row[] | null>(null);
+  const [fachrechteV2Status, setFachrechteV2Status] = useState<"loading" | "ready" | "unavailable">("unavailable");
   const [club, setClub] = useState<ClubContext | null>(null);
   const [message, setMessage] = useState("");
   const sessionRef = useRef<BrowserSession | null>(null);
@@ -53,6 +59,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     sessionRef.current = candidate;
     setSession(candidate);
     setAppUserContext(userContext);
+    setFachrechteV2(null);
+    setFachrechteV2Status("loading");
     setStatus("signed-in");
   }, []);
 
@@ -91,6 +99,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     sessionRef.current = null;
     setSession(null);
     setAppUserContext(null);
+    setFachrechteV2(null);
+    setFachrechteV2Status("unavailable");
     setMessage(reason);
     setStatus("signed-out");
   }, [club]);
@@ -118,6 +128,58 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   }, [status, session, club, logout]);
 
+  // Die alte Session/Berechtigungsmaske bleibt bis AP-02.4 kompatibel.
+  // Frisch serverseitig berechnete V2-Rechte werden in Demo angezeigt, aber
+  // noch NICHT als alleiniger Navigations- oder API-Guard verwendet.
+  useEffect(() => {
+    if (status !== "signed-in" || !userId || !club) {
+      setFachrechteV2(null);
+      setFachrechteV2Status("unavailable");
+      return;
+    }
+    let active = true;
+    let inFlight = false;
+    const refreshRights = async () => {
+      if (!active || inFlight) return;
+      const candidate = sessionRef.current;
+      if (!candidate || candidate.user.id !== userId) {
+        setFachrechteV2(null);
+        setFachrechteV2Status("unavailable");
+        return;
+      }
+      inFlight = true;
+      try {
+        const rights = await loadMyFachrechteV2(club, candidate);
+        if (active && sessionRef.current?.user.id === userId) {
+          setFachrechteV2(rights);
+          setFachrechteV2Status("ready");
+        }
+      } catch {
+        if (active) {
+          // Die RPC fehlt derzeit in der ProduktivDB: niemals Rechte erfinden.
+          setFachrechteV2(null);
+          setFachrechteV2Status("unavailable");
+        }
+      } finally {
+        inFlight = false;
+      }
+    };
+    const onFocus = () => { void refreshRights(); };
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void refreshRights();
+    };
+    void refreshRights();
+    const timer = window.setInterval(() => { void refreshRights(); }, 60_000);
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [status, userId, club]);
+
   const selectClub = useCallback(async (code: string) => {
     // A club selection starts a fresh authentication boundary. The prior
     // project's token may never become the candidate session for this club.
@@ -139,6 +201,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     sessionRef.current = null;
     setSession(null);
     setAppUserContext(null);
+    setFachrechteV2(null);
+    setFachrechteV2Status("unavailable");
     setClub(null);
     setMessage("");
     setStatus("club-selection");
@@ -182,7 +246,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await registerSupabasePasskey(club, sessionRef.current);
   }, [club]);
 
-  return <AuthContext.Provider value={{ status, session, appUserContext, club, message, selectClub, login, loginWithPasskey, registerPasskey, logout, changeClub }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ status, session, appUserContext, fachrechteV2, fachrechteV2Status, club, message, selectClub, login, loginWithPasskey, registerPasskey, logout, changeClub }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
