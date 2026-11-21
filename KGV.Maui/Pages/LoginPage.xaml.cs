@@ -447,7 +447,7 @@ public class LoginPage : ContentPage
             _userContextState.CurrentUserId = userId;
             _userContextState.CurrentUserContext = userContext;
             _userContextState.CurrentMitgliedId = userContext.MitgliedId;
-            _userContextState.CurrentAppMode = userContext.Role is UserRole.Admin or UserRole.Vorstand
+            _userContextState.CurrentAppMode = PermissionChecks.HasAnyManagementWorkspaceAccess(userContext)
                 ? AppMode.Admin
                 : AppMode.User;
 
@@ -541,7 +541,7 @@ public class LoginPage : ContentPage
             _userContextState.CurrentUserId = userId;
             _userContextState.CurrentUserContext = userContext;
             _userContextState.CurrentMitgliedId = userContext.MitgliedId;
-            _userContextState.CurrentAppMode = userContext.Role is UserRole.Admin or UserRole.Vorstand ? AppMode.Admin : AppMode.User;
+            _userContextState.CurrentAppMode = PermissionChecks.HasAnyManagementWorkspaceAccess(userContext) ? AppMode.Admin : AppMode.User;
             if (userContext.MitgliedId is > 0 and <= int.MaxValue)
                 _userContextState.CurrentNebenMitgliedId = (await _supabaseService.GetNebenmitgliedByHauptmitgliedIdAsync((int)userContext.MitgliedId.Value))?.Id;
             if (!await SwitchToUserContextAsync(userContext))
@@ -649,7 +649,7 @@ public class LoginPage : ContentPage
         if (_userContextState.CurrentUserId == null)
             return false;
 
-        var mode = userContext.Role is UserRole.Admin or UserRole.Vorstand
+        var mode = PermissionChecks.HasAnyManagementWorkspaceAccess(userContext)
             ? AppMode.Admin
             : AppMode.User;
 
@@ -671,7 +671,7 @@ public class LoginPage : ContentPage
 
     private bool HasRequiredMembershipContext(UserContext userContext)
     {
-        var isAdmin = userContext.Role is UserRole.Admin or UserRole.Vorstand;
+        var isAdmin = PermissionChecks.HasAnyManagementWorkspaceAccess(userContext);
         if (isAdmin || _userContextState.CurrentMitgliedId != null)
             return true;
 

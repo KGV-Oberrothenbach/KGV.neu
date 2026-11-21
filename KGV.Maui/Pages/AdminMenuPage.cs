@@ -314,11 +314,7 @@ public sealed class AdminMenuPage : ContentPage
             : "Die globale Ablesungs-Einstellung ist nur für Admin oder Vorstand sichtbar.";
     }
 
-    private bool CanEditPermissionOverrides()
-        => _memberContextState.SelectedMember?.Id is > 0
-           && CanManageRoleManagement()
-           && _permissionSettings?.HasLinkedUser == true
-           && !IsRoleDirty();
+    private bool CanEditPermissionOverrides() => false; // AP02: ausschlieÃŸlich die neue Fachrechteverwaltung verwenden
 
     private PermissionFlags CurrentGrantedPermissions
         => BuildPermissionOverrideState().GrantedPermissions;
@@ -410,6 +406,15 @@ public sealed class AdminMenuPage : ContentPage
         _permissionOverrideStateLabel.Text = $"Aktueller Override-Zustand: Gewährt: {PermissionCatalog.FormatPermissions(CurrentGrantedPermissions, "keine")} · Entzogen: {PermissionCatalog.FormatPermissions(CurrentRevokedPermissions, "keine")}";
         _effectivePermissionStateLabel.Text = $"Wirksame Rechte: {PermissionCatalog.FormatPermissions(effectivePermissions, "Keine wirksamen Fachrechte aktiv.")}";
         _resetPermissionOverridesButton.IsEnabled = canEditPermissionOverrides && HasCustomPermissionOverrides();
+        _rolePicker.IsVisible = false; // obsolete Rollenmaske
+        _saveRoleButton.IsVisible = false;
+        _permissionOverridesLayout.IsVisible = false;
+        _permissionRoleBasisLabel.IsVisible = false;
+        _permissionOverrideStateLabel.IsVisible = false;
+        _effectivePermissionStateLabel.IsVisible = false;
+        _permissionEditorHintLabel.IsVisible = false;
+        _resetPermissionOverridesButton.IsVisible = false;
+        _savePermissionOverridesButton.IsVisible = false;
         _savePermissionOverridesButton.IsEnabled = canEditPermissionOverrides && _permissionSettings != null && (CurrentGrantedPermissions != _permissionSettings.GrantedPermissions || CurrentRevokedPermissions != _permissionSettings.RevokedPermissions);
     }
 

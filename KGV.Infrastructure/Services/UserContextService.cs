@@ -44,6 +44,15 @@ namespace KGV.Infrastructure.Services
 
         }
 
+        private sealed class EffectiveFachrechtRow
+        {
+            [JsonProperty("code")]
+            public string? Code { get; set; }
+            [JsonProperty("erlaubt")]
+            public bool Erlaubt { get; set; }
+            [JsonProperty("individuell_entzogen")]
+            public bool IndividuellEntzogen { get; set; }
+        }
         private readonly ISupabaseClientFactory _clientFactory;
         private readonly IPermissionService _permissionService;
         private readonly ILogger<UserContextService>? _logger;
@@ -93,7 +102,23 @@ namespace KGV.Infrastructure.Services
                     !string.Equals(record.Role, UserRoles.User, StringComparison.OrdinalIgnoreCase))
                     throw new KgvAccessDeniedException();
 
-                return _permissionService.CreateContext(userId, record.Role, record.MitgliedId, record.PermissionGrants, record.PermissionRevocations);
+                                var rows = await client.Rpc<EffectiveFachrechtRow[]>("ap02_preview_effective_rights", new { });
+                var known = typeof(FachrechteV2).GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
+                    .Where(field => field.IsLiteral && field.FieldType == typeof(string))
+                    .Select(field => (string)field.GetRawConstantValue()!)
+                    .ToHashSet(StringComparer.Ordinal);
+                if (rows == null || rows.Length != 55 || known.Count != 55
+                    || rows.Any(row => row == null || string.IsNullOrWhiteSpace(row.Code) || !known.Contains(row.Code!))
+                    || rows.Select(row => row.Code).Distinct(StringComparer.Ordinal).Count() != 55)
+                    throw new KgvAccessDeniedException();
+
+                // ap02_can_read_mitglied sperrt auch Eigenzugriff bei individuellem Leseentzug.
+                var ownReadDenied = rows.Any(row => row.Code == "mitglied.lesen" && row.IndividuellEntzogen);
+                var mask = FachrechteV2EffectiveMask.FromNamedRights(
+                    rows.Where(row => row.Erlaubt).Select(row => row.Code!),
+                    ownReadDenied ? null : record.MitgliedId);
+                return new UserContext(userId, UserRoles.Parse(record.Role), record.MitgliedId,
+                    mask, PermissionFlags.None, PermissionFlags.None, PermissionFlags.None);
             }
             catch (Exception ex)
             {

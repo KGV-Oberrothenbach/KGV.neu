@@ -535,7 +535,7 @@ public class MeineDatenPage : ContentPage
             SetEditMode(false);
             _memberContextState.SetSelectedMember(_linkedMember);
 
-            if (_userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand)
+            if (PermissionChecks.CanEditAllMembers(_userContextState.CurrentUserContext))
             {
                 await LoadAsync();
                 return;
@@ -556,7 +556,7 @@ public class MeineDatenPage : ContentPage
             return false;
 
         var currentRole = _userContextState.CurrentUserContext?.Role;
-        return currentRole is UserRole.Admin or UserRole.Vorstand
+        return PermissionChecks.CanEditAllMembers(_userContextState.CurrentUserContext)
             && !_currentMemberHasAuthUser;
     }
 
@@ -781,7 +781,7 @@ public class MeineDatenPage : ContentPage
         _wartungsvertragLabel.Text = summary.HatWartungsvertrag ? "Ja" : "Nein";
         _befreiungLabel.Text = summary.IstBefreit ? "Ja" : "Nein";
         _regelgrundLabel.Text = FormatValue(summary.Regelgrund);
-        _wartungsvertragHintLabel.Text = _userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand
+        _wartungsvertragHintLabel.Text = PermissionChecks.CanEditAllMembers(_userContextState.CurrentUserContext)
             ? "Über `Wartungsverträge öffnen` kann die mitgliedsbezogene mobile Übersicht geöffnet werden; Zuordnungen bleiben dort für berechtigte Rollen möglich."
             : "Die Angaben stammen aus der zentralen Pflichtstunden-Übersicht des ausgewählten Mitglieds.";
     }
@@ -805,13 +805,13 @@ public class MeineDatenPage : ContentPage
         var currentRole = currentContext?.Role;
         var canReadRoleManagement = PermissionChecks.CanReadRoleManagement(currentContext);
         var canManageRoleManagement = PermissionChecks.CanManageRoleManagement(currentContext);
-        var hasAdminMenu = currentRole is UserRole.Admin or UserRole.Vorstand;
+        var hasAdminMenu = canReadRoleManagement || canManageRoleManagement;
         _adminSectionCard.IsVisible = hasAdminMenu;
         _adminMenuSection.IsVisible = hasAdminMenu;
         _adminHintLabel.IsVisible = hasAdminMenu;
-        _rolePicker.IsVisible = hasAdminMenu;
-        _saveRoleButton.IsVisible = hasAdminMenu;
-        _userManagementButton.IsVisible = currentRole == UserRole.Admin && member?.Id is > 0;
+        _rolePicker.IsVisible = false; // alte Rollenbitverwaltung abgeschaltet
+        _saveRoleButton.IsVisible = false; // Fachrechte 2.0 verwenden
+        _userManagementButton.IsVisible = canManageRoleManagement && member?.Id is > 0;
 
         if (!hasAdminMenu || member == null)
         {

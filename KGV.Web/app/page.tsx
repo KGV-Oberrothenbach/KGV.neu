@@ -67,6 +67,8 @@ import { MemberMaintenanceContracts } from "../features/maintenance/MemberMainte
 import { ExpiringMaintenanceContracts } from "../features/maintenance/ExpiringMaintenanceContracts";
 import { maintenanceAccess } from "../services/maintenance/maintenance-access-service";
 import { derivePermissionOverrides, getEffectivePermissions, getRolePermissions, hasPermission, Permission, PermissionAreas, preserveUncontrolledPermissions } from "../security/permissions";
+import { permissionMaskFromFachrechteV2, hasFachrechtV2 } from "../security/fachrechte-v2-compatibility";
+import type { FachrechtV2Row } from "../services/users/fachrechte-v2-service";
 import { canArchiveDocuments, canExportData, canManageClubConfiguration, canManageClubDocuments, canManageClubFunctions, canManageClubSeasonConfiguration, canManageDocumentTypes, canManageDocuments, canPerformYearEndClosing, canReadDocuments, canRegisterHistoricalContracts, createWebCapabilityContext } from "../security/capabilities";
 import { HistoricalContractRegistrationWorkflow } from "../features/documents/HistoricalContractRegistrationWorkflow";
 import { ClubConfiguration } from "../features/configuration/ClubConfiguration";
@@ -83,11 +85,11 @@ export default function Home() {
 }
 function HomeContent() {
   const appVersion = useAppVersion();
-  const { status, session, appUserContext, club, message, selectClub, login, loginWithPasskey, logout, changeClub } = useAuth();
+  const { status, session, appUserContext, fachrechteV2, club, message, selectClub, login, loginWithPasskey, logout, changeClub } = useAuth();
 
   if (status === "club-selection") return <ClubSelection onSelect={selectClub} />;
   if (status === "signed-in" && session && appUserContext && club) {
-    return <Workspace session={session} email={session.user.email ?? "KGV-Konto"} club={club} context={appUserContext} onLogout={() => logout()} onChangeClub={changeClub} />;
+    return <Workspace session={session} email={session.user.email ?? "KGV-Konto"} club={club} context={appUserContext} fachrechteV2={fachrechteV2} onLogout={() => logout()} onChangeClub={changeClub} />;
   }
 
   const configError = status === "configuration-error";
@@ -119,10 +121,10 @@ type ParcelAssignment = { id: number; parzelle_id: number; mitglied_id: number; 
 type Reading = { id: number; zaehler_id: number; stand: number; ablesedatum: string; art: string; freigegeben: boolean; pruefstatus: string; pruefkommentar: string | null; geprueft_von: number | null; geprueft_am: string | null; foto_pfad?: string | null; foto_drive_file_id?: string | null; foto_dateiname?: string | null };
 type AppUserAdmin = { user_id: string; mitglied_id: number | null; role: "admin" | "vorstand" | "user"; permission_grants: number; permission_revocations: number; is_protected: boolean; updated_at: string | null };
 
-function Workspace(props: { session: BrowserSession; email: string; club: ClubContext; context: AppUserContext; onLogout: () => void; onChangeClub: () => Promise<void> }) {
+function Workspace(props: { session: BrowserSession; email: string; club: ClubContext; context: AppUserContext; fachrechteV2: readonly FachrechtV2Row[] | null; onLogout: () => void; onChangeClub: () => Promise<void> }) {
   return <WorkspaceContextProvider><WorkspaceContent {...props} /></WorkspaceContextProvider>;
 }
-function WorkspaceContent({ session, email, club, context, onLogout, onChangeClub }: { session: BrowserSession; email: string; club: ClubContext; context: AppUserContext; onLogout: () => void; onChangeClub: () => Promise<void> }) {
+function WorkspaceContent({ session, email, club, context, fachrechteV2, onLogout, onChangeClub }: { session: BrowserSession; email: string; club: ClubContext; context: AppUserContext; fachrechteV2: readonly FachrechtV2Row[] | null; onLogout: () => void; onChangeClub: () => Promise<void> }) {
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [activeId, setActiveId] = useState("start");
   const [pendingPhotoCount, setPendingPhotoCount] = useState(0);
@@ -130,9 +132,10 @@ function WorkspaceContent({ session, email, club, context, onLogout, onChangeClu
   const [openProcessCounts, setOpenProcessCounts] = useState({ signature: 0, mail: 0, print: 0 });
   const [seasonError, setSeasonError] = useState("");
   const { workspaceContext, selectedMember, creatingMember, setSelectedMember, setCreatingMember, updateWorkspaceContext, selectMember, selectParcel, selectSeason: selectWorkspaceSeason } = useWorkspaceContext();
-  const permissions = useMemo(() => getEffectivePermissions(context.role, context.permissionGrants, context.permissionRevocations), [context]);
-  const capabilityContext = useMemo(() => createWebCapabilityContext(context.role, context.permissionGrants, context.permissionRevocations), [context]);
+  const permissions = useMemo(() => permissionMaskFromFachrechteV2(fachrechteV2, context.mitgliedId), [fachrechteV2, context.mitgliedId]);
+  const capabilityContext = useMemo(() => ({ role: context.role, effectivePermissions: permissions }), [context.role, permissions]);
   const has = (permission: number) => hasPermission(permissions, permission);
+  const hasRight = (code: string) => hasFachrechtV2(fachrechteV2, code);
   const documentAccessContext: DocumentAccessContext = {
     memberId: context.mitgliedId,
     canReadDocuments: canReadDocuments(capabilityContext),
@@ -151,7 +154,7 @@ function WorkspaceContent({ session, email, club, context, onLogout, onChangeClu
   const selectedParcelId = workspaceContext.parzelleId;
   const selectedSeason = seasons.find((item) => item.id === workspaceContext.saisonId) ?? null;
   const season = selectedSeason?.jahr ?? workspaceContext.saisonJahr ?? new Date().getFullYear();
-  const canAccessCommunication = context.role === "admin" || context.role === "vorstand";
+  const canAccessCommunication = hasRight("vorgang.lesen") || hasRight("vorgang.bearbeiten") || hasRight("vorstandsvorgang.bearbeiten");
   const refreshOpenProcessCount = useCallback(async () => {
     if (!canAccessCommunication) { setOpenProcessCount(0); setOpenProcessCounts({ signature: 0, mail: 0, print: 0 }); return; }
     try {
@@ -240,9 +243,9 @@ function WorkspaceContent({ session, email, club, context, onLogout, onChangeClu
     canAccessMeterChanges: has(Permission.manageMeterChanges),
     canSubmitOwnMeterChanges: context.mitgliedId !== null && has(Permission.seeOwnData) && !has(Permission.manageMeterChanges),
     canApproveMeterReadings: has(Permission.approveMeterReadings),
-    canAccessParcels: has(Permission.searchMembers) && has(Permission.readParzellen),
-    canManageMaintenance: has(Permission.editAllMembers),
-    canApproveWorkHours: has(Permission.manageWorkHours),
+    canAccessParcels: hasRight("parzelle.lesen"),
+    canManageMaintenance: hasRight("mitgliedschaft.verwalten"),
+    canApproveWorkHours: hasRight("arbeitsstunden.freigeben"),
     canExport: canExportData(capabilityContext),
     canManageProcesses: canAccessCommunication,
     canManageSeasonConfiguration: canManageClubSeasonConfiguration(capabilityContext),
@@ -288,12 +291,12 @@ function WorkspaceContent({ session, email, club, context, onLogout, onChangeClu
           {effectiveActiveId === "ablesen-erfassen" && <MeterReadingCaptureView session={session} clubId={club.vereinId} reviewerMemberId={context.mitgliedId} seasonYear={season} canReadMeters={has(Permission.readMeters)} canSubmitOwnMeterReadings={context.mitgliedId !== null && has(Permission.seeOwnData)} />}
           {effectiveActiveId === "jae-erfassen" && <AnnualMeterReadingCaptureView session={session} clubId={club.vereinId} reviewerMemberId={context.mitgliedId} seasonYear={season} canReadMeters={has(Permission.readMeters)} canSubmitOwnMeterReadings={context.mitgliedId !== null && has(Permission.seeOwnData)} />}
           {effectiveActiveId === "ablesungen-freigeben" && <MeterReadingReviewView session={session} clubId={club.vereinId} reviewerMemberId={context.mitgliedId} />}
-          {effectiveActiveId === "rfid-einrichten" && has(Permission.manageMeterChanges) && <RfidAssignmentPanel session={session} selectedParcelId={selectedParcelId} />}
+          {effectiveActiveId === "rfid-einrichten" && hasRight("rfid.verwalten") && <RfidAssignmentPanel session={session} selectedParcelId={selectedParcelId} />}
           {effectiveActiveId === "zaehlerwechsel" && has(Permission.manageMeterChanges) && <MeterChange session={session} clubId={club.vereinId} canManageMeterChanges={has(Permission.manageMeterChanges)} />}
           {effectiveActiveId === "zaehlerwechsel-melden" && context.mitgliedId !== null && <MemberMeterChangeRequest session={session} memberId={context.mitgliedId} />}
           {effectiveActiveId === "zaehlerwechsel-pruefen" && has(Permission.manageMeterChanges) && <MeterChangeRequestReview session={session} />}
-          {effectiveActiveId === "arbeitsstunden-pruefen" && <WorkHoursReview session={session} saisonId={workspaceContext.saisonId} canManageWorkHours={has(Permission.manageWorkHours)} />}
-          {effectiveActiveId === "arbeitseinsaetze" && <WorkAssignmentsManagement session={session} canEdit={has(Permission.manageWorkAssignments)} canManageWorkHours={has(Permission.manageWorkHours)} onBack={() => setActiveId("start")} />}
+          {effectiveActiveId === "arbeitsstunden-pruefen" && <WorkHoursReview session={session} saisonId={workspaceContext.saisonId} canManageWorkHours={hasRight("arbeitsstunden.freigeben")} />}
+          {effectiveActiveId === "arbeitseinsaetze" && <WorkAssignmentsManagement session={session} canEdit={has(Permission.manageWorkAssignments)} canManageWorkHours={hasRight("arbeitsstunden.freigeben")} onBack={() => setActiveId("start")} />}
           {effectiveActiveId === "wartung" && <MaintenanceContracts session={session} canManage={has(Permission.editAllMembers)} />}
           {effectiveActiveId === "termine" && <AppointmentManagement session={session} canEdit={has(Permission.manageAppointments)} onBack={() => setActiveId("start")} />}
           {effectiveActiveId === "bekanntmachungen" && <AnnouncementManagement session={session} canEdit={has(Permission.manageAnnouncements)} onBack={() => setActiveId("start")} />}
@@ -311,10 +314,10 @@ function WorkspaceContent({ session, email, club, context, onLogout, onChangeClu
           {effectiveActiveId === "vereinsunterlagen" && canManageClubDocuments(capabilityContext) && <ClubDocumentsManagement key={club.vereinId} session={session} />}
           {effectiveActiveId === "dokumenttypen" && canManageDocumentTypes(capabilityContext) && <DocumentTypeManagement key={club.vereinId} session={session} canManage />}
           {effectiveActiveId === "vereinsfunktionen" && canManageClubFunctions(capabilityContext) && <ClubFunctionManagement key={club.vereinId} session={session} />}
-          {effectiveActiveId === "mitglied-arbeitsstunden" && selectedMemberId && <MemberWorkHours key={`${club.vereinId}:${session.user.id}:${selectedMemberId}:${workspaceContext.saisonId ?? "none"}`} session={session} memberId={selectedMemberId} saisonId={workspaceContext.saisonId} canEditOwn={selectedMemberId === context.mitgliedId} canManageWorkHours={has(Permission.manageWorkHours)} />}
+          {effectiveActiveId === "mitglied-arbeitsstunden" && selectedMemberId && <MemberWorkHours key={`${club.vereinId}:${session.user.id}:${selectedMemberId}:${workspaceContext.saisonId ?? "none"}`} session={session} memberId={selectedMemberId} saisonId={workspaceContext.saisonId} canEditOwn={selectedMemberId === context.mitgliedId} canManageWorkHours={hasRight("arbeitsstunden.bearbeiten")} />}
           {effectiveActiveId === "mitglied-wartung" && selectedMemberId && <MaintenanceContracts session={session} memberId={selectedMemberId} canManage={has(Permission.editAllMembers)} />}
           {effectiveActiveId === "mitglied-dokumente" && selectedMemberId && <MemberDocumentWorkspace key={`${club.vereinId}:${selectedMemberId}`} session={session} memberId={selectedMemberId} accessContext={documentAccessContext} />}
-          {effectiveActiveId === "mitglied-admin" && selectedMemberId && <><UserRightsAdministration key={`${club.vereinId}:${session.user.id}:${selectedMemberId}`} session={session} fixedMemberId={selectedMemberId} /><FachrechteV2Administration key={`ap02:${club.vereinId}:${session.user.id}:${selectedMemberId}`} session={session} memberId={selectedMemberId} /></>}
+          {effectiveActiveId === "mitglied-admin" && selectedMemberId && <><FachrechteV2Administration key={`ap02:${club.vereinId}:${session.user.id}:${selectedMemberId}`} session={session} memberId={selectedMemberId} /></>}
           {effectiveActiveId === "mitglied-gaerten" && selectedMemberId && <MemberGardensWorkspace key={`${club.vereinId}:${selectedMemberId}`} session={session} memberId={selectedMemberId} selectedParcelId={selectedParcelId} onSelect={selectParcel} canAssign={has(Permission.createMember)} canCreateLeaseContract={has(Permission.manageDocuments)} />}
           {effectiveActiveId === "mitglied-protokolle" && selectedMemberId && <ParcelProtocolsWorkspace session={session} memberId={selectedMemberId} currentBoardMemberId={context.mitgliedId} />}
           {effectiveActiveId === "mitglied-stammdaten" && (selectedMemberId || creatingMember) && <MemberStammdaten session={session} memberId={creatingMember ? null : selectedMemberId} canEdit={creatingMember || has(Permission.editAllMembers) || (selectedMemberId === context.mitgliedId && has(Permission.seeOwnData))} canCreate={creatingMember} canManageSecondary={has(Permission.editAllMembers)} canManageDocuments={has(Permission.manageDocuments)} canManageClubDocuments={canManageClubDocuments(capabilityContext)} editPermissions={{ actorMemberId: context.mitgliedId, canEditOwnMember: has(Permission.seeOwnData), canEditAllMembers: has(Permission.editAllMembers) }} createPermissions={{ canCreateMember: has(Permission.createMember) }} onSaved={(member) => { setSelectedMember({ id: member.id, mitgliedsnummer: member.mitgliedsnummer, vorname: member.vorname, name: member.name }); selectMember(member.id); setActiveId("mitglied-stammdaten"); }} onCancel={() => { setCreatingMember(false); setActiveId("mitglieder"); }} />}

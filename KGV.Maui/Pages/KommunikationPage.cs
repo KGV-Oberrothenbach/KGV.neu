@@ -123,7 +123,7 @@ public sealed class KommunikationPage : ContentPage
         _statusLabel.Text = "Vorgänge werden geladen...";
         try
         {
-            if (_userContext.CurrentUserContext?.Role is not UserRole.Admin and not UserRole.Vorstand)
+            if (!PermissionChecks.CanManageCommunicationWorkflows(_userContext.CurrentUserContext))
                 throw new InvalidOperationException("Vorgänge sind nur für Admin und Vorstand verfügbar.");
             var currentUserId = CurrentUserId();
 

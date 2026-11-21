@@ -197,7 +197,7 @@ public sealed class MyArbeitsstundenPage : ContentPage
 
         var mainId = contextMemberId.Value;
         var selectedMember = _memberContextState.SelectedMember;
-        var useSelectedMemberContext = _state.CurrentUserContext?.Role is KGV.Core.Security.UserRole.Admin or KGV.Core.Security.UserRole.Vorstand
+        var useSelectedMemberContext = PermissionChecks.CanReadWorkHours(_state.CurrentUserContext)
             && selectedMember?.Id is > 0;
 
         var mainLabel = useSelectedMemberContext && selectedMember?.IstHauptmitglied == false
