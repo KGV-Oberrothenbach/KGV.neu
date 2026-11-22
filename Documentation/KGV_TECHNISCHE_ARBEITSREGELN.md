@@ -81,6 +81,12 @@ Die zwei Demo-Testpasswörter liegen lokal mit Windows-DPAPI verschlüsselt vor.
 
 **Wichtig:** Ein 401-/403-Smoke, bestandener Contract-Test, Build oder Deployment ist **kein Ersatz** für einen erfolgreichen authentifizierten HTTP-E2E-Test. Unerwartete 5xx, Timeouts und ungewollte 403 im positiven Test sind Fehler.
 
+### PL/pgSQL-RPCs: Rückgabe, Retries und Fehlercodes
+
+- **`RETURN QUERY` beendet eine PL/pgSQL-Funktion nicht.** Bei erwarteter sofortiger Beendigung nach Rückgabe von Ergebniszeilen ausdrücklich ein anschließendes `RETURN;` verwenden; alle nachfolgenden Kontrollpfade und insbesondere den erneuten Aufruf eines bereits abgeschlossenen Vorgangs prüfen. `RETURN QUERY` ohne `RETURN` ist nur zulässig, wenn die weitere Ausführung fachlich beabsichtigt ist.
+- **SQLSTATE `40001` ausschließlich für tatsächliche, vorübergehende Serialisierungs-/Konkurrenzkonflikte verwenden.** Dauerhaft ungültige Fachzustände, fehlende Vorbedingungen oder endgültige Ablehnungen dürfen nicht als `40001` signalisiert werden; hierfür einen passenden nicht-retrybaren Fehlercode nutzen. Sonst können automatische PostgREST-/Client-Retries Fehler vervielfachen oder in HTTP 504 enden.
+- **Idempotenz nicht allein über Unit-/Contract-Tests behaupten:** Wiederholungsaufrufe mit derselben Revision/demselben Vorgang auch unmittelbar nach erfolgreichem Teilschritt und vor nachgelagerten Schreibvorgängen authentifiziert per HTTP prüfen. Ergebnis-ID, unveränderte Datenmenge, Datenbankpersistenz und das Fehlen unbeabsichtigter Duplikate separat kontrollieren.
+
 ## 6. HTTP-E2E-Testskripte – Mindeststandard
 
 - Gegen die **tatsächlich bereitgestellte Demo-Umgebung** testen, nicht nur gegen lokale Quellen.
