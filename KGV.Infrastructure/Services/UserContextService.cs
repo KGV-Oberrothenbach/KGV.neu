@@ -114,11 +114,12 @@ namespace KGV.Infrastructure.Services
 
                 // ap02_can_read_mitglied sperrt auch Eigenzugriff bei individuellem Leseentzug.
                 var ownReadDenied = rows.Any(row => row.Code == "mitglied.lesen" && row.IndividuellEntzogen);
+                var grantedFachrechte = rows.Where(row => row.Erlaubt).Select(row => row.Code!).ToArray();
                 var mask = FachrechteV2EffectiveMask.FromNamedRights(
-                    rows.Where(row => row.Erlaubt).Select(row => row.Code!),
+                    grantedFachrechte,
                     ownReadDenied ? null : record.MitgliedId);
                 return new UserContext(userId, UserRoles.Parse(record.Role), record.MitgliedId,
-                    mask, PermissionFlags.None, PermissionFlags.None, PermissionFlags.None);
+                    mask, PermissionFlags.None, PermissionFlags.None, PermissionFlags.None, grantedFachrechte);
             }
             catch (Exception ex)
             {

@@ -180,7 +180,8 @@ public sealed class AdminShell : Shell, IAppShellInitializer
             Items.Add(_pendingPhotoUploadsItem);
         }
 
-        if (PermissionChecks.CanReadParzellen(_userContextState.CurrentUserContext))
+        if (PermissionChecks.CanReadParzellen(_userContextState.CurrentUserContext)
+            || PermissionChecks.CanManageBelegungen(_userContextState.CurrentUserContext))
             Items.Add(CreateItem("Parzellenverwaltung", "parzellen", () => _services.GetRequiredService<ParzellenPage>()));
 
         if (PermissionChecks.CanEditAllMembers(_userContextState.CurrentUserContext))
@@ -249,7 +250,9 @@ public sealed class AdminShell : Shell, IAppShellInitializer
         if (_memberProtokolleItem != null) _memberProtokolleItem.IsVisible = hasMember && PermissionChecks.CanEditAllMembers(_userContextState.CurrentUserContext);
         if (_memberWartungsvertraegeItem != null) _memberWartungsvertraegeItem.IsVisible = hasMember;
         if (_memberNebenmitgliedItem != null) _memberNebenmitgliedItem.IsVisible = hasMember && PermissionChecks.CanReadStammdaten(_userContextState.CurrentUserContext);
-        if (_memberGardensItem != null) _memberGardensItem.IsVisible = hasMember && PermissionChecks.CanShowParzellen(_userContextState.CurrentUserContext);
+        if (_memberGardensItem != null) _memberGardensItem.IsVisible = hasMember &&
+            (PermissionChecks.CanShowParzellen(_userContextState.CurrentUserContext)
+             || PermissionChecks.CanManageBelegungen(_userContextState.CurrentUserContext));
         if (_memberAdminMenuItem != null) _memberAdminMenuItem.IsVisible = hasMember && PermissionChecks.CanReadRoleManagement(_userContextState.CurrentUserContext);
         if (_memberWorkhoursItem != null) _memberWorkhoursItem.IsVisible = hasMember && PermissionChecks.CanReadWorkHours(_userContextState.CurrentUserContext);
 
@@ -419,7 +422,8 @@ public sealed class AdminShell : Shell, IAppShellInitializer
             });
         }
 
-        if (PermissionChecks.CanReadParzellen(_userContextState.CurrentUserContext))
+        if (PermissionChecks.CanReadParzellen(_userContextState.CurrentUserContext)
+            || PermissionChecks.CanManageBelegungen(_userContextState.CurrentUserContext))
             AddNavigationButton(menu, "Parzellenverwaltung", "parzellen");
         if (PermissionChecks.CanEditAllMembers(_userContextState.CurrentUserContext))
             AddNavigationButton(menu, "Wartungsverträge", "wartungsvertraege");

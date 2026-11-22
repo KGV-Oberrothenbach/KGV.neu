@@ -250,9 +250,9 @@ public sealed class MemberGardensPage : ContentPage
             return;
         }
 
-        if (!PermissionChecks.CanCreateMitglied(_userContextState.CurrentUserContext))
+        if (!PermissionChecks.CanManageBelegungen(_userContextState.CurrentUserContext))
         {
-            await DisplayAlertAsync("Hinweis", "Parzellenzuweisung ist mobil nur mit dem Fachrecht 'CreateMitglied' oder als Admin/Vorstand freigegeben.", "OK");
+            await DisplayAlertAsync("Hinweis", "Für Parzellenzuweisungen ist das Fachrecht 'belegung.verwalten' erforderlich.", "OK");
             return;
         }
 
@@ -262,7 +262,7 @@ public sealed class MemberGardensPage : ContentPage
     private void UpdateAssignGardenButtonVisibility(int mitgliedId)
     {
         _assignGardenButton.IsVisible = mitgliedId > 0
-            && PermissionChecks.CanCreateMitglied(_userContextState.CurrentUserContext);
+            && PermissionChecks.CanManageBelegungen(_userContextState.CurrentUserContext);
     }
 
     private static Border CreateSection(string title, params View[] children)

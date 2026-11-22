@@ -104,10 +104,10 @@ public sealed class MemberGardenAssignPage : ContentPage
             _parzellePicker.Items.Clear();
             _availableParzellen.Clear();
 
-            if (!PermissionChecks.CanCreateMitglied(_userContextState.CurrentUserContext))
+            if (!PermissionChecks.CanManageBelegungen(_userContextState.CurrentUserContext))
             {
                 _headlineLabel.Text = "Parzelle zuordnen";
-                _hintLabel.Text = "Parzellenzuweisungen sind mobil nur mit dem Fachrecht 'CreateMitglied' oder als Admin/Vorstand freigegeben.";
+                _hintLabel.Text = "Für Parzellenzuweisungen ist das Fachrecht 'belegung.verwalten' erforderlich.";
                 _statusLabel.Text = "Keine Berechtigung für Parzellenzuweisungen.";
                 UpdateUiState();
                 return;
@@ -185,9 +185,9 @@ public sealed class MemberGardenAssignPage : ContentPage
             return;
         }
 
-        if (!PermissionChecks.CanCreateMitglied(_userContextState.CurrentUserContext))
+        if (!PermissionChecks.CanManageBelegungen(_userContextState.CurrentUserContext))
         {
-            await DisplayAlertAsync("Parzellenzuweisung", "Parzellenzuweisungen sind mobil nur mit dem Fachrecht 'CreateMitglied' oder als Admin/Vorstand freigegeben.", "OK");
+            await DisplayAlertAsync("Parzellenzuweisung", "Für Parzellenzuweisungen ist das Fachrecht 'belegung.verwalten' erforderlich.", "OK");
             return;
         }
 
@@ -211,7 +211,8 @@ public sealed class MemberGardenAssignPage : ContentPage
                 return;
             }
 
-            if (await _supabaseService.HasSignedMitgliedsantragAsync(_memberRecord.Id))
+            if (PermissionChecks.CanManagePachtvertraege(_userContextState.CurrentUserContext)
+                && await _supabaseService.HasSignedMitgliedsantragAsync(_memberRecord.Id))
             {
                 var createContract = await DisplayAlertAsync(
                     "Pachtvertrag",
@@ -277,7 +278,7 @@ public sealed class MemberGardenAssignPage : ContentPage
         var hasParzellen = _availableParzellen.Count > 0;
         var canEdit = !_isBusy
             && _memberRecord?.Id is > 0
-            && PermissionChecks.CanCreateMitglied(_userContextState.CurrentUserContext);
+            && PermissionChecks.CanManageBelegungen(_userContextState.CurrentUserContext);
 
         _parzellePicker.IsEnabled = canEdit && hasParzellen;
         _assignDatePicker.IsEnabled = canEdit;

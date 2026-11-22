@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace KGV.Core.Security
 {
@@ -11,7 +12,8 @@ namespace KGV.Core.Security
         public PermissionFlags BasePermissions { get; }
         public PermissionFlags GrantedPermissions { get; }
         public PermissionFlags RevokedPermissions { get; }
-        public UserContext(Guid userId, UserRole role, long? mitgliedId, PermissionFlags permissions, PermissionFlags basePermissions, PermissionFlags grantedPermissions, PermissionFlags revokedPermissions)
+        private readonly HashSet<string> _grantedFachrechte;
+        public UserContext(Guid userId, UserRole role, long? mitgliedId, PermissionFlags permissions, PermissionFlags basePermissions, PermissionFlags grantedPermissions, PermissionFlags revokedPermissions, IEnumerable<string>? grantedFachrechte = null)
         {
             UserId = userId;
             Role = role;
@@ -20,9 +22,11 @@ namespace KGV.Core.Security
             BasePermissions = basePermissions;
             GrantedPermissions = grantedPermissions;
             RevokedPermissions = revokedPermissions;
+            _grantedFachrechte = new HashSet<string>(grantedFachrechte ?? Array.Empty<string>(), StringComparer.Ordinal);
         }
 
         public bool Has(PermissionFlags permission) => (Permissions & permission) == permission;
+        public bool HasFachrecht(string code) => !string.IsNullOrWhiteSpace(code) && _grantedFachrechte.Contains(code);
 
         public override string ToString()
         {

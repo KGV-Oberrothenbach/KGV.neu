@@ -163,7 +163,7 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
             OnPropertyChanged(nameof(CanEditStammdaten));
         }
     }
-    public bool CanManageAssignment => PermissionChecks.CanWriteParzellen(_userContextState.CurrentUserContext) && HasSelectedDetail && !IsBusy;
+    public bool CanManageAssignment => PermissionChecks.CanManageBelegungen(_userContextState.CurrentUserContext) && HasSelectedDetail && !IsBusy;
     public bool CanAssign => CanManageAssignment && IsAssignMode && SelectedAssignMember != null;
     public bool CanStartAssign => CanManageAssignment && SelectedDetail?.IstVergeben == false && !IsAssignMode;
     public bool CanEndAssignment => CanManageAssignment && SelectedDetail?.BelegungId is > 0 && SelectedDetail.BisDatum == null;

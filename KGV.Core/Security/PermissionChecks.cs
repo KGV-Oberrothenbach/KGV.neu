@@ -89,6 +89,12 @@ namespace KGV.Core.Security
         public static bool CanWriteParzellen(UserContext? context)
             => HasPermission(context, PermissionFlags.CanWriteParzellen);
 
+        public static bool CanManageBelegungen(UserContext? context)
+            => context?.HasFachrecht(FachrechteV2.BelegungVerwalten) == true;
+
+        public static bool CanManagePachtvertraege(UserContext? context)
+            => context?.HasFachrecht(FachrechteV2.PachtvertragVerwalten) == true;
+
         public static bool CanShowParzellenForMember(UserContext? context, int? memberId)
             => CanShowParzellen(context)
                || HasOwnParzellenAccessForMember(context, memberId);
@@ -203,6 +209,8 @@ namespace KGV.Core.Security
                || CanCreateMitglied(context)
                || HasGlobalStammdatenAccess(context)
                || HasGlobalParzellenAccess(context)
+                || CanManageBelegungen(context)
+                || CanManagePachtvertraege(context)
                || CanReadDocuments(context)
                || CanManageDocuments(context)
                || CanReadWorkHours(context)
