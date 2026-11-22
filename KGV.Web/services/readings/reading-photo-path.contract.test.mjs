@@ -10,6 +10,9 @@ test("web reading photos bind the upload to an authenticated reading and never p
   assert.match(repository, /form\.set\("ablesung_id", String\(readingId\)\)/);
   assert.doesNotMatch(repository, /foto_drive_file_id|foto_pfad|writeWithBrowserEditLock/);
   assert.match(edgeFunction, /mayReadMeterReadingPhoto\(auth, ablesungId\)/);
+assert.match(edgeFunction, /p_fachrecht: "ablesung\.erfassen"/);
+assert.match(edgeFunction, /p_fachrecht: "ablesung\.freigeben"/);
+assert.match(edgeFunction, /p_fachrecht: "zaehlerwechsel\.verwalten"/);
   assert.match(edgeFunction, /\.is\("foto_drive_file_id", null\)/);
   assert.doesNotMatch(edgeFunction, /auth\.role === "admin"/);
   assert.match(edgeFunction, /"Cache-Control": "private, no-store"/);

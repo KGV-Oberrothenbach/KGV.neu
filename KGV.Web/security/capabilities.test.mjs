@@ -62,9 +62,12 @@ assert.equal(canManageRoleManagement(admin), true);
 assert.equal(canManageRoleManagement(revokedAdmin), false);
 assert.equal(canManageClubSeasonConfiguration(admin), true);
 assert.equal(canManageClubSeasonConfiguration(vorstand), false);
-assert.equal(canConfigureUserMeterReadingSubmissions(admin), true);
-assert.equal(canConfigureUserMeterReadingSubmissions(vorstand), true);
+// FR2-05: only the named ablesung.einstellungen right authorizes this capability.
+assert.equal(canConfigureUserMeterReadingSubmissions(admin), false);
+assert.equal(canConfigureUserMeterReadingSubmissions(vorstand), false);
 assert.equal(canConfigureUserMeterReadingSubmissions(user), false);
+assert.equal(canConfigureUserMeterReadingSubmissions(user, true), true);
+assert.equal(canConfigureUserMeterReadingSubmissions(clubDocumentManager, false), false);
 assert.equal(canExportData(admin), true);
 assert.equal(canExportData(vorstand), true);
 assert.equal(canExportData(user), false);

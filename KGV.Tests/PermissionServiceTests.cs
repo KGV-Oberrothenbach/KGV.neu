@@ -148,9 +148,14 @@ public sealed class PermissionServiceTests
         Assert.True(PermissionChecks.CanManageClubSeasonConfiguration(admin));
         Assert.False(PermissionChecks.CanManageClubSeasonConfiguration(vorstand));
         Assert.False(PermissionChecks.CanManageClubSeasonConfiguration(user));
-        Assert.True(PermissionChecks.CanConfigureUserMeterReadingSubmissions(admin));
-        Assert.True(PermissionChecks.CanConfigureUserMeterReadingSubmissions(vorstand));
+        // FR2-05: legacy role bits must not authorize ablesung.einstellungen.
+        Assert.False(PermissionChecks.CanConfigureUserMeterReadingSubmissions(admin));
+        Assert.False(PermissionChecks.CanConfigureUserMeterReadingSubmissions(vorstand));
         Assert.False(PermissionChecks.CanConfigureUserMeterReadingSubmissions(user));
+        var settingManager = new UserContext(Guid.NewGuid(), UserRole.User, null,
+            PermissionFlags.None, PermissionFlags.None, PermissionFlags.None, PermissionFlags.None,
+            new[] { FachrechteV2.AblesungEinstellungen });
+        Assert.True(PermissionChecks.CanConfigureUserMeterReadingSubmissions(settingManager));
         Assert.False(PermissionChecks.CanPerformYearEndClosing(null));
         Assert.False(PermissionChecks.CanReadDocuments(null));
         Assert.False(PermissionChecks.CanManageDocuments(null));

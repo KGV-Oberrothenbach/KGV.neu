@@ -62,8 +62,8 @@ export function canManageClubConfiguration(context: WebCapabilityContext): boole
   return canManageClubSeasonConfiguration(context);
 }
 
-export function canConfigureUserMeterReadingSubmissions(context: WebCapabilityContext): boolean {
-  return context !== null && hasPermission(context.effectivePermissions, Permission.CanManageClubDocuments);
+export function canConfigureUserMeterReadingSubmissions(context: WebCapabilityContext, hasSettingRight = false): boolean {
+  return context !== null && hasSettingRight;
 }
 
 export function canExportData(context: WebCapabilityContext): boolean {

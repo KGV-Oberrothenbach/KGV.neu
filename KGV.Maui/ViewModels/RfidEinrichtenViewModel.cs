@@ -41,11 +41,12 @@ public sealed class RfidEinrichtenViewModel : INotifyPropertyChanged
     public ObservableCollection<ParzelleRecord> Parzellen { get; } = new();
     public ObservableCollection<RfidMediumOption> MediumOptions { get; } = new();
 
-    public bool IsAuthorized => PermissionChecks.CanManageMeterChanges(_userContextState.CurrentUserContext);
+    public bool IsAuthorized => PermissionChecks.CanManageRfid(_userContextState.CurrentUserContext);
     public bool HasSelectedParzelle => SelectedParzelle != null;
     public bool SelectedParzelleHatStrom => SelectedParzelle?.HatStrom == true;
     public bool SelectedParzelleHatWasser => SelectedParzelle?.HatWasser == true;
-    public bool CanEditAusstattung => ShowAssignmentStep && HasSelectedParzelle && !IsBusy && IsAuthorized;
+    public bool CanEditAusstattung => ShowAssignmentStep && HasSelectedParzelle && !IsBusy && IsAuthorized
+        && PermissionChecks.CanWriteParzellen(_userContextState.CurrentUserContext);
     public bool HasAusstattungChanges => SelectedParzelle != null
         && (EditHatStrom != SelectedParzelle.HatStrom || EditHatWasser != SelectedParzelle.HatWasser);
     public bool CanSaveAusstattung => CanEditAusstattung && HasAusstattungChanges;

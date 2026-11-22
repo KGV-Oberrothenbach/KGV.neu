@@ -533,12 +533,23 @@ async function mayReadMeterReadingPhoto(auth: AuthenticatedPhotoUser & { supabas
   }
   if (!reading) return null;
 
-  const [{ data: canRead, error: permissionError }, { data: ownsHistory, error: ownError }] = await Promise.all([
+  // FR2-05: align photo visibility with independently granted meter rights.
+  const [{ data: canRead, error: readError },
+    { data: canCapture, error: captureError },
+    { data: canApprove, error: approveError },
+    { data: canChange, error: changeError },
+    { data: ownsHistory, error: ownError }] = await Promise.all([
     auth.supabaseUser.rpc("ap02_has_effective_right", { p_fachrecht: "zaehler.lesen" }),
+    auth.supabaseUser.rpc("ap02_has_effective_right", { p_fachrecht: "ablesung.erfassen" }),
+    auth.supabaseUser.rpc("ap02_has_effective_right", { p_fachrecht: "ablesung.freigeben" }),
+    auth.supabaseUser.rpc("ap02_has_effective_right", { p_fachrecht: "zaehlerwechsel.verwalten" }),
     auth.supabaseUser.rpc("can_access_own_meter_reading", { p_ablesung_id: ablesungId }),
   ]);
-  if (permissionError || ownError) throw new Error("Ablesungsfoto-Rechte konnten nicht geprüft werden.");
-  return canRead === true || ownsHistory === true ? reading as MeterReadingPhotoRecord : null;
+  if (readError || captureError || approveError || changeError || ownError) {
+    throw new Error("Ablesungsfoto-Rechte konnten nicht geprüft werden.");
+  }
+  return canRead === true || canCapture === true || canApprove === true ||
+    canChange === true || ownsHistory === true ? reading as MeterReadingPhotoRecord : null;
 }
 
 Deno.serve(async (req) => {

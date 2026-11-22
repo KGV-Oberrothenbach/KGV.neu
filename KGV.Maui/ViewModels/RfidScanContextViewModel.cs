@@ -41,7 +41,9 @@ public sealed class RfidScanContextViewModel : INotifyPropertyChanged
     public ObservableCollection<ParzelleRecord> FallbackParzellen { get; } = new();
     public ObservableCollection<RfidMediumOption> FallbackMediumOptions { get; } = new();
 
-    private bool HasDirectMeterPermission => PermissionChecks.HasPermission(_userContextState.CurrentUserContext, _requiredPermission);
+    private bool HasDirectMeterPermission => PermissionChecks.HasPermission(_userContextState.CurrentUserContext, _requiredPermission)
+        || (_requiredPermission == PermissionFlags.CanReadMeters
+            && PermissionChecks.CanCaptureMeterReadings(_userContextState.CurrentUserContext));
     private bool CanUseOwnSubmissionFallback => PermissionChecks.CanSubmitOwnMeterReadings(_userContextState.CurrentUserContext);
 
     public bool IsAuthorized => HasDirectMeterPermission || CanUseOwnSubmissionFallback;

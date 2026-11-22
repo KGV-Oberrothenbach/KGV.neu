@@ -17,7 +17,7 @@ import {
 import type { ParcelOverviewAssignment } from "../../repositories/parcels/parcel-repository";
 import { filterParcelAssignmentReadings } from "./parcel-reading-history";
 
-export type ReadingPermissions = { canReadMeters: boolean; canSubmitOwnMeterReadings: boolean; memberId: number | null };
+export type ReadingPermissions = { canReadMeters: boolean; canCaptureMeterReadings?: boolean; canManageMeterChanges?: boolean; canSubmitOwnMeterReadings: boolean; memberId: number | null };
 export type ReadingCaptureContext = {
   meters: Awaited<ReturnType<typeof listReadingMeters>>;
   parcels: Awaited<ReturnType<typeof listReadingParcels>>;
@@ -84,7 +84,7 @@ async function loadScope(club: ClubContext, session: BrowserSession, permissions
     getBooleanSetting(club, session, "meter_reading_photo_required", true),
     permissions.memberId && permissions.canSubmitOwnMeterReadings ? listMemberReadingAssignments(club, session, permissions.memberId) : Promise.resolve([]),
   ]);
-  const isDirectCapture = permissions.canReadMeters;
+  const isDirectCapture = permissions.canCaptureMeterReadings === true || permissions.canManageMeterChanges === true;
   const canSubmitOwn = !isDirectCapture && permissions.canSubmitOwnMeterReadings && permissions.memberId !== null && submissionsAllowed;
   const ownParcelIds = [...new Set(assignments.map((assignment) => assignment.parzelle_id))];
   const [meters, parcels] = isDirectCapture

@@ -120,7 +120,13 @@ namespace KGV.Core.Security
             => HasPermission(context, PermissionFlags.CanManageClubSeasonConfiguration);
 
         public static bool CanConfigureUserMeterReadingSubmissions(UserContext? context)
-            => HasPermission(context, PermissionFlags.CanManageClubDocuments);
+            => context?.HasFachrecht(FachrechteV2.AblesungEinstellungen) == true;
+
+        public static bool CanCaptureMeterReadings(UserContext? context)
+            => context?.HasFachrecht(FachrechteV2.AblesungErfassen) == true;
+
+        public static bool CanManageRfid(UserContext? context)
+            => context?.HasFachrecht(FachrechteV2.RfidVerwalten) == true;
 
         public static bool CanManageExports(UserContext? context)
             => HasPermission(context, PermissionFlags.CanManageExports);
@@ -197,7 +203,9 @@ namespace KGV.Core.Security
             => HasGlobalParzellenAccess(context);
 
         public static bool HasAnyMeterAccess(UserContext? context)
-            => CanReadMeters(context)
+            => CanCaptureMeterReadings(context)
+               || CanManageRfid(context)
+               || CanReadMeters(context)
                || CanManageMeterChanges(context)
                || CanApproveMeterReadings(context)
                || CanSubmitOwnMeterReadings(context);

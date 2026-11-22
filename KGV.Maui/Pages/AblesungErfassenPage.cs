@@ -590,7 +590,7 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
     }
 
     // Direct capture is a capture permission.  Approval remains reserved for reviewing member submissions.
-    private bool IsDirectApprovalMode => PermissionChecks.CanReadMeters(_userContextState.CurrentUserContext);
+    private bool IsDirectApprovalMode => PermissionChecks.CanCaptureMeterReadings(_userContextState.CurrentUserContext);
     private bool IsOwnSubmissionMode => !IsDirectApprovalMode && PermissionChecks.CanSubmitOwnMeterReadings(_userContextState.CurrentUserContext);
 
     private async Task<bool> TryLoadAllowUserMeterReadingSubmissionsAsync()
