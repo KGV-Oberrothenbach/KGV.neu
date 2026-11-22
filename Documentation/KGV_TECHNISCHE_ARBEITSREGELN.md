@@ -89,9 +89,10 @@ Die zwei Demo-Testpasswörter liegen lokal mit Windows-DPAPI verschlüsselt vor.
 - Für jeden Aufruf Methode, Ziel, Soll-/Ist-Status und fachlich relevanten Response-Inhalt bewerten.
 - Schreiboperationen zusätzlich **unabhängig** in der Datenbank nachprüfen; Erfolg nie nur am HTTP-Status festmachen.
 - Bei Datei-, Signatur- und Dokumentoperationen Storage-Metadaten, authentifizierten Download, Dateityp und gegebenenfalls SHA-256-Bytevergleich prüfen.
-- Ausschließlich synthetische, eindeutig gekennzeichnete Testobjekte verwenden. Vorher Zustand/IDs erfassen; in `finally` gezielt bereinigen und Ergebnis unabhängig kontrollieren. Keine echten Vereinsdaten löschen oder überschreiben.
-- Tests mit notwendiger Bestandsänderung vorab absichern und die Wiederherstellung nachweisen.
-- Keine Passwörter/JWTs in JSON-Berichten. Testname, Erwartung, Istwert, Status, Testobjekt-IDs und Bereinigungsstatus erfassen.
+- Ausschließlich synthetische, eindeutig gekennzeichnete Testobjekte verwenden. Vorher Zustand/IDs erfassen. **Sinnvolle, wiederverwendbare Demo-Testdaten grundsätzlich dauerhaft behalten**, damit die DemoDB realistische, zusammenhängende Bestände und Abläufe abbildet (z. B. Mitglieder, Parzellen, Belegungen, Verträge, Protokolle und Dokumente). Bestehende Testdaten nach Möglichkeit wiederverwenden; Wiederholungen idempotent gestalten und Testkennungen/Objektbezüge dokumentieren.
+- **Kein pauschales Löschen von Demo-Testdaten in `finally`.** Nur flüchtige Hilfsdaten, versehentlich erzeugte Duplikate, ungültige oder sicherheitskritische Zwischenzustände gezielt bereinigen. Temporär entzogene oder gewährte Fachrechte und Änderungen an bestehenden Testobjekten bei Bedarf zuverlässig wiederherstellen; das Ergebnis unabhängig kontrollieren. Keine echten Vereinsdaten löschen oder überschreiben.
+- Tests mit notwendiger Bestandsänderung vorab absichern. Bei bewusst dauerhaft angelegten Demo-Testdaten statt eines Rollbacks den fachlich korrekten Persistenzzustand unabhängig nachweisen; bei temporären Änderungen die Wiederherstellung nachweisen.
+- Keine Passwörter/JWTs in JSON-Berichten. Testname, Erwartung, Istwert, Status, Testobjekt-IDs und den **Aufbewahrungs- beziehungsweise Bereinigungsstatus** erfassen.
 - Teilprüfungen ausdrücklich als **teilweise geprüft** kennzeichnen, wenn positiver Schreibaufruf, Speicherung oder nachgelagerter UI-Schritt fehlen.
 
 ## 7. Arbeitsabschluss, Git und Deployment
