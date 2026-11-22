@@ -1982,13 +1982,16 @@ namespace KGV.Infrastructure.Services
                 if (protokollId <= 0 || dokumentId <= 0)
                     return false;
 
+                // FR2-04.4b: direct table PATCH cannot establish a verified completion.
+                // The SECURITY DEFINER RPC checks the effective named right,
+                // document-owner/signer context, open draft status and idempotency.
                 var client = await EnsureClientAsync();
-                await client.From<ParzellenProtokollRecord>()
-                    .Where(x => x.Id == protokollId)
-                    .Set(x => x.DokumentId, dokumentId)
-                    .Set(x => x.Status, "abgeschlossen")
-                    .Update();
-                return true;
+                var response = await client.Rpc("complete_parzellen_protokoll", new
+                {
+                    p_protokoll_id = protokollId,
+                    p_dokument_id = dokumentId
+                });
+                return bool.TryParse(response.Content?.Trim().Trim('"'), out var completed) && completed;
             },
             false);
 

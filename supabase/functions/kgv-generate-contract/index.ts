@@ -329,6 +329,7 @@ Deno.serve(async (req) => {
     const auth = await authenticate(req); const body = await req.json() as RequestBody; if(body.action === "sign-existing") { await requireFachrecht(auth, "vertrag.vorbereiten"); return await signExisting(auth,body); } const type = body.type; let memberId = Number(body.member_id); const action = body.action ?? "preview";
     const sourceKommunikationsvorgangId = Number(body.kommunikationsvorgang_id ?? body.source_kommunikationsvorgang_id); let sourceRevision = Number(body.source_revision);
     if (!type) return errorResponse(400, "BAD_REQUEST", "Dokumenttyp ist erforderlich.", requestId);
+    if (type === "parzellenprotokoll" && action !== "finalize") return errorResponse(400, "BAD_REQUEST", "Parzellenprotokolle können nur als signierte Finaldokumente erzeugt werden.", requestId);
     if (type === "wartungsvertrag_verlaengerung") { await requireFachrecht(auth, "mitgliedschaft.verwalten"); const { data: allowed, error: allowedError } = await auth.admin.rpc("ist_wartungsvertrag_entscheidung_berechtigt", { p_auth_user_id: auth.userId }); if (allowedError || allowed !== true) throw new Error("AUTH:Keine fachliche Berechtigung zur Wartungsvertragsentscheidung."); }
     else await requireFachrecht(auth, type === "pachtvertrag" ? "pachtvertrag.verwalten"
       : type === "parzellenprotokoll" ? "begehung.verwalten"
