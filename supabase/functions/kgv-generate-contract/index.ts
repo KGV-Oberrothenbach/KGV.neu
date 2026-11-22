@@ -470,7 +470,7 @@ Deno.serve(async (req) => {
         auth.admin.from("parzellen_belegung").select("id").eq("mitglied_id", memberId).eq("parzelle_id", parcelId).lte("von_datum", startDate).or(`bis_datum.is.null,bis_datum.gte.${startDate}`).limit(1).maybeSingle(),
         auth.admin.from("saison").select("*").eq("jahr", new Date(`${startDate}T12:00:00Z`).getUTCFullYear()).maybeSingle(),
       ]);
-      if (!(applicationDocuments ?? []).some((document) => documentStatus(document, "mitgliedsantrag") === "signiert")) throw new Error("Ein Pachtvertrag kann erst nach dem signierten Mitgliedsantrag erstellt werden.");
+      if (!(applicationDocuments ?? []).some((document) => documentStatus(document, "mitgliedsantrag") === "signiert")) return errorResponse(409, "PRECONDITION_FAILED", "Ein Pachtvertrag kann erst nach dem signierten Mitgliedsantrag erstellt werden.", requestId);
       if ((activeRelationships ?? []).length > 1) throw new Error("Für die Parzelle bestehen mehrere aktive Pachtverhältnisse.");
       if ((activeRelationships ?? []).length === 1) { const { data: versions, error } = await auth.admin.from("pachtvertragsfassung").select("id").eq("pachtverhaeltnis_id", activeRelationships![0].id).limit(1); if (error || !(versions ?? []).length) throw new Error("Das aktive Pachtverhältnis besitzt keine Vertragsfassung."); }
       if (parcelError || !parcel) throw new Error("Parzelle wurde nicht gefunden.");
