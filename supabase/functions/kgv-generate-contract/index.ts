@@ -331,6 +331,7 @@ Deno.serve(async (req) => {
     if (!type) return errorResponse(400, "BAD_REQUEST", "Dokumenttyp ist erforderlich.", requestId);
     if (type === "wartungsvertrag_verlaengerung") { await requireFachrecht(auth, "mitgliedschaft.verwalten"); const { data: allowed, error: allowedError } = await auth.admin.rpc("ist_wartungsvertrag_entscheidung_berechtigt", { p_auth_user_id: auth.userId }); if (allowedError || allowed !== true) throw new Error("AUTH:Keine fachliche Berechtigung zur Wartungsvertragsentscheidung."); }
     else await requireFachrecht(auth, type === "pachtvertrag" ? "pachtvertrag.verwalten"
+      : type === "parzellenprotokoll" ? "begehung.verwalten"
       : type === "aufnahmebestaetigung" ? "mitgliedschaft.entscheiden"
       : type === "wartungsvertrag" ? "mitgliedschaft.verwalten" : "vertrag.vorbereiten");
     if (action === "finalize" && type === "mitgliedsantrag" && (!Number.isSafeInteger(sourceKommunikationsvorgangId) || sourceKommunikationsvorgangId <= 0)) return errorResponse(400, "BAD_REQUEST", "Kommunikationsvorgang ist für die Finalisierung erforderlich.", requestId);
@@ -445,6 +446,15 @@ Deno.serve(async (req) => {
       if (action === "finalize" && (!signatures.member || !signatures.board || !signatures.board2)) return json(400, { message: "Die erforderlichen Unterschriften fehlen." });
       const [{ data: parcel, error: parcelError }, { data: protocol, error: protocolError }, { data: board2, error: board2Error }] = await Promise.all([auth.admin.from("parzelle").select("*").eq("id", parcelId).single(), auth.admin.from("parzellen_protokoll").select("*").eq("id", protocolId).eq("mitglied_id", memberId).single(), auth.admin.from("mitglied").select("*").eq("id", board2Id).single()]);
       if (parcelError || protocolError || board2Error || !parcel || !protocol || !board2) throw new Error("Protokollkontext konnte nicht vollständig geladen werden.");
+      if (Number(protocol.parzelle_id) !== parcelId || Number(protocol.vorstand2_mitglied_id) !== board2Id) throw new Error("Protokoll, Parzelle und zweiter Vorstand stimmen nicht überein.");
+      if (protocol.status !== "entwurf" || protocol.dokument_id != null || protocol.abgeschlossen_am != null) throw new Error("Nur ein offener Protokollentwurf darf finalisiert werden.");
+      if (safe(protocol.protokoll_datum).slice(0, 10) !== startDate || safe(protocol.protokoll_typ) !== safe(body.protocol_type)) throw new Error("Datum und Art des Protokolls stimmen nicht mit dem gespeicherten Entwurf überein.");
+      if (safe(protocol.anlass).trim() !== safe(body.protocol_reason).trim()
+          || safe(protocol.zustand_bemerkung).trim() !== safe(body.protocol_condition).trim()
+          || safe(protocol.vereinbarung).trim() !== safe(body.protocol_agreement).trim())
+        throw new Error("Die Protokollinhalte wurden seit dem Speichern verändert. Bitte den Entwurf erneut speichern.");
+      if ((protocol.begleitperson_mitglied_id != null || safe(protocol.begleitperson_name).trim() !== "") && action === "finalize" && !signatures.secondary)
+        throw new Error("Für die angegebene Begleitperson fehlt die Unterschrift.");
       const { data: board1 } = await auth.admin.from("mitglied").select("*").eq("id", protocol.vorstand_mitglied_id).single(); if (!board1) throw new Error("Erstes Vorstandsmitglied wurde nicht gefunden.");
       const parcelMemberNumber = membershipNumber(member, true, "Pächter/in 1");
       pdf = await buildParcelProtocol(member, parcel, board1, board2, body, signatures, parcelMemberNumber); title = `${body.protocol_type === "rueckgabe" ? "Rückgabe" : body.protocol_type === "begehung" ? "Begehung" : "Übernahme"}protokoll Garten ${safe(parcel.garten_nr)}`; owner = { kind: "mitglied", id: memberId }; protocolIdToComplete = protocolId;
@@ -578,7 +588,13 @@ Deno.serve(async (req) => {
       const { error } = await auth.admin.rpc("complete_prepared_wartungsvertrag", { p_kommunikationsvorgang_id: sourceKommunikationsvorgangId, p_dokument_id: documentId });
       if (error) throw new Error(`Wartungsvertrags-Finaldokument konnte nicht abgeschlossen werden: ${error.message}`);
     }
-    if (protocolIdToComplete) { const { error } = await auth.admin.from("parzellen_protokoll").update({ status: "abgeschlossen", dokument_id: documentId, abgeschlossen_am: new Date().toISOString(), abgeschlossen_von: auth.userId, updated_at: new Date().toISOString() }).eq("id", protocolIdToComplete); if (error) throw error; }
+    if (protocolIdToComplete) {
+      const { data: completed, error } = await auth.admin.from("parzellen_protokoll")
+        .update({ status: "abgeschlossen", dokument_id: documentId, abgeschlossen_am: new Date().toISOString(), abgeschlossen_von: auth.userId, updated_at: new Date().toISOString() })
+        .eq("id", protocolIdToComplete).eq("mitglied_id", memberId).eq("status", "entwurf").is("dokument_id", null)
+        .select("id").maybeSingle();
+      if (error || !completed) throw new Error("Protokoll konnte nicht einmalig abgeschlossen werden.");
+    }
     return json(200, { success: true, document_id: documentId, message: protocolIdToComplete ? "Das signierte Protokoll wurde als Mitgliedsdokument abgelegt." : "Signiertes Vertragsdokument wurde sicher abgelegt." });
-  } catch (error) { const message = error instanceof Error ? error.message.replace(/^AUTH:/, "") : "Vertragsdokument konnte nicht erzeugt werden."; const status = message.startsWith("Anmeldung") || message.startsWith("Nur Admin") ? 403 : 500; return errorResponse(status, status === 403 ? "FORBIDDEN" : "INTERNAL_ERROR", message, requestId); }
+  } catch (error) { const rawMessage = error instanceof Error ? error.message : "Vertragsdokument konnte nicht erzeugt werden."; const forbidden = rawMessage.startsWith("AUTH:"); const message = rawMessage.replace(/^AUTH:/, ""); const status = forbidden || message.startsWith("Anmeldung") || message.startsWith("Nur Admin") ? 403 : 500; return errorResponse(status, status === 403 ? "FORBIDDEN" : "INTERNAL_ERROR", message, requestId); }
 });

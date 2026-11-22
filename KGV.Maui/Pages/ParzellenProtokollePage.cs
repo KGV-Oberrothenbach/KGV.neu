@@ -3,6 +3,7 @@ using Microsoft.Maui.Graphics;
 using Microsoft.Extensions.DependencyInjection;
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
+using KGV.Core.Security;
 using KGV.Core.Utilities;
 using KGV.Maui.State;
 using Microsoft.Maui.Media;
@@ -143,6 +144,11 @@ public sealed class ParzellenProtokollePage : ContentPage
     protected override async void OnAppearing()
     {
         base.OnAppearing();
+        if (!PermissionChecks.CanManageBegehungen(_userContext.CurrentUserContext))
+        {
+            await DisplayAlertAsync("Berechtigung", "Für Protokolle ist das Fachrecht begehung.verwalten erforderlich.", "OK");
+            return;
+        }
         var selectedMemberId = _memberContext.SelectedMember?.Id ?? 0;
         if (_loaded && _loadedMemberId == selectedMemberId)
         {
@@ -194,6 +200,11 @@ public sealed class ParzellenProtokollePage : ContentPage
 
     private async Task<bool> SaveDraftAsync()
     {
+        if (!PermissionChecks.CanManageBegehungen(_userContext.CurrentUserContext))
+        {
+            await DisplayAlertAsync("Berechtigung", "Das Fachrecht begehung.verwalten fehlt.", "OK");
+            return false;
+        }
         if (_selectedMember == null || _parzellePicker.SelectedItem is not ParzelleRecord || _vorstand2Picker.SelectedItem is not MitgliedRecord)
         {
             await DisplayAlertAsync("Validierung", "Bitte Mitglied, Parzelle und das zweite Vorstandsmitglied auswählen.", "OK");
@@ -241,6 +252,11 @@ public sealed class ParzellenProtokollePage : ContentPage
 
     private async Task CreatePdfAsync()
     {
+        if (!PermissionChecks.CanManageBegehungen(_userContext.CurrentUserContext))
+        {
+            await DisplayAlertAsync("Berechtigung", "Das Fachrecht begehung.verwalten fehlt.", "OK");
+            return;
+        }
         if (_selectedMember is not MitgliedRecord member || _parzellePicker.SelectedItem is not ParzelleRecord parcel || _vorstand2Picker.SelectedItem is not MitgliedRecord board2 || _userContext.CurrentMitgliedId is not long board1Id)
         {
             await DisplayAlertAsync("PDF", "Bitte zuerst Mitglied, Parzelle und beide Vorstandsmitglieder festlegen.", "OK");

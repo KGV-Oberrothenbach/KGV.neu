@@ -247,7 +247,7 @@ public sealed class AdminShell : Shell, IAppShellInitializer
         var hasMember = selectedMemberId is > 0;
         if (_memberDetailsItem != null) _memberDetailsItem.IsVisible = hasMember && PermissionChecks.CanShowStammdaten(_userContextState.CurrentUserContext);
         if (_memberDocumentsItem != null) _memberDocumentsItem.IsVisible = hasMember && CanOpenMemberDocuments(selectedMemberId);
-        if (_memberProtokolleItem != null) _memberProtokolleItem.IsVisible = hasMember && PermissionChecks.CanEditAllMembers(_userContextState.CurrentUserContext);
+        if (_memberProtokolleItem != null) _memberProtokolleItem.IsVisible = hasMember && PermissionChecks.CanManageBegehungen(_userContextState.CurrentUserContext);
         if (_memberWartungsvertraegeItem != null) _memberWartungsvertraegeItem.IsVisible = hasMember;
         if (_memberNebenmitgliedItem != null) _memberNebenmitgliedItem.IsVisible = hasMember && PermissionChecks.CanReadStammdaten(_userContextState.CurrentUserContext);
         if (_memberGardensItem != null) _memberGardensItem.IsVisible = hasMember &&

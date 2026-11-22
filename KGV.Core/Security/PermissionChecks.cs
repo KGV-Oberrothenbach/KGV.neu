@@ -95,6 +95,9 @@ namespace KGV.Core.Security
         public static bool CanManagePachtvertraege(UserContext? context)
             => context?.HasFachrecht(FachrechteV2.PachtvertragVerwalten) == true;
 
+        public static bool CanManageBegehungen(UserContext? context)
+            => context?.HasFachrecht(FachrechteV2.BegehungVerwalten) == true;
+
         public static bool CanShowParzellenForMember(UserContext? context, int? memberId)
             => CanShowParzellen(context)
                || HasOwnParzellenAccessForMember(context, memberId);

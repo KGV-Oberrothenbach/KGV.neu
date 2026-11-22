@@ -234,7 +234,7 @@ function WorkspaceContent({ session, email, club, context, fachrechteV2, onLogou
     hasMemberContext,
     canReadStammdaten,
     canReadMemberDocuments: has(Permission.readDocuments) || has(Permission.manageDocuments) || ownContext,
-    canEditMemberProtocols: has(Permission.editAllMembers),
+    canEditMemberProtocols: hasRight("begehung.verwalten"),
     canReadMemberGardens: has(Permission.showParzellen) || has(Permission.readParzellen) || hasRight("belegung.verwalten"),
     canManageMemberRoles: has(Permission.readRoles) || has(Permission.manageRoles),
     canReadMemberWorkHours: has(Permission.readWorkHours) || has(Permission.manageWorkHours) || ownContext,
@@ -319,7 +319,7 @@ function WorkspaceContent({ session, email, club, context, fachrechteV2, onLogou
           {effectiveActiveId === "mitglied-dokumente" && selectedMemberId && <MemberDocumentWorkspace key={`${club.vereinId}:${selectedMemberId}`} session={session} memberId={selectedMemberId} accessContext={documentAccessContext} />}
           {effectiveActiveId === "mitglied-admin" && selectedMemberId && <><FachrechteV2Administration key={`ap02:${club.vereinId}:${session.user.id}:${selectedMemberId}`} session={session} memberId={selectedMemberId} /></>}
           {effectiveActiveId === "mitglied-gaerten" && selectedMemberId && <MemberGardensWorkspace key={`${club.vereinId}:${selectedMemberId}`} session={session} memberId={selectedMemberId} selectedParcelId={selectedParcelId} onSelect={selectParcel} canAssign={hasRight("belegung.verwalten")} canCreateLeaseContract={hasRight("pachtvertrag.verwalten")} />}
-          {effectiveActiveId === "mitglied-protokolle" && selectedMemberId && <ParcelProtocolsWorkspace session={session} memberId={selectedMemberId} currentBoardMemberId={context.mitgliedId} />}
+          {effectiveActiveId === "mitglied-protokolle" && selectedMemberId && hasRight("begehung.verwalten") && <ParcelProtocolsWorkspace key={`${club.vereinId}:${selectedMemberId}`} session={session} memberId={selectedMemberId} currentBoardMemberId={context.mitgliedId} />}
           {effectiveActiveId === "mitglied-stammdaten" && (selectedMemberId || creatingMember) && <MemberStammdaten session={session} memberId={creatingMember ? null : selectedMemberId} canEdit={creatingMember || has(Permission.editAllMembers) || (selectedMemberId === context.mitgliedId && has(Permission.seeOwnData))} canCreate={creatingMember} canManageSecondary={has(Permission.editAllMembers)} canManageMembership={hasRight("mitgliedschaft.verwalten")} canManageDocuments={has(Permission.manageDocuments)} canManageClubDocuments={canManageClubDocuments(capabilityContext)} editPermissions={{ actorMemberId: context.mitgliedId, canEditOwnMember: has(Permission.seeOwnData), canEditAllMembers: has(Permission.editAllMembers) }} createPermissions={{ canCreateMember: has(Permission.createMember) }} onSaved={(member) => { setSelectedMember({ id: member.id, mitgliedsnummer: member.mitgliedsnummer, vorname: member.vorname, name: member.name }); selectMember(member.id); setActiveId("mitglied-stammdaten"); }} onCancel={() => { setCreatingMember(false); setActiveId("mitglieder"); }} />}
         </article>
       </section>
