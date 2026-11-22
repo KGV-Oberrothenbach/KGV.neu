@@ -11,7 +11,9 @@ const [navigation, page, service, repository, feature] = await Promise.all([
 assert.match(navigation, /canAccessCommunication/);
 assert.match(navigation, /openProcessCount/);
 assert.match(navigation, /groups\.processes/);
-assert.match(page, /context\.role === "admin" \|\| context\.role === "vorstand"/);
+assert.match(page, /const hasRight = \(code: string\) => hasFachrechtV2\(fachrechteV2, code\)/);
+assert.match(page, /const canAccessCommunication = hasRight\("vorgang\.lesen"\) \|\| hasRight\("vorgang\.bearbeiten"\) \|\| hasRight\("vorstandsvorgang\.bearbeiten"\)/);
+assert.doesNotMatch(page, /const canAccessCommunication\s*=\s*context\.role/);
 assert.match(page, /refreshOpenProcessCount/);
 assert.match(page, /effectiveActiveId === "signaturen"/);
 assert.match(page, /effectiveActiveId === "verlauf"/);

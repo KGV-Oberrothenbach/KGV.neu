@@ -97,7 +97,7 @@ public sealed class UserManagementPage : ContentPage
         };
 
         var roleSection = new VerticalStackLayout { Spacing = 8 };
-        roleSection.SetBinding(IsVisibleProperty, nameof(UserManagementViewModel.HasSelectedUser));
+        roleSection.IsVisible = false; // AP-02: altes Rollenformular abgeschaltet; FachrechteV2AdministrationPage bleibt erreichbar
         roleSection.Children.Add(new Label { Text = "Admin-Menü", FontAttributes = FontAttributes.Bold });
         roleSection.Children.Add(rolePicker);
         roleSection.Children.Add(roleHintLabel);

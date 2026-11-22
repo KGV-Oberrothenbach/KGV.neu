@@ -71,7 +71,7 @@ public sealed class UserManagementViewModel : INotifyPropertyChanged
     public bool CanRemoveUser => CanManageRoleManagement && !IsBusy && IsBoundToMember && TargetUser?.AuthUserId != null;
     public bool IsRoleEditable => TargetUser?.MitgliedId is > 0 and not 7;
     public bool CanManageRoleManagement => PermissionChecks.CanManageRoleManagement(_userContextState.CurrentUserContext);
-    public bool CanEditRole => CanManageRoleManagement && IsRoleEditable;
+    public bool CanEditRole => false; // AP-02: Rollenwechsel nur via Fachrechte-V2-RPC
     public bool CanSaveRole => !IsBusy && CanEditRole && HasLinkedUser && TargetUser != null && !string.Equals(SelectedRole, NormalizeRole(TargetUser.Role), StringComparison.OrdinalIgnoreCase);
 
     public string SelectedRole

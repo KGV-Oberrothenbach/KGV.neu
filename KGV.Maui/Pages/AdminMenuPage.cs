@@ -522,10 +522,10 @@ public sealed class AdminMenuPage : ContentPage
         var canManageRoleManagement = CanManageRoleManagement();
         var isRoleEditable = selectedMember?.Id is > 0 and not 7;
 
-        _rolePicker.IsVisible = canReadRoleManagement && hasSelectedMember;
-        _saveRoleButton.IsVisible = canReadRoleManagement && hasSelectedMember;
-        _rolePicker.IsEnabled = canManageRoleManagement && isRoleEditable;
-        _saveRoleButton.IsEnabled = canManageRoleManagement && isRoleEditable && hasSelectedMember && IsRoleDirty();
+        _rolePicker.IsVisible = false; // AP-02: veraltete Rollenverwaltung deaktiviert
+        _saveRoleButton.IsVisible = false; // Hauptrollen nur in Fachrechte 2.0 verwalten
+        _rolePicker.IsEnabled = false;
+        _saveRoleButton.IsEnabled = false;
 
         _roleManagementHintLabel.Text = !canReadRoleManagement
             ? "Rollen-/Rechteverwaltung ist für den aktuellen Kontext nicht freigegeben."
