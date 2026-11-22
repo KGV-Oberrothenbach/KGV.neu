@@ -6,8 +6,12 @@ RETURNS boolean
 LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path TO 'pg_catalog','public'
 AS $fr204$
-  SELECT COALESCE(auth.role() = 'service_role', false)
-      OR (auth.uid() IS NOT NULL AND public.ap02_has_effective_right('historische_vertraege.erfassen'));
+  SELECT COALESCE(
+    auth.role() = 'service_role'
+    OR (auth.role() = 'authenticated'
+        AND auth.uid() IS NOT NULL
+        AND public.ap02_has_effective_right('historische_vertraege.erfassen')),
+    false);
 $fr204$;
 
 -- Anonymous sessions must not invoke the historical authorization helper or

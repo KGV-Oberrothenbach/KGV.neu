@@ -12,7 +12,8 @@ test('FR2-04.5 historical contract authorization fails closed without JWT role',
   assert.equal(names.length, 1, 'exactly one versioned migration');
   const sql = readFileSync(new URL('../../supabase/migrations/' + names[0], import.meta.url), 'utf8');
   assert.match(sql, /CREATE OR REPLACE FUNCTION public\.can_register_historical_contracts\(\)/);
-  assert.match(sql, /COALESCE\(auth\.role\(\) = 'service_role', false\)/);
+  assert.match(sql, /COALESCE\([\s\S]*auth\.role\(\) = 'service_role'/);
+  assert.match(sql, /auth\.role\(\) = 'authenticated'[\s\S]*ap02_has_effective_right\('historische_vertraege\.erfassen'\)/);
   assert.match(sql, /ap02_has_effective_right\('historische_vertraege\.erfassen'\)/);
   assert.match(sql, /REVOKE EXECUTE ON FUNCTION public\.can_register_historical_contracts\(\) FROM PUBLIC, anon/);
   assert.match(sql, /REVOKE EXECUTE ON FUNCTION public\.erstelle_pacht_nachsorge\(bigint,date\) FROM PUBLIC, anon/);
