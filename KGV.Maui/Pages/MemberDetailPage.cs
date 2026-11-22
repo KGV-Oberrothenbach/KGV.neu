@@ -621,7 +621,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
             && member?.Id is > 0
             && member.IstHauptmitglied
             && !member.MitgliedEnde.HasValue
-            && PermissionChecks.CanEditAllMembers(_userContextState.CurrentUserContext);
+            && PermissionChecks.CanManageMembership(_userContextState.CurrentUserContext);
 
         _cancelMembershipButton.IsVisible = canManageMembership;
     }

@@ -25,6 +25,7 @@ public static class FachrechteV2EffectiveMask
         Allow(PermissionFlags.CanSearchMembers, "mitglied.lesen");
         Allow(PermissionFlags.CanViewMembers, "mitglied.lesen");
         Allow(PermissionFlags.CanEditAllMembers, "mitglied.bearbeiten");
+        Allow(PermissionFlags.CanManageMembership, "mitgliedschaft.verwalten");
         Allow(PermissionFlags.CanCreateMitglied, "mitglied.anlegen");
         Allow(PermissionFlags.CanManageDocuments, "dokument.verwalten");
         Allow(PermissionFlags.CanReadMeters, "zaehler.lesen");

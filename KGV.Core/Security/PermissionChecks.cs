@@ -44,6 +44,9 @@ namespace KGV.Core.Security
         public static bool CanEditAllMembers(UserContext? context)
             => HasPermission(context, PermissionFlags.CanEditAllMembers);
 
+        public static bool CanManageMembership(UserContext? context)
+            => HasPermission(context, PermissionFlags.CanManageMembership);
+
         public static bool CanCreateMitglied(UserContext? context)
             => HasPermission(context, PermissionFlags.CanCreateMitglied);
 
