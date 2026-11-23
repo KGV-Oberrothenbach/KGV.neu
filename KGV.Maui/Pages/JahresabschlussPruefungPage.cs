@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
+using KGV.Core.Security;
 using KGV.Maui.State;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
@@ -23,8 +24,12 @@ public sealed class JahresabschlussPruefungPage : ContentPage
     {
         _abschluss = abschluss; _saison = saison; _userContext = userContext; Title = "Abschluss prüfen";
         var refresh = new Button { Text = "Prüfbericht aktualisieren" }; refresh.Clicked += async (_, _) => await LoadAsync();
-        var calculate = new Button { Text = "Entwurf berechnen / neu berechnen" }; calculate.Clicked += async (_, _) => await CalculateAsync();
-        var finalize = new Button { Text = "Jahresabschluss endgültig abschließen", BackgroundColor = Colors.DarkRed, TextColor = Colors.White }; finalize.Clicked += async (_, _) => await FinalizeAsync();
+        var calculate = new Button { Text = "Entwurf berechnen / neu berechnen",
+            IsEnabled = PermissionChecks.CanPrepareYearEndClosing(_userContext.CurrentUserContext) };
+        calculate.Clicked += async (_, _) => await CalculateAsync();
+        var finalize = new Button { Text = "Jahresabschluss endgültig abschließen", BackgroundColor = Colors.DarkRed, TextColor = Colors.White,
+            IsEnabled = PermissionChecks.CanPerformYearEndClosing(_userContext.CurrentUserContext) };
+        finalize.Clicked += async (_, _) => await FinalizeAsync();
         Content = new ScrollView { Content = new VerticalStackLayout { Padding = 24, Spacing = 12, Children =
         {
             new Label { Text = $"Prüfung Jahresabschluss {saison.Jahr}", FontSize = 22, FontAttributes = FontAttributes.Bold }, refresh, calculate, finalize, _status,
@@ -52,6 +57,12 @@ public sealed class JahresabschlussPruefungPage : ContentPage
 
     private async Task CalculateAsync()
     {
+        if (!PermissionChecks.CanPrepareYearEndClosing(_userContext.CurrentUserContext))
+        {
+            _status.Text = "Keine Berechtigung für jahresabschluss.vorbereiten.";
+            _status.TextColor = Colors.Firebrick;
+            return;
+        }
         _status.Text = "Berechnung läuft …"; _status.TextColor = Colors.DarkSlateBlue;
         try
         {
@@ -67,6 +78,12 @@ public sealed class JahresabschlussPruefungPage : ContentPage
 
     private async Task FinalizeAsync()
     {
+        if (!PermissionChecks.CanPerformYearEndClosing(_userContext.CurrentUserContext))
+        {
+            _status.Text = "Die endgültige Finalisierung ist fachlich nicht freigegeben.";
+            _status.TextColor = Colors.Firebrick;
+            return;
+        }
         if (_userContext.CurrentMitgliedId is not > 0) { _status.Text = "Das angemeldete Mitglied konnte nicht bestimmt werden."; _status.TextColor = Colors.Firebrick; return; }
         var confirmed = await DisplayAlertAsync("Endgültig abschließen", "Der Abschluss und seine Positionen können danach nicht mehr geändert werden. Korrekturen erfolgen später nur über einen Korrekturabschluss.", "Endgültig abschließen", "Abbrechen");
         if (!confirmed) return;

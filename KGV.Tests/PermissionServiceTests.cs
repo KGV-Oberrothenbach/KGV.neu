@@ -95,22 +95,17 @@ public sealed class PermissionServiceTests
     }
 
     [Fact]
-    public void PermissionChecks_EvaluateYearEndClosingFromEffectivePermissions()
+    public void PermissionChecks_RequireServerIssuedNamedRightNotLegacyRoleBit()
     {
         var service = new PermissionService();
-        var admin = service.CreateContext(Guid.NewGuid(), "admin", null);
-        var revokedAdmin = service.CreateContext(Guid.NewGuid(), "admin", null, null, (long)PermissionFlags.CanPerformYearEndClosing);
-        var vorstand = service.CreateContext(Guid.NewGuid(), "vorstand", null);
-        var grantedVorstand = service.CreateContext(Guid.NewGuid(), "vorstand", null, (long)PermissionFlags.CanPerformYearEndClosing);
-        var user = service.CreateContext(Guid.NewGuid(), "user", null);
-        var grantAndRevocation = service.CreateContext(Guid.NewGuid(), "user", null, (long)PermissionFlags.CanPerformYearEndClosing, (long)PermissionFlags.CanPerformYearEndClosing);
-
-        Assert.True(PermissionChecks.CanPerformYearEndClosing(admin));
-        Assert.False(PermissionChecks.CanPerformYearEndClosing(revokedAdmin));
-        Assert.False(PermissionChecks.CanPerformYearEndClosing(vorstand));
-        Assert.True(PermissionChecks.CanPerformYearEndClosing(grantedVorstand));
-        Assert.False(PermissionChecks.CanPerformYearEndClosing(user));
-        Assert.False(PermissionChecks.CanPerformYearEndClosing(grantAndRevocation));
+        var legacyAdmin = service.CreateContext(Guid.NewGuid(), "admin", null);
+        var legacyGrantedVorstand = service.CreateContext(Guid.NewGuid(), "vorstand", null, (long)PermissionFlags.CanPerformYearEndClosing);
+        var namedAuthorized = new UserContext(Guid.NewGuid(), UserRole.User, null,
+            PermissionFlags.None, PermissionFlags.None, PermissionFlags.None, PermissionFlags.None,
+            new[] { FachrechteV2.JahresabschlussFinalisieren });
+        Assert.False(PermissionChecks.CanPerformYearEndClosing(legacyAdmin));
+        Assert.False(PermissionChecks.CanPerformYearEndClosing(legacyGrantedVorstand));
+        Assert.True(PermissionChecks.CanPerformYearEndClosing(namedAuthorized));
     }
 
     [Fact]
@@ -172,13 +167,17 @@ public sealed class PermissionServiceTests
         var service = new PermissionService();
         var ordinaryUser = service.CreateContext(Guid.NewGuid(), "user", null);
         var documentReader = service.CreateContext(Guid.NewGuid(), "user", null, (long)PermissionFlags.CanReadDocuments);
-        var yearEndClosingUser = service.CreateContext(Guid.NewGuid(), "user", null, (long)PermissionFlags.CanPerformYearEndClosing);
+        var legacyYearEndClosingUser = service.CreateContext(Guid.NewGuid(), "user", null, (long)PermissionFlags.CanPerformYearEndClosing);
+        var preparationUser = new UserContext(Guid.NewGuid(), UserRole.User, null,
+            PermissionFlags.None, PermissionFlags.None, PermissionFlags.None, PermissionFlags.None,
+            new[] { FachrechteV2.JahresabschlussVorbereiten });
         var revokedAdmin = service.CreateContext(Guid.NewGuid(), "admin", null, null, (long)(PermissionFlags.CanPerformYearEndClosing | PermissionFlags.CanManageRoles));
 
         Assert.False(PermissionChecks.HasAnyManagementWorkspaceAccess(null));
         Assert.False(PermissionChecks.HasAnyManagementWorkspaceAccess(ordinaryUser));
         Assert.True(PermissionChecks.HasAnyManagementWorkspaceAccess(documentReader));
-        Assert.True(PermissionChecks.HasAnyManagementWorkspaceAccess(yearEndClosingUser));
+        Assert.False(PermissionChecks.HasAnyManagementWorkspaceAccess(legacyYearEndClosingUser));
+        Assert.True(PermissionChecks.HasAnyManagementWorkspaceAccess(preparationUser));
         Assert.True(PermissionChecks.HasAnyManagementWorkspaceAccess(revokedAdmin));
     }
 

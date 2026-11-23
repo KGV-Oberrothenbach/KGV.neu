@@ -160,8 +160,33 @@ namespace KGV.Core.Security
         public static bool CanManageAnnouncements(UserContext? context)
             => HasPermission(context, PermissionFlags.CanManageAnnouncements);
 
+        // FR2-06: Nur die benannten, zentral ermittelten Fachrechte entscheiden.
+        // Alte Rollen-/Flag-Bits geben keine Finanzberechtigung.
+        public static bool CanReadFinance(UserContext? context)
+            => context?.HasFachrecht(FachrechteV2.FinanzenLesen) == true;
+
+        public static bool CanManageFinanceInvoices(UserContext? context)
+            => context?.HasFachrecht(FachrechteV2.FinanzenRechnungen) == true;
+
+        public static bool CanManageFinanceCostTypes(UserContext? context)
+            => context?.HasFachrecht(FachrechteV2.FinanzenKostenarten) == true;
+
+        public static bool CanPrepareYearEndClosing(UserContext? context)
+            => context?.HasFachrecht(FachrechteV2.JahresabschlussVorbereiten) == true;
+
         public static bool CanPerformYearEndClosing(UserContext? context)
-            => HasPermission(context, PermissionFlags.CanPerformYearEndClosing);
+            => context?.HasFachrecht(FachrechteV2.JahresabschlussFinalisieren) == true;
+
+        public static bool CanCorrectYearEndClosing(UserContext? context)
+            => context?.HasFachrecht(FachrechteV2.JahresabschlussKorrigieren) == true;
+
+        public static bool HasAnyFinanceAccess(UserContext? context)
+            => CanReadFinance(context)
+               || CanManageFinanceInvoices(context)
+               || CanManageFinanceCostTypes(context)
+               || CanPrepareYearEndClosing(context)
+               || CanPerformYearEndClosing(context)
+               || CanCorrectYearEndClosing(context);
 
         public static bool CanRegisterHistoricalContracts(UserContext? context)
             => HasPermission(context, PermissionFlags.CanRegisterHistoricalContracts);
@@ -233,7 +258,7 @@ namespace KGV.Core.Security
                || CanManageMeterChanges(context)
                || CanApproveMeterReadings(context)
                || CanReadRoleManagement(context)
-               || CanPerformYearEndClosing(context)
+               || HasAnyFinanceAccess(context)
                || CanRegisterHistoricalContracts(context)
                || CanManageClubSeasonConfiguration(context)
                || CanConfigureUserMeterReadingSubmissions(context);

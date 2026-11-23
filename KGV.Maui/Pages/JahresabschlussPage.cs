@@ -52,11 +52,9 @@ public sealed class JahresabschlussPage : ContentPage
             if (e.CurrentSelection.FirstOrDefault() is JahresabschlussRechnungRecord rechnung && _saisonPicker.SelectedItem is SaisonRecord saison)
             {
                 rechnungenView.SelectedItem = null;
-                if (!CanPerformYearEndClosing)
+                if (!CanManageFinanceInvoices)
                 {
-                    _rechnungen.Clear();
-                    ApplyPermissionState();
-                    _status.Text = "Für den Jahresabschluss fehlt die Berechtigung.";
+                    _status.Text = "Die Rechnung ist lesbar, zur Bearbeitung ist finanzen.rechnungen erforderlich.";
                     return;
                 }
                 await Navigation.PushAsync(new JahresabschlussRechnungEditorPage(_supabase, saison, rechnung));
@@ -64,11 +62,11 @@ public sealed class JahresabschlussPage : ContentPage
         };
 
         _neueRechnung = new Button { Text = "Rechnung erfassen" };
-        _neueRechnung.Clicked += async (_, _) => { if (CanPerformYearEndClosing && _saisonPicker.SelectedItem is SaisonRecord saison) await Navigation.PushAsync(new JahresabschlussRechnungEditorPage(_supabase, saison)); };
+        _neueRechnung.Clicked += async (_, _) => { if (CanManageFinanceInvoices && _saisonPicker.SelectedItem is SaisonRecord saison) await Navigation.PushAsync(new JahresabschlussRechnungEditorPage(_supabase, saison)); };
         _stammdaten = new Button { Text = "Kosten- und Umlagearten verwalten" };
-        _stammdaten.Clicked += async (_, _) => { if (CanPerformYearEndClosing) await Navigation.PushAsync(new JahresabschlussStammdatenPage(_supabase)); };
+        _stammdaten.Clicked += async (_, _) => { if (CanManageFinanceCostTypes) await Navigation.PushAsync(new JahresabschlussStammdatenPage(_supabase)); };
         _pruefen = new Button { Text = "Abschluss prüfen" };
-        _pruefen.Clicked += async (_, _) => { if (CanPerformYearEndClosing && _saisonPicker.SelectedItem is SaisonRecord saison) await Navigation.PushAsync(new JahresabschlussPruefungPage(_abschluss, saison, _context)); };
+        _pruefen.Clicked += async (_, _) => { if (CanPrepareYearEndClosing && _saisonPicker.SelectedItem is SaisonRecord saison) await Navigation.PushAsync(new JahresabschlussPruefungPage(_abschluss, saison, _context)); };
 
         Content = new ScrollView { Content = new VerticalStackLayout { Padding = 24, Spacing = 12, Children =
         {
@@ -81,11 +79,11 @@ public sealed class JahresabschlussPage : ContentPage
 
     private async Task LoadAsync()
     {
-        if (_loading || !CanPerformYearEndClosing)
+        if (_loading || !HasFinanceAccess)
         {
             _rechnungen.Clear();
             ApplyPermissionState();
-            _status.Text = "Für den Jahresabschluss fehlt die Berechtigung.";
+            _status.Text = "Für die Finanzverwaltung fehlt eine wirksame Fachberechtigung.";
             return;
         }
         _loading = true;
@@ -104,10 +102,11 @@ public sealed class JahresabschlussPage : ContentPage
 
     private async Task LoadRechnungenAsync()
     {
-        if (_loading || !CanPerformYearEndClosing)
+        if (!CanReadFinanceInvoices)
         {
             _rechnungen.Clear();
             ApplyPermissionState();
+            _status.Text = "Rechnungsdaten sind nicht freigegeben. Kostenarten können gegebenenfalls separat verwaltet werden.";
             return;
         }
         if (_saisonPicker.SelectedItem is not SaisonRecord saison) return;
@@ -116,15 +115,20 @@ public sealed class JahresabschlussPage : ContentPage
         _status.Text = _rechnungen.Count == 0 ? string.Empty : $"{_rechnungen.Count} Rechnung(en) für {saison.Jahr}. Zum Bearbeiten antippen.";
     }
 
-    private bool CanPerformYearEndClosing => PermissionChecks.CanPerformYearEndClosing(_context.CurrentUserContext);
+    private bool HasFinanceAccess => PermissionChecks.HasAnyFinanceAccess(_context.CurrentUserContext);
+    private bool CanManageFinanceInvoices => PermissionChecks.CanManageFinanceInvoices(_context.CurrentUserContext);
+    private bool CanManageFinanceCostTypes => PermissionChecks.CanManageFinanceCostTypes(_context.CurrentUserContext);
+    private bool CanPrepareYearEndClosing => PermissionChecks.CanPrepareYearEndClosing(_context.CurrentUserContext);
+    private bool CanReadFinanceInvoices => PermissionChecks.CanReadFinance(_context.CurrentUserContext)
+        || CanManageFinanceInvoices || CanPrepareYearEndClosing;
 
     private void ApplyPermissionState()
     {
-        var enabled = CanPerformYearEndClosing && !_loading;
+        var enabled = HasFinanceAccess && !_loading;
         _saisonPicker.IsEnabled = enabled;
-        _neueRechnung.IsEnabled = enabled;
-        _stammdaten.IsEnabled = enabled;
-        _pruefen.IsEnabled = enabled;
+        _neueRechnung.IsEnabled = enabled && CanManageFinanceInvoices;
+        _stammdaten.IsEnabled = enabled && CanManageFinanceCostTypes;
+        _pruefen.IsEnabled = enabled && CanPrepareYearEndClosing;
     }
 }
 

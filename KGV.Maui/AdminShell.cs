@@ -200,7 +200,7 @@ public sealed class AdminShell : Shell, IAppShellInitializer
         var managementContext = _userContextState.CurrentUserContext;
         if (PermissionChecks.CanManageClubSeasonConfiguration(managementContext))
             managementEntries.Add(("Saisonverwaltung", "season_management", () => _services.GetRequiredService<SaisonverwaltungPage>()));
-        if (PermissionChecks.CanPerformYearEndClosing(managementContext))
+        if (PermissionChecks.HasAnyFinanceAccess(managementContext))
             managementEntries.Add(("Jahresabschluss", "annual_closing", () => _services.GetRequiredService<JahresabschlussPage>()));
         if (PermissionChecks.CanRegisterHistoricalContracts(managementContext))
             managementEntries.Add(("Historische Verträge", "historical_contracts", () => _services.GetRequiredService<HistoricalContractRegistrationPage>()));
@@ -446,7 +446,7 @@ public sealed class AdminShell : Shell, IAppShellInitializer
         var managementEntries = new List<(string Title, string Route, bool Visible)>();
         var context = _userContextState.CurrentUserContext;
         if (PermissionChecks.CanManageClubSeasonConfiguration(context)) managementEntries.Add(("Saisonverwaltung", "season_management", true));
-        if (PermissionChecks.CanPerformYearEndClosing(context)) managementEntries.Add(("Jahresabschluss", "annual_closing", true));
+        if (PermissionChecks.HasAnyFinanceAccess(context)) managementEntries.Add(("Jahresabschluss", "annual_closing", true));
         if (PermissionChecks.CanRegisterHistoricalContracts(context)) managementEntries.Add(("Historische Verträge", "historical_contracts", true));
         if (PermissionChecks.CanManageClubSeasonConfiguration(context)) managementEntries.Add(("Vereinskonfiguration", "club_configuration", true));
         if (PermissionChecks.CanManageClubDocuments(context))

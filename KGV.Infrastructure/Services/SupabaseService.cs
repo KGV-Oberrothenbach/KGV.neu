@@ -2866,9 +2866,25 @@ namespace KGV.Infrastructure.Services
             {
                 if (jahresabschlussId <= 0) throw new InvalidOperationException("Ungültiger Jahresabschluss.");
                 var client = await EnsureClientAsync();
-                await client.From<JahresabschlussPositionRecord>().Where(x => x.JahresabschlussId == jahresabschlussId).Delete();
-                if (positionen.Count > 0) await client.From<JahresabschlussPositionRecord>().Insert(positionen.ToList());
-                return true;
+                // FR2-06: Ein einziger serverseitiger ACID-Aufruf; kein loeschender Teilschritt.
+                // Wiederholung mit derselben Nutzlast erhaelt bestehende Positions-IDs.
+                var payload = positionen.Select(p => new
+                {
+                    parzelle_id = p.ParzelleId,
+                    mitglied_id = p.MitgliedId,
+                    position_typ = p.PositionTyp,
+                    menge = p.Menge,
+                    einheit = p.Einheit,
+                    preis = p.Preis,
+                    betrag = p.Betrag,
+                    bemerkung = p.Bemerkung
+                }).ToArray();
+                var affected = await client.Rpc<int>("fr206_replace_jahresabschluss_positionen", new
+                {
+                    p_jahresabschluss_id = jahresabschlussId,
+                    p_positionen = payload
+                });
+                return affected == positionen.Count;
             }, false);
 
         public Task<JahresabschlussRecord?> FinalizeJahresabschlussAsync(long jahresabschlussId, long abgeschlossenVon) => ExecuteAsync<JahresabschlussRecord?>(
