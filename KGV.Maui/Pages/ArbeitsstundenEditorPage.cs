@@ -359,7 +359,8 @@ public sealed class ArbeitsstundenEditorPage : ContentPage, IQueryAttributable
         {
             await Task.Yield();
 
-            var canManageWorkHours = PermissionChecks.CanManageWorkHours(_state.CurrentUserContext);
+            var canEditWorkHours = PermissionChecks.CanEditWorkHours(_state.CurrentUserContext);
+            var canApproveWorkHours = PermissionChecks.CanApproveWorkHours(_state.CurrentUserContext);
 
             var record = new ArbeitsstundeRecord
             {
@@ -383,8 +384,8 @@ public sealed class ArbeitsstundenEditorPage : ContentPage, IQueryAttributable
                     record.Datum = _existingEntry.Datum.Date;
             }
 
-            // Neue Einträge mit effektiver ManageWorkHours-Permission werden direkt genehmigt.
-            if (_existingEntry == null && canManageWorkHours)
+            // Sofortgenehmigung benoetigt Bearbeiten UND Freigeben.
+            if (_existingEntry == null && canEditWorkHours && canApproveWorkHours)
             {
                 // Ensure we have a current member id for the approving user
                 if (!_state.CurrentMitgliedId.HasValue)
@@ -401,6 +402,15 @@ public sealed class ArbeitsstundenEditorPage : ContentPage, IQueryAttributable
             }
             else
             {
+                // FR2-07: Bearbeiten allein erteilt keine Freigabe. Auch eigene
+                // Selbsterfassung wird explizit offen zur Pruefung abgelegt.
+                if (_existingEntry == null)
+                {
+                    record.Freigegeben = false;
+                    record.Status = "offen";
+                    record.GenehmigtAm = null;
+                    record.GenehmigtVon = null;
+                }
                 try { AppFileLog.Info("ArbeitsstundenEditorPage", $"Arbeitsstunde gespeichert – Status={(record.Freigegeben?"Freigegeben":"in Prüfung")}"); } catch { }
             }
 
@@ -490,7 +500,7 @@ public sealed class ArbeitsstundenEditorPage : ContentPage, IQueryAttributable
 
     private int? GetContextMemberId()
     {
-        if (!_forceOwnContext && PermissionChecks.CanManageWorkHours(_state.CurrentUserContext))
+        if (!_forceOwnContext && PermissionChecks.CanEditWorkHours(_state.CurrentUserContext))
         {
             var selectedId = _memberContextState.SelectedMember?.Id;
             if (selectedId is > 0)
@@ -505,7 +515,7 @@ public sealed class ArbeitsstundenEditorPage : ContentPage, IQueryAttributable
     private bool UsesSelectedMemberContext(MemberDTO? selectedMember)
     {
         return !_forceOwnContext
-            && PermissionChecks.CanManageWorkHours(_state.CurrentUserContext)
+            && PermissionChecks.CanEditWorkHours(_state.CurrentUserContext)
             && selectedMember?.Id is > 0;
     }
 

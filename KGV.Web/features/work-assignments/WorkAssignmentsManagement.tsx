@@ -8,7 +8,7 @@ import { WorkAssignmentList } from "./WorkAssignmentList";
 import { WorkAssignmentParticipants } from "./WorkAssignmentParticipants";
 import { type WorkAssignment } from "../../models/work-assignments/work-assignment";
 
-export function WorkAssignmentsManagement({ session, canEdit, canManageWorkHours, onBack }: { session: BrowserSession; canEdit: boolean; canManageWorkHours: boolean; onBack: () => void }) {
+export function WorkAssignmentsManagement({ session, canEdit, canApproveWorkHours, onBack }: { session: BrowserSession; canEdit: boolean; canApproveWorkHours: boolean; onBack: () => void }) {
   const club = useSelectedClub();
   const [items, setItems] = useState<WorkAssignment[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -73,7 +73,7 @@ export function WorkAssignmentsManagement({ session, canEdit, canManageWorkHours
   async function removeAssignment() {
     if (!selected) return;
     if (!editLock.acquired) { setMessage(editLock.message || "Die Bearbeitungssperre wird noch geprüft."); return; }
-    if (!window.confirm(`Den Arbeitseinsatz „${selected.titel ?? "Ohne Titel"}“ einschließlich seiner Anmeldungen endgültig löschen?`)) return;
+    if (!window.confirm(`Den Arbeitseinsatz „${selected.titel ?? "Ohne Titel"}“ wirklich löschen? Einsätze mit Anmeldungen oder Historie bleiben geschützt.`)) return;
     setSaving(true);
     setMessage("");
     try { await removeWorkAssignment(club, session, selected.id); setSelectedId(null); setCreating(false); await load(); setMessage("Arbeitseinsatz wurde gelöscht."); }
@@ -81,5 +81,5 @@ export function WorkAssignmentsManagement({ session, canEdit, canManageWorkHours
     finally { setSaving(false); }
   }
 
-  return <section className="data-workspace work-assignment-management"><div className="data-toolbar"><div className="editor-actions"><button className="secondary-action" onClick={onBack}>Zur Startseite</button><button className="secondary-action" onClick={() => void load()}>Aktualisieren</button></div><span>{items.length} Arbeitseinsätze</span>{canEdit && <button onClick={startNew}>Arbeitseinsatz anlegen</button>}</div>{message && <p className="notice" role="status">{message}</p>}<div className="split-view"><WorkAssignmentList items={items} selectedId={selected?.id ?? null} creating={creating} onSelect={selectEntry} /><WorkAssignmentEditor selected={selected} selectedIndex={selectedIndex} itemCount={items.length} creating={creating} draft={draft} canEdit={canEdit} saving={saving} onChange={set} onMove={moveSelection} onSave={(prepareNext) => void save(prepareNext)} onCancel={() => void cancelAssignment()} onRemove={() => void removeAssignment()} onClose={() => { setCreating(false); setSelectedId(null); setMessage(""); }}>{selected && canEdit && <WorkAssignmentParticipants session={session} assignment={selected} canManageWorkHours={canManageWorkHours} />}</WorkAssignmentEditor></div></section>;
+  return <section className="data-workspace work-assignment-management"><div className="data-toolbar"><div className="editor-actions"><button className="secondary-action" onClick={onBack}>Zur Startseite</button><button className="secondary-action" onClick={() => void load()}>Aktualisieren</button></div><span>{items.length} Arbeitseinsätze</span>{canEdit && <button onClick={startNew}>Arbeitseinsatz anlegen</button>}</div>{message && <p className="notice" role="status">{message}</p>}<div className="split-view"><WorkAssignmentList items={items} selectedId={selected?.id ?? null} creating={creating} onSelect={selectEntry} /><WorkAssignmentEditor selected={selected} selectedIndex={selectedIndex} itemCount={items.length} creating={creating} draft={draft} canEdit={canEdit} saving={saving} onChange={set} onMove={moveSelection} onSave={(prepareNext) => void save(prepareNext)} onCancel={() => void cancelAssignment()} onRemove={() => void removeAssignment()} onClose={() => { setCreating(false); setSelectedId(null); setMessage(""); }}>{selected && canEdit && <WorkAssignmentParticipants session={session} assignment={selected} canApproveWorkHours={canApproveWorkHours} />}</WorkAssignmentEditor></div></section>;
 }

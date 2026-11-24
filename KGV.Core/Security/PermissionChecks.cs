@@ -144,15 +144,23 @@ namespace KGV.Core.Security
             => CanReadDocuments(context)
                || HasOwnDocumentsAccessForMember(context, memberId);
 
+        // FR2-07: Vier unabhaengige, ausschliesslich serverseitig berechnete Fachrechte.
         public static bool CanReadWorkHours(UserContext? context)
-            => HasPermission(context, PermissionFlags.CanReadWorkHours)
-               || HasPermission(context, PermissionFlags.CanManageWorkHours);
+            => context?.HasFachrecht(FachrechteV2.ArbeitsstundenLesen) == true;
 
+        public static bool CanEditWorkHours(UserContext? context)
+            => context?.HasFachrecht(FachrechteV2.ArbeitsstundenBearbeiten) == true;
+
+        public static bool CanApproveWorkHours(UserContext? context)
+            => context?.HasFachrecht(FachrechteV2.ArbeitsstundenFreigeben) == true;
+
+        // Kompatibilitaetshelfer: Sofortgenehmigung nur mit beiden Rechten.
+        // Nicht als Ersatz fuer CanEditWorkHours / CanApproveWorkHours verwenden.
         public static bool CanManageWorkHours(UserContext? context)
-            => HasPermission(context, PermissionFlags.CanManageWorkHours);
+            => CanEditWorkHours(context) && CanApproveWorkHours(context);
 
         public static bool CanManageWorkAssignments(UserContext? context)
-            => HasPermission(context, PermissionFlags.CanManageWorkAssignments);
+            => context?.HasFachrecht(FachrechteV2.ArbeitseinsatzVerwalten) == true;
 
         public static bool CanManageAppointments(UserContext? context)
             => HasPermission(context, PermissionFlags.CanManageAppointments);
@@ -250,7 +258,8 @@ namespace KGV.Core.Security
                || CanReadDocuments(context)
                || CanManageDocuments(context)
                || CanReadWorkHours(context)
-               || CanManageWorkHours(context)
+               || CanEditWorkHours(context)
+               || CanApproveWorkHours(context)
                || CanManageWorkAssignments(context)
                || CanManageAppointments(context)
                || CanManageAnnouncements(context)

@@ -1,4 +1,5 @@
 using KGV.Core.Interfaces;
+using KGV.Core.Security;
 using KGV.Core.Models;
 using KGV.Maui.State;
 using Microsoft.Maui;
@@ -537,16 +538,18 @@ public sealed class ArbeitsstundenReviewDetailPage : ContentPage
     {
         var hasEntry = _reviewState.CurrentEntry != null;
         var hasComment = ArbeitsstundenPruefprozess.HasRequiredKommentar(_commentEditor.Text);
-        _approveButton.IsEnabled = _lockAcquired && hasEntry && !_isBusy && hasComment;
-        _rejectButton.IsEnabled = _lockAcquired && hasEntry && !_isBusy && hasComment;
-        _correctButton.IsEnabled = _lockAcquired && hasEntry && !_isBusy && hasComment;
-        _deleteButton.IsEnabled = _lockAcquired && hasEntry && !_isBusy && hasComment;
+        var canApprove = PermissionChecks.CanApproveWorkHours(_userContextState.CurrentUserContext);
+        var canEdit = PermissionChecks.CanEditWorkHours(_userContextState.CurrentUserContext);
+        _approveButton.IsEnabled = canApprove && _lockAcquired && hasEntry && !_isBusy && hasComment;
+        _rejectButton.IsEnabled = canApprove && _lockAcquired && hasEntry && !_isBusy && hasComment;
+        _correctButton.IsEnabled = canApprove && canEdit && _lockAcquired && hasEntry && !_isBusy && hasComment;
+        _deleteButton.IsEnabled = canApprove && canEdit && _lockAcquired && hasEntry && !_isBusy && hasComment;
         _previousButton.IsEnabled = _lockAcquired && hasEntry && !_isBusy && _reviewState.CanMovePrevious;
         _nextButton.IsEnabled = _lockAcquired && hasEntry && !_isBusy && _reviewState.CanMoveNext;
         _commentEditor.IsEnabled = _lockAcquired && hasEntry && !_isBusy;
-        _correctionDatePicker.IsEnabled = _lockAcquired && hasEntry && !_isBusy && _reviewState.CurrentEntry?.ArbeitseinsatzAnmeldungId == null;
-        _correctionHoursEntry.IsEnabled = _lockAcquired && hasEntry && !_isBusy;
-        _correctionWorkTypeEditor.IsEnabled = _lockAcquired && hasEntry && !_isBusy;
+        _correctionDatePicker.IsEnabled = canApprove && canEdit && _lockAcquired && hasEntry && !_isBusy && _reviewState.CurrentEntry?.ArbeitseinsatzAnmeldungId == null;
+        _correctionHoursEntry.IsEnabled = canApprove && canEdit && _lockAcquired && hasEntry && !_isBusy;
+        _correctionWorkTypeEditor.IsEnabled = canApprove && canEdit && _lockAcquired && hasEntry && !_isBusy;
     }
 
     private async Task<ArbeitsstundenReviewLockResult> EnsureReviewLockAsync()

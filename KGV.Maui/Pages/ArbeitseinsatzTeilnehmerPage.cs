@@ -175,7 +175,7 @@ public sealed class ArbeitseinsatzTeilnehmerPage : ContentPage, IQueryAttributab
 
     private void ShowStatus(string text, bool error) { _status.Text = text; _status.TextColor = error ? Colors.IndianRed : Colors.DarkGreen; _status.IsVisible = true; }
     private bool CanRegister => _assignmentActive && !_started && (!_maxParticipants.HasValue || _activeRegistrations < _maxParticipants.Value);
-    private bool CanConfirmHours => _ended && PermissionChecks.CanManageWorkAssignments(_userContextState.CurrentUserContext) && PermissionChecks.CanManageWorkHours(_userContextState.CurrentUserContext);
+    private bool CanConfirmHours => _ended && PermissionChecks.CanManageWorkAssignments(_userContextState.CurrentUserContext) && PermissionChecks.CanApproveWorkHours(_userContextState.CurrentUserContext);
     private string RegistrationBlockedMessage => !_assignmentActive ? "Der Arbeitseinsatz ist abgesagt." : _started ? "Der Arbeitseinsatz hat bereits begonnen." : "Die Teilnehmerbegrenzung ist erreicht.";
     private static int StatusRank(string status) => status switch { "angemeldet" => 0, "teilgenommen" => 1, "nicht_erschienen" => 2, "abgesagt" => 3, _ => 4 };
     private static string StatusLabel(string status) => status switch { "angemeldet" => "Angemeldet", "teilgenommen" => "Teilgenommen", "nicht_erschienen" => "Nicht erschienen", "abgesagt" => "Abgesagt", _ => status };

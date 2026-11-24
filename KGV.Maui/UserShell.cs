@@ -217,7 +217,7 @@ public sealed class UserShell : Shell, IAppShellInitializer
         if (PermissionChecks.CanReadRoleManagement(_state.CurrentUserContext))
             Items.Add(CreateItem("↳ Admin-Menü", "my_adminmenu", CreateOwnAdminMenuPage));
 
-        if (PermissionChecks.CanManageWorkHours(_state.CurrentUserContext))
+        if (PermissionChecks.CanApproveWorkHours(_state.CurrentUserContext))
             Items.Add(CreateItem("Arbeitsstunden freigeben", "workhours_review", () => _services.GetRequiredService<ArbeitsstundenReviewPage>()));
 
         _menuBuilt = true;

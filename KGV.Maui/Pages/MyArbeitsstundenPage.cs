@@ -197,7 +197,7 @@ public sealed class MyArbeitsstundenPage : ContentPage
 
         var mainId = contextMemberId.Value;
         var selectedMember = _memberContextState.SelectedMember;
-        var useSelectedMemberContext = PermissionChecks.CanReadWorkHours(_state.CurrentUserContext)
+        var useSelectedMemberContext = (PermissionChecks.CanReadWorkHours(_state.CurrentUserContext) || PermissionChecks.CanEditWorkHours(_state.CurrentUserContext))
             && selectedMember?.Id is > 0;
 
         var mainLabel = useSelectedMemberContext && selectedMember?.IstHauptmitglied == false
@@ -350,7 +350,7 @@ public sealed class MyArbeitsstundenPage : ContentPage
 
     private int? GetContextMemberId()
     {
-        if (PermissionChecks.CanReadWorkHours(_state.CurrentUserContext))
+        if (PermissionChecks.CanReadWorkHours(_state.CurrentUserContext) || PermissionChecks.CanEditWorkHours(_state.CurrentUserContext))
         {
             var selectedId = _memberContextState.SelectedMember?.Id;
             if (selectedId is > 0)

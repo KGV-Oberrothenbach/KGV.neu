@@ -49,8 +49,8 @@ export async function createOwnWorkHour(club: ClubContext, session: BrowserSessi
   return created[0];
 }
 
-export async function createAdministrativeWorkHourEntry(club: ClubContext, session: BrowserSession, canManageWorkHours: boolean, memberId: number, saisonId: number | null, input: OwnWorkHourInput) {
-  if (!canManageWorkHours) throw new Error("Für die administrative Arbeitsstundenerfassung fehlt ManageWorkHours.");
+export async function createAdministrativeWorkHourEntry(club: ClubContext, session: BrowserSession, canEditWorkHours: boolean, canApproveWorkHours: boolean, memberId: number, saisonId: number | null, input: OwnWorkHourInput) {
+  if (!canEditWorkHours) throw new Error("Fachrecht arbeitsstunden.bearbeiten fehlt.");
   if (!Number.isInteger(memberId) || memberId <= 0) throw new Error("Für die Arbeitsstunde fehlt der Mitgliedskontext.");
   if (saisonId === null || !Number.isInteger(saisonId) || saisonId <= 0) throw new Error("Für die Arbeitsstunde fehlt die Saison.");
   validateOwnWorkHourInput(input);
@@ -60,15 +60,16 @@ export async function createAdministrativeWorkHourEntry(club: ClubContext, sessi
     datum: input.date,
     stunden: input.hours,
     art_der_arbeit: input.workType.trim(),
-    status: "genehmigt",
-    freigegeben: true,
+    status: canApproveWorkHours ? "genehmigt" : "offen",
+    freigegeben: canApproveWorkHours,
   });
   if (!created[0]) throw new Error("Arbeitsstunde konnte nicht gespeichert werden.");
   return created[0];
 }
 
-export async function updateOwnWorkHour(club: ClubContext, session: BrowserSession, workHour: WorkHour | undefined, memberId: number, input: OwnWorkHourInput) {
-  if (!workHour || !isOwnOpenWorkHourEditable(workHour, memberId)) throw new Error("Nur eigene offene Arbeitsstunden können bearbeitet werden.");
+export async function updateOwnWorkHour(club: ClubContext, session: BrowserSession, workHour: WorkHour | undefined, memberId: number, input: OwnWorkHourInput, canEditWorkHours = false) {
+  if (!workHour || !isOwnOpenWorkHourEditable(workHour, memberId) || (!canEditWorkHours && workHour.mitglied_id !== memberId))
+    throw new Error("Nur berechtigt ausgewaehlte, offene Arbeitsstunden koennen bearbeitet werden.");
   validateOwnWorkHourInput(input);
   const updated = await updateOwnOpenWorkHour(club, session, workHour.id, {
     datum: input.date,
@@ -79,8 +80,10 @@ export async function updateOwnWorkHour(club: ClubContext, session: BrowserSessi
   return updated[0];
 }
 
-export async function reviewOpenWorkHour(club: ClubContext, session: BrowserSession, canManageWorkHours: boolean, workHour: WorkHour | undefined, input: WorkHourReviewInput) {
-  if (!canManageWorkHours) throw new Error("Für die Prüfung fehlt ManageWorkHours.");
+export async function reviewOpenWorkHour(club: ClubContext, session: BrowserSession, canApproveWorkHours: boolean, canEditWorkHours: boolean, workHour: WorkHour | undefined, input: WorkHourReviewInput) {
+  if (!canApproveWorkHours) throw new Error("Fachrecht arbeitsstunden.freigeben fehlt.");
+  if ((input.action === "korrigieren" || input.action === "loeschen") && !canEditWorkHours)
+    throw new Error("Fuer Korrektur oder Loeschen ist auch arbeitsstunden.bearbeiten erforderlich.");
   if (!workHour || workHour.status !== "offen" || workHour.freigegeben !== false) throw new Error("Diese Arbeitsstunde ist nicht mehr prüfbar.");
   if (!input.comment.trim()) throw new Error("Für jede Prüfaktion ist eine Begründung erforderlich.");
   if (input.action === "korrigieren") validateOwnWorkHourInput(input);

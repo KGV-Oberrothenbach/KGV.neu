@@ -31,8 +31,8 @@ export type AdministrativeWorkHourCreate = {
   datum: string;
   stunden: number;
   art_der_arbeit: string;
-  status: "genehmigt";
-  freigegeben: true;
+  status: "genehmigt" | "offen";
+  freigegeben: boolean;
 };
 
 export type WorkHourReviewAction = "freigeben" | "ablehnen" | "korrigieren" | "loeschen";

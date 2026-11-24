@@ -227,16 +227,19 @@ public sealed class PermissionServiceTests
     }
 
     [Theory]
-    [InlineData((long)PermissionFlags.CanManageWorkAssignments, 0L, true, false)]
-    [InlineData((long)PermissionFlags.CanManageWorkHours, 0L, false, true)]
-    [InlineData((long)(PermissionFlags.CanManageWorkAssignments | PermissionFlags.CanManageWorkHours), 0L, true, true)]
-    [InlineData((long)(PermissionFlags.CanManageWorkAssignments | PermissionFlags.CanManageWorkHours), (long)PermissionFlags.CanManageWorkAssignments, false, true)]
-    public void CreateContext_KeepsWorkAssignmentAndWorkHourPermissionsIndependent(long grants, long revocations, bool canManageAssignments, bool canManageHours)
+    [InlineData((long)PermissionFlags.CanManageWorkAssignments, 0L)]
+    [InlineData((long)PermissionFlags.CanManageWorkHours, 0L)]
+    [InlineData((long)(PermissionFlags.CanManageWorkAssignments | PermissionFlags.CanManageWorkHours), 0L)]
+    [InlineData((long)(PermissionFlags.CanManageWorkAssignments | PermissionFlags.CanManageWorkHours), (long)PermissionFlags.CanManageWorkAssignments)]
+    public void CreateContext_LegacyBitsGrantNoWorkRights(long grants, long revocations)
     {
         var context = new PermissionService().CreateContext(Guid.NewGuid(), "user", null, grants, revocations);
 
-        Assert.Equal(canManageAssignments, PermissionChecks.CanManageWorkAssignments(context));
-        Assert.Equal(canManageHours, PermissionChecks.CanManageWorkHours(context));
+        // FR2-07: Uebergebene Legacy-Grants sind keine Fachrechtszuweisungen.
+        Assert.False(PermissionChecks.CanManageWorkAssignments(context));
+        Assert.False(PermissionChecks.CanManageWorkHours(context));
+        Assert.False(PermissionChecks.CanEditWorkHours(context));
+        Assert.False(PermissionChecks.CanApproveWorkHours(context));
     }
 
     [Theory]

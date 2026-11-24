@@ -187,7 +187,7 @@ public sealed class AdminShell : Shell, IAppShellInitializer
         if (PermissionChecks.CanEditAllMembers(_userContextState.CurrentUserContext))
             Items.Add(CreateItem("Wartungsverträge", "wartungsvertraege", () => _services.GetRequiredService<WartungsvertraegePage>()));
 
-        if (PermissionChecks.CanManageWorkHours(_userContextState.CurrentUserContext))
+        if (PermissionChecks.CanApproveWorkHours(_userContextState.CurrentUserContext))
         {
             _workhoursReviewItem = CreateItem("Arbeitsstunden freigeben", "workhours_review", () => _services.GetRequiredService<ArbeitsstundenReviewPage>());
             Items.Add(_workhoursReviewItem);
@@ -254,7 +254,7 @@ public sealed class AdminShell : Shell, IAppShellInitializer
             (PermissionChecks.CanShowParzellen(_userContextState.CurrentUserContext)
              || PermissionChecks.CanManageBelegungen(_userContextState.CurrentUserContext));
         if (_memberAdminMenuItem != null) _memberAdminMenuItem.IsVisible = hasMember && PermissionChecks.CanReadRoleManagement(_userContextState.CurrentUserContext);
-        if (_memberWorkhoursItem != null) _memberWorkhoursItem.IsVisible = hasMember && PermissionChecks.CanReadWorkHours(_userContextState.CurrentUserContext);
+        if (_memberWorkhoursItem != null) _memberWorkhoursItem.IsVisible = hasMember && (PermissionChecks.CanReadWorkHours(_userContextState.CurrentUserContext) || PermissionChecks.CanEditWorkHours(_userContextState.CurrentUserContext));
 
         if (_menuBuilt)
             RebuildFlyoutMenu();
@@ -427,7 +427,7 @@ public sealed class AdminShell : Shell, IAppShellInitializer
             AddNavigationButton(menu, "Parzellenverwaltung", "parzellen");
         if (PermissionChecks.CanEditAllMembers(_userContextState.CurrentUserContext))
             AddNavigationButton(menu, "Wartungsverträge", "wartungsvertraege");
-        if (PermissionChecks.CanManageWorkHours(_userContextState.CurrentUserContext))
+        if (PermissionChecks.CanApproveWorkHours(_userContextState.CurrentUserContext))
             AddNavigationButton(menu, _workhoursReviewItem?.Title ?? "Arbeitsstunden freigeben", "workhours_review");
         if (PermissionChecks.CanSearchMembers(_userContextState.CurrentUserContext))
             AddNavigationButton(menu, "Export", "export");
