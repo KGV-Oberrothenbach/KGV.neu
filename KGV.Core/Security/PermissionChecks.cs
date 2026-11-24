@@ -127,7 +127,11 @@ namespace KGV.Core.Security
             => context?.HasFachrecht(FachrechteV2.VorlageVerwalten) == true;
 
         public static bool CanManageClubSeasonConfiguration(UserContext? context)
-            => HasPermission(context, PermissionFlags.CanManageClubSeasonConfiguration);
+            => context?.HasFachrecht(FachrechteV2.SaisonVerwalten) == true;
+
+        // FR2-10: Vereinskonfiguration ist kein Teilrecht der Saisonverwaltung.
+        public static bool CanManageClubConfiguration(UserContext? context)
+            => context?.HasFachrecht(FachrechteV2.VereinKonfiguration) == true;
 
         public static bool CanConfigureUserMeterReadingSubmissions(UserContext? context)
             => context?.HasFachrecht(FachrechteV2.AblesungEinstellungen) == true;
@@ -145,7 +149,7 @@ namespace KGV.Core.Security
             => context?.HasFachrecht("vereinsunterlagen.verwalten") == true;
 
         public static bool CanManageClubFunctions(UserContext? context)
-            => HasPermission(context, PermissionFlags.CanManageClubFunctions);
+            => context?.HasFachrecht(FachrechteV2.VereinsfunktionVerwalten) == true;
 
         // FR2-09: effective Fachrechte, never a legacy permission bit.
         public static bool CanReadCommunicationWorkflows(UserContext? context)
@@ -178,10 +182,10 @@ namespace KGV.Core.Security
             => context?.HasFachrecht(FachrechteV2.ArbeitseinsatzVerwalten) == true;
 
         public static bool CanManageAppointments(UserContext? context)
-            => HasPermission(context, PermissionFlags.CanManageAppointments);
+            => context?.HasFachrecht(FachrechteV2.TerminVerwalten) == true;
 
         public static bool CanManageAnnouncements(UserContext? context)
-            => HasPermission(context, PermissionFlags.CanManageAnnouncements);
+            => context?.HasFachrecht(FachrechteV2.BekanntmachungVerwalten) == true;
 
         // FR2-06: Nur die benannten, zentral ermittelten Fachrechte entscheiden.
         // Alte Rollen-/Flag-Bits geben keine Finanzberechtigung.
@@ -290,6 +294,8 @@ namespace KGV.Core.Security
                || HasAnyFinanceAccess(context)
                || CanRegisterHistoricalContracts(context)
                || CanManageClubSeasonConfiguration(context)
+               || CanManageClubConfiguration(context)
+               || CanManageClubFunctions(context)
                || CanConfigureUserMeterReadingSubmissions(context);
     }
 }

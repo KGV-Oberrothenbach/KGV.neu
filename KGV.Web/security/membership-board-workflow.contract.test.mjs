@@ -45,8 +45,16 @@ test("web and download path use the board-document contract without role-derived
   assert.match(web, /Mitgliedsantrag öffnen/);
   assert.match(web, /canDecideMembershipBoardReview/);
   assert.match(web, /berechtigungsquellen/);
-  assert.match(edge, /can_access_mitgliedsaufnahme_vorstand_document/);
-  assert.match(edge, /p_auth_user_id: auth\.userId/);
+  const readGuard = edge.match(/async function mayReadDocument[\s\S]*?\n\}/)?.[0] ?? "";
+  assert.match(readGuard, /auth\.supabaseUser\.from\("dokument"\)/);
+  assert.match(readGuard, /\.eq\("id", documentId\)\.is\("archiviert_at", null\)\.maybeSingle\(\)/);
+  assert.doesNotMatch(readGuard, /supabaseAdmin\.from/);
+  assert.match(edge, /await mayReadDocument\(auth, documentId\)/);
+  assert.match(edge, /if \(!document\) \{\s*return errorResponse\(403, "FORBIDDEN"/);
+  const download = edge.indexOf('if (action !== "download"');
+  assert.ok(download >= 0);
+  const downloadPath = edge.slice(download);
+  assert.ok(downloadPath.indexOf("await mayReadDocument(auth, documentId)") < downloadPath.indexOf("await downloadDriveDocument("));
 });
 
 test("positive admission creates one retryable confirmation process without changing a rejection", async () => {

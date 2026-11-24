@@ -140,9 +140,11 @@ public sealed class PermissionServiceTests
         var vorstand = service.CreateContext(Guid.NewGuid(), "vorstand", null);
         var user = service.CreateContext(Guid.NewGuid(), "user", null);
 
-        Assert.True(PermissionChecks.CanManageClubSeasonConfiguration(admin));
+        // FR2-10: Der Legacy-Role-Kontext enthaelt keine validierten Fachrechte.
+        Assert.False(PermissionChecks.CanManageClubSeasonConfiguration(admin));
         Assert.False(PermissionChecks.CanManageClubSeasonConfiguration(vorstand));
         Assert.False(PermissionChecks.CanManageClubSeasonConfiguration(user));
+        Assert.False(PermissionChecks.CanManageClubConfiguration(admin));
         // FR2-05: legacy role bits must not authorize ablesung.einstellungen.
         Assert.False(PermissionChecks.CanConfigureUserMeterReadingSubmissions(admin));
         Assert.False(PermissionChecks.CanConfigureUserMeterReadingSubmissions(vorstand));
@@ -158,6 +160,7 @@ public sealed class PermissionServiceTests
         Assert.False(PermissionChecks.CanReadRoleManagement(null));
         Assert.False(PermissionChecks.CanManageRoleManagement(null));
         Assert.False(PermissionChecks.CanManageClubSeasonConfiguration(null));
+        Assert.False(PermissionChecks.CanManageClubConfiguration(null));
         Assert.False(PermissionChecks.CanConfigureUserMeterReadingSubmissions(null));
     }
 
@@ -263,13 +266,15 @@ public sealed class PermissionServiceTests
         var announcementUser = service.CreateContext(Guid.NewGuid(), "user", null, (long)PermissionFlags.CanManageAnnouncements);
         var revokedVorstand = service.CreateContext(Guid.NewGuid(), "vorstand", null, null, (long)PermissionFlags.CanManageAppointments);
         var revokedAdmin = service.CreateContext(Guid.NewGuid(), "admin", null, null, (long)PermissionFlags.CanManageAnnouncements);
-        Assert.True(PermissionChecks.CanManageAppointments(appointmentUser));
+        // FR2-10: Alte Rollenbits und individuelle Bit-Overrides sind keine
+        // eigenstaendige Berechtigungsquelle mehr.
+        Assert.False(PermissionChecks.CanManageAppointments(appointmentUser));
         Assert.False(PermissionChecks.CanManageAnnouncements(appointmentUser));
-        Assert.True(PermissionChecks.CanManageAnnouncements(announcementUser));
+        Assert.False(PermissionChecks.CanManageAnnouncements(announcementUser));
         Assert.False(PermissionChecks.CanManageAppointments(announcementUser));
         Assert.False(PermissionChecks.CanManageAppointments(revokedVorstand));
-        Assert.True(PermissionChecks.CanManageAnnouncements(revokedVorstand));
-        Assert.True(PermissionChecks.CanManageAppointments(revokedAdmin));
+        Assert.False(PermissionChecks.CanManageAnnouncements(revokedVorstand));
+        Assert.False(PermissionChecks.CanManageAppointments(revokedAdmin));
         Assert.False(PermissionChecks.CanManageAnnouncements(revokedAdmin));
     }
 }

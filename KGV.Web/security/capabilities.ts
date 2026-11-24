@@ -55,11 +55,10 @@ export function canManageClubFunctions(context: WebCapabilityContext): boolean {
   return context !== null && hasPermission(context.effectivePermissions, Permission.CanManageClubFunctions);
 }
 
-// The current permission contract intentionally keeps club and season settings
-// admin-only. This named capability lets feature code express its intent without
-// copying role checks or creating a second permission system.
-export function canManageClubConfiguration(context: WebCapabilityContext): boolean {
-  return canManageClubSeasonConfiguration(context);
+// FR2-10: Exklusiv aus der aktuellen serverseitigen Fachrechte-Antwort,
+// nicht aus dem Saison-Adapterbit oder einer Legacy-Adminrolle.
+export function canManageClubConfiguration(context: WebCapabilityContext, hasClubConfigurationRight = false): boolean {
+  return context !== null && hasClubConfigurationRight;
 }
 
 export function canConfigureUserMeterReadingSubmissions(context: WebCapabilityContext, hasSettingRight = false): boolean {

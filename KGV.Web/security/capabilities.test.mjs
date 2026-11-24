@@ -24,6 +24,7 @@ const {
   canPerformYearEndClosing,
   canArchiveDocuments,
   canManageClubSeasonConfiguration,
+  canManageClubConfiguration,
   canManageClubDocuments,
   canManageDocumentTypes,
   canManageClubFunctions,
@@ -62,6 +63,11 @@ assert.equal(canManageRoleManagement(admin), true);
 assert.equal(canManageRoleManagement(revokedAdmin), false);
 assert.equal(canManageClubSeasonConfiguration(admin), true);
 assert.equal(canManageClubSeasonConfiguration(vorstand), false);
+// FR2-10: Das Recht verein.konfiguration stammt aus der 55er-Serverantwort.
+assert.equal(canManageClubConfiguration(admin), false);
+assert.equal(canManageClubConfiguration(admin, true), true);
+assert.equal(canManageClubConfiguration(user, true), true);
+assert.equal(canManageClubConfiguration(null, true), false);
 // FR2-05: only the named ablesung.einstellungen right authorizes this capability.
 assert.equal(canConfigureUserMeterReadingSubmissions(admin), false);
 assert.equal(canConfigureUserMeterReadingSubmissions(vorstand), false);

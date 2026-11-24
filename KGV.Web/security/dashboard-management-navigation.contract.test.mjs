@@ -33,7 +33,7 @@ test('Dashboard-only management targets: administrator can open all three pages'
 
 test('Workspace resolves dashboard targets in addition to sidebar items and gates them by effective rights', async () => {
   const page = await readFile(new URL('../app/page.tsx', import.meta.url), 'utf8');
-  assert.match(page, /getDashboardManagementTargets\(\{\s*canManageWorkAssignments:\s*has\(Permission\.manageWorkAssignments\),\s*canManageAppointments:\s*has\(Permission\.manageAppointments\),\s*canManageAnnouncements:\s*has\(Permission\.manageAnnouncements\)/);
+  assert.match(page, /getDashboardManagementTargets\(\{\s*canManageWorkAssignments:\s*hasRight\("arbeitseinsatz\.verwalten"\),\s*canManageAppointments:\s*hasRight\("termin\.verwalten"\),\s*canManageAnnouncements:\s*hasRight\("bekanntmachung\.verwalten"\)/);
   assert.match(page, /const permittedTargets = \[\.\.\.allNavigationItems, \.\.\.dashboardManagementTargets\]/);
   assert.match(page, /new Set\(permittedTargets\.map\(\(item\) => item\.id\)\)/);
   assert.match(page, /const active = permittedTargets\.find\(\(item\) => item\.id === effectiveActiveId\)/);

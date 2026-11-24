@@ -30,7 +30,15 @@ test("attachment snapshot keeps the revision-wide party invariant without an inv
 });
 test("edge function sends only digital snapshots and never fabricates a paper PDF", async () => {
   const source = await readFile(edge, "utf8");
-  for (const expected of ["claim_contract_dispatch", "versandinstanz_versuch", "SMTP_TEST_RECIPIENT", "GOOGLE_DRIVE_REFRESH_TOKEN", "teilweise_fehlerhaft", "stableMessageId", "idempotenzschluessel"]) assert.ok(source.includes(expected));
+  for (const expected of ["fr209_claim_contract_dispatch", "versandinstanz_versuch", "SMTP_TEST_RECIPIENT", "GOOGLE_DRIVE_REFRESH_TOKEN", "fr209_reserve_contract_mail", "messageId", "idempotenzschluessel"]) assert.ok(source.includes(expected));
+  assert.match(source, /await caller\.rpc\("fr209_claim_contract_dispatch"/);
+  assert.match(source, /await admin\.rpc\("fr209_reserve_contract_mail"/);
+  assert.match(source, /if \(reserveError \|\| reserved !== true\) throw/);
+  assert.ok(source.indexOf('await admin.rpc("fr209_reserve_contract_mail"') < source.indexOf("await transport.sendMail("));
+  assert.match(source, /dispatch\.idempotenzschluessel \+ "\." \+ recipient\.id/);
+  assert.match(source, /await verifyBytes\(content, d\.sha256_snapshot\)/);
+  assert.match(source, /state: "unknown"/);
+  assert.match(source, /smtpStarted \?/);
   assert.match(source, /eq\("bindungsstatus",\s*"digital_gebunden"\)/);
   assert.doesNotMatch(source, /papier.*placeholder|placeholder.*papier/i);
 });

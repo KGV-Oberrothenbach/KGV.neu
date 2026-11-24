@@ -251,7 +251,7 @@ function WorkspaceContent({ session, email, club, context, fachrechteV2, onLogou
     canManageProcesses: canAccessCommunication,
     canManageSeasonConfiguration: canManageClubSeasonConfiguration(capabilityContext),
     canPerformYearEndClosing: canPerformYearEndClosing(capabilityContext),
-    canManageClubConfiguration: canManageClubConfiguration(capabilityContext),
+    canManageClubConfiguration: canManageClubConfiguration(capabilityContext, hasRight("verein.konfiguration")),
     canManageClubDocuments: hasRight("vereinsunterlagen.verwalten") || hasRight("vereinsdaten.alle_lesen"),
     canReadDocumentTypes: hasRight("dokumenttyp.verwalten") || hasRight("dokumentwirkung.verwalten") || hasRight("vereinsdaten.alle_lesen"),
     canManageClubFunctions: canManageClubFunctions(capabilityContext),
@@ -265,8 +265,8 @@ function WorkspaceContent({ session, email, club, context, fachrechteV2, onLogou
   // They must be reachable only when the corresponding effective right exists.
   const dashboardManagementTargets = getDashboardManagementTargets({
     canManageWorkAssignments: hasRight("arbeitseinsatz.verwalten"),
-    canManageAppointments: has(Permission.manageAppointments),
-    canManageAnnouncements: has(Permission.manageAnnouncements),
+    canManageAppointments: hasRight("termin.verwalten"),
+    canManageAnnouncements: hasRight("bekanntmachung.verwalten"),
   });
   const permittedTargets = [...allNavigationItems, ...dashboardManagementTargets];
   const allowedNavigationIds = new Set(permittedTargets.map((item) => item.id));
@@ -286,7 +286,7 @@ function WorkspaceContent({ session, email, club, context, fachrechteV2, onLogou
           <p className="eyebrow">Saison {season}</p><h1>{active.label}</h1><p className="content-intro">{active.detail}</p>
           {effectiveActiveId === "vertraege-nacherfassen" && <HistoricalContractRegistrationWorkflow session={session} />}
           {!new Set(["start", "impressum", "mitglieder", "parzellen", "ablesen-erfassen", "jae-erfassen", "ablesungen-freigeben", "rfid-einrichten", "zaehlerwechsel", "zaehlerwechsel-melden", "zaehlerwechsel-pruefen", "arbeitsstunden-pruefen", "arbeitseinsaetze", "wartung", "termine", "bekanntmachungen", "export", "signaturen", "dokumente", "vorstand", "mailausgang", "versendet", "druckausgabe", "verlauf", "saisons", "verein", "vereinsunterlagen", "dokumenttypen", "vereinsfunktionen", "vertraege-nacherfassen", "mitglied-arbeitsstunden", "mitglied-wartung", "mitglied-dokumente", "mitglied-admin", "mitglied-gaerten", "mitglied-protokolle", "mitglied-stammdaten"]).has(effectiveActiveId) && <section className="coming-soon"><span aria-hidden="true">◌</span><div><strong>Bereich vorbereitet</strong><p>Die Navigation und Zugriffsrechte stehen. Die fachliche Oberfläche wird in den nächsten Umsetzungsschritten ergänzt.</p></div></section>}
-          {effectiveActiveId === "start" && <HomeDashboard session={session} isManager={hasRight("arbeitseinsatz.verwalten") || has(Permission.manageAppointments) || has(Permission.manageAnnouncements)} canManageWorkAssignments={hasRight("arbeitseinsatz.verwalten")} canManageAppointments={has(Permission.manageAppointments)} canManageAnnouncements={has(Permission.manageAnnouncements)} memberId={context.mitgliedId} saisonId={workspaceContext.saisonId} season={season} onNavigate={setActiveId} onOpenWorkHours={openOwnWorkHours} />}
+          {effectiveActiveId === "start" && <HomeDashboard session={session} isManager={hasRight("arbeitseinsatz.verwalten") || hasRight("termin.verwalten") || hasRight("bekanntmachung.verwalten")} canManageWorkAssignments={hasRight("arbeitseinsatz.verwalten")} canManageAppointments={hasRight("termin.verwalten")} canManageAnnouncements={hasRight("bekanntmachung.verwalten")} memberId={context.mitgliedId} saisonId={workspaceContext.saisonId} season={season} onNavigate={setActiveId} onOpenWorkHours={openOwnWorkHours} />}
           {effectiveActiveId === "mitglieder" && <MemberSearch session={session} selectedMemberId={selectedMemberId} onSelect={(memberId) => { selectMember(memberId); setActiveId("mitglied-stammdaten"); }} canCreate={has(Permission.createMember)} onCreate={() => { setCreatingMember(true); setActiveId("mitglied-stammdaten"); }} />}
           {effectiveActiveId === "parzellen" && <ParcelWorkspace key={`${club.vereinId}:${session.user.id}`} session={session} selectedParcelId={selectedParcelId} onSelect={selectParcel} canEditMasterData={hasRight("parzelle.bearbeiten")} canManageAssignments={hasRight("belegung.verwalten")} documentAccessContext={documentAccessContext} onOpenMember={(memberId) => { selectMember(memberId); setActiveId("mitglied-gaerten"); }} />}
           {effectiveActiveId === "ablesen-erfassen" && <MeterReadingCaptureView session={session} clubId={club.vereinId} reviewerMemberId={context.mitgliedId} seasonYear={season} canReadMeters={has(Permission.readMeters)} canCaptureMeterReadings={hasRight('ablesung.erfassen')} canSubmitOwnMeterReadings={context.mitgliedId !== null && has(Permission.seeOwnData)} />}
@@ -299,8 +299,8 @@ function WorkspaceContent({ session, email, club, context, fachrechteV2, onLogou
           {effectiveActiveId === "arbeitsstunden-pruefen" && <WorkHoursReview session={session} saisonId={workspaceContext.saisonId} canApproveWorkHours={hasRight("arbeitsstunden.freigeben")} canEditWorkHours={hasRight("arbeitsstunden.bearbeiten")} canReadWorkHours={hasRight("arbeitsstunden.lesen")} />}
           {effectiveActiveId === "arbeitseinsaetze" && <WorkAssignmentsManagement session={session} canEdit={hasRight("arbeitseinsatz.verwalten")} canApproveWorkHours={hasRight("arbeitsstunden.freigeben")} onBack={() => setActiveId("start")} />}
           {effectiveActiveId === "wartung" && <MaintenanceContracts session={session} canManage={has(Permission.editAllMembers)} />}
-          {effectiveActiveId === "termine" && <AppointmentManagement session={session} canEdit={has(Permission.manageAppointments)} onBack={() => setActiveId("start")} />}
-          {effectiveActiveId === "bekanntmachungen" && <AnnouncementManagement session={session} canEdit={has(Permission.manageAnnouncements)} onBack={() => setActiveId("start")} />}
+          {effectiveActiveId === "termine" && <AppointmentManagement session={session} canEdit={hasRight("termin.verwalten")} onBack={() => setActiveId("start")} />}
+          {effectiveActiveId === "bekanntmachungen" && <AnnouncementManagement session={session} canEdit={hasRight("bekanntmachung.verwalten")} onBack={() => setActiveId("start")} />}
           {effectiveActiveId === "impressum" && <ImprintPage session={session} />}
           {effectiveActiveId === "export" && <ExportCenter session={session} season={season} canExport={canExportData(capabilityContext)} />}
           {effectiveActiveId === "signaturen" && canAccessCommunication && <CommunicationCenter session={session} userId={session.user.id} area="signature" onChanged={() => void refreshOpenProcessCount()} />}
@@ -310,8 +310,8 @@ function WorkspaceContent({ session, email, club, context, fachrechteV2, onLogou
           {effectiveActiveId === "versendet" && canAccessCommunication && <CommunicationCenter session={session} userId={session.user.id} area="sent" onChanged={() => void refreshOpenProcessCount()} />}
           {effectiveActiveId === "druckausgabe" && canAccessCommunication && <CommunicationCenter session={session} userId={session.user.id} area="print" onChanged={() => void refreshOpenProcessCount()} />}
           {effectiveActiveId === "verlauf" && canAccessCommunication && <CommunicationCenter session={session} userId={session.user.id} area="history" onChanged={() => void refreshOpenProcessCount()} />}
-          {effectiveActiveId === "saisons" && <SeasonManagement session={session} onSeasonSaved={(saved) => { setSeasons((current) => [...current.filter((item) => item.id !== saved.id), saved].sort((a, b) => b.jahr - a.jahr)); selectWorkspaceSeason(saved); }} />}
-          {effectiveActiveId === "verein" && <ClubConfiguration key={club.vereinId} session={session} canManage={canManageClubConfiguration(capabilityContext)} />}
+          {effectiveActiveId === "saisons" && hasRight("saison.verwalten") && <SeasonManagement session={session} onSeasonSaved={(saved) => { setSeasons((current) => [...current.filter((item) => item.id !== saved.id), saved].sort((a, b) => b.jahr - a.jahr)); selectWorkspaceSeason(saved); }} />}
+          {effectiveActiveId === "verein" && <ClubConfiguration key={club.vereinId} session={session} canManage={canManageClubConfiguration(capabilityContext, hasRight("verein.konfiguration"))} />}
           {effectiveActiveId === "vereinsunterlagen" && (hasRight("vereinsunterlagen.verwalten") || hasRight("vereinsdaten.alle_lesen")) && <ClubDocumentsManagement key={club.vereinId} session={session} canManage={hasRight("vereinsunterlagen.verwalten")} />}
           {effectiveActiveId === "dokumenttypen" && (hasRight("dokumenttyp.verwalten") || hasRight("dokumentwirkung.verwalten") || hasRight("vereinsdaten.alle_lesen")) && <DocumentTypeManagement key={club.vereinId} session={session} canManage={hasRight("dokumenttyp.verwalten")} canManageEffects={hasRight("dokumentwirkung.verwalten")} />}
           {effectiveActiveId === "vereinsfunktionen" && canManageClubFunctions(capabilityContext) && <ClubFunctionManagement key={club.vereinId} session={session} />}
