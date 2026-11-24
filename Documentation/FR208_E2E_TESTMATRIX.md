@@ -31,3 +31,28 @@ Für jede Variante wird ein synthetischer Benutzer in der DemoDB, sein effektive
 | 24 | Storage-Metadaten | direkter SELECT, Bucket-Pfad, signed URL, direkter Download | RLS unterscheidet Lesen/Schreiben; private URL-Bypass ausgeschlossen |
 
 **Prüfprotokoll je Fall:** UTC-Zeit, Supabase-Projekt, Git-SHA, Migrationen, Testidentität (keine Tokens im Log), Fachrechte inkl. Entzüge, Zielobjekt, HTTP-Code, Response-Header, Dateihash, Vorher/Nachher-Datenstand, unabhängiges SQL-Resultat und Cleanup.
+
+## FR2-08-Abschlusskorrekturen: zusätzliche Fälle (nicht ausgeführt)
+
+| Nr. | Szenario | Erwartung und unabhängiger Nachweis |
+|---|---|---|
+| 25 | `dokument.verwalten` ohne `dokument.lesen`, fremde Wartungsvertragszuordnung | Keine SELECT-Zeilen; keine fremden Metadaten, RLS-OR-Policies geprüft |
+| 26 | `dokument.lesen`, Fremd-Wartungsvertragsbezug | Keine Zuordnung; Dokument- UND Zuordnungs-Scope getrennt geprüft |
+| 27 | Admin nur `vereinsdaten.alle_lesen` | Eigene Berechtigung zum Lesen, nicht zum Archivieren/Verwalten |
+| 28 | `dokument.archivieren` mit korrektem Passwort, unmittelbar parallel erteiltem Entzug | Nur Zustand zum atomaren Schreibzeitpunkt maßgebend; kein 200 ohne Archivstatus |
+| 29 | Archivierung parallel INSERT `pachtvertragsfassung` / `dokument_wartungsvertrag_zuordnung` | Genau eine Operation erfolgreich, nie archiviertes Vertragsdokument; Relationen und Hash vergleichen |
+| 30 | Archivierung parallel UPDATE von Dokument-Provenienz | Vertragsnachweis nicht archiviert; relationale Sperren und SQLSTATE protokollieren |
+| 31 | Wiederholte Archivierung identischer Anfrage | Nach Erfolg kein zweites Update; deterministischer HTTP 409, kein Dateiverlust |
+| 32 | Direkter authentifizierter Aufruf `fr208_archive_dokument_service` | EXECUTE verweigert auch mit Kenntnis des RPC-Namens; Passwort darf nicht umgangen werden |
+| 33 | Typ nur Metadatenrecht mit parallel geänderten Wirkungen | Wirkungen unverändert, Metadaten erfolgreich; kein stilles Zurücksetzen |
+| 34 | Typ nur Wirkungsrecht, ohne `dokument.lesen` | Server-Boolean zeigt bereits genutzten Typ korrekt, ohne Dokument-IDs offenzulegen |
+| 35 | Wirkung ändern parallel Dokument-INSERT, -UPDATE von Typ alt/neu | Ein gemeinsamer Sperrmechanismus; genutzte Wirkungen historisch unverändert |
+| 36 | Zwei parallele Wirkungsänderungen mit gleichem erwarteten Snapshot | Eine Änderung bzw. identischer Retry; abweichende Änderung `55000` statt Lost Update |
+| 37 | Unveränderte Wirkungen bei verwendetem Typ speichern | Idempotent; keine Änderung oder Löschung am Datensatz |
+| 38 | Direkter Dokument-DELETE per REST sowie MAUI `DeleteDokumentAsync` | Nie physischer Dateiverlust; API/DB lehnen ab; fachliche Archivfunktion getrennt |
+| 39 | Altvertrag MA+PV und PV, mehrere Parzellen und 80xxx-PDF-Stempel | Keine Regression in Dateiversionen, Provenienz, Signatur-Snapshots oder Nacherfassung |
+| 40 | Abgelaufene/entzogene Rechte nach erster Datei-Ausgabe | Nächster authentifizierter Download verweigert; Storage-/Drive-Bestand byteidentisch |
+
+Bei jedem Fall: zwei reale Demo-Benutzer, effektive Fachrechte und Entzüge, HTTP-Soll/Ist,
+Dateihash/SHA-256, separat gelesener DB-/Storage-Bestand, Fehlercode und Retrys.
+**Status: ausschließlich Testplanung, kein ausgeführter HTTP-E2E-Nachweis.**

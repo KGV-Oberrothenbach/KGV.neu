@@ -801,26 +801,25 @@ Deno.serve(async (req) => {
         if (!auth.ok)
           return errorResponse(auth.status, "FORBIDDEN", auth.message, requestId);
 
-        const { data: mayArchive, error: archiveAccessError } = await auth.supabaseUser
-          .rpc("fr208_can_archive_dokument", { p_dokument_id: documentId });
-        if (archiveAccessError || mayArchive !== true)
-          return errorResponse(403, "FORBIDDEN", "Archivierung für dieses Dokument nicht freigegeben.", requestId);
-
+        // Password is verified in the trusted Edge boundary. The database RPC
+        // is service_role-only and atomically rechecks the verified actor's
+        // live effective rights, object scope, and contract attachments.
         if (!await verifyArchivePassword(password))
           return errorResponse(403, "FORBIDDEN", "Das Archivpasswort ist nicht korrekt.", requestId);
 
-        const { data: archived, error: archiveError } = await auth.supabaseAdmin
-          .from("dokument")
-          .update({ archiviert_at: new Date().toISOString(), archiviert_by: auth.userId, archiviert_begruendung: reason })
-          .eq("id", documentId)
-          .is("archiviert_at", null)
-          .select("id")
-          .maybeSingle();
-
-        if (archiveError)
-          throw new Error(`Dokumentarchivierung fehlgeschlagen: ${archiveError.message}`);
-        if (!archived)
-          return errorResponse(409, "BAD_REQUEST", "Dokument wurde nicht gefunden oder ist bereits archiviert.", requestId);
+        const { data: archivedId, error: archiveError } = await auth.supabaseAdmin
+          .rpc("fr208_archive_dokument_service", {
+            p_dokument_id: documentId, p_actor: auth.userId, p_reason: reason,
+          });
+        if (archiveError) {
+          if (archiveError.code === "42501")
+            return errorResponse(403, "FORBIDDEN", "Archivierung für dieses Dokument nicht freigegeben.", requestId);
+          if (archiveError.code === "55000" || archiveError.code === "23514")
+            return errorResponse(409, "ARCHIVE_CONFLICT", "Dokument ist bereits archiviert oder vertraglich geschützt.", requestId);
+          throw new Error(`Dokumentarchivierung fehlgeschlagen: ${archiveError.code ?? "RPC_ERROR"}`);
+        }
+        if (Number(archivedId) !== documentId)
+          throw new Error("Archivierungs-RPC bestätigte eine unerwartete Dokument-ID.");
 
         logStep("document archived", { documentId, userId: auth.userId });
         return json(200, { success: true, message: "Dokument wurde archiviert.", request_id: requestId });
@@ -1067,10 +1066,25 @@ Deno.serve(async (req) => {
     const message = error instanceof Error ? error.message : String(error);
     if (uploadedDriveFileId) {
       try {
-        await deleteDriveFile(await getGoogleAccessToken(), uploadedDriveFileId);
-        logStep("drive upload compensation success");
+        // A timed-out INSERT may have committed even if PostgREST did not
+        // return the row. Never compensate by deleting a registered file.
+        const supabaseUrl = Deno.env.get("SUPABASE_URL");
+        const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+        if (!supabaseUrl || !serviceRoleKey)
+          throw new Error("Sichere Upload-Kompensation ist nicht konfiguriert.");
+        const registry = createClient(supabaseUrl, serviceRoleKey);
+        const { data: registered, error: registryError } = await registry.from("dokument")
+          .select("id").eq("drive_file_id", uploadedDriveFileId).limit(1).maybeSingle();
+        if (registryError) throw new Error("Dateiregistrierung konnte nicht sicher geprüft werden.");
+        if (registered) {
+          logStep("drive upload compensation skipped: already registered");
+        } else {
+          await deleteDriveFile(await getGoogleAccessToken(), uploadedDriveFileId);
+          logStep("drive upload compensation success for unregistered file");
+        }
       } catch (rollbackError) {
-        logError("drive upload compensation failed", rollbackError);
+        // Fail closed: an uncertain registered file must never be deleted.
+        logError("drive upload compensation safely stopped", rollbackError);
       }
     }
     logError("return error", error);

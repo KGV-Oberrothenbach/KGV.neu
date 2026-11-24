@@ -30,27 +30,31 @@ export function isDocumentTypeInUse(club: ClubContext, session: BrowserSession, 
   return documentTypeIsInUse(club, session, documentTypeId);
 }
 
-export function validateDocumentType(input: { bezeichnung: string; sortierung: number; wirkungen: string[] }) {
+export function validateDocumentType(input: { bezeichnung: string; sortierung: number }) {
   if (!input.bezeichnung.trim()) throw new Error("Eine Bezeichnung ist erforderlich.");
   if (!Number.isInteger(input.sortierung)) throw new Error("Die Sortierung muss eine ganze Zahl sein.");
-  if (input.wirkungen.some((effect) => !documentTypeEffects.includes(effect as typeof documentTypeEffects[number]))) throw new Error("Eine ausgewählte Wirkung ist ungültig.");
-  if (new Set(input.wirkungen).size !== input.wirkungen.length) throw new Error("Eine Wirkung darf nur einmal zugeordnet werden.");
 }
 
-export async function saveManagedDocumentType(club: ClubContext, session: BrowserSession, input: { id: number | null; bezeichnung: string; aktiv: boolean; sortierung: number; wirkungen: DocumentType["wirkungen"] }) {
+export async function saveManagedDocumentType(
+  club: ClubContext, session: BrowserSession,
+  input: { id: number | null; bezeichnung: string; aktiv: boolean; sortierung: number },
+): Promise<number> {
   validateDocumentType(input);
-  await saveDocumentType(club, session, { ...input, bezeichnung: input.bezeichnung.trim() });
+  const rows = await saveDocumentType(club, session, { ...input, bezeichnung: input.bezeichnung.trim() });
+  const id = rows?.[0]?.id;
+  if (typeof id !== "number" || !Number.isSafeInteger(id) || id <= 0) throw new Error("Die Dokumenttyp-ID wurde nicht bestätigt.");
+  return id;
 }
 
-// FR2-08: Die Wirkungsadministration ist ein eigenes Fachrecht.
-// Der Endpunkt schreibt ausschließlich Wirkungen, nie Dokumenttyp-Metadaten.
 export async function saveManagedDocumentEffects(
   club: ClubContext, session: BrowserSession, typeId: number,
-  effects: DocumentType["wirkungen"],
+  effects: DocumentType["wirkungen"], expectedEffects: DocumentType["wirkungen"],
 ): Promise<void> {
   if (!Number.isSafeInteger(typeId) || typeId <= 0)
     throw new Error("Die Dokumenttyp-ID ist ungültig.");
-  if (effects.some((effect) => !documentTypeEffects.includes(effect)) || new Set(effects).size !== effects.length)
-    throw new Error("Ungültige oder doppelte Dokumentwirkung.");
-  await saveDocumentTypeEffects(club, session, typeId, effects);
+  for (const list of [effects, expectedEffects]) {
+    if (list.some((effect) => !documentTypeEffects.includes(effect)) || new Set(list).size !== list.length)
+      throw new Error("Ungültige oder doppelte Dokumentwirkung.");
+  }
+  await saveDocumentTypeEffects(club, session, typeId, effects, expectedEffects);
 }

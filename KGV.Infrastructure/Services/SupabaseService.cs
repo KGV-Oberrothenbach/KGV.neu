@@ -4941,44 +4941,14 @@ namespace KGV.Infrastructure.Services
             return uploadResult;
         }
 
-        public async Task<DokumentDeleteResult> DeleteDokumentAsync(DocumentInfo? document)
+        public Task<DokumentDeleteResult> DeleteDokumentAsync(DocumentInfo? document)
         {
-            if (document == null || document.Id <= 0)
-                return DokumentDeleteResult.Fail("Dokument konnte nicht gelöscht werden.", "VALIDATION");
-
-            try
-            {
-                var client = await EnsureClientAsync();
-                var existingRecord = await LoadDokumentRecordByIdAsync(client, document.Id);
-                if (existingRecord == null)
-                    return DokumentDeleteResult.Fail("Dokument ist bereits entfernt.", "NOT_FOUND");
-
-                var driveFileId = CleanOptionalText(existingRecord.DriveFileId);
-                if (!string.IsNullOrWhiteSpace(driveFileId))
-                {
-                    var driveDeleteResult = await DeleteDokumentFromDriveAsync(existingRecord.Id, driveFileId);
-                    if (!driveDeleteResult.Success)
-                        return driveDeleteResult;
-                }
-
-                await client
-                    .From<DokumentRecord>()
-                    .Where(x => x.Id == existingRecord.Id)
-                    .Delete();
-
-                _logger?.LogInformation("DeleteDokumentAsync deleted dokument {DokumentId}", existingRecord.Id);
-                return DokumentDeleteResult.Ok();
-            }
-            catch (PostgrestException ex)
-            {
-                LogPostgrestFailure("DeleteDokumentAsync", ex);
-                return DokumentDeleteResult.Fail("Dokument konnte aktuell nicht gelöscht werden.", "POSTGREST");
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogError(ex, "DeleteDokumentAsync failed.");
-                return DokumentDeleteResult.Fail("Dokument konnte aktuell nicht gelöscht werden.", "UNEXPECTED");
-            }
+            // FR2-08: Registered document and contract bytes are immutable.
+            // In particular, never delete a Google Drive file before a DB DELETE
+            // that would be blocked by security policies or archive history.
+            return Task.FromResult(DokumentDeleteResult.Fail(
+                "Registrierte Dokumente dürfen nicht physisch gelöscht werden. Bitte die geschützte Archivierung verwenden.",
+                "PHYSICAL_DELETE_DISABLED"));
         }
 
         public async Task<DokumentDeleteResult> ArchiveDokumentAsync(DocumentInfo? document, string? archivePassword, string? reason)
@@ -8670,53 +8640,6 @@ namespace KGV.Infrastructure.Services
             return segments.Length == 5
                 && string.Equals(segments[4], normalizedDateiname, StringComparison.Ordinal)
                 && Regex.IsMatch(normalizedDateiname, @"^.+_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.[^./\\]+$", RegexOptions.CultureInvariant);
-        }
-
-        private async Task<DokumentDeleteResult> DeleteDokumentFromDriveAsync(long dokumentId, string driveFileId)
-        {
-            var token = await _authService.GetAccessTokenAsync();
-            if (string.IsNullOrWhiteSpace(token))
-                return DokumentDeleteResult.Fail("Die aktuelle Anmeldung ist abgelaufen. Bitte erneut anmelden.", "DELETE_AUTH_TOKEN_MISSING");
-
-            if (string.IsNullOrWhiteSpace(_supabaseUrl) || string.IsNullOrWhiteSpace(_publishableKey))
-                return DokumentDeleteResult.Fail("Supabase-URL oder Publishable Key ist nicht konfiguriert.", "DELETE_CONFIG_MISSING");
-
-            var endpoint = new Uri(new Uri(_supabaseUrl.TrimEnd('/') + "/"), $"functions/v1/{DokumentUploadFunctionName}");
-
-            try
-            {
-                using var message = new HttpRequestMessage(HttpMethod.Delete, endpoint)
-                {
-                    Content = new StringContent(JsonSerializer.Serialize(new { document_id = dokumentId, drive_file_id = driveFileId }))
-                };
-                message.Content.Headers.ContentType = MediaTypeHeaderValue.Parse("application/json");
-                message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-                message.Headers.Add("apikey", _publishableKey);
-
-                using var response = await _documentUploadHttpClient.SendAsync(message, HttpCompletionOption.ResponseHeadersRead);
-                var rawBody = await response.Content.ReadAsStringAsync();
-                var deleteResponse = DeserializeDokumentUploadResponse(rawBody);
-                if (!response.IsSuccessStatusCode)
-                {
-                    _logger?.LogWarning(
-                        "DeleteDokumentFromDriveAsync failed. StatusCode={StatusCode} DiagnosticCode={DiagnosticCode} RequestId={RequestId}",
-                        (int)response.StatusCode,
-                        deleteResponse?.ErrorCode,
-                        deleteResponse?.RequestId);
-
-                    return DokumentDeleteResult.Fail(
-                        deleteResponse?.Message ?? "Dokumentdatei konnte aktuell nicht entfernt werden.",
-                        deleteResponse?.ErrorCode ?? $"DELETE_HTTP_{(int)response.StatusCode}",
-                        deleteResponse?.RequestId);
-                }
-
-                return DokumentDeleteResult.Ok(deleteResponse?.RequestId);
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogError(ex, "DeleteDokumentFromDriveAsync transport failure.");
-                return DokumentDeleteResult.Fail("Dokumentdatei konnte aktuell nicht entfernt werden.", "DELETE_SEND_FAIL");
-            }
         }
 
         private async Task<DokumentUploadResult> UploadDokumentToDriveAsync(DokumentUploadRequest request, string normalizedTitle)

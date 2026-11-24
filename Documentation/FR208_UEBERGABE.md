@@ -53,3 +53,38 @@ Die SQL schützt bestehende `dokument`-Datensätze, `pachtvertragsfassung`, `ver
 5. Neu entstandene effektive RLS-/Storage-Policies, ACLs, Trigger, Migrationseintrag und unveränderte Bestandszahlen in unabhängigen SQL-Queries kontrollieren.
 6. Die Authenticated-HTTP-E2E-Prüfungen erst in der vereinbarten gemeinsamen Abschlussphase aller FR2 durchführen.
 7. Erst dann FR2-09 (Vorgänge und Kommunikation) beginnen. FR2-09 muss gemeinsame Dokument- und Versand-Snapshots auf konsistente Rechte prüfen.
+
+## FR2-08 Abschlusskorrekturpaket (24.11.2026; Prüfung vor Ort erforderlich)
+
+Die externe Sicherheitsanalyse bestätigte am 24.11.2026 vor der Migration die 287 DemoDB- und
+255 ProduktivDB-Migrationen sowie 24 vorhandene Dokumentzeilen. Branch-HEAD war
+`77bd3bd63ce3fee1575504006cda62628469a665`. Dies sind **Ausgangswerte**, kein Abnahmenachweis.
+
+Das Paket ergänzt: (1) Wartungsvertragszuordnungs-RLS mit Dokument- und Zuordnungsbezug,
+(2) service_role-only transaktionale Passwort-geschützte Archivierung über Edge,
+(3) Locks gegen Archiv/Vertrag-Konkurrenz und physische Dokumentlöschung,
+(4) Historien-/Typwirkungssperren einschließlich alter/neuer Typ-ID,
+(5) sichere serverseitige Dokumenttyp-Verwendungsabfrage,
+(6) getrennte Metadaten-/Wirkungs-RPCs mit Expected-State-Abgleich,
+(7) Web-UI- und MAUI-Kompatibilitätskorrektur (Delete-Schnittstelle verweigert sicher),
+(8) zusätzliche statische Tests und HTTP-E2E-Matrix.
+
+**Freigabesperren:** SQL-Semantik, Migration, Deployment und lokale Builds müssen durch den
+mitgelieferten PowerShell-7-Installer erfolgreich belegt werden. Die vorab aus einem Linux-
+Container erstellten Dateien besitzen noch keinen lokalen .NET-/MAUI-/Deno- oder Supabase-
+Laufzeitnachweis. Die Benutzerentscheidung zur Verschiebung der authentifizierten HTTP-E2E-
+Tests bleibt bestehen. Keine ProduktivDB-Änderung und kein Merge nach `main`.
+
+Der Installationsbericht ist in `%TEMP%\\KGV_FR208_Abschlussberichte` zu finden. Erst seine
+überprüften Resultate in einen FR2-09-Startprompt übernehmen, niemals behauptete Wunschwerte.
+
+## Zusätzlicher Storage-Befund: DELETE/Versionsschutz
+
+Die alte direkte Storage-DELETE-Policy für unregistrierte Vereinsunterlagen
+wird durch die ursprüngliche FR2-08-Migration ersetzt. Die neue Variante
+enthält jedoch eine nicht ausreichend sichere `NOT EXISTS`-Abfrage gegen die
+RLS-geschützte Fassungstabelle. Bei fehlendem Leserecht kann eine vorhandene
+Fassung unsichtbar bleiben. Deshalb entfernt die Abschlusskorrektur auch die
+neue direkte DELETE-Policy. Registrierte Fassungen sind unveränderlich;
+fehlgeschlagene unregistrierte Uploads erfordern eine explizite gesicherte
+serverseitige Bereinigung statt eines ausweitbaren Endnutzer-Löschrechts.

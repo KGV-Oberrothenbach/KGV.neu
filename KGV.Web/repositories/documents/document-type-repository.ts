@@ -23,21 +23,31 @@ export async function listDocumentTypes(club: ClubContext, session: BrowserSessi
   return { types, effects };
 }
 
-export async function documentTypeIsInUse(club: ClubContext, session: BrowserSession, documentTypeId: number) {
-  const documents = await readSupabaseRest<{ id: number }>({ club, session }, "dokument", { select: "id", dokumenttyp_id: `eq.${documentTypeId}`, limit: "1" });
-  return documents.length > 0;
+// Privileged EXISTS check, independent of the user's document SELECT visibility.
+// Returns a boolean only; no third-party document IDs or content leave the server.
+export function documentTypeIsInUse(club: ClubContext, session: BrowserSession, documentTypeId: number): Promise<boolean> {
+  return callSupabaseRpc<boolean>({ club, session }, "fr208_dokumenttyp_ist_verwendet", { p_dokumenttyp_id: documentTypeId });
 }
 
-export function saveDocumentTypeEffects(club: ClubContext, session: BrowserSession, id: number, wirkungen: DocumentTypeEffect[]) {
-  return callSupabaseRpc<void>({ club, session }, "fr208_save_dokumenttyp_wirkungen", { p_dokumenttyp_id: id, p_wirkungen: wirkungen });
+export function saveDocumentTypeEffects(
+  club: ClubContext, session: BrowserSession, id: number,
+  wirkungen: DocumentTypeEffect[], expectedWirkungen: DocumentTypeEffect[],
+): Promise<void> {
+  return callSupabaseRpc<boolean>({ club, session }, "fr208_set_dokumenttyp_wirkungen_checked", {
+    p_dokumenttyp_id: id, p_wirkungen: wirkungen, p_expected_wirkungen: expectedWirkungen,
+  }).then((confirmed) => {
+    if (confirmed !== true) throw new Error("Die Speicherung der Dokumentwirkungen wurde nicht bestätigt.");
+  });
 }
 
-export function saveDocumentType(club: ClubContext, session: BrowserSession, input: { id: number | null; bezeichnung: string; aktiv: boolean; sortierung: number; wirkungen: DocumentTypeEffect[] }) {
+// Metadata RPC does not write effects. Effect-only users cannot call this RPC.
+export function saveDocumentType(
+  club: ClubContext, session: BrowserSession,
+  input: { id: number | null; bezeichnung: string; aktiv: boolean; sortierung: number },
+): Promise<DocumentTypeRow[]> {
   return callSupabaseRpc<DocumentTypeRow[]>({ club, session }, "save_dokumenttyp", {
-    p_dokumenttyp_id: input.id,
-    p_bezeichnung: input.bezeichnung,
-    p_aktiv: input.aktiv,
-    p_sortierung: input.sortierung,
-    p_wirkungen: input.wirkungen,
+    p_dokumenttyp_id: input.id, p_bezeichnung: input.bezeichnung,
+    p_aktiv: input.aktiv, p_sortierung: input.sortierung,
+    p_wirkungen: null,
   });
 }

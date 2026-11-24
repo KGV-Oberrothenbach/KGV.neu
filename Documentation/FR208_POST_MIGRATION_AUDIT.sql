@@ -37,3 +37,25 @@ SELECT event_object_table,trigger_name,action_timing,event_manipulation
  AND event_object_table IN ('dokument','dokumenttyp_wirkung')
  ORDER BY event_object_table,trigger_name;
 -- IMPORTANT: This admin SQL inspection does NOT replace authent. HTTP-E2E as real users.
+-- FR2-08 hardening: exact security predicates and service-only privilege checks.
+SELECT policyname,cmd,qual FROM pg_policies
+ WHERE schemaname='public' AND tablename='dokument_wartungsvertrag_zuordnung'
+ ORDER BY policyname;
+SELECT p.oid::regprocedure::text AS rpc,p.prosecdef,
+       has_function_privilege('anon',p.oid,'EXECUTE') AS anon_exec,
+       has_function_privilege('authenticated',p.oid,'EXECUTE') AS authenticated_exec,
+       has_function_privilege('service_role',p.oid,'EXECUTE') AS service_exec
+ FROM pg_proc p WHERE p.pronamespace='public'::regnamespace
+ AND p.proname IN
+ ('fr208_archive_dokument_service','fr208_dokumenttyp_ist_verwendet',
+  'fr208_set_dokumenttyp_wirkungen_checked','fr208_save_dokumenttyp_wirkungen',
+  'fr208_guard_historical_document_effect','fr208_block_document_delete')
+ ORDER BY rpc;
+SELECT tgrelid::regclass::text AS tbl,tgname,pg_get_triggerdef(oid) AS definition
+ FROM pg_trigger WHERE NOT tgisinternal AND tgname LIKE 'fr208_%'
+ ORDER BY tbl,tgname;
+SELECT id,public FROM storage.buckets WHERE id IN
+ ('dokumente','pdf-templates','prepared-contract-signatures','vereinsregelwerke') ORDER BY id;
+-- WARNING: execute separate, real-user HTTP tests only after all FR2 work packages.
+SELECT policyname,cmd,qual FROM pg_policies WHERE schemaname='storage' AND tablename='objects'
+  AND policyname LIKE 'vereinsunterlagen_%' ORDER BY policyname;
