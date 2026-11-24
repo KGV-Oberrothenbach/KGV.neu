@@ -106,15 +106,25 @@ namespace KGV.Core.Security
             => CanReadParzellen(context)
                || HasOwnParzellenAccessForMember(context, memberId);
 
+        // FR2-08: effective Fachrechte only; administrative read grants no write.
         public static bool CanReadDocuments(UserContext? context)
-            => HasPermission(context, PermissionFlags.CanReadDocuments)
-               || CanManageDocuments(context);
+            => context?.HasFachrecht(FachrechteV2.DokumentLesen) == true
+               || context?.HasFachrecht("vereinsdaten.alle_lesen") == true;
 
         public static bool CanManageDocuments(UserContext? context)
-            => HasPermission(context, PermissionFlags.CanManageDocuments);
+            => context?.HasFachrecht(FachrechteV2.DokumentVerwalten) == true;
 
         public static bool CanArchiveDocuments(UserContext? context)
-            => HasPermission(context, PermissionFlags.CanArchiveDocuments);
+            => context?.HasFachrecht(FachrechteV2.DokumentArchivieren) == true;
+
+        public static bool CanManageDocumentTypes(UserContext? context)
+            => context?.HasFachrecht(FachrechteV2.DokumenttypVerwalten) == true;
+
+        public static bool CanManageDocumentEffects(UserContext? context)
+            => context?.HasFachrecht(FachrechteV2.DokumentwirkungVerwalten) == true;
+
+        public static bool CanManageTemplates(UserContext? context)
+            => context?.HasFachrecht(FachrechteV2.VorlageVerwalten) == true;
 
         public static bool CanManageClubSeasonConfiguration(UserContext? context)
             => HasPermission(context, PermissionFlags.CanManageClubSeasonConfiguration);
@@ -132,7 +142,7 @@ namespace KGV.Core.Security
             => HasPermission(context, PermissionFlags.CanManageExports);
 
         public static bool CanManageClubDocuments(UserContext? context)
-            => HasPermission(context, PermissionFlags.CanManageClubDocuments);
+            => context?.HasFachrecht("vereinsunterlagen.verwalten") == true;
 
         public static bool CanManageClubFunctions(UserContext? context)
             => HasPermission(context, PermissionFlags.CanManageClubFunctions);
@@ -257,6 +267,11 @@ namespace KGV.Core.Security
                 || CanManagePachtvertraege(context)
                || CanReadDocuments(context)
                || CanManageDocuments(context)
+               || CanArchiveDocuments(context)
+               || CanManageDocumentTypes(context)
+               || CanManageDocumentEffects(context)
+               || CanManageTemplates(context)
+               || CanManageClubDocuments(context)
                || CanReadWorkHours(context)
                || CanEditWorkHours(context)
                || CanApproveWorkHours(context)

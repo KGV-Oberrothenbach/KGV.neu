@@ -28,6 +28,10 @@ export async function documentTypeIsInUse(club: ClubContext, session: BrowserSes
   return documents.length > 0;
 }
 
+export function saveDocumentTypeEffects(club: ClubContext, session: BrowserSession, id: number, wirkungen: DocumentTypeEffect[]) {
+  return callSupabaseRpc<void>({ club, session }, "fr208_save_dokumenttyp_wirkungen", { p_dokumenttyp_id: id, p_wirkungen: wirkungen });
+}
+
 export function saveDocumentType(club: ClubContext, session: BrowserSession, input: { id: number | null; bezeichnung: string; aktiv: boolean; sortierung: number; wirkungen: DocumentTypeEffect[] }) {
   return callSupabaseRpc<DocumentTypeRow[]>({ club, session }, "save_dokumenttyp", {
     p_dokumenttyp_id: input.id,

@@ -31,7 +31,7 @@ type ApiErrorCode =
   | "CONFIG_MISSING"
   | "GOOGLE_AUTH_ERROR"
   | "GOOGLE_DRIVE_ERROR"
-  | "INTERNAL_ERROR";
+  | "DOCUMENT_FILE_MISSING" | "INTERNAL_ERROR";
 
 type DownloadDocumentRequest = {
   action?: string | null;
@@ -61,6 +61,8 @@ type DriveDocumentRecord = {
   mitglied_id: number | null;
   parzelle_id: number | null;
   drive_file_id: string | null;
+  bucket: string | null;
+  storage_path: string | null;
   dateiname: string | null;
   mime_type: string | null;
   archiviert_at: string | null;
@@ -666,87 +668,13 @@ function hasAllowedDocumentType(file: File): boolean {
 }
 
 async function mayReadDocument(auth: AuthenticatedDocumentUser & { supabaseAdmin: SupabaseClient; supabaseUser: SupabaseClient }, documentId: number): Promise<DriveDocumentRecord | null> {
-  const { data: document, error: documentError } = await auth.supabaseAdmin
-    .from("dokument")
-    .select("id,mitglied_id,parzelle_id,drive_file_id,dateiname,mime_type,archiviert_at")
-    .eq("id", documentId)
-    .maybeSingle();
-
-  if (documentError) {
-    throw new Error(`Dokumentrechte konnten nicht geprüft werden: ${documentError.message}`);
-  }
-
-  if (!document)
-    return null;
-
-  if (document.archiviert_at)
-    return null;
-
-  const { data: historicalAccess, error: historicalError } = await auth.supabaseUser.rpc("can_access_historical_contract_document", { p_dokument_id: documentId, p_require_registered: false });
-  if (historicalError) throw new Error("Historischer Dokumentkontext konnte nicht geprüft werden.");
-  if (historicalAccess === true) return document as DriveDocumentRecord;
-
-  // This RPC owns the same narrowly scoped rule as the document SELECT policy.
-  // It is evaluated before the legacy role/owner checks because the service-role
-  // client used here deliberately bypasses RLS.
-  const { data: boardAccess, error: boardAccessError } = await auth.supabaseAdmin
-    .rpc("can_access_mitgliedsaufnahme_vorstand_document", {
-      p_auth_user_id: auth.userId,
-      p_dokument_id: documentId,
-    });
-  if (boardAccessError)
-    throw new Error(`Vorstands-Dokumentberechtigung konnte nicht geprüft werden: ${boardAccessError.message}`);
-  if (boardAccess === true)
-    return document as DriveDocumentRecord;
-
-  const [{ data: canReadDocuments, error: readRightError }, { data: canManageDocuments, error: manageRightError }] = await Promise.all([
-    auth.supabaseUser.rpc("ap02_has_effective_right", { p_fachrecht: "dokument.lesen" }),
-    auth.supabaseUser.rpc("ap02_has_effective_right", { p_fachrecht: "dokument.verwalten" }),
-  ]);
-  if (readRightError || manageRightError)
-    throw new Error("Dokumentenfachrecht konnte nicht geprüft werden.");
-  if (canReadDocuments === true || canManageDocuments === true)
-    return document as DriveDocumentRecord;
-
-  // This caller-bound RPC applies P11-R05 to active and formally ended
-  // members.  Do not re-create the rule from request values in this
-  // service-role path.
-  const { data: ownHistoryAccess, error: ownHistoryError } = await auth.supabaseUser
-    .rpc("can_access_own_member_history_document", { p_dokument_id: documentId });
-  if (ownHistoryError)
-    throw new Error("Eigenzugriff auf die Dokumenthistorie konnte nicht geprüft werden.");
-  if (ownHistoryAccess === true)
-    return document as DriveDocumentRecord;
-
-  const { data: ownLeaseHistoryAccess, error: ownLeaseHistoryError } = await auth.supabaseUser
-    .rpc("can_access_own_historical_lease_document", { p_dokument_id: documentId });
-  if (ownLeaseHistoryError)
-    throw new Error("Eigenzugriff auf die Pachtunterlagen konnte nicht geprüft werden.");
-  if (ownLeaseHistoryAccess === true)
-    return document as DriveDocumentRecord;
-
-  if (!auth.mitgliedId)
-    return null;
-
-  if (!document.parzelle_id)
-    return null;
-
-  const today = new Date().toISOString().slice(0, 10);
-  const { data: activeOccupancy, error: occupancyError } = await auth.supabaseAdmin
-    .from("parzellen_belegung")
-    .select("id")
-    .eq("parzelle_id", document.parzelle_id)
-    .eq("mitglied_id", auth.mitgliedId)
-    .lte("von_datum", today)
-    .or(`bis_datum.is.null,bis_datum.gte.${today}`)
-    .limit(1)
-    .maybeSingle();
-
-  if (occupancyError) {
-    throw new Error(`Parzellenrechte konnten nicht geprüft werden: ${occupancyError.message}`);
-  }
-
-  return activeOccupancy ? document as DriveDocumentRecord : null;
+  // FR2-08: SELECT through the caller's JWT and database RLS, never service_role.
+  // This is also the authorization decision for Google Drive and Storage bytes.
+  const { data, error } = await auth.supabaseUser.from("dokument")
+    .select("id,mitglied_id,parzelle_id,bucket,storage_path,drive_file_id,dateiname,mime_type,archiviert_at")
+    .eq("id", documentId).is("archiviert_at", null).maybeSingle();
+  if (error) throw new Error("Dokumentberechtigung konnte nicht geprüft werden.");
+  return data as DriveDocumentRecord | null;
 }
 
 async function downloadDriveDocument(accessToken: string, driveFileId: string): Promise<Response> {
@@ -873,9 +801,10 @@ Deno.serve(async (req) => {
         if (!auth.ok)
           return errorResponse(auth.status, "FORBIDDEN", auth.message, requestId);
 
-        const document = await mayReadDocument(auth, documentId);
-        if (!document)
-          return errorResponse(403, "FORBIDDEN", "Dieses Dokument ist für den aktuellen Benutzer nicht freigegeben.", requestId);
+        const { data: mayArchive, error: archiveAccessError } = await auth.supabaseUser
+          .rpc("fr208_can_archive_dokument", { p_dokument_id: documentId });
+        if (archiveAccessError || mayArchive !== true)
+          return errorResponse(403, "FORBIDDEN", "Archivierung für dieses Dokument nicht freigegeben.", requestId);
 
         if (!await verifyArchivePassword(password))
           return errorResponse(403, "FORBIDDEN", "Das Archivpasswort ist nicht korrekt.", requestId);
@@ -932,7 +861,17 @@ Deno.serve(async (req) => {
 
       const driveFileId = (document.drive_file_id ?? "").trim();
       if (!driveFileId) {
-        return errorResponse(409, "GOOGLE_DRIVE_ERROR", "Das Dokument besitzt keine Google-Drive-Dateireferenz.", requestId);
+        // Storage fallback uses only the persisted, RLS-authorized document ID.
+        if (document.bucket !== "dokumente" || !document.storage_path)
+          return errorResponse(409, "DOCUMENT_FILE_MISSING", "Das Dokument besitzt keine sichere Dateiablage.", requestId);
+        const { data: storedFile, error: storageError } = await auth.supabaseAdmin.storage
+          .from("dokumente").download(document.storage_path);
+        if (storageError || !storedFile) return errorResponse(404, "DOCUMENT_FILE_MISSING", "Die Datei ist nicht verfügbar.", requestId);
+        return new Response(storedFile, { status: 200, headers: {
+          ...corsHeaders, "Content-Type": document.mime_type || "application/octet-stream",
+          "Content-Disposition": `inline; filename="${(document.dateiname ?? "dokument.pdf").replace(/[\r\n\"]/g, "_")}"`,
+          "Cache-Control": "private, no-store"
+        } });
       }
 
       const accessToken = await getGoogleAccessToken();
@@ -1014,6 +953,14 @@ Deno.serve(async (req) => {
       if (memberAccess !== true) return errorResponse(403, "FORBIDDEN", "Mitglied liegt außerhalb des historischen Vertragsbereichs.", requestId);
     }
 
+    // Explicit caller-bound scope for ordinary document uploads. Contract
+    // provenance and historical registration retain their dedicated guards.
+    if (!historicalUpload && !hasProvenance) {
+      const { data: mayWriteOwner, error: ownerRightError } = await auth.supabaseUser.rpc(
+        "fr208_can_write_document_owner", { p_owner_kind: ownerKind, p_owner_id: ownerId });
+      if (ownerRightError || mayWriteOwner !== true)
+        return errorResponse(403, "FORBIDDEN", "Für diesen Dokumentbezug fehlt die Verwaltungsberechtigung.", requestId);
+    }
     if (!await uploadOwnerExists(auth, ownerKind, ownerId)) {
       return errorResponse(403, "FORBIDDEN", "Dieses Dokument ist für den aktuellen Benutzer nicht freigegeben.", requestId);
     }

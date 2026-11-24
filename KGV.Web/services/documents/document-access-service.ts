@@ -20,8 +20,8 @@ export function documentCapabilitiesForOwner(context: DocumentAccessContext, own
     && context.memberId === owner.id;
 
   return {
-    // Like the existing Core PermissionChecks, document management includes reading.
-    canRead: context.canReadDocuments || context.canManageDocuments || canReadOwnMemberDocuments,
+    // Management is not a substitute for independent read authority.
+    canRead: context.canReadDocuments || canReadOwnMemberDocuments,
     canUpload: context.canManageDocuments,
     canArchive: context.canArchiveDocuments,
   };

@@ -1,7 +1,7 @@
 import type { ClubContext } from "../../models/auth/club";
 import type { BrowserSession } from "../../lib/supabase-auth";
 import type { DocumentType } from "../../models/documents/document-type";
-import { documentTypeIsInUse, listActiveDocumentTypes, listDocumentTypes, saveDocumentType } from "../../repositories/documents/document-type-repository";
+import { documentTypeIsInUse, listActiveDocumentTypes, listDocumentTypes, saveDocumentType, saveDocumentTypeEffects } from "../../repositories/documents/document-type-repository";
 
 export const documentTypeEffects = ["mitgliedsantrag_nachweis", "pachtvertrag_nachweis", "wartungsvertrag_nachweis", "pachtbezug_erforderlich", "wartungsvertragsbezug_erforderlich"] as const;
 export const documentTypeEffectLabels: Record<DocumentType["wirkungen"][number], string> = {
@@ -40,4 +40,17 @@ export function validateDocumentType(input: { bezeichnung: string; sortierung: n
 export async function saveManagedDocumentType(club: ClubContext, session: BrowserSession, input: { id: number | null; bezeichnung: string; aktiv: boolean; sortierung: number; wirkungen: DocumentType["wirkungen"] }) {
   validateDocumentType(input);
   await saveDocumentType(club, session, { ...input, bezeichnung: input.bezeichnung.trim() });
+}
+
+// FR2-08: Die Wirkungsadministration ist ein eigenes Fachrecht.
+// Der Endpunkt schreibt ausschließlich Wirkungen, nie Dokumenttyp-Metadaten.
+export async function saveManagedDocumentEffects(
+  club: ClubContext, session: BrowserSession, typeId: number,
+  effects: DocumentType["wirkungen"],
+): Promise<void> {
+  if (!Number.isSafeInteger(typeId) || typeId <= 0)
+    throw new Error("Die Dokumenttyp-ID ist ungültig.");
+  if (effects.some((effect) => !documentTypeEffects.includes(effect)) || new Set(effects).size !== effects.length)
+    throw new Error("Ungültige oder doppelte Dokumentwirkung.");
+  await saveDocumentTypeEffects(club, session, typeId, effects);
 }

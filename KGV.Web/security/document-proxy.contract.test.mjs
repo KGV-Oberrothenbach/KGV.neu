@@ -29,7 +29,14 @@ assert.match(documentResolver, /DriveFileId[\s\S]{0,180}return null/);
 assert.doesNotMatch(documentResolver, /BuildGoogleDriveFileViewUrl/);
 
 assert.match(edgeFunction, /select\("id,mitglied_id,parzelle_id,drive_file_id,dateiname,mime_type,archiviert_at"\)/);
-assert.match(edgeFunction, /if \(document\.archiviert_at\)\s*return null/);
+const readStart = edgeFunction.indexOf("async function mayReadDocument(");
+const readEnd = edgeFunction.indexOf("async function downloadDriveDocument(", readStart);
+assert.ok(readStart >= 0 && readEnd > readStart);
+const readGuard = edgeFunction.slice(readStart, readEnd);
+assert.match(readGuard, /auth\.supabaseUser\.from\("dokument"\)/);
+assert.match(readGuard, /\.eq\("id", documentId\)\.is\("archiviert_at", null\)\.maybeSingle\(\)/);
+assert.doesNotMatch(readGuard, /auth\.supabaseAdmin\.from/);
+assert.match(readGuard, /if \(error\) throw new Error/);
 assert.match(edgeFunction, /authenticateDocumentUser\(authHeader\)[\s\S]*mayReadDocument\(auth, documentId\)[\s\S]*errorResponse\(403, "FORBIDDEN"/);
 const downloadStart = edgeFunction.indexOf('if (action !== "download" && action !== "download_historical_contract")');
 const downloadSection = edgeFunction.slice(downloadStart);

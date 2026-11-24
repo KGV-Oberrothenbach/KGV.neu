@@ -648,7 +648,7 @@ public class DokumentePage : ContentPage, IQueryAttributable
 
         if (!CanArchiveDocuments)
         {
-            SetStatus("Archivieren ist nur für Admin erlaubt.", success: false);
+            SetStatus("Das Fachrecht zum Archivieren fehlt.", success: false);
             UpdateUiState();
             return;
         }
@@ -924,7 +924,7 @@ public class DokumentePage : ContentPage, IQueryAttributable
         _activityIndicator.IsRunning = _isBusy;
     }
 
-    public bool CanManageDocuments => _userContextState.CurrentUserContext?.Has(PermissionFlags.CanManageDocuments) == true;
+    public bool CanManageDocuments => PermissionChecks.CanManageDocuments(_userContextState.CurrentUserContext);
     public bool CanArchiveDocuments => PermissionChecks.CanArchiveDocuments(_userContextState.CurrentUserContext);
 
     private bool CanReadMemberDocuments(int? memberId)
@@ -933,10 +933,7 @@ public class DokumentePage : ContentPage, IQueryAttributable
             return false;
 
         var userContext = _userContextState.CurrentUserContext;
-        return PermissionChecks.CanReadDocumentsForMember(userContext, memberId)
-               || PermissionChecks.CanShowStammdatenForMember(userContext, memberId)
-               || PermissionChecks.CanViewMembers(userContext)
-               || PermissionChecks.CanSearchMembers(userContext);
+        return PermissionChecks.CanReadDocumentsForMember(userContext, memberId);
     }
 
     private string BuildContextHint(DokumentPageContext context)

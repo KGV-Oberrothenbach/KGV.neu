@@ -27,7 +27,7 @@ function errorMessage(error: unknown) {
   return "Die Fassung konnte nicht angelegt werden. Bitte versuche es erneut.";
 }
 
-export function ClubDocumentsManagement({ session }: { session: BrowserSession }) {
+export function ClubDocumentsManagement({ session, canManage }: { session: BrowserSession; canManage: boolean }) {
   const club = useSelectedClub();
   const [types, setTypes] = useState<ClubDocumentType[]>([]);
   const [versions, setVersions] = useState<Record<string, ClubDocumentVersion[]>>({});
@@ -102,7 +102,7 @@ export function ClubDocumentsManagement({ session }: { session: BrowserSession }
         let valid: ClubDocumentVersion | null = null;
         try { valid = getValidClubDocumentVersion(items, type.code, today()); } catch { /* Der Service schützt die Statusanzeige vor widersprüchlichen Daten. */ }
         return <section className="club-document-card" key={type.code}>
-          <div className="data-toolbar"><div><h2>{type.bezeichnung}</h2><p>{type.pflicht ? "Pflichtunterlage" : "Vereinsunterlage"}</p></div><button onClick={() => openForm(type)}>Neue Fassung</button></div>
+          <div className="data-toolbar"><div><h2>{type.bezeichnung}</h2><p>{type.pflicht ? "Pflichtunterlage" : "Vereinsunterlage"}</p></div>{canManage && <button onClick={() => openForm(type)}>Neue Fassung</button>}</div>
           {items.length === 0 ? <p className="empty-state">Keine Fassung vorhanden</p> : <div className="data-table-wrap"><table><thead><tr><th>Status</th><th>Fassung</th><th>Gültig ab</th><th>Gültig bis</th><th>Dateiname</th><th>Erstellt am</th></tr></thead><tbody>{items.map((item) => {
             const status = valid?.id === item.id ? "Aktuell" : item.gueltig_ab > today() ? "Zukünftig" : "Abgelaufen";
             return <tr key={item.id}><td><span className={`status-badge document-status ${status.toLowerCase()}`}>{status}</span></td><td><strong>{item.fassung}</strong></td><td>{formatDate(item.gueltig_ab)}</td><td>{formatDate(item.gueltig_bis)}</td><td>{item.dateiname ?? "–"}</td><td>{formatDate(item.erstellt_am)}</td></tr>;
@@ -110,7 +110,7 @@ export function ClubDocumentsManagement({ session }: { session: BrowserSession }
         </section>;
       })}
     </div>}
-    {editingType && <section className="detail-panel club-document-form" aria-label={`Neue Fassung ${editingType.bezeichnung}`}>
+    {canManage && editingType && <section className="detail-panel club-document-form" aria-label={`Neue Fassung ${editingType.bezeichnung}`}>
       <div className="detail-title"><div><h2>Neue Fassung: {editingType.bezeichnung}</h2><p>Der Dokumenttyp ist fest vorausgewählt.</p></div></div>
       {!confirming ? <><fieldset disabled={saving} className="admin-form-grid"><label>Dokumenttyp<input value={editingType.bezeichnung} readOnly /></label><label>Fassung / Bezeichnung<input value={draft.fassung} onChange={(event) => setDraft({ ...draft, fassung: event.target.value })} /></label><label>Gültig ab<input type="date" value={draft.gueltigAb} onChange={(event) => setDraft({ ...draft, gueltigAb: event.target.value })} /></label><label>PDF-Datei<input type="file" accept="application/pdf,.pdf" onChange={(event) => setDraft({ ...draft, file: event.target.files?.[0] ?? null })} /></label></fieldset><div className="editor-actions"><button disabled={saving} onClick={review}>Angaben prüfen</button><button className="secondary-action" disabled={saving} onClick={closeForm}>Abbrechen</button></div></> : <><h3>Bitte vor dem Speichern prüfen</h3><dl><div><dt>Dokumenttyp</dt><dd>{editingType.bezeichnung}</dd></div><div><dt>Fassung</dt><dd>{draft.fassung}</dd></div><div><dt>Gültig ab</dt><dd>{formatDate(draft.gueltigAb)}</dd></div><div><dt>Dateiname</dt><dd>{draft.file?.name}</dd></div></dl><div className="editor-actions"><button disabled={saving} onClick={save}>{saving ? "Speichert …" : "Endgültig speichern"}</button><button className="secondary-action" disabled={saving} onClick={() => setConfirming(false)}>Zurück</button></div></>}
     </section>}

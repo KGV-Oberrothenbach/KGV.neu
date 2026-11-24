@@ -273,10 +273,7 @@ public sealed class AdminShell : Shell, IAppShellInitializer
             return false;
 
         var userContext = _userContextState.CurrentUserContext;
-        return PermissionChecks.CanReadDocumentsForMember(userContext, memberId)
-               || PermissionChecks.CanShowStammdatenForMember(userContext, memberId)
-               || PermissionChecks.CanViewMembers(userContext)
-               || PermissionChecks.CanSearchMembers(userContext);
+        return PermissionChecks.CanReadDocumentsForMember(userContext, memberId);
     }
 
     private void ClearImplicitOwnMemberContext()

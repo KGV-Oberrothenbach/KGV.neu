@@ -10,8 +10,8 @@ export function createWebCapabilityContext(role: AppUserRole, grants = 0, revoca
 }
 
 export function canReadDocuments(context: WebCapabilityContext): boolean {
-  return context !== null && (hasPermission(context.effectivePermissions, Permission.CanReadDocuments)
-    || hasPermission(context.effectivePermissions, Permission.CanManageDocuments));
+  // FR2-08: a document manager must not receive implicit read permission.
+  return context !== null && hasPermission(context.effectivePermissions, Permission.CanReadDocuments);
 }
 
 export function canManageDocuments(context: WebCapabilityContext): boolean {

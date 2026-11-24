@@ -51,7 +51,7 @@ assert.equal(canPerformYearEndClosing(grantedVorstand), true);
 assert.equal(canPerformYearEndClosing(user), false);
 assert.equal(canReadDocuments(documentReader), true);
 assert.equal(canManageDocuments(documentReader), false);
-assert.equal(canReadDocuments(documentManager), true);
+assert.equal(canReadDocuments(documentManager), false);
 assert.equal(canManageDocuments(documentManager), true);
 assert.equal(canManageDocuments(memberEditor), false);
 assert.equal(canArchiveDocuments(admin), true);

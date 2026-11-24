@@ -109,7 +109,7 @@ public sealed class PermissionServiceTests
     }
 
     [Fact]
-    public void PermissionChecks_KeepDocumentAndRoleManagementPermissionBased()
+    public void PermissionChecks_RequireNamedDocumentRightsWhileRoleRightsRemainCompatible()
     {
         var service = new PermissionService();
         var documentReader = service.CreateContext(Guid.NewGuid(), "user", null, (long)PermissionFlags.CanReadDocuments);
@@ -119,13 +119,13 @@ public sealed class PermissionServiceTests
         var admin = service.CreateContext(Guid.NewGuid(), "admin", null);
         var revokedAdmin = service.CreateContext(Guid.NewGuid(), "admin", null, null, (long)PermissionFlags.CanManageRoles);
 
-        Assert.True(PermissionChecks.CanReadDocuments(documentReader));
+        Assert.False(PermissionChecks.CanReadDocuments(documentReader));
         Assert.False(PermissionChecks.CanManageDocuments(documentReader));
-        Assert.True(PermissionChecks.CanReadDocuments(documentManager));
-        Assert.True(PermissionChecks.CanManageDocuments(documentManager));
+        Assert.False(PermissionChecks.CanReadDocuments(documentManager));
+        Assert.False(PermissionChecks.CanManageDocuments(documentManager));
         Assert.False(PermissionChecks.CanManageDocuments(memberEditor));
         Assert.False(PermissionChecks.CanArchiveDocuments(vorstand));
-        Assert.True(PermissionChecks.CanArchiveDocuments(admin));
+        Assert.False(PermissionChecks.CanArchiveDocuments(admin));
         Assert.True(PermissionChecks.CanReadRoleManagement(vorstand));
         Assert.False(PermissionChecks.CanManageRoleManagement(vorstand));
         Assert.True(PermissionChecks.CanManageRoleManagement(admin));
@@ -166,7 +166,9 @@ public sealed class PermissionServiceTests
     {
         var service = new PermissionService();
         var ordinaryUser = service.CreateContext(Guid.NewGuid(), "user", null);
-        var documentReader = service.CreateContext(Guid.NewGuid(), "user", null, (long)PermissionFlags.CanReadDocuments);
+        var documentReader = new UserContext(Guid.NewGuid(), UserRole.User, null,
+            PermissionFlags.None, PermissionFlags.None, PermissionFlags.None, PermissionFlags.None,
+            new[] { FachrechteV2.DokumentLesen });
         var legacyYearEndClosingUser = service.CreateContext(Guid.NewGuid(), "user", null, (long)PermissionFlags.CanPerformYearEndClosing);
         var preparationUser = new UserContext(Guid.NewGuid(), UserRole.User, null,
             PermissionFlags.None, PermissionFlags.None, PermissionFlags.None, PermissionFlags.None,
