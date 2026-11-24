@@ -75,7 +75,8 @@ export const Permission = {
   createSerialLetters: PermissionBits.CanCreateSerialLetters,
 } as const;
 
-const AllPermissionBits = Object.values(PermissionBits);
+// FR2-09: the serial-letter bit is a Fachrechte UI adapter, never a legacy editable bit.
+const AllPermissionBits = Object.values(PermissionBits).filter(bit => bit !== PermissionBits.CanCreateSerialLetters);
 const addPermission = (mask: number, permission: number) => hasPermission(mask, permission) ? mask : mask + permission;
 const removePermission = (mask: number, permission: number) => hasPermission(mask, permission) ? mask - permission : mask;
 const combinePermissions = (...permissions: number[]) => permissions.reduce((mask, permission) => addPermission(mask, permission), 0);

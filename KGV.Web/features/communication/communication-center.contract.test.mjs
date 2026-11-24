@@ -38,5 +38,5 @@ assert.doesNotMatch(feature, /tabs\.map/);
 assert.match(repository, /gedruckt_am/);
 assert.match(repository, /status: "eq\.druck_bereit"/);
 assert.doesNotMatch(feature, /createSignedUrl|publicUrl|storage\.from/);
-assert.match(repository, /rows\.length !== 1 \|\| rows\[0\]\.zugewiesen_an !== userId/);
-assert.match(repository, /rows\.length !== 1 \|\| rows\[0\]\.zugewiesen_an !== null/);
+assert.match(repository, /rows\.length !== 1 \|\| rows\[0\]\.id !== id \|\| rows\[0\]\.zugewiesen_an !== userId/);
+assert.match(repository, /rows\.length !== 1 \|\| rows\[0\]\.id !== id \|\| rows\[0\]\.zugewiesen_an !== null/);

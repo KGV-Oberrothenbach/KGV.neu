@@ -5,6 +5,7 @@ import test from "node:test";
 const migration = readFileSync(new URL("../../supabase/migrations/20261028150000_phase12_workflow_idempotenz_haertung.sql", import.meta.url), "utf8");
 const signatureUpload = readFileSync(new URL("../../supabase/functions/upload-prepared-contract-signature/index.ts", import.meta.url), "utf8");
 const dispatch = readFileSync(new URL("../../supabase/functions/kgv-send-contract-documents/index.ts", import.meta.url), "utf8");
+const fr209 = readFileSync(new URL("../../supabase/migrations/20261124192619_fr209_vorgaenge_kommunikation.sql", import.meta.url), "utf8");
 const generator = readFileSync(new URL("../../supabase/functions/kgv-generate-contract/index.ts", import.meta.url), "utf8");
 const documentUpload = readFileSync(new URL("../../supabase/functions/kgv-upload-document/index.ts", import.meta.url), "utf8");
 const provenance = readFileSync(new URL("../../supabase/migrations/20261019100000_prepared_contract_final_document_provenance.sql", import.meta.url), "utf8");
@@ -52,13 +53,28 @@ test("C/F: final document and completion paths keep their stable source keys", (
   assert.match(migration, /Bearbeitung wurde bereits abweichend entschieden/);
 });
 
-test("E/G: replacement, initial dispatch and interrupted claims are serialized and resumed", () => {
+test("E/G: replacement and dispatch remain serialized; ambiguous SMTP attempts cannot be reclaimed", () => {
   assert.match(migration, /from public\.pachtvertragsfassung where id=p_vorgaenger_fassung_id for update/);
   assert.match(migration, /status not in \('erledigt','abgebrochen'\) for update/);
   assert.match(migration, /erneuter_versand_von_id is null/);
   assert.match(migration, /erneuter_versand_von_id=p_erneuter_versand_von_id and z\.status<>'versendet'/);
   assert.match(migration, /status='wird_versendet' and beansprucht_am<now\(\)-interval '15 minutes'/);
-  assert.match(dispatch, /stableMessageId/);
+  // Inspect the effective replacement, not merely the historical migration.
+  const claim = fr209.match(/CREATE OR REPLACE FUNCTION public\.claim_contract_dispatch\(p_versandinstanz_id bigint\)[\s\S]*?END \$\$;/i)?.[0];
+  assert.ok(claim, "FR209 must replace the legacy claim function");
+  assert.match(claim, /z\.status IN \('bereit','fehler','teilweise_fehlerhaft'\)/);
+  assert.doesNotMatch(claim, /interval|15 minutes/i);
+  assert.match(claim, /f\.state<>'confirmed'/);
+  assert.match(claim, /v\.zugewiesen_an=auth\.uid\(\)/);
+  assert.match(fr209, /ALTER FUNCTION public\.claim_contract_dispatch\(bigint\) RENAME TO fr209_claim_contract_dispatch/);
+  assert.match(fr209, /CREATE FUNCTION public\.claim_contract_dispatch\(p_versandinstanz_id bigint\)[\s\S]*?ERRCODE='PT503'/);
+  assert.match(fr209, /z\.erneuter_versand_von_id IS NOT DISTINCT FROM p_erneuter_versand_von_id/);
+  assert.match(dispatch, /const messageId = "<" \+ dispatch\.idempotenzschluessel \+ "\." \+ recipient\.id \+ "@" \+ domain \+ ">";/);
+  assert.match(dispatch, /transport\.sendMail\(\{[^\n]*\bmessageId\b/);
+  assert.match(dispatch, /smtp_message_id: messageId/);
+  assert.ok(dispatch.indexOf('fr209_reserve_contract_mail') < dispatch.indexOf('transport.sendMail'));
+  assert.match(dispatch, /state: "unknown"/);
+  assert.match(dispatch, /smtpStarted \? \{ letzter_fehler:/);
   assert.match(dispatch, /eq\("status", "wird_versendet"\)/);
 });
 

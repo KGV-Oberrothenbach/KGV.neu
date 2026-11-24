@@ -92,6 +92,13 @@ public sealed class PreparedContractRepositoryHttpTests
                 .ReleaseAsync(ItemId));
     }
 
+    [Fact]
+    public async Task ClaimAndRelease_RejectWrongResponseIdentity()
+    {
+        await Assert.ThrowsAsync<PreparedContractConflictException>(() => Repository(new RecordingHandler(Response(Item(2) with { Id = 999 }))).ClaimAsync(ItemId));
+        await Assert.ThrowsAsync<PreparedContractConflictException>(() => Repository(new RecordingHandler(Response(Item(3) with { Id = 999, ZugewiesenAn = null }))).ReleaseAsync(ItemId));
+    }
+
     [Theory]
     [InlineData(CommunicationArea.Signatures, "vorgangstyp=eq.vertrag_signatur", "status=in.(vorbereitet,zur_signatur,letzte_pruefung)")]
     [InlineData(CommunicationArea.Documents, "vorgangstyp=eq.dokument_erzeugung", "status=in.(vorbereitet,fehler)")]

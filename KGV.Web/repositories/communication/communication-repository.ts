@@ -41,12 +41,12 @@ export async function discardPreparedContract(club: ClubContext, session: Browse
 
 export async function claimCommunicationItem(club: ClubContext, session: BrowserSession, id: number, userId: string) {
   const rows = await callSupabaseRpc<CommunicationItem[]>({ club, session }, "fr209_claim_kommunikationsvorgang", { p_id: id });
-  if (rows.length !== 1 || rows[0].zugewiesen_an !== userId) throw new Error("Übernahme ist nicht dem angemeldeten Benutzer zugeordnet.");
+  if (rows.length !== 1 || rows[0].id !== id || rows[0].zugewiesen_an !== userId) throw new Error("Übernahme ist nicht dem angemeldeten Benutzer zugeordnet.");
   return rows[0];
 }
 
 export async function releaseCommunicationItem(club: ClubContext, session: BrowserSession, id: number, userId: string) {
   const rows = await callSupabaseRpc<CommunicationItem[]>({ club, session }, "fr209_release_kommunikationsvorgang", { p_id: id });
-  if (rows.length !== 1 || rows[0].zugewiesen_an !== null) throw new Error("Freigabe konnte nicht bestätigt werden.");
+  if (rows.length !== 1 || rows[0].id !== id || rows[0].zugewiesen_an !== null) throw new Error("Freigabe konnte nicht bestätigt werden.");
   return rows[0];
 }
