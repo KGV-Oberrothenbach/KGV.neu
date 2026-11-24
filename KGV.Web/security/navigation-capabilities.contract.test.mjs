@@ -50,7 +50,7 @@ assert.match(page, /activeId=\{effectiveActiveId\}/);
 const workspaceRender = page.slice(page.indexOf('<article className="content-area">'));
 assert.doesNotMatch(workspaceRender, /\{activeId ===/);
 assert.match(workspaceRender, /\.has\(effectiveActiveId\)/);
-assert.match(page, /canExport=\{canExportData\(capabilityContext\)\}/);
+assert.match(page, /canExport=\{canExportData\(capabilityContext\) && hasRight\("auswertung\.lesen"\) && hasRight\("export\.ausfuehren"\)\}/);
 assert.match(page, /canManageClubDocuments\(capabilityContext\)/);
 assert.match(page, /canReadDocumentTypes:\s*hasRight\("dokumenttyp\.verwalten"\)\s*\|\|\s*hasRight\("dokumentwirkung\.verwalten"\)\s*\|\|\s*hasRight\("vereinsdaten\.alle_lesen"\)/);
 assert.match(page, /<DocumentTypeManagement[^\n]+canManage=\{hasRight\("dokumenttyp\.verwalten"\)\}/);

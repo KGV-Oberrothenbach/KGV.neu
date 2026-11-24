@@ -247,7 +247,7 @@ function WorkspaceContent({ session, email, club, context, fachrechteV2, onLogou
     canAccessParcels: hasRight("parzelle.lesen") || hasRight("parzelle.bearbeiten") || hasRight("belegung.verwalten"),
     canManageMaintenance: hasRight("mitgliedschaft.verwalten"),
     canApproveWorkHours: hasRight("arbeitsstunden.freigeben"),
-    canExport: canExportData(capabilityContext),
+    canExport: canExportData(capabilityContext) && hasRight("auswertung.lesen") && hasRight("export.ausfuehren"),
     canManageProcesses: canAccessCommunication,
     canManageSeasonConfiguration: canManageClubSeasonConfiguration(capabilityContext),
     canPerformYearEndClosing: canPerformYearEndClosing(capabilityContext),
@@ -302,7 +302,7 @@ function WorkspaceContent({ session, email, club, context, fachrechteV2, onLogou
           {effectiveActiveId === "termine" && <AppointmentManagement session={session} canEdit={hasRight("termin.verwalten")} onBack={() => setActiveId("start")} />}
           {effectiveActiveId === "bekanntmachungen" && <AnnouncementManagement session={session} canEdit={hasRight("bekanntmachung.verwalten")} onBack={() => setActiveId("start")} />}
           {effectiveActiveId === "impressum" && <ImprintPage session={session} />}
-          {effectiveActiveId === "export" && <ExportCenter session={session} season={season} canExport={canExportData(capabilityContext)} />}
+          {effectiveActiveId === "export" && <ExportCenter session={session} season={season} canExport={canExportData(capabilityContext) && hasRight("auswertung.lesen") && hasRight("export.ausfuehren")} canCreateSerialLetters={hasRight("serienbrief.erstellen")} canExportJae={hasRight("zaehler.lesen") && hasRight("parzelle.lesen") && hasRight("mitglied.lesen")} />}
           {effectiveActiveId === "signaturen" && canAccessCommunication && <CommunicationCenter session={session} userId={session.user.id} area="signature" onChanged={() => void refreshOpenProcessCount()} />}
           {effectiveActiveId === "dokumente" && canAccessCommunication && <CommunicationCenter session={session} userId={session.user.id} area="documents" onChanged={() => void refreshOpenProcessCount()} />}
           {effectiveActiveId === "vorstand" && canAccessCommunication && <CommunicationCenter session={session} userId={session.user.id} area="board" onChanged={() => void refreshOpenProcessCount()} />}

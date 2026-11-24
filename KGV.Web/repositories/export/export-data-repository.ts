@@ -17,5 +17,6 @@ export async function readTableOrViewExport(club: ClubContext, session: BrowserS
 }
 
 export async function readExportOptions(club: ClubContext, session: BrowserSession, rpcName: string): Promise<Array<{ label?: unknown; value?: unknown }>> {
+  if (!["rpc_export_arbeitsstunden_jahre", "rpc_export_jahresablesung_jahre"].includes(rpcName)) throw new Error("Unzulässige Export-Optionsquelle.");
   return callSupabaseRpc<Array<{ label?: unknown; value?: unknown }>>({ club, session }, rpcName, {});
 }

@@ -1,0 +1,40 @@
+import { readFileSync, readdirSync } from 'node:fs';
+import { resolve } from 'node:path';
+import assert from 'node:assert/strict';
+import test from 'node:test';
+const repo=resolve(import.meta.dirname,'../..');
+const migrationNames=readdirSync(resolve(repo,'supabase/migrations')).filter(n=>n.endsWith('_fr211_export_security.sql'));
+assert.equal(migrationNames.length,1);
+const read=p=>readFileSync(resolve(repo,p),'utf8');
+const sql=read('supabase/migrations/'+migrationNames[0]);
+test('FR211 export caller is RLS invoker with fixed field and source allowlists',()=>{
+ assert.match(sql,/FUNCTION public\.rpc_execute_export\([\s\S]*?LANGUAGE plpgsql\s+SECURITY INVOKER/);
+ assert.match(sql,/fr211_export_private\.%I/);
+ assert.match(sql,/c\.column_key = ANY\(v_fixed_columns\)/);
+ assert.match(sql,/v_source IS DISTINCT FROM v_expected/);
+ assert.match(sql,/EXPORT_UNKNOWN_PARAMETER/);
+ assert.match(sql,/EXPORT_ROW_LIMIT_EXCEEDED/);
+ assert.match(sql,/REVOKE ALL ON FUNCTION public\.rpc_execute_table_or_view_export/);
+ assert.match(sql,/md5\(replace\(p\.prosrc/);
+ assert.doesNotMatch(sql,/\b(?:DROP TABLE|TRUNCATE TABLE|DELETE FROM)\b/i);
+});
+test('FR211 client export navigation, series and JAE use named rights',()=>{
+ const page=read('KGV.Web/app/page.tsx');
+ const center=read('KGV.Web/features/export/ExportCenter.tsx');
+ assert.match(page,/hasRight\("auswertung\.lesen"\) && hasRight\("export\.ausfuehren"\)/);
+ assert.match(center,/!selected\?\.serienbrief_erlaubt \|\| !canCreateSerialLetters/);
+ assert.match(page,/canCreateSerialLetters=\{hasRight\("serienbrief\.erstellen"\)\}/);
+ assert.match(read('KGV.Web/services/export/jae-xlsx-service.ts'),/rpc_fr211_jae_export/);
+ assert.match(read('KGV.Core/Security/PermissionChecks.cs'),/HasFachrecht\(FachrechteV2\.AuswertungLesen\)[\s\S]{0,120}HasFachrecht\(FachrechteV2\.ExportAusfuehren\)/);
+ assert.match(read('KGV.Maui/AdminShell.cs'),/CanManageExports\(_userContextState\.CurrentUserContext\)\)\s*AddNavigationButton\(menu, "Export"/);
+});
+test('FR211 CSV and PDF output hardening',()=>{
+ const vm=read('KGV.Maui/ViewModels/ExportViewModel.cs');
+ assert.match(vm,/EXPORT_DIAG = false/);
+ assert.match(vm,/Guid\.NewGuid\(\):N/);
+ assert.match(vm,/input = "'" \+ input/);
+ assert.match(read('KGV.Web/services/export/export-csv-service.ts'),/"'" \+ formatted/);
+ const edge=read('supabase/functions/kgv-generate-export-pdf/index.ts');
+ assert.doesNotMatch(edge,/row_reference: error\.rowReference/);
+ assert.doesNotMatch(edge,/detail: message/);
+});

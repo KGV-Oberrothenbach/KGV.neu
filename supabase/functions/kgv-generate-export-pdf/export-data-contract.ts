@@ -21,13 +21,12 @@ type ReportContract = { sourceName: string; requiredFields: ReadonlySet<string>;
 const reportContracts: Readonly<Record<string, ReportContract>> = {
   mitgliederliste: {
     sourceName: "rpc_export_mitgliederliste_json",
-    requiredFields: new Set(["mitgliedsnummer", "mitglied"]),
+    requiredFields: new Set(["mitgliedsnr", "mitglied"]),
     optionalFields: new Set(["id", "mitglied_id", "mitgliedsnr", "mitgliedsnummer", "mitglied", "name", "vorname", "adresse_block", "kontakt_block", "strasse_hsnr", "plz", "ort", "telefon", "handy", "email", "geburtsdatum", "mitglied_seit", "bemerkung", "gartennummern", "pachtgaerten", "wa", "re", "info", "aktiv_export", "app", "app_vorhanden"]),
   },
   arbeitsstunden_uebersicht: {
     sourceName: "rpc_export_arbeitsstunden_uebersicht_json",
     requiredFields: new Set([
-      "mitglied_id",
       "mitgliedsnummer",
       "garten_nr",
       "nachname",
@@ -56,6 +55,8 @@ const reportContracts: Readonly<Record<string, ReportContract>> = {
     requiredFields: new Set(),
     optionalFields: new Set([
       "parzelle",
+      "vorname",
+      "nachname",
       "medium",
       "zaehler_id",
       "zaehlernummer",

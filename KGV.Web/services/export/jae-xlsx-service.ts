@@ -1,8 +1,8 @@
 import type { ClubContext } from "../../models/auth/club";
 import ExcelJS from "exceljs";
 import type { BrowserSession } from "../../lib/supabase-auth";
-import { listParcelOverviewParcels } from "../../repositories/parcels/parcel-repository";
-import { listAnnualConsumptionSegments, listMainSubMeterDifferences, type AnnualConsumptionSegment, type MainSubMeterDifference } from "../../repositories/readings/annual-consumption-repository";
+import { callSupabaseRpc } from "../../lib/supabase/rpc-client";
+import type { AnnualConsumptionSegment, MainSubMeterDifference } from "../../repositories/readings/annual-consumption-repository";
 import { jaeExtendedHeaders, type JaeExportInput } from "../../models/export/jae-export";
 
 const natural = new Intl.Collator("de", { numeric: true, sensitivity: "base" });
@@ -34,4 +34,4 @@ function createMainSubMeterSheet(workbook: ExcelJS.Workbook, year: number, rows:
 }
 
 export async function createJaeWorkbook(input: JaeExportInput, template: ArrayBuffer, differences: MainSubMeterDifference[] = []) { const workbook = new ExcelJS.Workbook(); await workbook.xlsx.load(template); const legacy = workbook.getWorksheet("Tabelle1"); if (!legacy) throw new Error("JAE-Vorlage enthält Tabelle1 nicht."); fillLegacySheet(legacy, input); if (workbook.getWorksheet("JAE erweitert")) workbook.removeWorksheet("JAE erweitert"); createExtendedSheet(workbook, input); createMainSubMeterSheet(workbook, input.year, differences); return workbook; }
-export async function downloadJaeXlsx(club: ClubContext, session: BrowserSession, year: number) { const [segments, differences, parcels, response] = await Promise.all([listAnnualConsumptionSegments(club, session, year), listMainSubMeterDifferences(club, session, year), listParcelOverviewParcels(club, session), fetch("/templates/exports/JAE_Vorlage.xlsx")]); if (!response.ok) throw new Error("JAE-Vorlage konnte nicht geladen werden."); const workbook = await createJaeWorkbook({ year, segments, parcelAreas: new Map(parcels.map((parcel) => [parcel.id, parcel.flaeche_qm])) }, await response.arrayBuffer(), differences); download(await workbook.xlsx.writeBuffer() as ArrayBuffer, `${year}_JAE.xlsx`); }
+export async function downloadJaeXlsx(club: ClubContext, session: BrowserSession, year: number) { const [{ segments, differences, parcels }, response] = await Promise.all([callSupabaseRpc<{ segments: AnnualConsumptionSegment[]; differences: MainSubMeterDifference[]; parcels: { id: number; flaeche_qm: number | null }[] }>({ club, session }, "rpc_fr211_jae_export", { p_jahr: year }), fetch("/templates/exports/JAE_Vorlage.xlsx")]); if (!response.ok) throw new Error("JAE-Vorlage konnte nicht geladen werden."); const workbook = await createJaeWorkbook({ year, segments, parcelAreas: new Map(parcels.map((parcel) => [parcel.id, parcel.flaeche_qm])) }, await response.arrayBuffer(), differences); download(await workbook.xlsx.writeBuffer() as ArrayBuffer, `${year}_JAE.xlsx`); }

@@ -143,7 +143,8 @@ namespace KGV.Core.Security
             => context?.HasFachrecht(FachrechteV2.RfidVerwalten) == true;
 
         public static bool CanManageExports(UserContext? context)
-            => HasPermission(context, PermissionFlags.CanManageExports);
+            => context?.HasFachrecht(FachrechteV2.AuswertungLesen) == true
+               && context?.HasFachrecht(FachrechteV2.ExportAusfuehren) == true;
 
         public static bool CanManageClubDocuments(UserContext? context)
             => context?.HasFachrecht("vereinsunterlagen.verwalten") == true;
@@ -293,6 +294,7 @@ namespace KGV.Core.Security
                || CanReadRoleManagement(context)
                || HasAnyFinanceAccess(context)
                || CanRegisterHistoricalContracts(context)
+               || CanManageExports(context)
                || CanManageClubSeasonConfiguration(context)
                || CanManageClubConfiguration(context)
                || CanManageClubFunctions(context)

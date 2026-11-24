@@ -46,7 +46,9 @@ test("meter workflow RPCs are connected from productive Web and MAUI screens", a
   assert.match(webRequests, /review_meter_change_request/);
 
   // Productive MAUI entry points -> service -> RPC.
-  assert.match(mauiReading, /CaptureMeterReadingAsync\(/);
+  assert.match(mauiReading, /var readingId = await _supabaseService\.CaptureMeterReadingWithIdAsync\(/);
+  assert.match(mauiReading, /if \(readingId is not > 0\)[\s\S]*?return;[\s\S]*?_pendingPhotoService\.SaveAndEnqueue\(/);
+  assert.match(mauiService, /public Task<long\?> CaptureMeterReadingWithIdAsync\([\s\S]*?ownSubmission \? "submit_own_meter_reading" : "capture_meter_reading"[\s\S]*?record\.TryGetProperty\("id", out var idValue\)[\s\S]*?id > 0/);
   assert.match(mauiChange, /ExecuteMeterChangeAsync\(/);
   assert.match(mauiRequests, /SubmitOwnMeterChangeRequestAsync\(/);
   assert.match(mauiRequests, /CorrectMeterChangeRequestAsync\(/);

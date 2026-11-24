@@ -17,7 +17,7 @@ namespace KGV.Maui.ViewModels
     {
         private readonly ISupabaseService _supabaseService;
 
-        private const bool EXPORT_DIAG = true;
+        private const bool EXPORT_DIAG = false;
 
         // Controlled alias rules for known RPC key deviations (technicalKey -> possible raw keys)
         private static readonly Dictionary<string, string[]> TECH_ALIASES = new(StringComparer.OrdinalIgnoreCase)
@@ -201,6 +201,8 @@ namespace KGV.Maui.ViewModels
             if (string.IsNullOrWhiteSpace(rpcName))
                 return new List<System.Collections.Generic.Dictionary<string, string>>();
 
+            if (rpcName != "rpc_export_arbeitsstunden_jahre" && rpcName != "rpc_export_jahresablesung_jahre")
+                throw new InvalidOperationException("Unzulässige Export-Optionsquelle.");
             return await _supabaseService.RunExportRpcAsync(rpcName, null);
         }
 
@@ -213,8 +215,8 @@ namespace KGV.Maui.ViewModels
 
             try
             {
-                Console.WriteLine($"EXPORTDBG: LoadDefinitionsAsync loaded {Definitions.Count} definitions");
-                System.Diagnostics.Debug.WriteLine($"EXPORTDBG: LoadDefinitionsAsync loaded {Definitions.Count} definitions");
+                ; // FR2-11: export diagnostics removed.
+                ; // FR2-11: export diagnostics removed.
             }
             catch
             {
@@ -239,8 +241,8 @@ namespace KGV.Maui.ViewModels
 
             try
             {
-                Console.WriteLine($"EXPORTDBG: SelectDefinitionAsync start exportKey={exportKey}, Titel={def.Titel ?? ""}, QuelleName={def.QuelleName ?? ""}");
-                System.Diagnostics.Debug.WriteLine($"EXPORTDBG: SelectDefinitionAsync start exportKey={exportKey}, Titel={def.Titel ?? ""}, QuelleName={def.QuelleName ?? ""}");
+                ; // FR2-11: export diagnostics removed.
+                ; // FR2-11: export diagnostics removed.
             }
             catch
             {
@@ -252,8 +254,8 @@ namespace KGV.Maui.ViewModels
 
             try
             {
-                Console.WriteLine($"EXPORTDBG: SelectDefinitionAsync loaded filters count={Filters.Count}");
-                System.Diagnostics.Debug.WriteLine($"EXPORTDBG: SelectDefinitionAsync loaded filters count={Filters.Count}");
+                ; // FR2-11: export diagnostics removed.
+                ; // FR2-11: export diagnostics removed.
             }
             catch
             {
@@ -265,8 +267,8 @@ namespace KGV.Maui.ViewModels
 
             try
             {
-                Console.WriteLine($"EXPORTDBG: SelectDefinitionAsync loaded columns count={Columns.Count}");
-                System.Diagnostics.Debug.WriteLine($"EXPORTDBG: SelectDefinitionAsync loaded columns count={Columns.Count}");
+                ; // FR2-11: export diagnostics removed.
+                ; // FR2-11: export diagnostics removed.
             }
             catch
             {
@@ -320,12 +322,12 @@ namespace KGV.Maui.ViewModels
                 mapped[paramName] = val;
             }
 
-            LastRpcParameterSummary = string.Join(", ", mapped.Select(kv => kv.Key + "=" + (kv.Value == null ? "null" : kv.Value.ToString())));
+            LastRpcParameterSummary = string.Join(", ", mapped.Keys);
 
             try
             {
-                Console.WriteLine($"EXPORTDBG: ExecuteAsync export_key={(SelectedDefinition?.ExportKey ?? "?")}, final params={LastRpcParameterSummary}");
-                System.Diagnostics.Debug.WriteLine($"EXPORTDBG: ExecuteAsync export_key={(SelectedDefinition?.ExportKey ?? "?")}, final params={LastRpcParameterSummary}");
+                ; // FR2-11: export diagnostics removed.
+                ; // FR2-11: export diagnostics removed.
             }
             catch
             {
@@ -344,8 +346,8 @@ namespace KGV.Maui.ViewModels
             {
                 try
                 {
-                    Console.WriteLine($"EXPORTDBG: ExecuteAsync calling RPC={rpcName} with params={LastRpcParameterSummary}");
-                    System.Diagnostics.Debug.WriteLine($"EXPORTDBG: ExecuteAsync calling RPC={rpcName} with params={LastRpcParameterSummary}");
+                    ; // FR2-11: export diagnostics removed.
+                    ; // FR2-11: export diagnostics removed.
                 }
                 catch
                 {
@@ -363,7 +365,7 @@ namespace KGV.Maui.ViewModels
                 }
                 if (string.Equals(definition.QuelleTyp, "view", StringComparison.OrdinalIgnoreCase))
                 {
-                    rows = await _supabaseService.RunExportRpcAsync("rpc_execute_table_or_view_export", new { p_source_name = rpcName });
+                    throw new InvalidOperationException("Direkte Tabellen-/View-Exporte sind nicht freigegeben.");
                 }
                 else
                 {
@@ -371,8 +373,8 @@ namespace KGV.Maui.ViewModels
 
                     try
                     {
-                        Console.WriteLine($"EXPORTDBG: ExecuteAsync raw rows returned={rows.Count}");
-                        System.Diagnostics.Debug.WriteLine($"EXPORTDBG: ExecuteAsync raw rows returned={rows.Count}");
+                        ; // FR2-11: export diagnostics removed.
+                        ; // FR2-11: export diagnostics removed.
                     }
                     catch
                     {
@@ -383,15 +385,15 @@ namespace KGV.Maui.ViewModels
                 {
             try
             {
-                Console.WriteLine("EXPORTDBG: ----- EXPORTDBG RAW -----");
-                Console.WriteLine($"EXPORTDBG: RAW count={rows.Count}");
+                ; // FR2-11: export diagnostics removed.
+                ; // FR2-11: export diagnostics removed.
                 if (rows.Count > 0)
                 {
                     var firstKeys = rows[0].Count > 0 ? string.Join(',', rows[0].Keys) : "(none)";
-                    Console.WriteLine($"EXPORTDBG: RAW_ROW[0] materializedKeys={SafeDebugValue(firstKeys,400)}");
-                    Console.WriteLine($"EXPORTDBG: RAW sample values={FormatDebugDictionarySample(rows[0])}");
+                    ; // FR2-11: export diagnostics removed.
+                    ; // FR2-11: export diagnostics removed.
                 }
-                Console.WriteLine("EXPORTDBG: ----- END RAW -----");
+                ; // FR2-11: export diagnostics removed.
             }
                     catch
                     {
@@ -412,14 +414,14 @@ namespace KGV.Maui.ViewModels
 
             try
             {
-                Console.WriteLine($"EXPORTDBG: ExecuteAsync loaded raw rows={Results.Count}");
+                ; // FR2-11: export diagnostics removed.
             }
             catch { }
 
             try
             {
-                Console.WriteLine($"EXPORTDBG: ExecuteAsync Results count (raw)={Results.Count}");
-                System.Diagnostics.Debug.WriteLine($"EXPORTDBG: ExecuteAsync Results count (raw)={Results.Count}");
+                ; // FR2-11: export diagnostics removed.
+                ; // FR2-11: export diagnostics removed.
             }
             catch
             {
@@ -438,8 +440,8 @@ namespace KGV.Maui.ViewModels
 
                 try
                 {
-                    Console.WriteLine($"EXPORTDBG: Visible-column fallback used (no standard_sichtbar); visibleColumns={visible.Count}");
-                    System.Diagnostics.Debug.WriteLine($"EXPORTDBG: Visible-column fallback used (no standard_sichtbar); visibleColumns={visible.Count}");
+                    ; // FR2-11: export diagnostics removed.
+                    ; // FR2-11: export diagnostics removed.
                 }
                 catch
                 {
@@ -449,8 +451,8 @@ namespace KGV.Maui.ViewModels
             {
                 try
                 {
-                    Console.WriteLine($"EXPORTDBG: Visible columns determined from standard_sichtbar; visibleColumns={visible.Count}");
-                    System.Diagnostics.Debug.WriteLine($"EXPORTDBG: Visible columns determined from standard_sichtbar; visibleColumns={visible.Count}");
+                    ; // FR2-11: export diagnostics removed.
+                    ; // FR2-11: export diagnostics removed.
                 }
                 catch
                 {
@@ -513,7 +515,7 @@ namespace KGV.Maui.ViewModels
                 {
                     try
                     {
-                        Console.WriteLine($"EXPORTDBG: ExecuteAsync skipping column without technical key label={col.LabelLang ?? col.LabelKurz ?? "?"}");
+                        ; // FR2-11: export diagnostics removed.
                     }
                     catch
                     {
@@ -534,7 +536,7 @@ namespace KGV.Maui.ViewModels
             }
             catch (Exception exMap)
             {
-                try { Console.WriteLine($"EXPORTDBG: mapping failed: {exMap.Message}"); } catch { }
+                /* FR2-11: diagnostic removed */
                 mappedRows = new List<System.Collections.Generic.Dictionary<string, string>>();
             }
 
@@ -547,8 +549,8 @@ namespace KGV.Maui.ViewModels
             {
                 try
                 {
-                    Console.WriteLine("EXPORTDBG: ----- EXPORTDBG MAPPINGS -----");
-                    Console.WriteLine($"EXPORTDBG: Visible columns count={VisibleColumnsMapped.Count}");
+                    ; // FR2-11: export diagnostics removed.
+                    ; // FR2-11: export diagnostics removed.
 
                     for (int i = 0; i < Math.Min(2, Results.Count); i++)
                     {
@@ -556,16 +558,16 @@ namespace KGV.Maui.ViewModels
                         var keys = rawProps.Count > 0
                             ? string.Join(",", rawProps.Keys)
                             : "(none)";
-                        Console.WriteLine($"EXPORTDBG: RAW_ROW[{i}] materializedKeys={SafeDebugValue(keys, 400)}");
+                        ; // FR2-11: export diagnostics removed.
                         // also dump value-wrapper sample
                         if (rawProps.TryGetValue("value", out var v))
                         {
-                            Console.WriteLine($"EXPORTDBG: RAW_ROW[{i}] valueWrapperSample={SafeDebugValue(v,800)}");
+                            ; // FR2-11: export diagnostics removed.
                         }
                     }
 
                     if (mappedRows.Count > 0)
-                        Console.WriteLine($"EXPORTDBG: FIRST_MAPPED_ROW sample={FormatDebugDictionarySample(mappedRows[0])}");
+                        ; // FR2-11: export diagnostics removed.
 
                     // Per-column matching diagnostics for first raw row
                     if (Results.Count > 0 && VisibleColumnsMapped.Count > 0)
@@ -593,16 +595,16 @@ namespace KGV.Maui.ViewModels
                                     var detectedKey = DetectUsedKeyForTech(first, normalizedMap, tech);
                                     if (!string.IsNullOrWhiteSpace(detectedKey)) usedKeys.Add(detectedKey);
                                 }
-                                Console.WriteLine($"EXPORTDBG: COL_MATCH col={tech} match={match} sample={SafeDebugValue(val)}");
+                                ; // FR2-11: export diagnostics removed.
                             }
 
                             var unmatched = first.Keys.Where(k => !usedKeys.Contains(k)).ToList();
-                            Console.WriteLine($"EXPORTDBG: RAW_ROW[0] unmatchedKeys={SafeDebugValue(string.Join(',', unmatched),400)}");
+                            ; // FR2-11: export diagnostics removed.
                         }
                         catch { }
                     }
 
-                    Console.WriteLine("EXPORTDBG: ----- END MAPPINGS -----");
+                    ; // FR2-11: export diagnostics removed.
                 }
                 catch
                 {
@@ -611,8 +613,8 @@ namespace KGV.Maui.ViewModels
 
             try
             {
-                Console.WriteLine($"EXPORTDBG: ExecuteAsync ProcessedResults count={ProcessedResults.Count}");
-                System.Diagnostics.Debug.WriteLine($"EXPORTDBG: ExecuteAsync ProcessedResults count={ProcessedResults.Count}");
+                ; // FR2-11: export diagnostics removed.
+                ; // FR2-11: export diagnostics removed.
             }
             catch
             {
@@ -622,11 +624,11 @@ namespace KGV.Maui.ViewModels
             {
                 try
                 {
-                    Console.WriteLine("EXPORTDBG: ----- EXPORTDBG PROCESSED -----");
-                    Console.WriteLine($"EXPORTDBG: PROCESSED count={ProcessedResults.Count}");
+                    ; // FR2-11: export diagnostics removed.
+                    ; // FR2-11: export diagnostics removed.
                     if (ProcessedResults.Count > 0)
-                        Console.WriteLine($"EXPORTDBG: PROCESSED sample keys/values={FormatDebugDictionarySample(ProcessedResults[0])}");
-                    Console.WriteLine("EXPORTDBG: ----- END PROCESSED -----");
+                        ; // FR2-11: export diagnostics removed.
+                    ; // FR2-11: export diagnostics removed.
                 }
                 catch
                 {
@@ -637,8 +639,8 @@ namespace KGV.Maui.ViewModels
             {
                 try
                 {
-                    Console.WriteLine($"EXPORTDBG: ExecuteAsync WARNING: raw rows present={Results.Count} but no processed rows were added");
-                    System.Diagnostics.Debug.WriteLine($"EXPORTDBG: ExecuteAsync WARNING: raw rows present={Results.Count} but no processed rows were added");
+                    ; // FR2-11: export diagnostics removed.
+                    ; // FR2-11: export diagnostics removed.
                 }
                 catch
                 {
@@ -680,8 +682,23 @@ namespace KGV.Maui.ViewModels
             return value;
         }
 
+        private static void CleanupOldExportFiles()
+        {
+            foreach (var path in System.IO.Directory.EnumerateFiles(Microsoft.Maui.Storage.FileSystem.CacheDirectory, "export_*.csv").Concat(System.IO.Directory.EnumerateFiles(Microsoft.Maui.Storage.FileSystem.CacheDirectory, "export_*.pdf")))
+            {
+                var name = System.IO.Path.GetFileNameWithoutExtension(path);
+                if (!name.StartsWith("export_", StringComparison.Ordinal) || !Guid.TryParseExact(name.Substring(7), "N", out _)) continue;
+                try { if (System.IO.File.GetLastWriteTimeUtc(path) < DateTime.UtcNow.AddDays(-1)) System.IO.File.Delete(path); }
+                catch (System.IO.IOException) { }
+                catch (UnauthorizedAccessException) { }
+            }
+        }
+
         public async Task<string> ExportToCsvAsync()
         {
+            CleanupOldExportFiles();
+            if (SelectedDefinition?.ErlaubtCsv != true)
+                throw new InvalidOperationException("CSV-Export ist für diesen Export nicht freigegeben.");
             if (ProcessedResults.Count == 0 || ColumnsVisibleOrdered.Count == 0)
                 throw new InvalidOperationException("Keine Daten zum Exportieren.");
 
@@ -704,7 +721,7 @@ namespace KGV.Maui.ViewModels
                 sb.AppendLine(string.Join(";", values));
             }
 
-            var fileName = $"{DateTime.Now:yyyy-MM-dd_HH-mm-ss}_{(SelectedDefinition?.ExportKey ?? "export")}.csv";
+            var fileName = $"export_{Guid.NewGuid():N}.csv";
             var filePath = System.IO.Path.Combine(Microsoft.Maui.Storage.FileSystem.CacheDirectory, fileName);
             var content = sb.ToString();
 
@@ -718,14 +735,12 @@ namespace KGV.Maui.ViewModels
 
         public async Task<string> ExportToPdfAsync()
         {
-            var exportKey = SelectedDefinition?.ExportKey ?? "export";
-
+            CleanupOldExportFiles();
             if (SelectedDefinition?.ErlaubtPdf != true)
                 throw new InvalidOperationException("PDF-Export ist für diesen Export nicht freigegeben.");
 
             var centralPdf = await _supabaseService.GenerateExportPdfAsync(BuildCentralExportRequest());
-            var fallbackName = $"{DateTime.Now:yyyy-MM-dd_HH-mm-ss}_{exportKey}.pdf";
-            var centralFileName = string.IsNullOrWhiteSpace(centralPdf.FileName) ? fallbackName : centralPdf.FileName;
+            var centralFileName = $"export_{Guid.NewGuid():N}.pdf";
             var centralFilePath = System.IO.Path.Combine(Microsoft.Maui.Storage.FileSystem.CacheDirectory, centralFileName);
             await System.IO.File.WriteAllBytesAsync(centralFilePath, centralPdf.Content);
             return centralFilePath;
@@ -1142,6 +1157,9 @@ namespace KGV.Maui.ViewModels
             if (input == null)
                 return string.Empty;
 
+            var trimmed = input.TrimStart();
+            if ((trimmed.Length > 0 && "=+-@".Contains(trimmed[0])) || input.StartsWith('\t') || input.StartsWith('\r') || input.StartsWith('\n'))
+                input = "'" + input;
             var needsQuotes = input.Contains(';') || input.Contains('"') || input.Contains('\n') || input.Contains('\r');
             var escaped = input.Replace("\"", "\"\"");
             return needsQuotes ? "\"" + escaped + "\"" : escaped;

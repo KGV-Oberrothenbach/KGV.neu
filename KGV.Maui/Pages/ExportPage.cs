@@ -126,16 +126,20 @@ public sealed class ExportPage : ContentPage
         {
             try
             {
-                Console.WriteLine("EXPORTDBG: ExportPage appearing");
-                System.Diagnostics.Debug.WriteLine("EXPORTDBG: ExportPage appearing");
+                ; // FR2-11: export diagnostics removed.
+                ; // FR2-11: export diagnostics removed.
             }
             catch
             {
             }
 
-            if (!PermissionChecks.CanSearchMembers(_userContextState.CurrentUserContext))
+            if (!PermissionChecks.CanManageExports(_userContextState.CurrentUserContext))
             {
-                _statusLabel.Text = "Für den Export fehlt die Berechtigung zur Mitgliedersuche.";
+                _statusLabel.Text = "Für den Export fehlen die erforderlichen Fachrechte.";
+                _vm.Results.Clear();
+                _vm.ProcessedResults.Clear();
+                _recordView.Children.Clear();
+                _tableView.ItemsSource = null;
                 _definitionPicker.IsVisible = false;
                 _runButton.IsVisible = false;
                 _exportCsvButton.IsVisible = false;
@@ -147,8 +151,8 @@ public sealed class ExportPage : ContentPage
 
             try
             {
-                Console.WriteLine($"EXPORTDBG: Definitions loaded count={_vm.Definitions.Count}");
-                System.Diagnostics.Debug.WriteLine($"EXPORTDBG: Definitions loaded count={_vm.Definitions.Count}");
+                ; // FR2-11: export diagnostics removed.
+                ; // FR2-11: export diagnostics removed.
             }
             catch
             {
@@ -231,8 +235,8 @@ public sealed class ExportPage : ContentPage
 
             try
             {
-                Console.WriteLine($"EXPORTDBG: OnDefinitionChanged SelectedIndex={_definitionPicker.SelectedIndex}");
-                System.Diagnostics.Debug.WriteLine($"EXPORTDBG: OnDefinitionChanged SelectedIndex={_definitionPicker.SelectedIndex}");
+                ; // FR2-11: export diagnostics removed.
+                ; // FR2-11: export diagnostics removed.
             }
             catch
             {
@@ -277,8 +281,8 @@ public sealed class ExportPage : ContentPage
 
             try
             {
-                Console.WriteLine($"EXPORTDBG: After SelectDefinitionAsync filters={_vm.Filters.Count}, columns={_vm.Columns.Count}");
-                System.Diagnostics.Debug.WriteLine($"EXPORTDBG: After SelectDefinitionAsync filters={_vm.Filters.Count}, columns={_vm.Columns.Count}");
+                ; // FR2-11: export diagnostics removed.
+                ; // FR2-11: export diagnostics removed.
             }
             catch
             {
@@ -330,8 +334,8 @@ public sealed class ExportPage : ContentPage
             {
                 try
                 {
-                    Console.WriteLine($"EXPORTDBG: RenderFilters skipped duplicate filterKey={filterKey}");
-                    System.Diagnostics.Debug.WriteLine($"EXPORTDBG: RenderFilters skipped duplicate filterKey={filterKey}");
+                    ; // FR2-11: export diagnostics removed.
+                    ; // FR2-11: export diagnostics removed.
                 }
                 catch
                 {
@@ -483,8 +487,8 @@ public sealed class ExportPage : ContentPage
                         {
                             try
                             {
-                                Console.WriteLine($"EXPORTDBG: RenderFilters optionen_json parse failed: {ex.Message}");
-                                System.Diagnostics.Debug.WriteLine($"EXPORTDBG: RenderFilters optionen_json parse failed: {ex.Message}");
+                                ; // FR2-11: export diagnostics removed.
+                                ; // FR2-11: export diagnostics removed.
                             }
                             catch
                             {
@@ -519,8 +523,8 @@ public sealed class ExportPage : ContentPage
 
                     try
                     {
-                        Console.WriteLine($"EXPORTDBG: FILTER selected filterKey={filterKey} value={finalVal}");
-                        System.Diagnostics.Debug.WriteLine($"EXPORTDBG: FILTER selected filterKey={filterKey} value={finalVal}");
+                        ; // FR2-11: export diagnostics removed.
+                        ; // FR2-11: export diagnostics removed.
                     }
                     catch
                     {
@@ -553,8 +557,8 @@ public sealed class ExportPage : ContentPage
 
         try
         {
-            Console.WriteLine($"EXPORTDBG: RenderFilters renderedCount={_filtersStack.Children.Count}");
-            System.Diagnostics.Debug.WriteLine($"EXPORTDBG: RenderFilters renderedCount={_filtersStack.Children.Count}");
+            ; // FR2-11: export diagnostics removed.
+            ; // FR2-11: export diagnostics removed.
         }
         catch
         {
@@ -563,6 +567,15 @@ public sealed class ExportPage : ContentPage
 
     private async Task OnRunClicked()
     {
+        if (!PermissionChecks.CanManageExports(_userContextState.CurrentUserContext))
+        {
+            _statusLabel.Text = "Für den Export fehlen die erforderlichen Fachrechte.";
+            _vm.Results.Clear();
+            _vm.ProcessedResults.Clear();
+            _recordView.Children.Clear();
+            _tableView.ItemsSource = null;
+            return;
+        }
         try
         {
             _statusLabel.Text = "Lade Daten...";
@@ -636,8 +649,8 @@ public sealed class ExportPage : ContentPage
                 {
                     _exportCsvButton.IsEnabled = _vm.ProcessedResults.Count > 0 && _vm.SelectedDefinition?.ErlaubtCsv == true;
                     _exportPdfButton.IsEnabled = _vm.ProcessedResults.Count > 0 && _vm.SelectedDefinition?.ErlaubtPdf == true;
-                    Console.WriteLine($"EXPORTDBG: CSV/PDF enabled state: CSV={_exportCsvButton.IsEnabled}, PDF={_exportPdfButton.IsEnabled}");
-                    System.Diagnostics.Debug.WriteLine($"EXPORTDBG: CSV/PDF enabled state: CSV={_exportCsvButton.IsEnabled}, PDF={_exportPdfButton.IsEnabled}");
+                    ; // FR2-11: export diagnostics removed.
+                    ; // FR2-11: export diagnostics removed.
                 }
                 catch
                 {
@@ -680,7 +693,6 @@ public sealed class ExportPage : ContentPage
         }
 
         var visibleColumns = GetDistinctVisibleColumns();
-        var firstLogged = false;
 
         foreach (var vmcol in visibleColumns)
         {
@@ -699,24 +711,12 @@ public sealed class ExportPage : ContentPage
                 Text = valueText
             });
 
-            if (!firstLogged)
-            {
-                firstLogged = true;
-                try
-                {
-                    Console.WriteLine($"EXPORTDBG: Preview first field label={labelText} value={valueText}");
-                    System.Diagnostics.Debug.WriteLine($"EXPORTDBG: Preview first field label={labelText} value={valueText}");
-                }
-                catch
-                {
-                }
-            }
         }
 
         try
         {
-            Console.WriteLine($"EXPORTDBG: RenderCurrentRecord fieldCount={visibleColumns.Count} childCount={_recordView.Children.Count}");
-            System.Diagnostics.Debug.WriteLine($"EXPORTDBG: RenderCurrentRecord fieldCount={visibleColumns.Count} childCount={_recordView.Children.Count}");
+            ; // FR2-11: export diagnostics removed.
+            ; // FR2-11: export diagnostics removed.
         }
         catch
         {
@@ -747,6 +747,15 @@ public sealed class ExportPage : ContentPage
 
     private async Task OnExportCsvClicked()
     {
+        if (!PermissionChecks.CanManageExports(_userContextState.CurrentUserContext))
+        {
+            _statusLabel.Text = "Für den Export fehlen die erforderlichen Fachrechte.";
+            _vm.Results.Clear();
+            _vm.ProcessedResults.Clear();
+            _recordView.Children.Clear();
+            _tableView.ItemsSource = null;
+            return;
+        }
         try
         {
             if (_vm.ProcessedResults.Count == 0)
@@ -771,6 +780,15 @@ public sealed class ExportPage : ContentPage
 
     private async Task OnExportPdfClicked()
     {
+        if (!PermissionChecks.CanManageExports(_userContextState.CurrentUserContext))
+        {
+            _statusLabel.Text = "Für den Export fehlen die erforderlichen Fachrechte.";
+            _vm.Results.Clear();
+            _vm.ProcessedResults.Clear();
+            _recordView.Children.Clear();
+            _tableView.ItemsSource = null;
+            return;
+        }
         try
         {
             if (_vm.ProcessedResults.Count == 0)

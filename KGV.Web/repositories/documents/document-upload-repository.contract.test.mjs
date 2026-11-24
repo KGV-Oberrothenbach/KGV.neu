@@ -24,9 +24,14 @@ test("document upload keeps the multipart edge contract and forwards diagnostic 
 
 test("edge upload remains project-local and validates the owner without demo fields", async () => {
   const edge = await readFile(new URL("../../../supabase/functions/kgv-upload-document/index.ts", import.meta.url), "utf8");
-  assert.match(edge, /select\("role,mitglied_id,permission_grants,permission_revocations"\)/);
-  assert.match(edge, /permissionGrants: Number\(appUser\?\.permission_grants \?\? 0\)/);
-  assert.match(edge, /permissionRevocations: Number\(appUser\?\.permission_revocations \?\? 0\)/);
+  assert.match(edge, /supabaseAdmin\.auth\.getUser\(jwt\)/);
+  assert.match(edge, /select\("role,mitglied_id"\)/);
+  assert.doesNotMatch(edge, /permission_grants|permission_revocations|permissionGrants|permissionRevocations/);
+  assert.match(edge, /global:\s*\{ headers:\s*\{ Authorization: authHeader \} \}/);
+  assert.match(edge, /auth\.supabaseUser\.rpc\("ap02_has_effective_right", \{ p_fachrecht: "dokument\.verwalten" \}\)/);
+  assert.match(edge, /if \(permissionError \|\| permitted !== true\)\s*return \{ ok: false as const, status: 403/);
+  assert.match(edge, /if \(!historicalUpload && !hasProvenance\)\s*\{[\s\S]*?auth\.supabaseUser\.rpc\(\s*"fr208_can_write_document_owner", \{ p_owner_kind: ownerKind, p_owner_id: ownerId \}\);\s*if \(ownerRightError \|\| mayWriteOwner !== true\)\s*return errorResponse\(403, "FORBIDDEN"/);
+  assert.match(edge, /auth\.supabaseUser\.from\("dokument"\)[\s\S]*?\.eq\("id", documentId\)\.is\("archiviert_at", null\)/);
   assert.match(edge, /uploadOwnerExists\(auth, ownerKind, ownerId\)/);
   assert.doesNotMatch(edge, /is_demo|isDemoAccount/);
   assert.match(edge, /errorResponse\(403, "FORBIDDEN", "Dieses Dokument ist für den aktuellen Benutzer nicht freigegeben.", requestId\)/);

@@ -426,7 +426,7 @@ public sealed class AdminShell : Shell, IAppShellInitializer
             AddNavigationButton(menu, "Wartungsverträge", "wartungsvertraege");
         if (PermissionChecks.CanApproveWorkHours(_userContextState.CurrentUserContext))
             AddNavigationButton(menu, _workhoursReviewItem?.Title ?? "Arbeitsstunden freigeben", "workhours_review");
-        if (PermissionChecks.CanSearchMembers(_userContextState.CurrentUserContext))
+        if (PermissionChecks.CanManageExports(_userContextState.CurrentUserContext))
             AddNavigationButton(menu, "Export", "export");
         if (PermissionChecks.CanManageCommunicationWorkflows(_userContextState.CurrentUserContext))
             AddNormalGroup(menu, "processes", "Vorgänge", new[]

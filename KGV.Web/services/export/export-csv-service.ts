@@ -2,7 +2,7 @@ import type { ExportColumn } from "../../models/export/export-column";
 import type { ExportResult } from "../../models/export/export-result";
 import { exportColumnLabel, formatExportValue } from "./export-output-service";
 
-function csvCell(value: unknown) { const text = formatExportValue(value); return /[;"\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text; }
+function csvCell(value: unknown) { const formatted = formatExportValue(value); const text = typeof value !== "number" && /^(?:\s*[=+\-@]|[\t\r\n])/.test(formatted) ? "'" + formatted : formatted; return /[;"\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text; }
 
 export function createExportCsv(result: ExportResult, columns: ExportColumn[]) {
   if (!result.definition.erlaubt_csv) throw new Error("CSV-Ausgabe ist für diesen Export nicht erlaubt.");

@@ -30,5 +30,12 @@ const mauiAuthorizationFiles = [
 for (const path of mauiAuthorizationFiles) {
   const source = await readFile(new URL(path, import.meta.url), "utf8");
   assert.doesNotMatch(source, /\.Role\s+is\s+.*UserRole\.(Admin|Vorstand)/);
-  assert.match(source, /PermissionChecks\.(CanSearchMembers|CanEditAllMembers)/);
+  if (path.endsWith('/ExportPage.cs')) {
+    assert.match(source, /if \(!PermissionChecks\.CanManageExports\(_userContextState\.CurrentUserContext\)\)/);
+    assert.doesNotMatch(source, /PermissionChecks\.(CanSearchMembers|CanEditAllMembers)\(/);
+    const checks = await readFile(new URL('../../KGV.Core/Security/PermissionChecks.cs', import.meta.url), 'utf8');
+    assert.match(checks, /CanManageExports\(UserContext\? context\)\s*=> context\?\.HasFachrecht\(FachrechteV2\.AuswertungLesen\) == true\s*&& context\?\.HasFachrecht\(FachrechteV2\.ExportAusfuehren\) == true/);
+  } else {
+    assert.match(source, /PermissionChecks\.(CanSearchMembers|CanEditAllMembers)/);
+  }
 }
