@@ -29,13 +29,67 @@ public sealed class PreparedContractRepositoryHttpTests
         Assert.False(root.GetProperty("entwurf_daten").GetRawText().Contains("signature", StringComparison.OrdinalIgnoreCase));
     }
     [Fact]
-    public async Task ClaimAndRelease_AreAtomicallyFiltered()
+    public async Task ClaimAndRelease_UseAuthenticatedAtomicRpc()
     {
-        var handler = new RecordingHandler(Response(Item(2)), Response(Item(3)));
+        var handler = new RecordingHandler(
+            Response(Item(2)),
+            Response(Item(3) with { ZugewiesenAn = null }));
         var repository = Repository(handler);
-        await repository.ClaimAsync(ItemId); await repository.ReleaseAsync(ItemId);
-        Assert.Contains("id=eq.123&zugewiesen_an=is.null", handler.Requests[0].Uri);
-        Assert.Contains("zugewiesen_an=eq.11111111-1111-1111-1111-111111111111", handler.Requests[1].Uri);
+
+        var claimed = await repository.ClaimAsync(ItemId);
+        Assert.Equal(ItemId, claimed.Id);
+        Assert.Equal(UserId, claimed.ZugewiesenAn);
+
+        await repository.ReleaseAsync(ItemId);
+
+        Assert.Equal(2, handler.Requests.Count);
+        Assert.Equal(
+            "/rest/v1/rpc/fr209_claim_kommunikationsvorgang",
+            handler.Requests[0].Uri);
+        Assert.Equal(
+            "/rest/v1/rpc/fr209_release_kommunikationsvorgang",
+            handler.Requests[1].Uri);
+
+        foreach (var request in handler.Requests)
+        {
+            Assert.Equal(HttpMethod.Post, request.Method);
+            Assert.Equal("Bearer token", request.Authorization);
+            Assert.DoesNotContain("service_role", request.Headers,
+                StringComparison.OrdinalIgnoreCase);
+
+            using var body = JsonDocument.Parse(request.Body);
+            Assert.Equal(ItemId,
+                body.RootElement.GetProperty("p_id").GetInt64());
+            Assert.Single(body.RootElement.EnumerateObject());
+        }
+    }
+
+    [Fact]
+    public async Task Claim_RejectsMissingOrForeignAssignment()
+    {
+        await Assert.ThrowsAsync<PreparedContractConflictException>(
+            () => Repository(new RecordingHandler(Response()))
+                .ClaimAsync(ItemId));
+
+        var foreign = Item(2) with {
+            ZugewiesenAn = Guid.Parse("22222222-2222-2222-2222-222222222222")
+        };
+
+        await Assert.ThrowsAsync<PreparedContractConflictException>(
+            () => Repository(new RecordingHandler(Response(foreign)))
+                .ClaimAsync(ItemId));
+    }
+
+    [Fact]
+    public async Task Release_RejectsMissingOrStillAssignedResponse()
+    {
+        await Assert.ThrowsAsync<PreparedContractConflictException>(
+            () => Repository(new RecordingHandler(Response()))
+                .ReleaseAsync(ItemId));
+
+        await Assert.ThrowsAsync<PreparedContractConflictException>(
+            () => Repository(new RecordingHandler(Response(Item(3))))
+                .ReleaseAsync(ItemId));
     }
 
     [Theory]

@@ -87,12 +87,38 @@ public sealed class PreparedContractRepository : IPreparedContractRepository
     }
 
     public async Task<KommunikationsvorgangDto> ClaimAsync(long id, CancellationToken cancellationToken = default)
-        => Single(await PatchAsync($"kommunikationsvorgang?id=eq.{id}&zugewiesen_an=is.null", new { zugewiesen_an = CurrentUserId() }, cancellationToken), "Der Vorgang wurde bereits zugewiesen.");
+    {
+        var userId = CurrentUserId();
+        var records = await SendAsync(
+            HttpMethod.Post,
+            "rpc/fr209_claim_kommunikationsvorgang",
+            JsonSerializer.SerializeToElement(new { p_id = id }),
+            cancellationToken);
+
+        var claimed = Single(records, "Der Vorgang wurde bereits zugewiesen.");
+
+        if (claimed.Id != id || claimed.ZugewiesenAn != userId)
+            throw new PreparedContractConflictException(
+                "Der Server hat die Vorgangszuordnung nicht korrekt bestaetigt.");
+
+        return claimed;
+    }
 
     public async Task ReleaseAsync(long id, CancellationToken cancellationToken = default)
     {
-        var records = await PatchAsync($"kommunikationsvorgang?id=eq.{id}&zugewiesen_an=eq.{CurrentUserId()}", new { zugewiesen_an = (Guid?)null }, cancellationToken);
-        if (records.Count == 0) throw new PreparedContractConflictException("Der Vorgang ist nicht Ihnen zugewiesen.");
+        _ = CurrentUserId();
+
+        var records = await SendAsync(
+            HttpMethod.Post,
+            "rpc/fr209_release_kommunikationsvorgang",
+            JsonSerializer.SerializeToElement(new { p_id = id }),
+            cancellationToken);
+
+        if (records.Count != 1 ||
+            records[0].Id != id ||
+            records[0].ZugewiesenAn is not null)
+            throw new PreparedContractConflictException(
+                "Der Vorgang ist nicht Ihnen zugewiesen oder die Freigabe wurde nicht korrekt bestaetigt.");
     }
 
     public async Task CompletePrintAsync(long id, CancellationToken cancellationToken = default)

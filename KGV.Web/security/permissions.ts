@@ -33,6 +33,7 @@ const PermissionBits = {
   CanManageClubFunctions: 2 ** 29,
   CanManageCommunicationWorkflows: 2 ** 30,
   CanArchiveDocuments: 2 ** 31,
+  CanCreateSerialLetters: 2 ** 32,
 } as const;
 
 // Camel-case aliases preserve the existing Web call sites while the Pascal-case
@@ -71,6 +72,7 @@ export const Permission = {
   manageClubFunctions: PermissionBits.CanManageClubFunctions,
   manageCommunicationWorkflows: PermissionBits.CanManageCommunicationWorkflows,
   archiveDocuments: PermissionBits.CanArchiveDocuments,
+  createSerialLetters: PermissionBits.CanCreateSerialLetters,
 } as const;
 
 const AllPermissionBits = Object.values(PermissionBits);

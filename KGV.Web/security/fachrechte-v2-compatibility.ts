@@ -39,6 +39,7 @@ const flags: readonly (readonly [number, readonly string[]])[] = [
   [Permission.manageClubDocuments, ["vereinsunterlagen.verwalten"]],
   [Permission.manageClubFunctions, ["vereinsfunktion.verwalten"]],
   [Permission.manageCommunicationWorkflows, ["vorgang.bearbeiten"]],
+  [Permission.createSerialLetters, ["serienbrief.erstellen"]],
   [Permission.archiveDocuments, ["dokument.archivieren"]],
 ];
 

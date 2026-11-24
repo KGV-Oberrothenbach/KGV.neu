@@ -40,13 +40,13 @@ export async function discardPreparedContract(club: ClubContext, session: Browse
 }
 
 export async function claimCommunicationItem(club: ClubContext, session: BrowserSession, id: number, userId: string) {
-  const rows = await writeSupabaseRest<CommunicationItem>({ club, session }, "kommunikationsvorgang", "PATCH", { zugewiesen_an: userId }, { id: `eq.${id}`, zugewiesen_an: "is.null" });
-  if (rows.length !== 1) throw new Error("Dieser Vorgang wurde zwischenzeitlich von einer anderen Person übernommen.");
+  const rows = await callSupabaseRpc<CommunicationItem[]>({ club, session }, "fr209_claim_kommunikationsvorgang", { p_id: id });
+  if (rows.length !== 1 || rows[0].zugewiesen_an !== userId) throw new Error("Übernahme ist nicht dem angemeldeten Benutzer zugeordnet.");
   return rows[0];
 }
 
 export async function releaseCommunicationItem(club: ClubContext, session: BrowserSession, id: number, userId: string) {
-  const rows = await writeSupabaseRest<CommunicationItem>({ club, session }, "kommunikationsvorgang", "PATCH", { zugewiesen_an: null }, { id: `eq.${id}`, zugewiesen_an: `eq.${userId}` });
-  if (rows.length !== 1) throw new Error("Der Vorgang ist nicht mehr dir zugewiesen.");
+  const rows = await callSupabaseRpc<CommunicationItem[]>({ club, session }, "fr209_release_kommunikationsvorgang", { p_id: id });
+  if (rows.length !== 1 || rows[0].zugewiesen_an !== null) throw new Error("Freigabe konnte nicht bestätigt werden.");
   return rows[0];
 }

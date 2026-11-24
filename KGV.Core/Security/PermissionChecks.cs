@@ -147,8 +147,13 @@ namespace KGV.Core.Security
         public static bool CanManageClubFunctions(UserContext? context)
             => HasPermission(context, PermissionFlags.CanManageClubFunctions);
 
+        // FR2-09: effective Fachrechte, never a legacy permission bit.
+        public static bool CanReadCommunicationWorkflows(UserContext? context)
+            => context?.HasFachrecht(FachrechteV2.VorgangLesen) == true
+               || context?.HasFachrecht(FachrechteV2.VereinsdatenAlleLesen) == true;
+
         public static bool CanManageCommunicationWorkflows(UserContext? context)
-            => HasPermission(context, PermissionFlags.CanManageCommunicationWorkflows);
+            => context?.HasFachrecht(FachrechteV2.VorgangBearbeiten) == true;
 
         public static bool CanReadDocumentsForMember(UserContext? context, int? memberId)
             => CanReadDocuments(context)
