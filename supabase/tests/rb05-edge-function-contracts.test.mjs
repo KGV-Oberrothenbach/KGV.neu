@@ -53,12 +53,12 @@ test('OTP does not filter legitimate accounts by demo/test/playstore words', () 
 });
 
 test('Club document send uses effective permission', () => {
-  assert.match(source('kgv-send-club-documents'), /has_effective_permission.*268435456/);
+  assert.match(source('kgv-send-club-documents'), /ap02_has_effective_right",\s*\{\s*p_fachrecht:\s*"vereinsunterlagen\.verwalten"/);
 });
 
 test('Signature upload checks effective permissions and frozen signer identity', () => {
   const code = source('upload-prepared-contract-signature');
-  assert.match(code, /current_effective_permissions/);
+  assert.match(code, /ap02_has_effective_right",\s*\{\s*p_fachrecht:\s*"vertrag\.vorbereiten"/);
   assert.match(code, /unterzeichner_typ/);
   assert.match(code, /prepared_contract_signatur_snapshot_person/);
 });
@@ -68,8 +68,11 @@ test('Document upload rejects direct DELETE method', () => {
 });
 
 test('Prepared lease completion and discard use effective rights', () => {
-  assert.match(source('kgv-complete-prepared-lease-contract'), /has_effective_permission.*524288/);
-  assert.match(source('kgv-discard-prepared-contract'), /has_effective_permission.*524304/);
+  assert.match(source('kgv-complete-prepared-lease-contract'), /ap02_has_effective_right",\s*\{\s*p_fachrecht:\s*"pachtvertrag\.verwalten"/);
+  const discard = source('kgv-discard-prepared-contract');
+  assert.match(discard, /ap02_has_effective_right",\s*\{\s*p_fachrecht:\s*"mitglied\.anlegen"/);
+  assert.match(discard, /ap02_has_effective_right",\s*\{\s*p_fachrecht:\s*"dokument\.verwalten"/);
+  assert.match(discard, /mayCreate !== true \|\| mayManageDocuments !== true/);
 });
 
 test('Contract document dispatch authenticates user explicitly', () => {

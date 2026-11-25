@@ -43,9 +43,9 @@ export async function performAccountDeletion({ callerClient, adminClient, caller
   }
 
   // AP-02.4B: check effective V2 Admin permission using the caller's JWT.
-  const permission = await callerClient.rpc('ap02_can_manage_rights');
+  const permission = await callerClient.rpc('ap02_has_effective_right', { p_fachrecht: 'benutzer.verwalten' });
   if (permission.error || permission.data !== true) {
-    return result(403, 'forbidden', 'Fachrechte 2.0: Admin-Berechtigung fehlt oder konnte nicht geprüft werden.');
+    return result(403, 'forbidden', 'Fachrechte 2.0: Benutzerverwaltung fehlt oder konnte nicht geprüft werden.');
   }
 
   const member = await adminClient.from('mitglied')

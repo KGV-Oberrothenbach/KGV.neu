@@ -27,14 +27,18 @@ function fixture(options = {}) {
   };
 
   function table(name) {
-    const q = { name, eqKey: null, eqValue: null };
+    const q = { name, filters: [] };
     const chain = {
       select() { return chain; },
-      eq(key, value) { q.eqKey = key; q.eqValue = value; return chain; },
+      eq(key, value) { q.filters.push([key, value]); return chain; },
       async maybeSingle() {
         s.reads.push(name);
-        const data = name === 'mitglied' ? s.member : name === 'app_user' ? s.app : s.lock;
-        if (data && data[q.eqKey] !== q.eqValue) return { data: null, error: null };
+        const data = name === 'mitglied' ? s.member
+          : name === 'app_user' ? s.app
+          : name === 'app_user_zusatzrolle' ? (options.additionalAdmin ? { user_id: TARGET, zusatzrolle_code: 'admin' } : null)
+          : name === 'protected_admin_identity' ? (options.protectedIdentity ? { user_id: TARGET } : null)
+          : s.lock;
+        if (data && q.filters.some(([key, value]) => data[key] !== value)) return { data: null, error: null };
         return { data, error: null };
       },
     };
@@ -43,8 +47,8 @@ function fixture(options = {}) {
 
   const callerClient = {
     async rpc(name, args) {
-      if (name === 'has_effective_permission') {
-        assert.equal(args.p_permission, 512);
+      if (name === 'ap02_has_effective_right') {
+        assert.equal(args.p_fachrecht, 'benutzer.verwalten');
         return { data: s.permission, error: null };
       }
       if (name === 'begin_auth_user_deletion') {
@@ -65,8 +69,12 @@ function fixture(options = {}) {
   const adminClient = {
     from: table,
     async rpc(name, args) {
-      if (name === 'permission_role_base') {
-        return { data: s.base, error: null };
+      if (name === 'ap02_calculate_user_rights') {
+        assert.equal(args.p_user_id, TARGET);
+        return { data: Array.from({ length: 55 }, (_, i) => ({
+          code: i === 0 ? 'berechtigungen.verwalten' : `other.right.${i}`,
+          erlaubt: i === 0 && Boolean(options.effectiveRoleManager),
+        })), error: null };
       }
       if (name === 'restore_auth_user_deletion') {
         if (!s.lock || s.lock.operation_id !== args.p_operation_id) throw new Error('Different operation');
@@ -113,7 +121,7 @@ function run(f, override = {}) {
   });
 }
 
-test('authorization: missing CanManageRoles prevents any target reads', async () => {
+test('authorization: missing benutzer.verwalten prevents any target reads', async () => {
   const f = fixture({ permission: false });
   assert.equal((await run(f)).httpStatus, 403);
   assert.deepEqual(f.s.reads, []);
@@ -142,16 +150,21 @@ test('protected target is blocked', async () => {
   assert.equal((await run(f)).httpStatus, 403);
 });
 test('role-manager target is blocked regardless of is_protected', async () => {
-  const f = fixture({ role: 'admin' });
+  const f = fixture({ additionalAdmin: true });
   assert.equal((await run(f)).httpStatus, 403);
 });
-test('individually granted CanManageRoles blocks deletion', async () => {
-  const f = fixture({ grants: 512 });
+test('target with effective berechtigungen.verwalten cannot be deleted', async () => {
+  const f = fixture({ effectiveRoleManager: true });
   assert.equal((await run(f)).httpStatus, 403);
 });
-test('revoked CanManageRoles allows a dry run', async () => {
+test('legacy admin role alone with no V2 privilege does not block dry run', async () => {
   const f = fixture({ role: 'admin', revocations: 512 });
   assert.equal((await run(f, { dryRun: true })).outcome, 'eligible');
+  assert.deepEqual(f.s.writes, []);
+});
+test('protected identity is blocked independently of legacy flags', async () => {
+  const f = fixture({ protectedIdentity: true });
+  assert.equal((await run(f)).httpStatus, 403);
   assert.deepEqual(f.s.writes, []);
 });
 test('app_user mismatched member is blocked', async () => {

@@ -197,6 +197,8 @@ public partial class App : Application
             ? (Shell)_services.GetRequiredService<AdminShell>()
             : _services.GetRequiredService<UserShell>();
 
+        SessionIdentityHeader.Attach(shell, _userContextState, _services.GetRequiredService<ISupabaseService>(), _services.GetRequiredService<IAuthService>(), _vereinskontext.Aktuell);
+
         if (shell is IAppShellInitializer initializer)
             initializer.BuildMenu();
 

@@ -21,7 +21,10 @@ export function edgeHarness(options = {}) {
   const granted = options.grants ?? 16777216, revoked = options.revocations ?? 0;
   const effectivePermissions = ((options.basePermissions ?? 0) | granted) & ~revoked;
   const permission = Boolean(effectivePermissions & 16777216);
-  const calls = {rpc:[],writes:[],uploads:[],marks:0,clients:[],driveCreates:[],driveAttempts:[],removals:[]};
+  const rights = new Set(options.rights ?? []);
+  for (const right of options.deniedRights ?? []) rights.delete(right);
+  const hasRight = right => rights.has(right);
+  const calls = {selects:[],rpc:[],writes:[],uploads:[],marks:0,clients:[],driveCreates:[],driveAttempts:[],removals:[]};
   let operation=null, stampLease=null, sourceBytes=options.source??new Uint8Array(), stamped=false;
   const driveFiles=new Map();
   const document = {id:77,mitglied_id:2,parzelle_id:null,drive_file_id:"drive-77",dateiname:"vertrag.pdf",mime_type:"application/pdf",archiviert_at:null,...options.document};
@@ -33,7 +36,7 @@ export function edgeHarness(options = {}) {
     parzellen_belegung:[], historical_contract_operation:[],
   };
   class Query {
-    constructor(table){this.table=table;this.filters=[];}
+    constructor(table,caller=false){this.table=table;this.caller=caller;this.filters=[];}
     select(){return this;}
     eq(key,value){this.filters.push(row=>row[key]===value);return this;}
     is(key,value){return this.eq(key,value);}
@@ -42,7 +45,19 @@ export function edgeHarness(options = {}) {
     insert(value){this.inserted=value;return this;}
     result(single=false){
       if(this.inserted){Object.assign(document,this.inserted);calls.uploads.push({...this.inserted});return {data:document,error:null};}
-      const items=(tables[this.table]??[]).filter(row=>this.filters.every(fn=>fn(row)));
+      let items=(tables[this.table]??[]).filter(row=>this.filters.every(fn=>fn(row)));
+      calls.selects.push({table:this.table,caller:this.caller,ids:items.map(x=>x.id)});
+      if(this.caller){
+        if(this.table!=="dokument")throw new Error("Unexpected caller table: "+this.table);
+        // Simulate the actual FR208 SELECT policies for this synthetic member document.
+        // A document write permission alone is not a read or object-scope grant.
+        items=items.filter(d=>d.archiviert_at===null && (
+          hasRight("vereinsdaten.alle_lesen") ||
+          (hasRight("dokument.lesen") && options.memberScope===true) ||
+          options.ownHistoryAccess===true || options.ownLeaseHistoryAccess===true ||
+          (permission && options.context!==false && d.id===77)
+        ));
+      }
       return {data:single?(items[0]??null):items,error:null};
     }
     single(){return Promise.resolve(this.result(true));} maybeSingle(){return this.single();}
@@ -53,6 +68,11 @@ export function edgeHarness(options = {}) {
     if(name==="can_register_historical_contracts")return {data:permission,error:null};
     if(name==="can_access_historical_contract_member")return {data:permission&&args.p_mitglied_id===2,error:null};
     if(name==="can_access_historical_contract_document")return {data:permission&&args.p_dokument_id===77&&options.context!==false&&document.archiviert_at===null&&(!args.p_require_registered||options.registered!==false),error:null};
+    if(name==="ap02_has_effective_right"){
+      if(!["dokument.verwalten","dokument.archivieren","vertrag.vorbereiten"].includes(args.p_fachrecht))throw new Error("Unexpected named right: "+args.p_fachrecht);
+      return {data:hasRight(args.p_fachrecht),error:null};
+    }
+    if(name==="fr208_can_write_document_owner")return {data:hasRight("dokument.verwalten")&&args.p_owner_kind==="mitglied"&&args.p_owner_id===2&&options.memberScope===true,error:null};
     if(name==="has_effective_permission")return {data:Boolean(effectivePermissions & args.p_permission),error:null};
     if(name==="has_any_effective_permission")return {data:Boolean(effectivePermissions & args.p_permissions),error:null};
     if(name==="can_access_own_member_history_document")return {data:options.ownHistoryAccess===true&&args.p_dokument_id===77,error:null};
@@ -98,7 +118,7 @@ export function edgeHarness(options = {}) {
 allocateDriveFileId=google.allocate;getGoogleAccessToken=google.token;readGoogleDriveRootFolderId=google.root;verifyDriveRootFolder=google.verify;ensureFolder=google.folder;uploadFileToDrive=google.upload;downloadDriveDocument=google.download;replaceDriveFileContent=google.replace;deleteDriveFile=google.remove;`;
   const code=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText;
   const require=name=>{
-    if(name==="npm:@supabase/supabase-js@2")return {createClient:(_url,key,config)=>{calls.clients.push({key,config});return config?.global?.headers?.Authorization?{rpc:userRpc}:admin;}};
+    if(name==="npm:@supabase/supabase-js@2")return {createClient:(_url,key,config)=>{calls.clients.push({key,config});return config?.global?.headers?.Authorization?{rpc:userRpc,from:table=>new Query(table,true)}:admin;}};
     if(name==="./historical-contract-pdf.ts")return loadStamp();
     throw new Error("Unexpected edge import: "+name);
   };

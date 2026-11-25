@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
-const read=(p)=>readFileSync(p,'utf8');
-const matching=readdirSync('supabase/migrations').filter(name => /^[0-9]{14}_fr209_vorgaenge_kommunikation\.sql$/.test(name));
+const read=(p)=>readFileSync(new URL('../../'+p, import.meta.url),'utf8');
+const matching=readdirSync(new URL('../migrations/', import.meta.url)).filter(name => /^[0-9]{14}_fr209_vorgaenge_kommunikation\.sql$/.test(name));
 assert.equal(matching.length,1,'exactly one FR2-09 migration');
 const sql=read('supabase/migrations/'+matching[0]);
 

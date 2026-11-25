@@ -802,16 +802,13 @@ public class MeineDatenPage : ContentPage
     private void UpdateAdminMenu(MemberDTO? member)
     {
         var currentContext = _userContextState.CurrentUserContext;
-        var currentRole = currentContext?.Role;
-        var canReadRoleManagement = PermissionChecks.CanReadRoleManagement(currentContext);
-        var canManageRoleManagement = PermissionChecks.CanManageRoleManagement(currentContext);
-        var hasAdminMenu = canReadRoleManagement || canManageRoleManagement;
+        var hasAdminMenu = PermissionChecks.CanReadUsers(currentContext);
         _adminSectionCard.IsVisible = hasAdminMenu;
         _adminMenuSection.IsVisible = hasAdminMenu;
         _adminHintLabel.IsVisible = hasAdminMenu;
         _rolePicker.IsVisible = false; // alte Rollenbitverwaltung abgeschaltet
         _saveRoleButton.IsVisible = false; // Fachrechte 2.0 verwenden
-        _userManagementButton.IsVisible = canManageRoleManagement && member?.Id is > 0;
+        _userManagementButton.IsVisible = hasAdminMenu && member?.Id is > 0;
 
         if (!hasAdminMenu || member == null)
         {
@@ -822,15 +819,9 @@ public class MeineDatenPage : ContentPage
             return;
         }
 
-        var normalizedRole = NormalizeRole(member.Role);
-        _rolePicker.SelectedItem = normalizedRole;
-        _rolePicker.IsEnabled = canManageRoleManagement && member.Id != 7;
-        _saveRoleButton.IsEnabled = _rolePicker.IsEnabled && !_isBusy;
-        _adminHintLabel.Text = !canReadRoleManagement
-            ? "Rollen-/Rechteverwaltung ist in diesem Kontext nicht freigegeben. Admin-only-Punkte bleiben ausgeblendet."
-            : canManageRoleManagement
-                ? "Benutzerverwaltung bleibt im Mitgliedskontext gebunden. Rollenänderungen werden produktiv über app_user.role gespeichert."
-                : "Rollen-/Rechteverwaltung ist in diesem Kontext nur lesend freigegeben. Admin-only-Punkte bleiben ausgeblendet.";
+        _rolePicker.IsEnabled = false;
+        _saveRoleButton.IsEnabled = false;
+        _adminHintLabel.Text = "Benutzerkonten werden getrennt von Fachrechten verwaltet.";
     }
 
     private async void OnSaveRoleClicked(object? sender, EventArgs e)

@@ -6,9 +6,11 @@ const migration = await readFile(new URL("../../supabase/migrations/202610111500
 const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
 const maui = await readFile(new URL("../../KGV.Maui/ViewModels/UserManagementViewModel.cs", import.meta.url), "utf8");
 
-assert.match(functionSource, /supabaseUser\s*\.rpc\("ap02_can_manage_rights"\)/);
+assert.match(functionSource, /supabaseUser\s*\.rpc\("ap02_has_effective_right", \{ p_fachrecht: "benutzer\.verwalten" \}\)/);
 assert.doesNotMatch(functionSource, /callerRole !== "admin"/);
-assert.match(functionSource, /canManageRoles !== true/);
+assert.match(functionSource, /canManageUsers !== true/);
+assert.match(functionSource, /if \(role !== "user"\)/);
+assert.match(functionSource, /Privilegierte Rollen werden getrennt/);
 assert.match(functionSource, /inviteMethod !== "otp"/);
 assert.match(functionSource, /UnsupportedInviteMethod/);
 assert.match(functionSource, /allowedRoles = new Set\(\["admin", "vorstand", "user"\]\)/);

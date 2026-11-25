@@ -116,7 +116,7 @@ namespace KGV.Infrastructure.Authentication
                 }
                 else
                 {
-                    LogDiagnosticWarning($"OTP_FIRST_LOGIN_EDGE_REQUEST_FAIL email={MaskEmail(email)} status={(int)response.StatusCode} diagnosticCode={result.DiagnosticCode} content={MaskDiagnosticMessage(content)}");
+                    LogDiagnosticWarning($"OTP_FIRST_LOGIN_EDGE_REQUEST_FAIL email={MaskEmail(email)} status={(int)response.StatusCode} diagnosticCode={result.DiagnosticCode}");
                 }
 
                 return result;
@@ -133,20 +133,18 @@ namespace KGV.Infrastructure.Authentication
         private static FirstLoginOtpFunctionResult ParseFirstLoginOtpFunctionResult(string content, bool httpSuccess)
         {
             const string genericFailureMessage = "OTP-Anforderung fehlgeschlagen. Bitte prüfe die E-Mail-Adresse oder kontaktiere den Vorstand.";
-            const string genericSuccessMessage = "Einladungs-/Erstlogin-Code wurde versendet. Bitte OTP eingeben.";
+            const string genericSuccessMessage = "Falls ein berechtigtes Konto zu dieser E-Mail-Adresse besteht, erhältst du einen Code. Bitte prüfe dein Postfach.";
 
             if (string.IsNullOrWhiteSpace(content))
             {
-                return httpSuccess
-                    ? FirstLoginOtpFunctionResult.Ok("OTP_FIRST_LOGIN_EDGE_ACCEPTED", genericSuccessMessage)
-                    : FirstLoginOtpFunctionResult.Fail("OTP_FIRST_LOGIN_EDGE_FAIL", genericFailureMessage);
+                return FirstLoginOtpFunctionResult.Fail("OTP_FIRST_LOGIN_EDGE_FAIL", genericFailureMessage);
             }
 
             try
             {
                 using var document = JsonDocument.Parse(content);
                 var root = document.RootElement;
-                var success = TryGetJsonBool(root, "success") ?? httpSuccess;
+                var success = httpSuccess && TryGetJsonBool(root, "success") == true;
                 var diagnosticCode = (TryGetJsonString(root, "diagnosticCode") ?? string.Empty).Trim();
                 var message = (TryGetJsonString(root, "message") ?? string.Empty).Trim();
 
@@ -163,9 +161,7 @@ namespace KGV.Infrastructure.Authentication
             }
             catch
             {
-                return httpSuccess
-                    ? FirstLoginOtpFunctionResult.Ok("OTP_FIRST_LOGIN_EDGE_ACCEPTED", genericSuccessMessage)
-                    : FirstLoginOtpFunctionResult.Fail("OTP_FIRST_LOGIN_EDGE_FAIL", genericFailureMessage);
+                return FirstLoginOtpFunctionResult.Fail("OTP_FIRST_LOGIN_EDGE_FAIL", genericFailureMessage);
             }
         }
 
@@ -677,28 +673,7 @@ namespace KGV.Infrastructure.Authentication
 
             try
             {
-                var emailTrim = email.Trim();
-                OtpPreparationResult preparation;
-                try
-                {
-                    preparation = await EnsureOtpPreparationAsync(emailTrim, "password-reset");
-                }
-                catch (PostgrestException pex) when (pex.Message != null && pex.Message.Contains("permission denied for table mitglied", StringComparison.OrdinalIgnoreCase))
-                {
-                    // Permission denied when trying to read `mitglied` (client role not allowed).
-                    // Fallback: log and try to request recovery OTP directly. This is a pragmatic fallback for mobile clients
-                    // where DB read permissions are restricted. Server-side permission fix is recommended.
-                    _logger?.LogWarning(pex, "SendPasswordResetEmailAsync: permission denied reading mitglied for {EmailMasked}, falling back to direct recovery request", MaskEmail(emailTrim));
-                    return await RequestRecoveryOtpAsync(emailTrim, "password-reset");
-                }
-
-                if (!preparation.Success)
-                {
-                    _logger?.LogWarning("SendPasswordResetEmailAsync blocked for {EmailMasked}: {Reason}", MaskEmail(emailTrim), preparation.Message);
-                    return false;
-                }
-
-                return await RequestRecoveryOtpAsync(emailTrim, "password-reset");
+                return await RequestRecoveryOtpAsync(email.Trim(), "password-reset");
             }
             catch (GotrueException ex)
             {
@@ -933,14 +908,12 @@ namespace KGV.Infrastructure.Authentication
         {
             try
             {
-                ResetAuthState();
-
-                LogDiagnosticInformation($"OTP_RECOVERY_REQUEST_START flowKind={flowKind} email={MaskEmail(email)} endpoint={GetSupabaseEndpointContext()}");
-                var client = await GetClientAsync();
-                await client.Auth.ResetPasswordForEmail(email);
-                _logger?.LogInformation("Recovery OTP requested for {FlowKind} and {EmailMasked}", flowKind, MaskEmail(email));
-                LogDiagnosticInformation($"OTP_RECOVERY_REQUEST_OK flowKind={flowKind} email={MaskEmail(email)}");
-                return true;
+                _verifiedOtpEmail = null;
+                LastOtpFailureInfo = null;
+                var result = await InvokeFirstLoginOtpFunctionAsync(email);
+                if (!result.Success)
+                    SetOtpFailureInfo(result.DiagnosticCode, result.Message);
+                return result.Success;
             }
             catch (GotrueException ex)
             {

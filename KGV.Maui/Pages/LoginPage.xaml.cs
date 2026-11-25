@@ -281,7 +281,7 @@ public class LoginPage : ContentPage
             {
                 otpEntry.Text = string.Empty;
                 ShowOtpVerification();
-                _statusLabel.Text = "Einladungs-/Erstlogin-Code wurde versendet. Bitte OTP eingeben.";
+                _statusLabel.Text = "Falls ein berechtigtes Konto zu dieser E-Mail-Adresse besteht, erhältst du einen Code. Bitte prüfe dein Postfach.";
             }
             else
             {
@@ -336,7 +336,7 @@ public class LoginPage : ContentPage
             {
                 otpEntry.Text = string.Empty;
                 ShowOtpVerification();
-                _statusLabel.Text = "OTP-Code für Passwort-vergessen wurde versendet. Bitte Code prüfen und direkt ein neues Passwort setzen.";
+                _statusLabel.Text = "Falls ein berechtigtes Konto zu dieser E-Mail-Adresse besteht, erhältst du einen Code. Bitte prüfe dein Postfach.";
             }
             else
             {

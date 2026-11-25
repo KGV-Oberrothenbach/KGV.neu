@@ -27,9 +27,9 @@ test("membership-application lookup failures cannot enable a duplicate applicati
 });
 
 test("member administration uses effective permissions rather than the administrative role base", () => {
-  assert.match(member, /var canManageUsers = PermissionChecks\.CanManageRoleManagement\(_userContextState\.CurrentUserContext\)/);
-  assert.match(member, /PermissionChecks\.CanEditAllMembers\(_userContextState\.CurrentUserContext\)/);
-  assert.match(member, /if \(!PermissionChecks\.CanManageRoleManagement\(_userContextState\.CurrentUserContext\)\)/);
+  assert.match(member, /var canManageUsers = PermissionChecks\.CanReadUsers\(_userContextState\.CurrentUserContext\) && PermissionChecks\.CanManageUsers\(_userContextState\.CurrentUserContext\)/);
+  assert.match(member, /var currentUserContext = _userContextState\.CurrentUserContext;\s*var canSave = _isCreateMode\s*\? PermissionChecks\.CanCreateMitglied\(currentUserContext\)\s*:\s*PermissionChecks\.CanEditAllMembers\(currentUserContext\);\s*if \(!canSave\)\s*\{[\s\S]*?return;\s*\}/);
+  assert.match(member, /if \(!PermissionChecks\.CanReadUsers\(_userContextState\.CurrentUserContext\) \|\| !PermissionChecks\.CanManageUsers\(_userContextState\.CurrentUserContext\)\)/);
   assert.doesNotMatch(member, /_userContextState\.CurrentUserContext\?\.Role is UserRole\.Admin or UserRole\.Vorstand/);
   assert.doesNotMatch(member, /currentUserContext\?\.Role is UserRole\.Admin or UserRole\.Vorstand/);
 });

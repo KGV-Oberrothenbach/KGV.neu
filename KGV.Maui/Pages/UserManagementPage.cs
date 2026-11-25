@@ -48,9 +48,6 @@ public sealed class UserManagementPage : ContentPage
                 var email = new Label { FontSize = 12, TextColor = Colors.Gray };
                 email.SetBinding(Label.TextProperty, nameof(AppUserDTO.Email));
 
-                var role = new Label { FontSize = 12, TextColor = Colors.Gray };
-                role.SetBinding(Label.TextProperty, new Binding(nameof(AppUserDTO.Role), stringFormat: "Rolle: {0}"));
-
                 return new Border
                 {
                     Padding = 12,
@@ -59,7 +56,7 @@ public sealed class UserManagementPage : ContentPage
                     Content = new VerticalStackLayout
                     {
                         Spacing = 4,
-                        Children = { name, email, role }
+                        Children = { name, email }
                     }
                 };
             })
@@ -71,7 +68,6 @@ public sealed class UserManagementPage : ContentPage
         selectedSection.SetBinding(IsVisibleProperty, nameof(UserManagementViewModel.HasSelectedUser));
         selectedSection.Children.Add(CreateValueLabel("Name", "SelectedUser.DisplayName"));
         selectedSection.Children.Add(CreateValueLabel("E-Mail", "SelectedUser.Email"));
-        selectedSection.Children.Add(CreateValueLabel("Rolle", "SelectedUser.Role"));
         selectedSection.Children.Add(CreateValueLabel("Mitglied", nameof(UserManagementViewModel.SelectedUserMemberDisplay)));
 
         var rolePicker = new Picker { Title = "Rolle wählen" };
@@ -104,8 +100,10 @@ public sealed class UserManagementPage : ContentPage
         roleSection.Children.Add(saveRoleButton);
 
         var v2RightsButton = new Button { Text = "Fachrechte 2.0 Ã¶ffnen" };
+        v2RightsButton.SetBinding(IsVisibleProperty, nameof(UserManagementViewModel.CanReadRights));
         v2RightsButton.Clicked += async (_, _) =>
         {
+            if (!_viewModel.CanReadRights) return;
             var memberId = _viewModel.SelectedUser?.MitgliedId;
             await Navigation.PushAsync(new FachrechteV2AdministrationPage(_v2ClientFactory, memberId));
         };

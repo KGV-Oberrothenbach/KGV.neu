@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 const GENERIC_FAILURE_MESSAGE = "OTP-Anforderung fehlgeschlagen. Bitte prüfe die E-Mail-Adresse oder kontaktiere den Vorstand.";
-const GENERIC_SUCCESS_MESSAGE = "Einladungs-/Erstlogin-Code wurde versendet. Bitte OTP eingeben.";
+const GENERIC_SUCCESS_MESSAGE = "Falls ein berechtigtes Konto zu dieser E-Mail-Adresse besteht, erhältst du einen Code. Bitte prüfe dein Postfach.";
 
 type MemberRow = {
   id: number;
@@ -33,10 +33,10 @@ function logStep(step: string, details?: Record<string, unknown>) {
 }
 
 function logError(step: string, error: unknown, details?: Record<string, unknown>) {
-  const message = error instanceof Error ? error.message : String(error);
+  // Never log upstream error bodies or secrets.
   console.error(`[kgv-request-first-login-otp] ${step}`, {
     ...(details ?? {}),
-    message,
+    errorType: error instanceof Error ? error.name : "upstream_error",
   });
 }
 
@@ -70,11 +70,9 @@ function normalizeEmail(value: unknown): string {
 }
 
 function buildFailureResponse(diagnosticCode: string) {
-  return json(200, {
-    success: false,
-    diagnosticCode,
-    message: GENERIC_FAILURE_MESSAGE,
-  });
+  // Do not expose account existence or mail-delivery outcomes.
+  logStep("request outcome suppressed", { diagnosticCode });
+  return buildSuccessResponse();
 }
 
 function buildSuccessResponse() {
@@ -118,10 +116,10 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json().catch(() => null);
-    const normalizedEmail = normalizeEmail(body?.email);
+    const normalizedEmail = typeof body?.email === "string" ? normalizeEmail(body.email) : "";
     const maskedEmail = maskEmail(normalizedEmail || "<leer>");
 
-    if (!normalizedEmail || !normalizedEmail.includes("@")) {
+    if (normalizedEmail.length > 254 || !/^[^\s@]+@[^\s@]+$/.test(normalizedEmail)) {
       logStep("request validate failed", { reason: "email_invalid", maskedEmail });
       return json(400, {
         success: false,
@@ -235,10 +233,6 @@ Deno.serve(async (req) => {
     return buildSuccessResponse();
   } catch (error) {
     logError("unexpected exception", error);
-    return json(500, {
-      success: false,
-      diagnosticCode: "OTP_FIRST_LOGIN_EDGE_UNEXPECTED_FAIL",
-      message: GENERIC_FAILURE_MESSAGE,
-    });
+    return buildFailureResponse("OTP_FIRST_LOGIN_EDGE_UNEXPECTED_FAIL");
   }
 });

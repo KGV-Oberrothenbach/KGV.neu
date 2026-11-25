@@ -253,7 +253,7 @@ public sealed class AdminShell : Shell, IAppShellInitializer
         if (_memberGardensItem != null) _memberGardensItem.IsVisible = hasMember &&
             (PermissionChecks.CanShowParzellen(_userContextState.CurrentUserContext)
              || PermissionChecks.CanManageBelegungen(_userContextState.CurrentUserContext));
-        if (_memberAdminMenuItem != null) _memberAdminMenuItem.IsVisible = hasMember && PermissionChecks.CanReadRoleManagement(_userContextState.CurrentUserContext);
+        if (_memberAdminMenuItem != null) _memberAdminMenuItem.IsVisible = hasMember && (PermissionChecks.CanReadUsers(_userContextState.CurrentUserContext) || PermissionChecks.CanReadRoleManagement(_userContextState.CurrentUserContext));
         if (_memberWorkhoursItem != null) _memberWorkhoursItem.IsVisible = hasMember && (PermissionChecks.CanReadWorkHours(_userContextState.CurrentUserContext) || PermissionChecks.CanEditWorkHours(_userContextState.CurrentUserContext));
 
         if (_menuBuilt)
@@ -401,6 +401,7 @@ public sealed class AdminShell : Shell, IAppShellInitializer
             return;
 
         var menu = new VerticalStackLayout { Padding = new Thickness(12, 24), Spacing = 2 };
+        menu.Children.Add(SessionIdentityHeader.CreateFlyoutHeader(this));
         menu.Children.Add(new Label { Text = "Menü", FontSize = 22, FontAttributes = FontAttributes.Bold, Margin = new Thickness(8, 0, 8, 8) });
 
         AddNavigationButton(menu, "Startseite", "home");

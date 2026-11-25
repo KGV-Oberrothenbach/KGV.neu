@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-const read=p=>readFileSync(p,'utf8');
+const read=p=>readFileSync(new URL('../../'+p, import.meta.url),'utf8');
 const sql=read('supabase/migrations/20261124192619_fr209_vorgaenge_kommunikation.sql');
 const contract=read('supabase/functions/kgv-send-contract-documents/index.ts');
 const club=read('supabase/functions/kgv-send-club-documents/index.ts');

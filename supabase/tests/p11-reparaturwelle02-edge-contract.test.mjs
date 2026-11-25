@@ -14,19 +14,23 @@ function assertOrdered(text, before, after) {
 
 test('RW02: Vereinsdokumentversand prüft effektive Rechte vor Dienstzugriff', () => {
   const s = source('kgv-send-club-documents');
-  assert.match(s, /caller\.rpc\("has_effective_permission",\s*\{\s*p_permission:\s*268435456\s*\}/);
-  assertOrdered(s, 'caller.auth.getUser()', 'caller.rpc("has_effective_permission"');
-  assertOrdered(s, 'caller.rpc("has_effective_permission"', 'admin.from("mitglied")');
+  assert.match(s, /caller\.rpc\("ap02_has_effective_right",\s*\{\s*p_fachrecht:\s*"vereinsunterlagen\.verwalten"\s*\}/);
+  assertOrdered(s, 'caller.auth.getUser()', 'caller.rpc("ap02_has_effective_right"');
+  assertOrdered(s, 'caller.rpc("ap02_has_effective_right"', 'caller.from("mitglied")');
+  assertOrdered(s, 'caller.rpc("ap02_has_effective_right"', 'admin = createAdminClient(url)');
+  assertOrdered(s, 'fr209_reserve_club_mail', 'transport.sendMail');
   assert.doesNotMatch(s, /item\.role\s*===\s*["'](?:admin|vorstand)["']/);
 });
 
 test('RW02: Vertragsabschluss und Verwerfen berücksichtigen effektive Rechte', () => {
   const completion = source('kgv-complete-prepared-lease-contract');
   const discard = source('kgv-discard-prepared-contract');
-  assert.match(completion, /p_permission:\s*524288/);
-  assert.match(discard, /p_permission:\s*524304/);
+  assert.match(completion, /ap02_has_effective_right",\s*\{\s*p_fachrecht:\s*"pachtvertrag\.verwalten"/);
+  assert.match(discard, /ap02_has_effective_right",\s*\{\s*p_fachrecht:\s*"mitglied\.anlegen"/);
+  assert.match(discard, /ap02_has_effective_right",\s*\{\s*p_fachrecht:\s*"dokument\.verwalten"/);
+  assert.match(discard, /createError \|\| docError \|\| mayCreate !== true \|\| mayManageDocuments !== true/);
   for (const s of [completion, discard]) {
-    assertOrdered(s, 'caller.auth.getUser()', 'caller.rpc("has_effective_permission"');
+    assertOrdered(s, 'caller.auth.getUser()', 'caller.rpc("ap02_has_effective_right"');
     assert.doesNotMatch(s, /(?:entry|item|x)\.role\s*===\s*["'](?:admin|vorstand)["']/);
   }
 });
@@ -37,16 +41,17 @@ test('RW02: Dokumentupload verweigert direkten Drive-DELETE', () => {
   assert.match(s, /return errorResponse\(405,/);
   assert.match(s, /if\s*\(req\.method\s*===\s*"DELETE"\)\s*\{\s*return errorResponse\(405,/);
   assert.doesNotMatch(s, /const payload = await req\.json\(\) as DeleteDocumentRequest/);
-  assert.match(s, /can_access_own_member_history_document/);
-  assert.match(s, /can_access_own_historical_lease_document/);
-  assert.match(s, /has_effective_permission/);
+  assert.match(s, /auth\.supabaseUser\.from\("dokument"\)/);
+  assert.match(s, /fr208_can_write_document_owner/);
+  assert.match(s, /ap02_has_effective_right",\s*\{\s*p_fachrecht:\s*"dokument\.verwalten"/);
+  assert.match(s, /ap02_has_effective_right",\s*\{\s*p_fachrecht:\s*"dokument\.archivieren"/);
   assert.doesNotMatch(s, /is_demo_account/);
 });
 
 test('RW02: Vertragsversand prüft Identität vor Versand-Claim', () => {
   const s = source('kgv-send-contract-documents');
   assertOrdered(s, 'caller.auth.getUser()', 'claim_contract_dispatch');
-  assert.match(s, /callerIdentityError\s*\|\|\s*!callerIdentity\.user/);
+  assert.match(s, /identityError\s*\|\|\s*!identity\.user/);
 });
 
 test('RW02: nicht beanspruchbarer Vertragsversand endet ohne retrybares SQLSTATE als HTTP 403', () => {
@@ -60,13 +65,18 @@ test('RW02: nicht beanspruchbarer Vertragsversand endet ohne retrybares SQLSTATE
   assert.match(migration, /create or replace function public\.claim_contract_dispatch\(p_versandinstanz_id bigint\)/i);
   assert.match(migration, /raise sqlstate 'PT403'/i);
   assert.doesNotMatch(migration, /errcode\s*=\s*'40001'/i);
-  assert.match(edge, /if \(claimError \|\| !claim\?\.\[0\]\) return json\([^;]+, 403\)/);
+  const current = readFileSync(join(root,'supabase','migrations','20261124192619_fr209_vorgaenge_kommunikation.sql'),'utf8');
+  assert.match(current, /ALTER FUNCTION public\.claim_contract_dispatch\(bigint\) RENAME TO fr209_claim_contract_dispatch/);
+  assert.match(current, /ERRCODE='PT403'/);
+  assert.doesNotMatch(current, /ERRCODE\s*=\s*'40001'/i);
+  assert.match(edge, /caller\.rpc\("fr209_claim_contract_dispatch"/);
+  assert.match(edge, /if \(claimError \|\| !Array\.isArray\(claim\) \|\| claim\.length !== 1 \|\| String\(claim\[0\]\.id\) !== String\(dispatchId\)\) return json\([^;]+, 403\)/);
 });
 
 test('RW02: Signaturupload prüft Berechtigungen und die eingefrorene Signaturposition', () => {
   const s = source('upload-prepared-contract-signature');
   assert.match(s, /current_app_user_context/);
-  assert.match(s, /current_effective_permissions/);
+  assert.match(s, /ap02_has_effective_right",\s*\{\s*p_fachrecht:\s*"vertrag\.vorbereiten"/);
   assert.match(s, /administrativeCaller/);
   assert.match(s, /position\.mitglied_id\s*!==\s*callerMemberId/);
   assert.match(s, /prepared_contract_signatur_snapshot_person/);

@@ -224,11 +224,16 @@ namespace KGV.Core.Security
                || HasOwnWorkHoursAccessForMember(context, memberId);
 
         public static bool CanReadRoleManagement(UserContext? context)
-            => HasPermission(context, PermissionFlags.CanReadRoles)
-               || CanManageRoleManagement(context);
+            => context?.HasFachrecht(FachrechteV2.BerechtigungenLesen) == true;
 
         public static bool CanManageRoleManagement(UserContext? context)
-            => HasPermission(context, PermissionFlags.CanManageRoles);
+            => context?.HasFachrecht(FachrechteV2.BerechtigungenVerwalten) == true;
+
+        public static bool CanReadUsers(UserContext? context)
+            => context?.HasFachrecht(FachrechteV2.BenutzerLesen) == true;
+
+        public static bool CanManageUsers(UserContext? context)
+            => context?.HasFachrecht(FachrechteV2.BenutzerVerwalten) == true;
 
         public static bool CanReadMeters(UserContext? context)
             => HasPermission(context, PermissionFlags.CanReadMeters);
@@ -291,6 +296,7 @@ namespace KGV.Core.Security
                || CanReadMeters(context)
                || CanManageMeterChanges(context)
                || CanApproveMeterReadings(context)
+               || CanReadUsers(context)
                || CanReadRoleManagement(context)
                || HasAnyFinanceAccess(context)
                || CanRegisterHistoricalContracts(context)

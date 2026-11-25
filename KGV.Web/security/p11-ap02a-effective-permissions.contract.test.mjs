@@ -15,5 +15,5 @@ assert.match(migration, /drop policy if exists zaehler_ablesung_admin_full/);
 assert.match(migration, /CanManageRoles required/);
 assert.match(migration, /Protected account must retain CanManageRoles/);
 assert.doesNotMatch(migration, /p_role <> 'admin'/);
-assert.match(core, /CanManageRoleManagement[\s\S]*CanManageRoles/);
+assert.match(core, /CanManageRoleManagement\(UserContext\? context\)\s*=> context\?\.HasFachrecht\(FachrechteV2\.BerechtigungenVerwalten\) == true/);
 assert.doesNotMatch(capabilities, /context\?\.role === "admin"/);

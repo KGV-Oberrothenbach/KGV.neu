@@ -325,7 +325,7 @@ public sealed class MyProfilePage : ContentPage
         {
             var ok = await _authService.SendPasswordResetEmailAsync(email);
             _authStatusLabel.Text = ok
-                ? "OTP-Code für Passwort-vergessen wurde versendet. Bitte danach im Login den Code prüfen und ein neues Passwort setzen."
+                ? "Falls ein berechtigtes Konto zu dieser E-Mail-Adresse besteht, erhältst du einen Code. Bitte prüfe dein Postfach."
                 : "Passwort-Reset konnte nicht versendet werden.";
         }
         catch (Exception ex)

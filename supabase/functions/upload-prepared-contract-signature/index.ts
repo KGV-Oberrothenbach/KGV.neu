@@ -10,7 +10,7 @@ function decodePng(value: unknown) {
   if (typeof value !== "string" || !/^[A-Za-z0-9+/]+={0,2}$/.test(value)) return null;
   try { const binary = atob(value); const bytes = Uint8Array.from(binary, char => char.charCodeAt(0)); return bytes.length <= 1048576 && isPng(bytes) ? bytes : null; } catch { return null; }
 }
-async function sha256(bytes: Uint8Array) { const digest = await crypto.subtle.digest("SHA-256", bytes); return Array.from(new Uint8Array(digest), value => value.toString(16).padStart(2, "0")).join(""); }
+async function sha256(bytes: Uint8Array) { const digest = await crypto.subtle.digest("SHA-256", new Uint8Array(bytes)); return Array.from(new Uint8Array(digest), value => value.toString(16).padStart(2, "0")).join(""); }
 function stableObjectId(hash: string) { return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-${hash.slice(12, 16)}-${hash.slice(16, 20)}-${hash.slice(20, 32)}`; }
 
 Deno.serve(async (request) => {
@@ -27,7 +27,7 @@ Deno.serve(async (request) => {
     if (userError || !userData.user) return json({ success: false, message: "Keine gültige Session." }, 401);
     const { data: context, error: contextError } = await caller.rpc("current_app_user_context");
     const callerMemberId = context?.[0]?.mitglied_id;
-    if (contextError || !Number.isSafeInteger(callerMemberId)) return json({ success: false, message: "Keine zugeordnete Unterzeichneridentität." }, 403);
+    if (contextError || !Number.isSafeInteger(callerMemberId) || callerMemberId <= 0) return json({ success: false, message: "Keine zugeordnete Unterzeichneridentität." }, 403);
     const { data: canPrepareContract, error: permissionError } = await caller.rpc("ap02_has_effective_right", { p_fachrecht: "vertrag.vorbereiten" });
     if (permissionError) return json({ success: false, message: "Berechtigungen konnten nicht geprüft werden." }, 403);
     const body = await request.json();
@@ -41,13 +41,6 @@ Deno.serve(async (request) => {
       return json({ success: false, message: "Der Vertragsvorgang ist nicht für diese Signaturrevision geöffnet." }, 409);
     const { data: position, error: positionError } = await admin.from("prepared_contract_signatur").select("id,status,storage_path,signatur_sha256,unterzeichner_typ,mitglied_id").eq("kommunikationsvorgang_id", id).eq("signatur_revision", revision).eq("signatur_schluessel", key).maybeSingle();
     if (positionError || !position) return json({ success: false, message: "Die Signaturposition wurde nicht vorbereitet." }, 409);
-    if (position.status === "unterschrieben") {
-      if (position.signatur_sha256 === hash && position.storage_path)
-        return json({ success: true, storage_path: position.storage_path, sha256: hash, already_stored: true });
-      return json({ success: false, message: "Diese Signaturposition wurde bereits abweichend unterschrieben." }, 409);
-    }
-    if (position.status !== "offen" || contract.status !== "zur_signatur")
-      return json({ success: false, message: "Diese Signaturposition ist nicht mehr unterschreibbar." }, 409);
     // The contract workstation is operated by an authorised administrator who
     // records the signer selected in the frozen position.  Requiring that
     // workstation account to be the tenant made the Web flow unable to submit
@@ -58,9 +51,17 @@ Deno.serve(async (request) => {
     // required by the guarded signature persistence RPC as well.
     const administrativeCaller = canPrepareContract === true;
     if (position.unterzeichner_typ === "vereinsunterzeichner" && !administrativeCaller) {
-      const { data: source } = await admin.from("prepared_contract_signatur_snapshot_person").select("id").eq("kommunikationsvorgang_id", id).eq("signatur_revision", revision).eq("mitglied_id", callerMemberId).maybeSingle();
-      if (!source) return json({ success: false, message: "Keine gültige Unterzeichnerberechtigung." }, 403);
+      const { data: source, error: sourceError } = await admin.from("prepared_contract_signatur_snapshot_person").select("id").eq("kommunikationsvorgang_id", id).eq("signatur_revision", revision).eq("mitglied_id", callerMemberId).maybeSingle();
+      if (sourceError || !source) return json({ success: false, message: "Keine gültige Unterzeichnerberechtigung." }, 403);
     } else if (!administrativeCaller && position.unterzeichner_typ !== "vereinsunterzeichner" && position.mitglied_id !== callerMemberId) return json({ success: false, message: "Die Signatur gehört nicht zum angemeldeten Mitglied." }, 403);
+    // Retry must pass exactly the same signer authorization as a new upload.
+    if (position.status === "unterschrieben") {
+      if (position.signatur_sha256 === hash && position.storage_path)
+        return json({ success: true, storage_path: position.storage_path, sha256: hash, already_stored: true });
+      return json({ success: false, message: "Diese Signaturposition wurde bereits abweichend unterschrieben." }, 409);
+    }
+    if (position.status !== "offen" || contract.status !== "zur_signatur")
+      return json({ success: false, message: "Diese Signaturposition ist nicht mehr unterschreibbar." }, 409);
     const objectId = stableObjectId(hash);
     const storagePath = `${id}/${revision}/${key}/${objectId}.png`;
     const { error: uploadError } = await admin.storage.from(bucket).upload(storagePath, png, {

@@ -818,10 +818,10 @@ Deno.serve(async (req: Request) => {
 
     // AP-02.4B: Authorize invitations with the live V2 Admin permission,
     // evaluated by the caller-bound SQL RPC before any service-role mutation.
-    const { data: canManageRoles, error: permissionError } = await supabaseUser
-      .rpc("ap02_can_manage_rights");
+    const { data: canManageUsers, error: permissionError } = await supabaseUser
+      .rpc("ap02_has_effective_right", { p_fachrecht: "benutzer.verwalten" });
 
-    if (permissionError || canManageRoles !== true) {
+    if (permissionError || canManageUsers !== true) {
       console.log("[kgv-invite-user] reject403: missing Fachrechte 2.0 Admin permission", {
         requestId,
         clientRequestId,
@@ -919,6 +919,13 @@ Deno.serve(async (req: Request) => {
         errorCode: "UnsupportedInviteMethod",
         message: "Nur der OTP-Erstlogin wird unterstützt.",
       }, 400);
+    }
+
+    // FR2-12: Kontoanlage vergibt ausschließlich die minimale Benutzerrolle.
+    // Haupt- und Zusatzrollen werden getrennt über die AP02-RPCs verwaltet.
+    if (role !== "user") {
+      return json({ success: false, outcome: "forbidden", errorCode: "Forbidden",
+        message: "Privilegierte Rollen werden getrennt in der Fachrechteverwaltung vergeben." }, 403);
     }
 
     const mitgliedLookupStartedAt = Date.now();

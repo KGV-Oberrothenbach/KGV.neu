@@ -459,7 +459,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
 
     private void UpdateAdminActions(MemberDTO? member)
     {
-        var canManageUsers = PermissionChecks.CanManageRoleManagement(_userContextState.CurrentUserContext);
+        var canManageUsers = PermissionChecks.CanReadUsers(_userContextState.CurrentUserContext) && PermissionChecks.CanManageUsers(_userContextState.CurrentUserContext);
         var canEditEmailInMemberContext = member != null && !_hasLinkedAppUser;
 
         _emailEntry.IsReadOnly = !canEditEmailInMemberContext;
@@ -469,12 +469,12 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
                 ? "Für dieses Mitglied besteht bereits ein App-User/Auth-User. Die Mailadresse kann im normalen Stammdatenpfad nicht direkt geändert werden und muss vom Nutzer selbst über den vorgesehenen Self-Service-Mailänderungsweg geändert werden."
                 : "Für dieses Mitglied besteht noch kein App-User/Auth-User. Die Mailadresse kann hier im Stammdatenpfad gespeichert werden und wird anschließend für den produktiven Invite-/Erstlogin-Flow verwendet.";
 
-        _benutzerverwaltungButton.IsVisible = canManageUsers && member?.Id is > 0;
+        _benutzerverwaltungButton.IsVisible = PermissionChecks.CanReadUsers(_userContextState.CurrentUserContext) && member?.Id is > 0;
         _nutzerHinzufuegenButton.IsVisible = canManageUsers && member?.Id is > 0 && !_hasLinkedAppUser;
         _nutzerHinzufuegenButton.IsEnabled = _nutzerHinzufuegenButton.IsVisible && !string.IsNullOrWhiteSpace(member?.Email);
 
         _appUserHintLabel.Text = !canManageUsers || member == null
-            ? "Benutzerverwaltung und Nutzer hinzufügen erfordern das Fachrecht Rollenverwaltung."
+            ? "Nutzer hinzufügen erfordert die Fachrechte benutzer.lesen und benutzer.verwalten."
             : _hasLinkedAppUser
                 ? "Für dieses Mitglied besteht bereits ein App-User. Weitere Auth-Aktionen laufen über die gebundene Benutzerverwaltung."
                 : string.IsNullOrWhiteSpace(member.Email)
@@ -707,9 +707,9 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         if (_memberRecord == null)
             return;
 
-        if (!PermissionChecks.CanManageRoleManagement(_userContextState.CurrentUserContext))
+        if (!PermissionChecks.CanReadUsers(_userContextState.CurrentUserContext) || !PermissionChecks.CanManageUsers(_userContextState.CurrentUserContext))
         {
-            await DisplayAlertAsync("Hinweis", "Nutzer hinzufügen erfordert das Fachrecht Rollenverwaltung.", "OK");
+            await DisplayAlertAsync("Hinweis", "Nutzer hinzufügen erfordert benutzer.lesen und benutzer.verwalten.", "OK");
             return;
         }
 

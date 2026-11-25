@@ -1,0 +1,20 @@
+-- Testplan, KEINE zu deployende Migration. Nur auf geklonter/lokaler Test-DB.
+-- Jeder mutierende Szenariotest muss mit BEGIN / ROLLBACK begrenzt werden.
+-- Auth-Rollen/JWT lokal durch definierte synthetische Testidentitaeten simulieren.
+-- Die Rollenwechsel-RPCs enthalten SELECT FOR UPDATE auf app_user:
+--   1. actor benutzer.verwalten=true, berechtigungen.verwalten=false: Invite/Löschung moeglich,
+--      Privilegwechsel ap02_assign_main_role und ap02_set_additional_role 42501.
+--   2. actor berechtigungen.verwalten=true, benutzer.verwalten=false: Rechteverwaltung ja,
+--      Invite/Löschung 403/42501, nicht einmal Zielkonten-Lesezugriff.
+--   3. actor berechtigungen.lesen=true, berechtigungen.verwalten=false:
+--      User-rights preview erfolgreich; jede Mutation abgelehnt.
+--   4. actor vereinsdaten.alle_lesen=true, kein einzelnes Schreibrecht:
+--      fachlich zulässiges Lesen; keine Mutation/Export/Archiv/Vs-Mail.
+--   5. actor mit individuellem DENY: Haupt-/Zusatzrolle verleiht nicht das entzogene Fachrecht.
+--   6. protected_admin_identity: kein Entfernen / Entziehen / Ueberschreiben.
+--   7. Benutzer ohne Mitgliedsbindung/Hauptrolle: fail-closed.
+--   8. Gleichzeitige Zuordnung, Löschung und Adminrollen-Aenderung:
+--      Row-Lock, Advisory-Lock, kein halber Datensatz.
+--   9. Nach jedem lokalen Schreibtest die tatsächliche betroffene Zeilenzahl
+--      und den Rückrollback in unabhängiger Sitzung prüfen.
+-- Erst nach FR2-11 Baseline vergleichen und Tests konkretisieren.

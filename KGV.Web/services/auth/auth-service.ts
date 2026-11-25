@@ -19,14 +19,14 @@ export async function requestFirstLoginOtp(club: ClubContext, email: string) {
   const emailTrim = email.trim();
   if (!emailTrim) throw new Error("Bitte E-Mail eingeben.");
   const result = await requestFirstLoginOtpFromRepository(club, emailTrim);
-  return { message: result.message ?? "Einladungs-/Erstlogin-Code wurde versendet. Bitte OTP eingeben." };
+  return { message: result.message ?? "Falls ein berechtigtes Konto zu dieser E-Mail-Adresse besteht, erhältst du einen Code. Bitte prüfe dein Postfach." };
 }
 
 export async function requestPasswordRecoveryOtp(club: ClubContext, email: string) {
   const emailTrim = email.trim();
   if (!emailTrim) throw new Error("Bitte E-Mail eingeben.");
   await requestPasswordRecoveryOtpFromRepository(club, emailTrim);
-  return { message: "OTP-Code für Passwort-vergessen wurde versendet. Bitte Code prüfen und direkt ein neues Passwort setzen." };
+  return { message: "Falls ein berechtigtes Konto zu dieser E-Mail-Adresse besteht, erhältst du einen Code. Bitte prüfe dein Postfach." };
 }
 
 export async function verifyFirstLoginOtp(club: ClubContext, email: string, code: string) {

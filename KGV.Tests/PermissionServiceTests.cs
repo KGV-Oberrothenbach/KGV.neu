@@ -109,7 +109,7 @@ public sealed class PermissionServiceTests
     }
 
     [Fact]
-    public void PermissionChecks_RequireNamedDocumentRightsWhileRoleRightsRemainCompatible()
+    public void PermissionChecks_RequireNamedDocumentAndRoleRights()
     {
         var service = new PermissionService();
         var documentReader = service.CreateContext(Guid.NewGuid(), "user", null, (long)PermissionFlags.CanReadDocuments);
@@ -126,10 +126,30 @@ public sealed class PermissionServiceTests
         Assert.False(PermissionChecks.CanManageDocuments(memberEditor));
         Assert.False(PermissionChecks.CanArchiveDocuments(vorstand));
         Assert.False(PermissionChecks.CanArchiveDocuments(admin));
-        Assert.True(PermissionChecks.CanReadRoleManagement(vorstand));
+        Assert.False(PermissionChecks.CanReadRoleManagement(vorstand));
         Assert.False(PermissionChecks.CanManageRoleManagement(vorstand));
-        Assert.True(PermissionChecks.CanManageRoleManagement(admin));
+        Assert.False(PermissionChecks.CanManageRoleManagement(admin));
         Assert.False(PermissionChecks.CanManageRoleManagement(revokedAdmin));
+        Assert.False(PermissionChecks.CanManageUsers(admin));
+        var reader = new UserContext(Guid.NewGuid(), UserRole.User, null,
+            PermissionFlags.None, PermissionFlags.None, PermissionFlags.None, PermissionFlags.None,
+            new[] { FachrechteV2.BenutzerLesen, FachrechteV2.BerechtigungenLesen });
+        var accountManager = new UserContext(Guid.NewGuid(), UserRole.User, null,
+            PermissionFlags.None, PermissionFlags.None, PermissionFlags.None, PermissionFlags.None,
+            new[] { FachrechteV2.BenutzerVerwalten });
+        var rightsManager = new UserContext(Guid.NewGuid(), UserRole.User, null,
+            PermissionFlags.None, PermissionFlags.None, PermissionFlags.None, PermissionFlags.None,
+            new[] { FachrechteV2.BerechtigungenVerwalten });
+        Assert.True(PermissionChecks.CanReadUsers(reader));
+        Assert.True(PermissionChecks.CanReadRoleManagement(reader));
+        Assert.False(PermissionChecks.CanManageUsers(reader));
+        Assert.False(PermissionChecks.CanManageRoleManagement(reader));
+        Assert.True(PermissionChecks.CanManageUsers(accountManager));
+        Assert.False(PermissionChecks.CanReadUsers(accountManager));
+        Assert.False(PermissionChecks.CanManageRoleManagement(accountManager));
+        Assert.True(PermissionChecks.CanManageRoleManagement(rightsManager));
+        Assert.False(PermissionChecks.CanReadRoleManagement(rightsManager));
+        Assert.False(PermissionChecks.CanManageUsers(rightsManager));
     }
 
     [Fact]

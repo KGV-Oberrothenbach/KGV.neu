@@ -20,6 +20,7 @@ public sealed class AdminMenuPage : ContentPage
     private readonly Label _memberInfoLabel;
     private readonly Label _hintLabel;
     private readonly Button _userManagementButton;
+    private readonly Button _v2RightsButton;
     private readonly Switch _meterReadingSubmissionsSwitch;
     private readonly Button _saveMeterReadingSubmissionsButton;
     private readonly Label _meterReadingSubmissionsHintLabel;
@@ -42,7 +43,7 @@ public sealed class AdminMenuPage : ContentPage
     private string _selectedRole = UserRoles.User;
     private string _initialRole = UserRoles.User;
 
-    public AdminMenuPage(UserContextState userContextState, MemberContextState memberContextState, ISupabaseService supabaseService)
+    public AdminMenuPage(UserContextState userContextState, MemberContextState memberContextState, ISupabaseService supabaseService, ISupabaseClientFactory clientFactory)
     {
         _userContextState = userContextState ?? throw new ArgumentNullException(nameof(userContextState));
         _memberContextState = memberContextState ?? throw new ArgumentNullException(nameof(memberContextState));
@@ -72,7 +73,17 @@ public sealed class AdminMenuPage : ContentPage
         {
             Text = "Benutzerverwaltung öffnen"
         };
-        _userManagementButton.Clicked += async (_, _) => await Shell.Current.GoToAsync(nameof(UserManagementPage));
+        _userManagementButton.Clicked += async (_, _) =>
+        {
+            if (PermissionChecks.CanReadUsers(_userContextState.CurrentUserContext))
+                await Shell.Current.GoToAsync(nameof(UserManagementPage));
+        };
+        _v2RightsButton = new Button { Text = "Fachrechte 2.0 öffnen" };
+        _v2RightsButton.Clicked += async (_, _) =>
+        {
+            if (PermissionChecks.CanReadRoleManagement(_userContextState.CurrentUserContext))
+                await Navigation.PushAsync(new FachrechteV2AdministrationPage(clientFactory, _memberContextState.SelectedMember?.Id));
+        };
 
         _meterReadingSubmissionsSwitch = new Switch();
         _meterReadingSubmissionsSwitch.Toggled += (_, e) =>
@@ -158,18 +169,7 @@ public sealed class AdminMenuPage : ContentPage
                     _memberInfoLabel,
                     _hintLabel,
                     _userManagementButton,
-                    new Label { Text = "Rolle", FontAttributes = FontAttributes.Bold, Margin = new Thickness(0, 12, 0, 0) },
-                    _rolePicker,
-                    _roleManagementHintLabel,
-                    _saveRoleButton,
-                    new Label { Text = "Globale Fachrechte", FontAttributes = FontAttributes.Bold, Margin = new Thickness(0, 12, 0, 0) },
-                    _permissionRoleBasisLabel,
-                    _permissionEditorHintLabel,
-                    _resetPermissionOverridesButton,
-                    _permissionOverridesLayout,
-                    _permissionOverrideStateLabel,
-                    _effectivePermissionStateLabel,
-                    _savePermissionOverridesButton,
+                    _v2RightsButton,
                     new Label { Text = "Zählerablesungen", FontAttributes = FontAttributes.Bold, Margin = new Thickness(0, 12, 0, 0) },
                     new Grid
                     {
@@ -202,7 +202,7 @@ public sealed class AdminMenuPage : ContentPage
     {
         var selectedMember = _memberContextState.SelectedMember;
         var currentContext = _userContextState.CurrentUserContext;
-        var canManageRoleManagement = PermissionChecks.CanManageRoleManagement(currentContext);
+        var canReadUsers = PermissionChecks.CanReadUsers(currentContext);
         var canReadRoleManagement = PermissionChecks.CanReadRoleManagement(currentContext);
         var canManageMeterReadingSubmissions = PermissionChecks.CanConfigureUserMeterReadingSubmissions(_userContextState.CurrentUserContext);
         var hasSelectedMember = selectedMember?.Id > 0;
@@ -211,17 +211,11 @@ public sealed class AdminMenuPage : ContentPage
             ? $"Ausgewähltes Mitglied: {FormatMemberDisplay(selectedMember!)}"
             : "Es wurde aktuell kein Mitglied ausgewählt.";
 
-        _hintLabel.Text = !canManageRoleManagement
-            ? "Für die Benutzerverwaltung ist das Recht „Rollen verwalten“ erforderlich."
-            : hasSelectedMember
-                ? "App-User-bezogene Aktionen bleiben an das aktuell ausgewählte Mitglied gebunden."
-                : "Bitte zuerst ein Mitglied auswählen.";
-
-        _userManagementButton.IsVisible = canManageRoleManagement;
-        _userManagementButton.IsEnabled = canManageRoleManagement && hasSelectedMember;
-
-        await LoadPermissionSettingsAsync(selectedMember, hasSelectedMember);
-        UpdateRoleManagementState(selectedMember, hasSelectedMember, canReadRoleManagement);
+        _hintLabel.Text = "Benutzerkonten und Fachrechte werden getrennt verwaltet.";
+        _userManagementButton.IsVisible = canReadUsers;
+        _userManagementButton.IsEnabled = canReadUsers && hasSelectedMember;
+        _v2RightsButton.IsVisible = canReadRoleManagement;
+        _v2RightsButton.IsEnabled = canReadRoleManagement && hasSelectedMember;
 
         if (canManageMeterReadingSubmissions)
             _allowUserMeterReadingSubmissions = await _supabaseService.GetAllowUserMeterReadingSubmissionsAsync();

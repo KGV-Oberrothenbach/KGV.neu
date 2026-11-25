@@ -34,7 +34,7 @@ public sealed class UserManagementViewModel : INotifyPropertyChanged
     public event PropertyChangedEventHandler? PropertyChanged;
 
     public ObservableCollection<AppUserDTO> Users { get; } = new();
-    public ObservableCollection<string> Roles { get; } = new(UserRoles.AssignableRoles);
+    public ObservableCollection<string> Roles { get; } = new(new[] { UserRoles.User });
 
     private MemberDTO? BoundMember => _memberContextState.SelectedMember;
     private AppUserDTO? TargetUser => IsBoundToMember ? (Users.Count > 0 ? Users[0] : null) : SelectedUser;
@@ -65,12 +65,15 @@ public sealed class UserManagementViewModel : INotifyPropertyChanged
     public bool HasSelectedUser => TargetUser != null;
     public bool HasLinkedUser => TargetUser?.AuthUserId != null;
     public bool ShowInviteAction => TargetUser != null && !string.IsNullOrWhiteSpace(TargetUser.Email) && !HasLinkedUser;
-    public bool CanInvite => CanManageRoleManagement && !IsBusy && ShowInviteAction && (!IsBoundToMember || BoundMember != null);
-    public bool CanResetPassword => CanManageRoleManagement && !IsBusy && TargetUser != null && !string.IsNullOrWhiteSpace(TargetUser.Email);
+    public bool CanInvite => CanManageUsers && CanReadUsers && !IsBusy && ShowInviteAction && (!IsBoundToMember || BoundMember != null);
+    public bool CanResetPassword => CanManageUsers && CanReadUsers && !IsBusy && TargetUser != null && !string.IsNullOrWhiteSpace(TargetUser.Email);
     public bool CanChangeSelectedEmail => !IsBusy && TargetUser?.AuthUserId?.ToString().Equals(_authService.CurrentUserId, StringComparison.OrdinalIgnoreCase) == true;
-    public bool CanRemoveUser => CanManageRoleManagement && !IsBusy && IsBoundToMember && TargetUser?.AuthUserId != null;
+    public bool CanRemoveUser => CanManageUsers && CanReadUsers && !IsBusy && IsBoundToMember && TargetUser?.AuthUserId != null;
     public bool IsRoleEditable => TargetUser?.MitgliedId is > 0 and not 7;
     public bool CanManageRoleManagement => PermissionChecks.CanManageRoleManagement(_userContextState.CurrentUserContext);
+    public bool CanManageUsers => _userContextState.CurrentUserContext?.HasFachrecht(FachrechteV2.BenutzerVerwalten) == true;
+    public bool CanReadUsers => PermissionChecks.CanReadUsers(_userContextState.CurrentUserContext);
+    public bool CanReadRights => PermissionChecks.CanReadRoleManagement(_userContextState.CurrentUserContext);
     public bool CanEditRole => false; // AP-02: Rollenwechsel nur via Fachrechte-V2-RPC
     public bool CanSaveRole => !IsBusy && CanEditRole && HasLinkedUser && TargetUser != null && !string.Equals(SelectedRole, NormalizeRole(TargetUser.Role), StringComparison.OrdinalIgnoreCase);
 
@@ -194,6 +197,9 @@ public sealed class UserManagementViewModel : INotifyPropertyChanged
             OnPropertyChanged(nameof(CanRemoveUser));
             OnPropertyChanged(nameof(CanSaveRole));
             OnPropertyChanged(nameof(CanManageRoleManagement));
+            OnPropertyChanged(nameof(CanReadRights));
+            OnPropertyChanged(nameof(CanManageUsers));
+            OnPropertyChanged(nameof(CanReadUsers));
             OnPropertyChanged(nameof(CanEditRole));
             OnPropertyChanged(nameof(EmailChangeHint));
         }
@@ -292,7 +298,7 @@ public sealed class UserManagementViewModel : INotifyPropertyChanged
         {
             var success = await _authService.SendPasswordResetEmailAsync(targetUser.Email.Trim());
             StatusMessage = success
-                ? "OTP-Code für Passwort-vergessen wurde versendet. Die Codeeingabe erfolgt weiterhin im Login."
+                ? "Anfrage angenommen. Falls das Konto berechtigt ist, wird ein Code versendet; die Codeeingabe erfolgt im Login."
                 : "Passwort-Reset konnte nicht angestoßen werden.";
             return success;
         }
@@ -382,11 +388,11 @@ public sealed class UserManagementViewModel : INotifyPropertyChanged
 
     private async Task LoadAsync(AppUserDTO? reselectSelected = null)
     {
-        if (!CanManageRoleManagement)
+        if (!CanReadUsers)
         {
             Users.Clear();
             SelectedUser = null;
-            StatusMessage = "Für die Benutzerverwaltung ist das Recht „Rollen verwalten“ erforderlich.";
+            StatusMessage = "Für die Benutzerverwaltung ist das Fachrecht benutzer.lesen erforderlich.";
             return;
         }
 

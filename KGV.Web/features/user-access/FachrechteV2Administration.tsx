@@ -88,9 +88,10 @@ function failureMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Die Anfrage ist fehlgeschlagen.";
 }
 
-export function FachrechteV2Administration({ session, memberId }: {
+export function FachrechteV2Administration({ session, memberId, canManageRights }: {
   session: BrowserSession;
   memberId: number;
+  canManageRights: boolean;
 }) {
   const club = useSelectedClub();
   const [account, setAccount] = useState<AssignedUserV2 | null>(null);
@@ -150,7 +151,7 @@ export function FachrechteV2Administration({ session, memberId }: {
   const hasReason = normalizedReason.length >= 3;
 
   async function runMutation(key: string, task: () => Promise<unknown>) {
-    if (isWorking || !account || !hasReason) return;
+    if (!canManageRights || isWorking || !account || !hasReason) return;
     setBusy(key);
     setError("");
     setNotice("");
@@ -198,7 +199,7 @@ export function FachrechteV2Administration({ session, memberId }: {
 
   return <section className="data-workspace" aria-label="Fachrechte 2.0" style={{ marginTop: "1.5rem" }}>
     <h2>Fachrechte 2.0 – Neues Berechtigungssystem</h2>
-    <p className="context-note">Derzeit parallel zum bisherigen Rechtesystem. Hier gespeicherte Änderungen gelten für die neuen AP-02-RPCs. Bestehende Fachaktionen verwenden bis zu ihrer serverseitigen Umstellung weiterhin die alten Rechte.</p>
+    <p className="context-note">Die wirksamen Fachrechte werden serverseitig ermittelt. Individuelle Entzüge haben Vorrang; die Verwaltungsaktionen sind getrennt geschützt.</p>
     {loading && <p role="status">Lade Rechteverwaltung …</p>}
     {!loading && !available && <p className="notice" role="alert">Das neue Berechtigungssystem ist für diesen Zugang oder dieses Vereinsprojekt noch nicht freigeschaltet. {error}</p>}
     {available && !account && <p className="context-note">Für dieses Mitglied gibt es noch kein verknüpftes App-Konto.</p>}
@@ -207,18 +208,19 @@ export function FachrechteV2Administration({ session, memberId }: {
       {error && <p className="notice" role="alert">{error}</p>}
       {notice && <p className="notice" role="status">{notice}</p>}
       <div className="detail-panel">
+        {!canManageRights && <p className="context-note">Nur Lesezugriff auf Rollen und Fachrechte.</p>}
         <label htmlFor="ap02-change-reason">Begründung jeder Änderung</label>
-        <input id="ap02-change-reason" value={reason} maxLength={250}
+        <input id="ap02-change-reason" value={reason} maxLength={250} disabled={!canManageRights}
           placeholder="z. B. Funktion gemäß Vorstandsbeschluss"
           onChange={(event) => setReason(event.target.value)} />
         {!hasReason && <p className="context-note">Mindestens drei Zeichen erforderlich; jede Änderung wird protokolliert.</p>}
         <label htmlFor="ap02-main-role">Hauptrolle</label>
-        <select id="ap02-main-role" value={selectedRole} disabled={isWorking}
+        <select id="ap02-main-role" value={selectedRole} disabled={isWorking || !canManageRights}
           onChange={(event) => setSelectedRole(event.target.value)}>
           <option value="">Noch nicht zugewiesen</option>
           {mainRoles.map((role) => <option key={role.code} value={role.code}>{role.title}</option>)}
         </select>
-        <button disabled={isWorking || !hasReason || !selectedRole || selectedRole === account.hauptrolle_code} onClick={saveMainRole}>
+        <button disabled={!canManageRights || isWorking || !hasReason || !selectedRole || selectedRole === account.hauptrolle_code} onClick={saveMainRole}>
           Hauptrolle speichern
         </button>
         <h3>Zusatzrollen</h3>
@@ -229,7 +231,7 @@ export function FachrechteV2Administration({ session, memberId }: {
             !["mitglied", "bauausschuss"].includes(account.hauptrolle_code ?? "");
           return <div key={code} className="editor-actions">
             <span><strong>{code === "admin" ? "Admin (Systemverwaltung / Leserechte)" : "Wertermittlung"}</strong> – {hasRole ? "zugewiesen" : "nicht zugewiesen"}{protectedRole ? " (dauerhaft geschützt)" : ""}</span>
-            <button className="secondary-action" disabled={isWorking || !hasReason || protectedRole || incompatible}
+            <button className="secondary-action" disabled={!canManageRights || isWorking || !hasReason || protectedRole || incompatible}
               onClick={() => switchExtraRole(code, !hasRole)}>{hasRole ? "Entziehen" : "Zuweisen"}</button>
           </div>;
         })}
@@ -249,13 +251,13 @@ export function FachrechteV2Administration({ session, memberId }: {
               return <tr key={right.code}>
                 <td><strong>{right.titel}</strong><small>{right.code} · {right.quellen.length ? right.quellen.join(", ") : "kein Grundrecht"}</small></td>
                 <td>{right.erlaubt ? "Erlaubt" : right.individuell_entzogen ? "Entzogen" : "Nicht erlaubt"}</td>
-                <td><select aria-label={`Ausnahme für ${right.titel}`} value={draft} disabled={isWorking}
+                <td><select aria-label={`Ausnahme für ${right.titel}`} value={draft} disabled={isWorking || !canManageRights}
                   onChange={(event) => setDraftOverrides((previous) => ({ ...previous, [right.code]: event.target.value as OverrideDecision }))}>
                   <option value="inherit">Rollenstandard</option>
                   <option value="grant" disabled={forbidGrant}>Gewähren</option>
                   <option value="deny" disabled={forbidDeny}>Entziehen</option>
                 </select></td>
-                <td><button className="secondary-action" disabled={isWorking || !hasReason || draft === current
+                <td><button className="secondary-action" disabled={!canManageRights || isWorking || !hasReason || draft === current
                   || (forbidGrant && draft === "grant") || (forbidDeny && draft === "deny")}
                   onClick={() => saveRight(right)}>Speichern</button></td>
               </tr>;

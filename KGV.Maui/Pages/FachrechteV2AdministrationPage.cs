@@ -89,6 +89,7 @@ public sealed class FachrechteV2AdministrationPage : ContentPage
     private readonly List<Action> _refreshRightButtons = new();
     private Account? _selected;
     private bool _busy;
+    private bool _canManageRights;
     private bool _populating;
 
     public FachrechteV2AdministrationPage(ISupabaseClientFactory clientFactory, long? initialMemberId = null)
@@ -118,7 +119,7 @@ public sealed class FachrechteV2AdministrationPage : ContentPage
                 Children =
                 {
                     new Label { Text = "Fachrechte 2.0", FontSize = 24, FontAttributes = FontAttributes.Bold },
-                    new Label { Text = "Neues Rechtesystem im Schattenbetrieb: Bestehende Funktionen verwenden bis zur serverseitigen Umstellung noch die bisherigen Rechte.", LineBreakMode = LineBreakMode.WordWrap },
+                    new Label { Text = "Fachrechte 2.0: Lesen und Verwalten sind getrennte Befugnisse. Änderungen werden vom Server geprüft.", LineBreakMode = LineBreakMode.WordWrap },
                     _status,
                     refresh,
                     _accountPicker,
@@ -150,7 +151,9 @@ public sealed class FachrechteV2AdministrationPage : ContentPage
 
     private void UpdateButtons()
     {
-        var ready = !_busy && _selected != null && HasReason;
+        var ready = _canManageRights && !_busy && _selected != null && HasReason;
+        _reason.IsEnabled = _canManageRights && !_busy;
+        _rolePicker.IsEnabled = _canManageRights && !_busy;
         var roleIndex = _rolePicker.SelectedIndex;
         _saveMainRoleButton.IsEnabled = ready && roleIndex >= 0 && roleIndex < MainRoles.Length
             && _selected!.HauptrolleCode != MainRoles[roleIndex].Code;
@@ -176,6 +179,7 @@ public sealed class FachrechteV2AdministrationPage : ContentPage
         try
         {
             Client client = await _clientFactory.CreateAsync();
+            _canManageRights = await client.Rpc<bool>("ap02_has_effective_right", new { p_fachrecht = RolesPermission });
             var rows = await client.Rpc<Account[]>("ap02_list_user_access", new { })
                 ?? Array.Empty<Account>();
             if (rows.Any(r => r == null || r.UserId == Guid.Empty))
@@ -195,6 +199,7 @@ public sealed class FachrechteV2AdministrationPage : ContentPage
         catch (Exception ex)
         {
             _populating = false;
+            _canManageRights = false;
             _accounts.Clear();
             _selected = null;
             _rightsArea.Children.Clear();
@@ -261,6 +266,8 @@ public sealed class FachrechteV2AdministrationPage : ContentPage
         }
         catch (Exception ex)
         {
+            _canManageRights = false;
+            _selected = null;
             _rightsArea.Children.Clear();
             _refreshRightButtons.Clear();
             _status.Text = "Fachrechte konnten nicht geladen werden: " + ex.Message;
@@ -309,8 +316,12 @@ public sealed class FachrechteV2AdministrationPage : ContentPage
                 }
             }
         });
-        void RefreshSave() => save.IsEnabled = !_busy && HasReason
-            && picker.SelectedItem is string selection && selection != current;
+        void RefreshSave()
+        {
+            picker.IsEnabled = _canManageRights && !_busy;
+            save.IsEnabled = _canManageRights && !_busy && HasReason
+                && picker.SelectedItem is string selection && selection != current;
+        }
         picker.SelectedIndexChanged += (_, _) => RefreshSave();
         _refreshRightButtons.Add(RefreshSave);
         RefreshSave();
@@ -334,12 +345,17 @@ public sealed class FachrechteV2AdministrationPage : ContentPage
 
     private async Task ExecuteChangeAsync(Func<Client, Task> operation)
     {
-        if (_busy || _selected == null || !HasReason) return;
+        if (!_canManageRights || _busy || _selected == null || !HasReason) return;
         _busy = true;
         UpdateButtons();
         try
         {
             Client client = await _clientFactory.CreateAsync();
+            _canManageRights = false;
+            var mayRead = await client.Rpc<bool>("ap02_has_effective_right", new { p_fachrecht = "berechtigungen.lesen" });
+            _canManageRights = mayRead && await client.Rpc<bool>("ap02_has_effective_right", new { p_fachrecht = RolesPermission });
+            if (!_canManageRights)
+                throw new InvalidOperationException("Die Berechtigung zur Fachrechteverwaltung fehlt.");
             await operation(client);
             _status.Text = "Vom Server gespeichert und auditiert.";
         }
