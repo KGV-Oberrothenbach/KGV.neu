@@ -189,3 +189,122 @@ button { cursor: pointer; padding: .75rem 1rem; border: 0; border-radius: .5rem;
 @media (max-width: 1050px) { .parcel-master-detail { grid-template-columns: 1fr; }.parcel-detail { max-height: none; } }
 @media (max-width: 650px) { .parcel-facts, .protocol-signature-grid, .protocol-steps { grid-template-columns: 1fr; }.parcel-toolbar span { margin-left: 0; }.protocol-steps button { text-align: left; } }
 .communication-filters { align-items: center; border-bottom: 0; }.communication-filters .secondary-action { margin-left: auto; padding: .45rem .65rem; }.communication-layout td small { display: block; margin-top: .25rem; color: #687364; font-weight: 400; white-space: normal; }.communication-layout .error-text { color: #a64040; }.communication-details { min-width: 0; }.communication-details dd { overflow-wrap: anywhere; } @media (max-width: 550px) { .communication-filters { flex-wrap: wrap; overflow: visible; }.communication-filters .secondary-action { margin-left: 0; }.communication-layout td { white-space: normal; } }
+
+/* FR2-RB06: let the workspace and its contents shrink without hiding overflow. */
+@media screen {
+  .workspace {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .workspace-header {
+    flex: 0 0 auto;
+    min-width: 0;
+    flex-wrap: wrap;
+  }
+  .workspace-header .brand,
+  .workspace-header .account {
+    min-width: 0;
+    max-width: 100%;
+    flex-wrap: wrap;
+    overflow-wrap: anywhere;
+  }
+  .workspace-header .brand-mark {
+    flex: 0 0 2.5rem;
+  }
+  .workspace-header .brand > span,
+  .workspace-header .account > *,
+  .workspace-header .account .text-button {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .workspace-header .account {
+    justify-content: flex-end;
+  }
+  .workspace-header .account .text-button {
+    white-space: normal;
+  }
+  .workspace-header .passkey-registration .notice {
+    overflow-wrap: anywhere;
+  }
+  .workspace-body {
+    flex: 1 1 0;
+    min-width: 0;
+    height: auto;
+  }
+  .mobile-navigation,
+  .mobile-navigation select {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .mobile-navigation select {
+    width: 100%;
+  }
+  .home-dashboard,
+  .home-content-grid,
+  .home-content-section,
+  .home-item-list,
+  .home-item,
+  .home-item > *,
+  .home-management > *,
+  .home-work-hours-grid > div,
+  .imprint-page,
+  .imprint-layout > *,
+  .imprint-contact-list article,
+  .imprint-privacy > * {
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+  .home-item-list,
+  .home-item {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .home-item-actions button,
+  .home-item > button,
+  .home-management button {
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
+@media screen and (min-width: 901px) {
+  .home-content-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.15fr);
+  }
+}
+@media screen and (max-width: 1120px) {
+  .imprint-layout,
+  .imprint-contact-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .imprint-privacy {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+@media screen and (max-width: 700px) {
+  .workspace-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: .5rem;
+  }
+  .workspace-header .brand,
+  .workspace-header .account {
+    gap: .4rem;
+    justify-content: flex-start;
+  }
+  .workspace-header .account .text-button {
+    padding-inline: .5rem;
+  }
+  .workspace-body {
+    flex: 1 0 auto;
+    min-height: 0;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .mobile-navigation,
+  .home-content-grid,
+  .home-work-hours-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
