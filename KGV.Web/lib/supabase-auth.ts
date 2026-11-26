@@ -107,7 +107,7 @@ export function clearSession(club: ClubContext | null | undefined) {
 
 export async function signOut(club: ClubContext, session: BrowserSession) {
   const { url, publishableKey } = resolveSupabaseConfig(club);
-  await fetch(`${url}/auth/v1/logout`, {
+  await fetch(`${url}/auth/v1/logout?scope=local`, {
     method: "POST",
     headers: { apikey: publishableKey, Authorization: `Bearer ${session.accessToken}` },
   }).catch(() => undefined);
