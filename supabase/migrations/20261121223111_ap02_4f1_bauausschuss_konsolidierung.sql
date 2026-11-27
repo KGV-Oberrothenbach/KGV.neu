@@ -5,9 +5,6 @@
 -- DemoDB: vorhandene gemeinsame Funktion unveraendert lassen.
 -- Gemeinsame Migration: keine fest kodierten Mitglieds- oder Funktions-IDs.
 
-LOCK TABLE public.vereinsfunktion, public.vereinsfunktion_besetzung,
-  public.vereinsfunktion_verwendung IN SHARE ROW EXCLUSIVE MODE;
-
 DO $merge$
 DECLARE
   v_unified_id bigint;
@@ -15,6 +12,30 @@ DECLARE
   v_metadata_variants integer;
   v_assignment record;
 BEGIN
+  LOCK TABLE public.vereinsfunktion, public.vereinsfunktion_besetzung,
+    public.vereinsfunktion_verwendung IN SHARE ROW EXCLUSIVE MODE;
+
+  -- The local replay is seeded only after all migrations. There is no legacy
+  -- association inventory to consolidate when this table is genuinely empty.
+  IF NOT EXISTS (SELECT 1 FROM public.vereinsfunktion) THEN
+    IF (EXISTS (SELECT 1 FROM auth.users) OR
+      EXISTS (SELECT 1 FROM public.app_user) OR
+      EXISTS (SELECT 1 FROM public.mitglied) OR
+      EXISTS (SELECT 1 FROM public.parzelle) OR
+      EXISTS (SELECT 1 FROM public.pachtverhaeltnis) OR
+      EXISTS (SELECT 1 FROM public.dokument) OR
+      EXISTS (SELECT 1 FROM public.kommunikationsvorgang) OR
+      EXISTS (SELECT 1 FROM public.zaehler) OR
+      EXISTS (SELECT 1 FROM public.arbeitsstunde) OR
+      EXISTS (SELECT 1 FROM public.wartungsvertraege) OR
+      EXISTS (SELECT 1 FROM public.vereinsfunktion_besetzung) OR
+      EXISTS (SELECT 1 FROM public.vereinsfunktion_verwendung) OR
+      EXISTS (SELECT 1 FROM public.vereinsfunktion_vertretung)) THEN
+      RAISE EXCEPTION 'Vereinsfunktionen fehlen bei vorhandenem Bestand' USING ERRCODE='55000';
+    END IF;
+    RETURN;
+  END IF;
+
   SELECT id INTO v_unified_id
   FROM public.vereinsfunktion WHERE schluessel = 'bauausschuss';
 

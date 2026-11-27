@@ -1,3 +1,50 @@
+// Local synthetic CI only. No external API or database targets.
+{ const fr2Db=new URL(globalThis.process.env.P11_LOCAL_DB_URL);
+  if(fr2Db.protocol!=="postgresql:"||fr2Db.hostname!=="127.0.0.1"||fr2Db.pathname!=="/postgres"||fr2Db.search||fr2Db.hash)throw Error("NONLOCAL_DB");
+  if(globalThis.process.platform==="win32"&&!/^supabase_db_kgvfr2ci[a-f0-9]{12}$/.test(globalThis.process.env.FR2_LOCAL_DB_CONTAINER??""))throw Error("LOCAL_CONTAINER_REQUIRED");
+  const api=new URL(globalThis.process.env.P11_LOCAL_API_URL);
+  if(api.protocol!=="http:"||api.hostname!=="127.0.0.1"||api.username||api.password||api.pathname!=="/"||api.search||api.hash)throw Error("NONLOCAL_API");
+  const fr2Fetch=globalThis.fetch; globalThis.fetch=(url,options={})=>{if(new URL(url).origin!==api.origin)throw Error("NONLOCAL_HTTP_TARGET");return fr2Fetch(url,{...options,redirect:"error"});};
+}
+import { readFileSync as fr2ReadFileSync } from "node:fs";
+// Test-only rollback probe; never disables triggers or deletes committed documents.
+function fr2RejectInvalidMetadata(processRow, member, revision, label) {
+  const numeric=[processRow.id,member,revision].map(Number);
+  assert.ok(numeric.every(x=>Number.isSafeInteger(x)&&x>0));
+  assert.ok(["wrong-member","wrong-revision"].includes(label));
+  const [pid,mid,rev]=numeric;
+  const conn=new URL(dbUrl);
+  assert.equal(conn.protocol,"postgresql:"); assert.equal(conn.hostname,"127.0.0.1");
+  const sql="begin; set local role service_role; select set_config('request.jwt.claim.role','service_role',true);\n"
+    +"do $fr2$ declare doc_id bigint; begin\n"
+    +"insert into public.dokument(mitglied_id,bucket,storage_path,titel,dateiname,mime_type,source_kommunikationsvorgang_id,source_revision) values ("+mid+",'dokumente','cx06-local-only/"+pid+"/"+label+".pdf','CX06 LOCAL-ONLY rollback fixture','"+label+".pdf','application/pdf',"+pid+","+rev+") returning id into doc_id;\n"
+    +"begin perform public.complete_prepared_wartungsvertrag("+pid+",doc_id); raise exception 'FR2_INVALID_PROVENANCE_ACCEPTED'; exception when sqlstate '23514' then if sqlerrm <> 'Das finale Wartungsvertragsdokument passt nicht zum Signaturvorgang.' then raise; end if; end;\n"
+    +"if not exists(select 1 from public.dokument where id=doc_id) then raise exception 'FR2_PROBE_DOCUMENT_MISSING'; end if; end $fr2$;\nrollback;\nselect 'FR2_CX06_PROVENANCE_ROLLBACK_PASS';";
+  const localContainer=globalThis.process.env.FR2_LOCAL_DB_CONTAINER;
+  if(globalThis.process.platform==="win32") assert.match(localContainer??"",/^supabase_db_kgvfr2ci[a-f0-9]{12}$/);
+  const cmd=globalThis.process.platform==="win32"?"docker":"psql";
+  const args=globalThis.process.platform==="win32"?["exec","-i",localContainer,"psql","-X","-U","postgres","-d","postgres"]:[dbUrl,"-X"];
+  const r=spawnSync(cmd,[...args,"-v","ON_ERROR_STOP=1","-v","VERBOSITY=verbose","-qAt","-f","-"],{input:sql,encoding:"utf8",timeout:30000});
+  if(r.status!==0){const code=(r.stderr??"").match(/ERROR:\s+([0-9A-Z]{5}):/)?.[1]??"UNKNOWN"; console.log("KGV_FR2_CX06_PROBE_SQLSTATE "+code); throw Error("FR2_CX06_PROVENANCE_SQL_FAILED");}
+  assert.ok(r.stdout.split(/\r?\n/).includes("FR2_CX06_PROVENANCE_ROLLBACK_PASS"));
+  console.log("KGV_FR2_CX06_ROLLBACK_PASS "+label);
+}
+async function fr2VerifyActors(users){
+  const expected={"main":{"allowed":[],"denied":[]},"secondary":{"allowed":[],"denied":[]},"manager":{"allowed":["mitglied.lesen","mitgliedschaft.verwalten","vertrag.vorbereiten","vorgang.bearbeiten"],"denied":["mitglied.anlegen"]},"outsider":{"allowed":[],"denied":[]},"revoked":{"allowed":[],"denied":["mitgliedschaft.verwalten"]},"board1":{"allowed":[],"denied":[]},"board2":{"allowed":[],"denied":[]}};
+  if(Object.keys(users).sort().join(',')!==Object.keys(expected).sort().join(','))throw Error('FR2_ACTOR_SET_MISMATCH');
+  for(const [label,user] of Object.entries(users)){
+    const rpc=async(name)=>{
+      const response=await fetch(process.env.P11_LOCAL_API_URL+'/rest/v1/rpc/'+name,{method:'POST',headers:{apikey:process.env.P11_LOCAL_ANON_KEY,Authorization:'Bearer '+user.token,'Content-Type':'application/json'},body:'{}'});
+      if(response.status!==200)throw Error('FR2_ACTOR_RIGHTS_HTTP_FAILED');
+      return response.json();
+    };
+    if(await rpc('fr212_actor_session_valid')!==true)throw Error('FR2_ACTOR_SESSION_INVALID');
+    const rights=await rpc('ap02_preview_effective_rights');
+    if(!Array.isArray(rights)||rights.length!==55||JSON.stringify(rights.filter(r=>r.erlaubt).map(r=>r.code).sort())!==JSON.stringify(expected[label].allowed))throw Error('FR2_ACTOR_RIGHTS_MISMATCH');
+    if(expected[label].denied.some(code=>!rights.some(r=>r.code===code&&r.individuell_entzogen===true&&r.erlaubt===false)))throw Error('FR2_ACTOR_DENY_MISMATCH');
+  }
+  console.log('KGV_FR2_ACTOR_RIGHTS_PASS '+Object.keys(expected).length);
+}
 // CX-06 real local E2E: Auth/PostgREST/Edge/Storage, persistent maintenance
 // signatures, the productive PDF renderer, and service-only DB completion.
 import assert from "node:assert/strict";
@@ -49,12 +96,12 @@ async function signup(label) {
 function runFixture(users) {
   const command = process.platform === "win32" ? "docker" : "psql";
   const args = process.platform === "win32"
-    ? ["exec", "-i", "supabase_db_03_Arbeitsstand", "psql", "-U", "postgres", "-d", "postgres", "-X", "-v", "ON_ERROR_STOP=1"]
+    ? ["exec", "-i", process.env.FR2_LOCAL_DB_CONTAINER, "psql", "-U", "postgres", "-d", "postgres", "-X", "-v", "ON_ERROR_STOP=1"]
     : [dbUrl, "-X", "-v", "ON_ERROR_STOP=1"];
   for (const [name, user] of Object.entries(users)) args.push("-v", `${name}_user_id=${user.id}`);
   args.push("-f", process.platform === "win32" ? "/dev/stdin" : fixturePath);
   const options = { encoding: "utf8" };
-  if (process.platform === "win32") options.input = requireFixture();
+  if (process.platform === "win32") options.input = fr2ReadFileSync(fixturePath, "utf8");
   const result = spawnSync(command, args, options);
   if (result.status !== 0) throw new Error(`fixture failed: ${result.stdout}\n${result.stderr}`);
   const jsonLine = result.stdout.split(/\r?\n/).map(line => line.trim()).filter(line => line.startsWith("{")).at(-1);
@@ -123,11 +170,11 @@ async function makeLocalFinalDocument(process, assignmentId, memberId, suffix) {
 let report;
 try {
   const users = Object.fromEntries(await Promise.all(["main","secondary","manager","outsider","revoked","board1","board2"].map(async name => [name, await signup(name)])));
-  const fixture = runFixture(users);
-  let processA, processB, numberA, numberB, numberAbort;
+  const fixture = runFixture(users); await fr2VerifyActors(users);
+  let processA, processB, numberA, numberB, numberAbort, prematureDocument;
 
-  await checked("bit-4 manager without CanCreateMitglied prepares both party cases idempotently", "positive", async () => {
-    const permission = await rpc("current_effective_permissions", users.manager.token, {}); assert.equal(permission.response.status, 200); assert.equal((Number(permission.data) & 4), 4); assert.equal((Number(permission.data) & 524288), 0);
+  await checked("FR2 manager without mitglied.anlegen prepares both party cases idempotently", "positive", async () => {
+    for (const [right,expected] of [['mitgliedschaft.verwalten',true],['vertrag.vorbereiten',true],['mitglied.anlegen',false]]) { const permission=await rpc('ap02_has_effective_right',users.manager.token,{p_fachrecht:right}); assert.equal(permission.response.status,200); assert.equal(permission.data,expected); }
     const a1 = await rpc("ensure_wartungsvertrag_prepared_contract", users.manager.token, { p_zuordnung_id: fixture.assignment_a_id });
     const a2 = await rpc("ensure_wartungsvertrag_prepared_contract", users.manager.token, { p_zuordnung_id: fixture.assignment_a_id });
     const b1 = await rpc("ensure_wartungsvertrag_prepared_contract", users.manager.token, { p_zuordnung_id: fixture.assignment_b_id });
@@ -154,9 +201,9 @@ try {
     assert.equal((await one("kommunikationsvorgang", `select=status&id=eq.${started.data.id}`)).status, "abgebrochen"); assert.equal(Number((await one("fachnummer_reservierung", `select=nummer,quelle_id&quelle_art=eq.wartungsvertrag&quelle_id=eq.${fixture.contract_abort_id}`)).nummer), numberAbort);
   });
   await checked("unauthorised user cannot alter a 90xxx reservation", "negative", async () => { const result = await http(`/rest/v1/fachnummer_reservierung?quelle_art=eq.wartungsvertrag&quelle_id=eq.${fixture.contract_a_id}`, { method: "PATCH", token: users.outsider.token, body: { quelle_id: fixture.contract_b_id } }); assert.notEqual(result.response.status, 204); assert.equal(Number((await one("fachnummer_reservierung", `select=quelle_id&quelle_art=eq.wartungsvertrag&nummer=eq.${numberA}`)).quelle_id), fixture.contract_a_id); });
-  await checked("frozen maintenance snapshot rejects later source mutation", "negative", async () => { const result = await service(`/rest/v1/wartungsvertraege?id=eq.${fixture.contract_b_id}`, { method: "PATCH", body: { beschreibung: "manipuliert" } }); assert.notEqual(result.response.status, 204); const fresh = await one("kommunikationsvorgang", `select=entwurf_daten&id=eq.${processB.id}`); assert.equal(fresh.entwurf_daten.wartungsvertrag_beschreibung, processB.entwurf_daten.wartungsvertrag_beschreibung); });
+  await checked("frozen maintenance snapshot rejects later source mutation", "negative", async () => { const result = await service(`/rest/v1/wartungsvertraege?id=eq.${fixture.contract_b_id}`, { method: "PATCH", body: { beschreibung: "manipuliert" } }); assert.equal(result.response.status, 500); assert.equal(result.data.code,"55000"); const unchanged=await one("wartungsvertraege",`select=beschreibung&id=eq.${fixture.contract_b_id}`); assert.equal(unchanged.beschreibung,processB.entwurf_daten.wartungsvertrag_beschreibung); const fresh = await one("kommunikationsvorgang", `select=entwurf_daten&id=eq.${processB.id}`); assert.equal(fresh.entwurf_daten.wartungsvertrag_beschreibung, processB.entwurf_daten.wartungsvertrag_beschreibung); });
   await checked("invalid PNG and wrong signature revision are rejected by the real Edge function", "negative", async () => { const invalid = await upload(users.secondary.token, processB.id, processB.signatur_revision, "mitglied", new Uint8Array([1,2,3])); assert.equal(invalid.response.status, 400); const wrong = await upload(users.secondary.token, processB.id, processB.signatur_revision + 1, "mitglied", pngs.member); assert.equal(wrong.response.status, 409); });
-  await checked("completion is blocked while a mandatory signature is missing", "negative", async () => { const fake = await makeLocalFinalDocument(processA, fixture.assignment_a_id, fixture.main_member_id, "premature"); const result = await rpc("complete_prepared_wartungsvertrag", users.manager.token, { p_kommunikationsvorgang_id: processA.id, p_dokument_id: fake.id }); assert.notEqual(result.response.status, 200); const serviceResult = await serviceRpc("complete_prepared_wartungsvertrag", { p_kommunikationsvorgang_id: processA.id, p_dokument_id: fake.id }); assert.notEqual(serviceResult.response.status, 200); const cleanup = await service(`/rest/v1/dokument?id=eq.${fake.id}`, { method: "DELETE" }); assert.equal(cleanup.response.status, 204); });
+  await checked("completion is blocked while a mandatory signature is missing", "negative", async () => { const fake = await makeLocalFinalDocument(processA, fixture.assignment_a_id, fixture.main_member_id, "case-a"); prematureDocument = fake; const result = await rpc("complete_prepared_wartungsvertrag", users.manager.token, { p_kommunikationsvorgang_id: processA.id, p_dokument_id: fake.id }); assert.equal(result.response.status, 403); assert.equal(result.data.code, "42501"); console.log("KGV_FR2_CX06_CHECKPOINT incomplete-user-denied"); const serviceResult = await serviceRpc("complete_prepared_wartungsvertrag", { p_kommunikationsvorgang_id: processA.id, p_dokument_id: fake.id }); assert.equal(serviceResult.response.status, 400); assert.equal(serviceResult.data.code, "23514"); assert.equal(serviceResult.data.message,"Alle erforderlichen Wartungsvertragsunterschriften müssen vor dem Abschluss vorliegen."); console.log("KGV_FR2_CX06_CHECKPOINT incomplete-service-denied"); const blocked = await service(`/rest/v1/dokument?id=eq.${fake.id}`, { method: "DELETE" }); assert.equal(blocked.response.status, 500); assert.equal(blocked.data.code, "55000"); console.log("KGV_FR2_CX06_CHECKPOINT document-delete-denied"); assert.equal((await one("dokument", `select=id&id=eq.${fake.id}`)).id,fake.id); const stillOpen=await one("kommunikationsvorgang",`select=status,final_dokument_id&id=eq.${processA.id}`); assert.equal(stillOpen.status,"zur_signatur"); assert.equal(stillOpen.final_dokument_id,null); const flow=await one("wartungsvertrag_dokument_workflow",`select=status,dokument_id&wartungsvertrag_zuordnung_id=eq.${fixture.assignment_a_id}`); assert.equal(flow.status,"signatur_vorgang"); assert.equal(flow.dokument_id,null); console.log("KGV_FR2_CX06_CHECKPOINT incomplete-state-unchanged"); });
 
   await checked("case A stores three real PNG signatures with frozen distinct board signers", "positive", async () => { await signCase(processA, users.main, fixture, users, false); assert.equal((await rpc("prepared_contract_signaturen_vollstaendig", users.manager.token, { p_kommunikationsvorgang_id: processA.id, p_signatur_revision: processA.signatur_revision })).data, true); });
   await checked("case B signs the actual secondary party without an extra main-member slot", "positive", async () => { await signCase(processB, users.secondary, fixture, users, true); const positions = await rows("prepared_contract_signatur", `select=*&kommunikationsvorgang_id=eq.${processB.id}&order=sort_order`); assert.deepEqual(positions.map(x => x.signatur_schluessel), ["mitglied","vorstand_1","vorstand_2"]); assert.equal(positions[0].mitglied_id, fixture.secondary_member_id); assert.equal(new Set(positions.slice(1).map(x => x.mitglied_id)).size, 2); });
@@ -173,11 +220,20 @@ try {
 
   let documentA, documentB;
   await checked("wrong member and wrong revision final-document metadata are rejected atomically", "negative", async () => {
-    const wrongMember = await service("/rest/v1/dokument", { method: "POST", headers: { Prefer: "return=representation" }, body: { mitglied_id: fixture.secondary_member_id, bucket: "dokumente", storage_path: `cx06-local-only/${processA.id}/wrong-member.pdf`, titel: "CX06 LOCAL-ONLY wrong member", dateiname: "wrong-member.pdf", mime_type: "application/pdf", source_kommunikationsvorgang_id: processA.id, source_revision: processA.signatur_revision } }); assert.equal(wrongMember.response.status, 201); const c1 = await serviceRpc("complete_prepared_wartungsvertrag", { p_kommunikationsvorgang_id: processA.id, p_dokument_id: wrongMember.data[0].id }); assert.notEqual(c1.response.status, 200); assert.equal((await service(`/rest/v1/dokument?id=eq.${wrongMember.data[0].id}`, { method: "DELETE" })).response.status, 204);
-    const wrongRevision = await service("/rest/v1/dokument", { method: "POST", headers: { Prefer: "return=representation" }, body: { mitglied_id: fixture.main_member_id, bucket: "dokumente", storage_path: `cx06-local-only/${processA.id}/wrong-revision.pdf`, titel: "CX06 LOCAL-ONLY wrong revision", dateiname: "wrong-revision.pdf", mime_type: "application/pdf", source_kommunikationsvorgang_id: processA.id, source_revision: processA.signatur_revision + 1 } }); assert.equal(wrongRevision.response.status, 201); const c2 = await serviceRpc("complete_prepared_wartungsvertrag", { p_kommunikationsvorgang_id: processA.id, p_dokument_id: wrongRevision.data[0].id }); assert.notEqual(c2.response.status, 200); assert.equal((await service(`/rest/v1/dokument?id=eq.${wrongRevision.data[0].id}`, { method: "DELETE" })).response.status, 204);
+    // B has no document yet. Each malformed row is inserted, tested and rolled back
+    // separately, preserving uniqueness and the immutable document guard.
+    const before=await one("kommunikationsvorgang", `select=status,final_dokument_id&id=eq.${processB.id}`);
+    const flowBefore=await one("wartungsvertrag_dokument_workflow", `select=status,dokument_id&wartungsvertrag_zuordnung_id=eq.${fixture.assignment_b_id}`);
+    assert.equal(before.status,"zur_signatur"); assert.equal(before.final_dokument_id,null);
+    assert.equal((await rows("dokument", `select=id&source_kommunikationsvorgang_id=eq.${processB.id}`)).length,0);
+    fr2RejectInvalidMetadata(processB,fixture.main_member_id,processB.signatur_revision,"wrong-member");
+    fr2RejectInvalidMetadata(processB,fixture.secondary_member_id,processB.signatur_revision+1,"wrong-revision");
+    assert.equal((await rows("dokument", `select=id&source_kommunikationsvorgang_id=eq.${processB.id}`)).length,0);
+    assert.deepEqual(await one("kommunikationsvorgang", `select=status,final_dokument_id&id=eq.${processB.id}`),before);
+    assert.deepEqual(await one("wartungsvertrag_dokument_workflow", `select=status,dokument_id&wartungsvertrag_zuordnung_id=eq.${fixture.assignment_b_id}`),flowBefore);
     assert.equal((await one("kommunikationsvorgang", `select=status&id=eq.${processA.id}`)).status, "zur_signatur");
   });
-  await checked("service-only completion binds both local-only final documents and workflows", "positive", async () => { documentA = await makeLocalFinalDocument(processA, fixture.assignment_a_id, fixture.main_member_id, "case-a"); documentB = await makeLocalFinalDocument(processB, fixture.assignment_b_id, fixture.secondary_member_id, "case-b"); for (const [process, document, assignment] of [[processA,documentA,fixture.assignment_a_id],[processB,documentB,fixture.assignment_b_id]]) { const done = await serviceRpc("complete_prepared_wartungsvertrag", { p_kommunikationsvorgang_id: process.id, p_dokument_id: document.id }); assert.equal(done.response.status, 200, JSON.stringify(done.data)); const workflow = await one("wartungsvertrag_dokument_workflow", `select=*&wartungsvertrag_zuordnung_id=eq.${assignment}`); assert.equal(workflow.status, "abgeschlossen"); assert.equal(workflow.dokument_id, document.id); assert.equal((await one("kommunikationsvorgang", `select=status,final_dokument_id&id=eq.${process.id}`)).status, "erledigt"); } });
+  await checked("service-only completion binds both local-only final documents and workflows", "positive", async () => { assert.ok(prematureDocument); documentA = prematureDocument; documentB = await makeLocalFinalDocument(processB, fixture.assignment_b_id, fixture.secondary_member_id, "case-b"); for (const [process, document, assignment] of [[processA,documentA,fixture.assignment_a_id],[processB,documentB,fixture.assignment_b_id]]) { const done = await serviceRpc("complete_prepared_wartungsvertrag", { p_kommunikationsvorgang_id: process.id, p_dokument_id: document.id }); assert.equal(done.response.status, 200, JSON.stringify(done.data)); const workflow = await one("wartungsvertrag_dokument_workflow", `select=*&wartungsvertrag_zuordnung_id=eq.${assignment}`); assert.equal(workflow.status, "abgeschlossen"); assert.equal(workflow.dokument_id, document.id); assert.equal((await one("kommunikationsvorgang", `select=status,final_dokument_id&id=eq.${process.id}`)).status, "erledigt"); } });
   await checked("exact completion retry is idempotent and conflicting completion is rejected", "negative", async () => { const retry = await serviceRpc("complete_prepared_wartungsvertrag", { p_kommunikationsvorgang_id: processB.id, p_dokument_id: documentB.id }); assert.equal(retry.response.status, 200); assert.equal(retry.data[0].bereits_abgeschlossen, true); const conflict = await serviceRpc("complete_prepared_wartungsvertrag", { p_kommunikationsvorgang_id: processB.id, p_dokument_id: documentA.id }); assert.notEqual(conflict.response.status, 200); assert.equal((await rows("wartungsvertrag_dokument_workflow", `select=id&wartungsvertrag_zuordnung_id=eq.${fixture.assignment_b_id}`)).length, 1); });
 
   await checked("normal successor assignment keeps the same wartungsvertrag 90xxx", "positive", async () => { const insert = await service("/rest/v1/wartungsvertrag_zuordnungen", { method: "POST", headers: { Prefer: "return=representation" }, body: { wartungsvertrag_id: fixture.contract_a_id, hauptmitglied_id: fixture.main_member_id, vertragspartei_mitglied_id: fixture.main_member_id, gueltig_ab: "2027-01-01", gueltig_bis: "2027-12-31", vorgaenger_zuordnung_id: fixture.assignment_a_id, bemerkung: "CX06 reine Nummerninvariante" } }); assert.equal(insert.response.status, 201, JSON.stringify(insert.data)); assert.equal((await one("v_wartungsvertrag_fachnummer", `select=*&wartungsvertrag_id=eq.${fixture.contract_a_id}`)).vertragsnummer, numberA); });
@@ -187,4 +243,4 @@ try {
   console.log(`CX06_RESULT ${JSON.stringify(report)}`);
 } catch (error) {
   report = { suite: "CX-06 real maintenance contract document workflow", ...counters, complete: false, error: error.message, cases }; console.error(`CX06_RESULT ${JSON.stringify(report)}`); process.exitCode = 1;
-} finally { if (resultPath && report) { await mkdir(dirname(resultPath), { recursive: true }); await writeFile(resultPath, `${JSON.stringify(report, null, 2)}\n`, "utf8"); } }
+} finally { if (resultPath && report) { await mkdir(dirname(resultPath), { recursive: true }); await writeFile(resultPath, `${JSON.stringify(report, (key, value) => ["error", "message"].includes(key) ? undefined : value, 2)}\n`, "utf8"); } }

@@ -11,7 +11,13 @@ BEGIN
   IF to_regprocedure('public.ap02_calculate_user_rights(uuid)') IS NULL THEN
     RAISE EXCEPTION 'AP-02.2-Funktion fehlt' USING ERRCODE = '55000';
   END IF;
-  v_definition := pg_get_functiondef('public.ap02_calculate_user_rights(uuid)'::regprocedure);
+  -- PostgreSQL preserves the function body's checkout line endings. Normalize
+  -- CRLF so this guarded replacement is identical on Windows and Linux.
+  v_definition := replace(
+    pg_get_functiondef('public.ap02_calculate_user_rights(uuid)'::regprocedure),
+    E'\r\n',
+    E'\n'
+  );
   v_hits := (length(v_definition) - length(replace(v_definition, v_old, ''))) / length(v_old);
   IF v_hits <> 1 THEN
     RAISE EXCEPTION 'Unerwarteter Rechtekern: erwartete Stelle % mal vorhanden', v_hits

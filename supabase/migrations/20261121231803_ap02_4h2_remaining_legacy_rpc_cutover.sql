@@ -6,7 +6,35 @@ DECLARE rec record; rule record; body text; previous text; newer text; hit boole
 BEGIN
   IF (SELECT count(*) FROM public.fachrecht)<>55
   OR to_regprocedure('public.ap02_has_effective_right(text)') IS NULL
-  OR NOT EXISTS(SELECT 1 FROM public.protected_admin_identity) THEN
+  OR ((EXISTS (SELECT 1 FROM auth.users) OR
+      EXISTS (SELECT 1 FROM public.app_user) OR
+      EXISTS (SELECT 1 FROM public.mitglied) OR
+      EXISTS (SELECT 1 FROM public.parzelle) OR
+      EXISTS (SELECT 1 FROM public.pachtverhaeltnis) OR
+      EXISTS (SELECT 1 FROM public.dokument) OR
+      EXISTS (SELECT 1 FROM public.kommunikationsvorgang) OR
+      EXISTS (SELECT 1 FROM public.zaehler) OR
+      EXISTS (SELECT 1 FROM public.arbeitsstunde) OR
+      EXISTS (SELECT 1 FROM public.wartungsvertraege) OR
+      EXISTS (SELECT 1 FROM public.vereinsfunktion) OR
+      EXISTS (SELECT 1 FROM public.vereinsfunktion_besetzung) OR
+      EXISTS (SELECT 1 FROM public.vereinsfunktion_verwendung) OR
+      EXISTS (SELECT 1 FROM public.vereinsfunktion_vertretung)) AND NOT EXISTS (SELECT 1 FROM public.protected_admin_identity)) OR
+    EXISTS (
+      SELECT 1 FROM public.protected_admin_identity p
+      WHERE NOT EXISTS (SELECT 1 FROM public.app_user_zusatzrolle z
+        WHERE z.user_id=p.user_id AND z.zusatzrolle_code='admin')
+    ) OR
+    EXISTS (
+    SELECT a.user_id FROM public.app_user a WHERE a.is_protected = true
+    EXCEPT
+    SELECT p.user_id FROM public.protected_admin_identity p
+  )
+  OR EXISTS (
+    SELECT p.user_id FROM public.protected_admin_identity p
+    EXCEPT
+    SELECT a.user_id FROM public.app_user a WHERE a.is_protected = true
+  ) THEN
     RAISE EXCEPTION 'Fachrechte-Kern nicht im erwarteten Zustand';
   END IF;
   CREATE TEMP TABLE ap02_h2_map (funktion text, alt text, fachrecht text,

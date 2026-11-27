@@ -35,20 +35,33 @@ returning id as board2_member_id \gset
 -- The manager keeps CanEditAllMembers through the admin template but has the
 -- unrelated CanCreateMitglied capability individually revoked.  The revoked
 -- user demonstrates that an individual removal of bit 4 remains effective.
-insert into public.app_user(user_id,mitglied_id,role,permission_grants,permission_revocations)
-values
-  (:'main_user_id',:main_member_id,'user',0,0),
-  (:'secondary_user_id',:secondary_member_id,'user',0,0),
-  (:'manager_user_id',:manager_member_id,'admin',4,524288),
-  (:'outsider_user_id',:outsider_member_id,'user',0,0),
-  (:'revoked_user_id',:revoked_member_id,'admin',0,4),
-  (:'board1_user_id',:board1_member_id,'user',0,0),
-  (:'board2_user_id',:board2_member_id,'user',0,0)
-on conflict(user_id) do update set
-  mitglied_id=excluded.mitglied_id,
-  role=excluded.role,
-  permission_grants=excluded.permission_grants,
-  permission_revocations=excluded.permission_revocations;
+-- FR2: only synthetic identities created in this fixture; no administrative role.
+create temporary table fr2_fixture_actor(label text primary key,uid uuid not null unique,mid bigint not null,grants text[] not null,denials text[] not null) on commit drop;
+insert into fr2_fixture_actor values
+('main', :'main_user_id'::uuid, :main_member_id, ARRAY[]::text[], ARRAY[]::text[]),
+('secondary', :'secondary_user_id'::uuid, :secondary_member_id, ARRAY[]::text[], ARRAY[]::text[]),
+('manager', :'manager_user_id'::uuid, :manager_member_id, ARRAY['mitgliedschaft.verwalten','vertrag.vorbereiten','mitglied.lesen','vorgang.bearbeiten']::text[], ARRAY['mitglied.anlegen']::text[]),
+('outsider', :'outsider_user_id'::uuid, :outsider_member_id, ARRAY[]::text[], ARRAY[]::text[]),
+('revoked', :'revoked_user_id'::uuid, :revoked_member_id, ARRAY['mitgliedschaft.verwalten']::text[], ARRAY['mitgliedschaft.verwalten']::text[]),
+('board1', :'board1_user_id'::uuid, :board1_member_id, ARRAY[]::text[], ARRAY[]::text[]),
+('board2', :'board2_user_id'::uuid, :board2_member_id, ARRAY[]::text[], ARRAY[]::text[]);
+do $fr2$ begin
+ if exists(select 1 from fr2_fixture_actor x where not exists(select 1 from public.app_user a join public.mitglied m on m.id=a.mitglied_id and m.auth_user_id=a.user_id where a.user_id=x.uid and a.mitglied_id=x.mid and not a.is_protected)) then raise exception 'FR2_FIXTURE_LINK_INVALID'; end if;
+ if exists(select 1 from fr2_fixture_actor x where not exists(select 1 from auth.sessions s where s.user_id=x.uid and (s.not_after is null or s.not_after>now()))) then raise exception 'FR2_FIXTURE_SESSION_MISSING'; end if;
+ if exists(select 1 from fr2_fixture_actor x join public.app_user_zusatzrolle z on z.user_id=x.uid) then raise exception 'FR2_FIXTURE_UNEXPECTED_ADDITIONAL_ROLE'; end if;
+end $fr2$;
+insert into public.app_user_hauptrolle(user_id,hauptrolle_code) select uid,'mitglied' from fr2_fixture_actor on conflict(user_id) do update set hauptrolle_code=excluded.hauptrolle_code;
+insert into public.app_user_fachrecht_override(user_id,fachrecht_code,entscheidung,grund)
+ select uid,r,'grant','FR2 synthetic CX06 fixture' from fr2_fixture_actor cross join lateral unnest(grants) r;
+do $fr2$ begin
+ if exists(select 1 from fr2_fixture_actor x cross join lateral unnest(x.grants) r where not exists(select 1 from public.ap02_calculate_user_rights(x.uid) p where p.code=r and p.erlaubt)) then raise exception 'FR2_FIXTURE_GRANT_NOT_EFFECTIVE'; end if;
+end $fr2$;
+insert into public.app_user_fachrecht_override(user_id,fachrecht_code,entscheidung,grund)
+ select uid,r,'deny','FR2 synthetic CX06 denial' from fr2_fixture_actor cross join lateral unnest(denials) r where true
+ on conflict(user_id,fachrecht_code) do update set entscheidung=excluded.entscheidung,grund=excluded.grund;
+do $fr2$ begin
+ if exists(select 1 from fr2_fixture_actor x cross join lateral public.ap02_calculate_user_rights(x.uid) p where p.erlaubt is distinct from (p.code=any(x.grants) and not p.code=any(x.denials))) then raise exception 'FR2_FIXTURE_RIGHT_SET_MISMATCH'; end if;
+end $fr2$;
 
 insert into public.wartungsvertraege(titel,beschreibung,bereich,max_aktive_zuordnungen,befreit_von_pflichtstunden,arbeitsstunden_gutschrift,aktiv,bemerkung)
 values ('CX06 Anlagenpflege','Pflege der Gemeinschaftsflächen und turnusmäßige Kontrolle der Wege.','Gemeinschaftsanlage',2,false,7.5,true,'CX06 eingefrorene Bemerkung A')

@@ -72,23 +72,25 @@ DO $fr211_copy$
 DECLARE f record; v_oid oid; v_def text; v_signature text;
 BEGIN
   FOR f IN SELECT * FROM (VALUES
-    ('rpc_export_mitgliederliste(text,text)', '889e30b893e7bba83d9a9a53da8b039e'),
-    ('rpc_export_datenschutz_aktive_mitglieder()', '839980281f9c54a91185c2f9058f45a8'),
-    ('rpc_export_arbeitsstunden_uebersicht(integer,boolean,boolean,boolean,text)', '25717f58a7394b86a16037b37d056538'),
-    ('rpc_export_jahresablesung_status(integer,boolean)', '70ba7ca448d1f89072ee242f95895cbc'),
-    ('rpc_export_zaehler_eichfaelligkeit(text)', '184e9a6018eafa43b9088b7aec31079e'),
-    ('rpc_export_parzellenliste(jsonb)', 'cade40b4e116e26d2249ad425ef62df3'),
-    ('rpc_export_mitgliederliste_json(jsonb)', 'c2bcb73292005577417f630a05784a78'),
-    ('rpc_export_datenschutz_aktive_mitglieder_json(jsonb)', 'c4552126a2d77d7bb35e2d9e54fcae17'),
-    ('rpc_export_arbeitsstunden_uebersicht_json(jsonb)', '9b312cf61df8eb32a76eb7b76b848c36'),
-    ('rpc_export_jahresablesung_status_json(jsonb)', '7e80e0d5452a4170516dcc1fd28321f8'),
-    ('rpc_export_zaehler_eichfaelligkeit_json(jsonb)', 'b2d5121d73da4eb542269566deeb3891')
-  ) AS x(signature, source_md5)
+    ('rpc_export_mitgliederliste(text,text)', ARRAY['889e30b893e7bba83d9a9a53da8b039e']),
+    ('rpc_export_datenschutz_aktive_mitglieder()', ARRAY['839980281f9c54a91185c2f9058f45a8']),
+    ('rpc_export_arbeitsstunden_uebersicht(integer,boolean,boolean,boolean,text)', ARRAY['25717f58a7394b86a16037b37d056538']),
+    -- The first hash is deployed. The second is the fresh-replay body after
+    -- 6844150e added the enum-to-text cast required by an unseeded rebuild.
+    ('rpc_export_jahresablesung_status(integer,boolean)', ARRAY['70ba7ca448d1f89072ee242f95895cbc', '93eee349ebc60c314aca27995612b680']),
+    ('rpc_export_zaehler_eichfaelligkeit(text)', ARRAY['184e9a6018eafa43b9088b7aec31079e']),
+    ('rpc_export_parzellenliste(jsonb)', ARRAY['cade40b4e116e26d2249ad425ef62df3']),
+    ('rpc_export_mitgliederliste_json(jsonb)', ARRAY['c2bcb73292005577417f630a05784a78']),
+    ('rpc_export_datenschutz_aktive_mitglieder_json(jsonb)', ARRAY['c4552126a2d77d7bb35e2d9e54fcae17']),
+    ('rpc_export_arbeitsstunden_uebersicht_json(jsonb)', ARRAY['9b312cf61df8eb32a76eb7b76b848c36']),
+    ('rpc_export_jahresablesung_status_json(jsonb)', ARRAY['7e80e0d5452a4170516dcc1fd28321f8']),
+    ('rpc_export_zaehler_eichfaelligkeit_json(jsonb)', ARRAY['b2d5121d73da4eb542269566deeb3891'])
+  ) AS x(signature, source_md5s)
   LOOP
     v_oid := to_regprocedure('public.' || f.signature);
     IF v_oid IS NULL OR NOT EXISTS (
       SELECT 1 FROM pg_proc p WHERE p.oid = v_oid AND NOT p.prosecdef
-      AND md5(replace(p.prosrc, E'\r\n', E'\n')) = f.source_md5
+      AND md5(replace(p.prosrc, E'\r\n', E'\n')) = ANY(f.source_md5s)
     ) THEN RAISE EXCEPTION 'FR211 source drift: %', f.signature; END IF;
     v_def := replace(pg_get_functiondef(v_oid), 'public.rpc_export_', 'fr211_export_private.rpc_export_');
     IF v_def NOT LIKE 'CREATE OR REPLACE FUNCTION fr211_export_private.%' THEN

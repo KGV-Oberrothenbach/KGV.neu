@@ -1,0 +1,14 @@
+-- FR2-RB04D5: retain existing read scopes and require a live session.
+DO $migration$
+DECLARE r record; marker text; n integer:=0;
+BEGIN
+  SELECT count(*)::text || ':' || md5(string_agg(tablename||'|'||policyname||'|'||permissive||'|'||roles::text||'|'||cmd||'|'||qual,E'\n' order by tablename,policyname)) INTO marker FROM pg_policies WHERE schemaname='public' AND policyname IN ('app_setting_read_authenticated','arbeitseinsatz_select_visible_authenticated','bekanntmachung_select_visible_authenticated','dokumenttyp_read_authenticated','dokumenttyp_wirkung_read_authenticated','impressum_funktion_slot_select_authenticated','kostenart_select_authenticated','saison_select_authenticated','termin_select_visible_authenticated','umlageart_select_authenticated','vereinsfunktion_impressum_select_authenticated','vereinsfunktion_besetzung_impressum_select_authenticated','vereinsfunktion_verwendung_impressum_select_authenticated');
+  IF marker IS DISTINCT FROM '13:e81591235cd70dde84efb79bf6e6c0f0' THEN RAISE EXCEPTION 'Unexpected RLS baseline'; END IF;
+  FOR r IN SELECT tablename,policyname,qual FROM pg_policies WHERE schemaname='public' AND policyname IN ('app_setting_read_authenticated','arbeitseinsatz_select_visible_authenticated','bekanntmachung_select_visible_authenticated','dokumenttyp_read_authenticated','dokumenttyp_wirkung_read_authenticated','impressum_funktion_slot_select_authenticated','kostenart_select_authenticated','saison_select_authenticated','termin_select_visible_authenticated','umlageart_select_authenticated','vereinsfunktion_impressum_select_authenticated','vereinsfunktion_besetzung_impressum_select_authenticated','vereinsfunktion_verwendung_impressum_select_authenticated') ORDER BY tablename,policyname LOOP
+    EXECUTE format('ALTER POLICY %I ON public.%I USING ((SELECT public.fr212_actor_session_valid()) AND (%s))',r.policyname,r.tablename,r.qual);
+    n:=n+1;
+  END LOOP;
+  SELECT count(*)::text || ':' || md5(string_agg(tablename||'|'||policyname||'|'||permissive||'|'||roles::text||'|'||cmd||'|'||qual,E'\n' order by tablename,policyname)) INTO marker FROM pg_policies WHERE schemaname='public' AND policyname IN ('app_setting_read_authenticated','arbeitseinsatz_select_visible_authenticated','bekanntmachung_select_visible_authenticated','dokumenttyp_read_authenticated','dokumenttyp_wirkung_read_authenticated','impressum_funktion_slot_select_authenticated','kostenart_select_authenticated','saison_select_authenticated','termin_select_visible_authenticated','umlageart_select_authenticated','vereinsfunktion_impressum_select_authenticated','vereinsfunktion_besetzung_impressum_select_authenticated','vereinsfunktion_verwendung_impressum_select_authenticated');
+  IF n<>13 OR marker IS DISTINCT FROM '13:543645677ea48975e8d52cb4b85b8434' THEN RAISE EXCEPTION 'Unexpected RLS postcondition'; END IF;
+END
+$migration$;

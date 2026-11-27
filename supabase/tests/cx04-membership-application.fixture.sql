@@ -36,19 +36,39 @@ select value,'CX04 Nebenmitglied','Nina','1994-12-12','Antragweg 4','08056','Zwi
 from cx04_ids where key='d' returning id as secondary_id \gset
 insert into cx04_ids values('secondary',:secondary_id);
 
-insert into public.app_user(user_id,mitglied_id,role,permission_grants,permission_revocations)
-select x.user_id,i.value,x.role,x.grants,0 from (values
- (:'manager_user_id'::uuid,'manager','admin',524288::bigint),
- (:'board1_user_id'::uuid,'board1','user',0::bigint),(:'board2_user_id'::uuid,'board2','user',0::bigint),
- (:'decider_user_id'::uuid,'decider','user',524288::bigint),(:'outsider_user_id'::uuid,'outsider','user',0::bigint),
- (:'a_user_id'::uuid,'a','user',0::bigint),(:'b_user_id'::uuid,'b','user',0::bigint),
- (:'c_user_id'::uuid,'c','user',0::bigint),(:'d_user_id'::uuid,'d','user',0::bigint),
- (:'e_user_id'::uuid,'e','user',0::bigint),(:'rep_user_id'::uuid,'rep','user',0::bigint),
- (:'neg_user_id'::uuid,'neg','user',0::bigint),
- (:'secondary_user_id'::uuid,'secondary','user',0::bigint)
-) x(user_id,key,role,grants) join cx04_ids i using(key)
-on conflict(user_id) do update set mitglied_id=excluded.mitglied_id,role=excluded.role,
- permission_grants=excluded.permission_grants,permission_revocations=0;
+-- FR2: only synthetic identities created in this fixture; no administrative role.
+create temporary table fr2_fixture_actor(label text primary key,uid uuid not null unique,mid bigint not null,grants text[] not null,denials text[] not null) on commit drop;
+insert into fr2_fixture_actor values
+('manager', :'manager_user_id'::uuid, (select value from cx04_ids where key='manager'), ARRAY['vertrag.vorbereiten','mitglied.lesen','vorgang.bearbeiten','vorstandsvorgang.bearbeiten','mitgliedschaft.verwalten','mitglied.anlegen']::text[], ARRAY[]::text[]),
+('board1', :'board1_user_id'::uuid, (select value from cx04_ids where key='board1'), ARRAY[]::text[], ARRAY[]::text[]),
+('board2', :'board2_user_id'::uuid, (select value from cx04_ids where key='board2'), ARRAY[]::text[], ARRAY[]::text[]),
+('decider', :'decider_user_id'::uuid, (select value from cx04_ids where key='decider'), ARRAY['mitgliedschaft.entscheiden']::text[], ARRAY[]::text[]),
+('outsider', :'outsider_user_id'::uuid, (select value from cx04_ids where key='outsider'), ARRAY[]::text[], ARRAY[]::text[]),
+('a', :'a_user_id'::uuid, (select value from cx04_ids where key='a'), ARRAY[]::text[], ARRAY[]::text[]),
+('b', :'b_user_id'::uuid, (select value from cx04_ids where key='b'), ARRAY[]::text[], ARRAY[]::text[]),
+('c', :'c_user_id'::uuid, (select value from cx04_ids where key='c'), ARRAY[]::text[], ARRAY[]::text[]),
+('d', :'d_user_id'::uuid, (select value from cx04_ids where key='d'), ARRAY[]::text[], ARRAY[]::text[]),
+('e', :'e_user_id'::uuid, (select value from cx04_ids where key='e'), ARRAY[]::text[], ARRAY[]::text[]),
+('rep', :'rep_user_id'::uuid, (select value from cx04_ids where key='rep'), ARRAY[]::text[], ARRAY[]::text[]),
+('neg', :'neg_user_id'::uuid, (select value from cx04_ids where key='neg'), ARRAY[]::text[], ARRAY[]::text[]),
+('secondary', :'secondary_user_id'::uuid, (select value from cx04_ids where key='secondary'), ARRAY[]::text[], ARRAY[]::text[]);
+do $fr2$ begin
+ if exists(select 1 from fr2_fixture_actor x where not exists(select 1 from public.app_user a join public.mitglied m on m.id=a.mitglied_id and m.auth_user_id=a.user_id where a.user_id=x.uid and a.mitglied_id=x.mid and not a.is_protected)) then raise exception 'FR2_FIXTURE_LINK_INVALID'; end if;
+ if exists(select 1 from fr2_fixture_actor x where not exists(select 1 from auth.sessions s where s.user_id=x.uid and (s.not_after is null or s.not_after>now()))) then raise exception 'FR2_FIXTURE_SESSION_MISSING'; end if;
+ if exists(select 1 from fr2_fixture_actor x join public.app_user_zusatzrolle z on z.user_id=x.uid) then raise exception 'FR2_FIXTURE_UNEXPECTED_ADDITIONAL_ROLE'; end if;
+end $fr2$;
+insert into public.app_user_hauptrolle(user_id,hauptrolle_code) select uid,'mitglied' from fr2_fixture_actor on conflict(user_id) do update set hauptrolle_code=excluded.hauptrolle_code;
+insert into public.app_user_fachrecht_override(user_id,fachrecht_code,entscheidung,grund)
+ select uid,r,'grant','FR2 synthetic CX04 fixture' from fr2_fixture_actor cross join lateral unnest(grants) r;
+do $fr2$ begin
+ if exists(select 1 from fr2_fixture_actor x cross join lateral unnest(x.grants) r where not exists(select 1 from public.ap02_calculate_user_rights(x.uid) p where p.code=r and p.erlaubt)) then raise exception 'FR2_FIXTURE_GRANT_NOT_EFFECTIVE'; end if;
+end $fr2$;
+insert into public.app_user_fachrecht_override(user_id,fachrecht_code,entscheidung,grund)
+ select uid,r,'deny','FR2 synthetic CX04 denial' from fr2_fixture_actor cross join lateral unnest(denials) r where true
+ on conflict(user_id,fachrecht_code) do update set entscheidung=excluded.entscheidung,grund=excluded.grund;
+do $fr2$ begin
+ if exists(select 1 from fr2_fixture_actor x cross join lateral public.ap02_calculate_user_rights(x.uid) p where p.erlaubt is distinct from (p.code=any(x.grants) and not p.code=any(x.denials))) then raise exception 'FR2_FIXTURE_RIGHT_SET_MISMATCH'; end if;
+end $fr2$;
 
 insert into public.vereinsfunktion(schluessel,bezeichnung,aktiv,erlaubt_mehrfachbesetzung)
 values ('cx04_vorstand_1','CX-04 Vorstand 1',true,false),('cx04_vorstand_2','CX-04 Vorstand 2',true,false),

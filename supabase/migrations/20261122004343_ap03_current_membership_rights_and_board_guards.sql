@@ -7,7 +7,35 @@
 DO $pre$
 BEGIN
   IF (SELECT count(*) FROM public.fachrecht) <> 55 OR
-     (SELECT count(*) FROM public.protected_admin_identity) <> 1 OR
+     ((EXISTS (SELECT 1 FROM auth.users) OR
+      EXISTS (SELECT 1 FROM public.app_user) OR
+      EXISTS (SELECT 1 FROM public.mitglied) OR
+      EXISTS (SELECT 1 FROM public.parzelle) OR
+      EXISTS (SELECT 1 FROM public.pachtverhaeltnis) OR
+      EXISTS (SELECT 1 FROM public.dokument) OR
+      EXISTS (SELECT 1 FROM public.kommunikationsvorgang) OR
+      EXISTS (SELECT 1 FROM public.zaehler) OR
+      EXISTS (SELECT 1 FROM public.arbeitsstunde) OR
+      EXISTS (SELECT 1 FROM public.wartungsvertraege) OR
+      EXISTS (SELECT 1 FROM public.vereinsfunktion) OR
+      EXISTS (SELECT 1 FROM public.vereinsfunktion_besetzung) OR
+      EXISTS (SELECT 1 FROM public.vereinsfunktion_verwendung) OR
+      EXISTS (SELECT 1 FROM public.vereinsfunktion_vertretung)) AND (SELECT count(*) FROM public.protected_admin_identity) <> 1) OR
+    EXISTS (
+      SELECT 1 FROM public.protected_admin_identity p
+      WHERE NOT EXISTS (SELECT 1 FROM public.app_user_zusatzrolle z
+        WHERE z.user_id=p.user_id AND z.zusatzrolle_code='admin')
+    ) OR
+    EXISTS (
+       SELECT a.user_id FROM public.app_user a WHERE a.is_protected = true
+       EXCEPT
+       SELECT p.user_id FROM public.protected_admin_identity p
+     ) OR
+     EXISTS (
+       SELECT p.user_id FROM public.protected_admin_identity p
+       EXCEPT
+       SELECT a.user_id FROM public.app_user a WHERE a.is_protected = true
+     ) OR
      to_regprocedure('public.ap02_calculate_user_rights(uuid)') IS NULL OR
      to_regprocedure('public.update_own_member_contact(text,text,text,text,text)') IS NULL OR
      to_regprocedure('public.ap02_can_read_mitglied(bigint)') IS NULL OR
@@ -37,7 +65,7 @@ DO $patch$
 DECLARE v_def text;v_old text;v_new text;
 BEGIN
   -- AP03.1/AP03.2: former members and applicants must not retain old board rights.
-  v_def := pg_get_functiondef('public.ap02_calculate_user_rights(uuid)'::regprocedure);
+  v_def := replace(pg_get_functiondef('public.ap02_calculate_user_rights(uuid)'::regprocedure), E'\r\n', E'\n');
   v_old := '  WHERE u.user_id = p_user_id';
   v_new := v_old || E'\n    AND public.ap03_has_current_membership(p_user_id)';
   IF (length(v_def)-length(replace(v_def,v_old,'')))/length(v_old) <> 1
@@ -46,7 +74,7 @@ BEGIN
 
   -- The own-data RPC is available to active or passive members, but not to
   -- unadmitted applicants or formally terminated former members.
-  v_def := pg_get_functiondef('public.update_own_member_contact(text,text,text,text,text)'::regprocedure);
+  v_def := replace(pg_get_functiondef('public.update_own_member_contact(text,text,text,text,text)'::regprocedure), E'\r\n', E'\n');
   v_old := '  select * into v_member from public.mitglied';
   v_new := E'  if not public.ap03_has_current_membership(auth.uid()) then\n    raise exception ''Keine bestehende Mitgliedschaft fuer die Eigendatenpflege.'' using errcode=''42501'';\n  end if;\n' || v_old;
   IF (length(v_def)-length(replace(v_def,v_old,'')))/length(v_old) <> 1
@@ -55,7 +83,7 @@ BEGIN
 
   -- A former legal representative may still read their own history, but no
   -- longer receives the live child's member record via representative scope.
-  v_def := pg_get_functiondef('public.ap02_can_read_mitglied(bigint)'::regprocedure);
+  v_def := replace(pg_get_functiondef('public.ap02_can_read_mitglied(bigint)'::regprocedure), E'\r\n', E'\n');
   v_old := '      WHERE v.vertreter_mitglied_id = a.mitglied_id';
   v_new := v_old || E'\n        AND public.ap03_has_current_membership(a.user_id)';
   IF (length(v_def)-length(replace(v_def,v_old,'')))/length(v_old) <> 1
@@ -63,7 +91,7 @@ BEGIN
   EXECUTE replace(v_def,v_old,v_new);
 
   -- Snapshot-based membership document access is only for current members.
-  v_def := pg_get_functiondef('public.can_access_mitgliedsaufnahme_vorstand_document(uuid,bigint)'::regprocedure);
+  v_def := replace(pg_get_functiondef('public.can_access_mitgliedsaufnahme_vorstand_document(uuid,bigint)'::regprocedure), E'\r\n', E'\n');
   v_old := '   where d.id=p_dokument_id and d.archiviert_at is null';
   v_new := v_old || E'\n     and public.ap03_has_current_membership(p_auth_user_id)';
   IF (length(v_def)-length(replace(v_def,v_old,'')))/length(v_old) <> 1
@@ -72,7 +100,7 @@ BEGIN
 
   -- A vote snapshot preserves history; it does not authorize a former member
   -- to cast or change a vote after their membership ends.
-  v_def := pg_get_functiondef('public.stimme_mitgliedsaufnahme_ab(bigint,text,text)'::regprocedure);
+  v_def := replace(pg_get_functiondef('public.stimme_mitgliedsaufnahme_ab(bigint,text,text)'::regprocedure), E'\r\n', E'\n');
   v_old := E'begin\n if caller is null or p_stimme';
   v_new := E'begin\n if not public.ap03_has_current_membership(caller) then raise exception ''Keine aktuelle Mitgliedschaft fuer die Stimmabgabe.'' using errcode=''42501''; end if;\n if caller is null or p_stimme';
   IF (length(v_def)-length(replace(v_def,v_old,'')))/length(v_old) <> 1
@@ -81,7 +109,7 @@ BEGIN
 
   -- The protected administrator must not lose all administrative access as a
   -- side effect of formal membership termination. Transfer protection first.
-  v_def := pg_get_functiondef('public.end_membership(bigint,text,text)'::regprocedure);
+  v_def := replace(pg_get_functiondef('public.end_membership(bigint,text,text)'::regprocedure), E'\r\n', E'\n');
   v_old := '  select m.* into v_main_member from public.mitglied m where m.id = p_main_member_id for update;';
   v_new := E'  if exists (select 1 from public.protected_admin_identity p join public.app_user au on au.user_id=p.user_id where au.mitglied_id=p_main_member_id) then\n    raise exception ''Geschuetzte Adminidentitaet muss vor dem Mitgliedschaftsende umgestellt werden.'' using errcode=''42501'';\n  end if;\n' || v_old;
   IF (length(v_def)-length(replace(v_def,v_old,'')))/length(v_old) <> 1

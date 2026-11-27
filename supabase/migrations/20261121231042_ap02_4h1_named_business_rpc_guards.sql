@@ -110,8 +110,35 @@ BEGIN
   IF v<>0 THEN
     RAISE EXCEPTION 'Noch % alte Rechtepruefungen in migrierten Funktionen',v;
   END IF;
-  IF NOT EXISTS(SELECT 1 FROM public.protected_admin_identity) THEN
-    RAISE EXCEPTION 'Geschuetzter Admin fehlt';
+  IF ((EXISTS (SELECT 1 FROM auth.users) OR
+      EXISTS (SELECT 1 FROM public.app_user) OR
+      EXISTS (SELECT 1 FROM public.mitglied) OR
+      EXISTS (SELECT 1 FROM public.parzelle) OR
+      EXISTS (SELECT 1 FROM public.pachtverhaeltnis) OR
+      EXISTS (SELECT 1 FROM public.dokument) OR
+      EXISTS (SELECT 1 FROM public.kommunikationsvorgang) OR
+      EXISTS (SELECT 1 FROM public.zaehler) OR
+      EXISTS (SELECT 1 FROM public.arbeitsstunde) OR
+      EXISTS (SELECT 1 FROM public.wartungsvertraege) OR
+      EXISTS (SELECT 1 FROM public.vereinsfunktion) OR
+      EXISTS (SELECT 1 FROM public.vereinsfunktion_besetzung) OR
+      EXISTS (SELECT 1 FROM public.vereinsfunktion_verwendung) OR
+      EXISTS (SELECT 1 FROM public.vereinsfunktion_vertretung)) AND NOT EXISTS (SELECT 1 FROM public.protected_admin_identity)) OR
+    EXISTS (
+      SELECT 1 FROM public.protected_admin_identity p
+      WHERE NOT EXISTS (SELECT 1 FROM public.app_user_zusatzrolle z
+        WHERE z.user_id=p.user_id AND z.zusatzrolle_code='admin')
+    ) OR
+    EXISTS (
+    SELECT a.user_id FROM public.app_user a WHERE a.is_protected = true
+    EXCEPT
+    SELECT p.user_id FROM public.protected_admin_identity p
+  ) OR EXISTS (
+    SELECT p.user_id FROM public.protected_admin_identity p
+    EXCEPT
+    SELECT a.user_id FROM public.app_user a WHERE a.is_protected = true
+  ) THEN
+    RAISE EXCEPTION 'Geschuetzter Admin ist inkonsistent';
   END IF;
 END $postcheck$;
 ;
