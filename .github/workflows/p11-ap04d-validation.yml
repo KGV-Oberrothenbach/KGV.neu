@@ -2,7 +2,7 @@ name: P11 AP-04.4 validation
 
 on:
   push:
-    branches: [work/p11-ap02a-demo-bereinigung]
+    branches: [work/p11-ap02a-demo-bereinigung, work/fr2-security-s01-s03-20261125]
   pull_request:
     branches: [work/p11-ap02a-demo-bereinigung]
   workflow_dispatch:
@@ -37,7 +37,6 @@ jobs:
         with:
           name: p11-ap04d-pglite-and-web-logs
           path: |
-            supabase/tests
             KGV.Web/dist
           if-no-files-found: warn
           retention-days: 7
@@ -57,18 +56,13 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install --yes poppler-utils
-      - uses: supabase/setup-cli@v1
-        with:
-          # config.toml is maintained with the repository's pinned 2.83 CLI.
-          # Newer CLIs reject its supported [inbucket] section before startup.
-          version: 2.83.0
       - name: Start isolated AP-04.4 Supabase stack
         # The E2E needs PostgreSQL, Auth/API, Storage and Edge Runtime only.
         # Excluding unrelated services reduces memory use, without suppressing
         # health checks for any service in the tested contract path.
-        run: supabase start -x studio,logflare,vector,realtime,imgproxy,mailpit,postgres-meta,supavisor
+        run: npx --yes supabase@2.121.0 start -x studio,logflare,vector,realtime,imgproxy,mailpit,postgres-meta,supavisor
       - name: Rebuild local-only database
-        run: supabase db reset --local
+        run: npx --yes supabase@2.121.0 db reset --local
       - name: Verify AP-01 local seed catalog
         run: |
           psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 <<'SQL'
@@ -97,30 +91,30 @@ jobs:
         shell: bash
         # This file is deliberately not discovered by the generic node:test
         # run: it requires the locally rebuilt PostgreSQL/Supabase stack.
-        run: P11_LOCAL_DB_URL="postgresql://postgres:postgres@127.0.0.1:54322/postgres" node supabase/tests/p11-ap04d-signed-change.e2e.mjs
+        run: P11_LOCAL_DB_URL="postgresql://postgres:postgres@127.0.0.1:54322/postgres" node supabase/tests/fr2-local-ci-runner.mjs T07
       - name: CX-01 – Real local signature workflow E2E
         shell: bash
         run: |
           set -euo pipefail
-          eval "$(supabase status -o env)"
+          eval "$(npx --yes supabase@2.121.0 status -o env)"
           P11_LOCAL_API_URL="$API_URL" \
           P11_LOCAL_ANON_KEY="$ANON_KEY" \
           P11_LOCAL_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" \
           P11_LOCAL_DB_URL="$DB_URL" \
           CX01_RESULT_PATH="p11-ap04d-diagnostics/cx01-results.json" \
-          node supabase/tests/cx01-signature-workflow.e2e.mjs
+          node supabase/tests/fr2-local-ci-runner.mjs CX01
       - name: CX-02 – Real signed lease PDF E2E
         shell: bash
         run: |
           set -euo pipefail
-          eval "$(supabase status -o env)"
+          eval "$(npx --yes supabase@2.121.0 status -o env)"
           P11_LOCAL_API_URL="$API_URL" \
           P11_LOCAL_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" \
           P11_LOCAL_DB_URL="$DB_URL" \
           CX01_RESULT_PATH="p11-ap04d-diagnostics/cx01-results.json" \
           CX02_PDF_PATH="p11-ap04d-diagnostics/cx02-signed-lease.pdf" \
           CX02_RESULT_PATH="p11-ap04d-diagnostics/cx02-results.json" \
-          node supabase/tests/cx02-signed-lease-pdf.e2e.mjs
+          node supabase/tests/fr2-local-ci-runner.mjs CX02
           pdfinfo p11-ap04d-diagnostics/cx02-signed-lease.pdf | tee p11-ap04d-diagnostics/cx02-pdfinfo.txt
           pdftotext -layout p11-ap04d-diagnostics/cx02-signed-lease.pdf p11-ap04d-diagnostics/cx02-signed-lease.txt
           node supabase/tests/cx02-pdf-text-qa.mjs p11-ap04d-diagnostics/cx02-signed-lease.txt p11-ap04d-diagnostics/cx02-results.json
@@ -129,44 +123,66 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          eval "$(supabase status -o env)"
+          eval "$(npx --yes supabase@2.121.0 status -o env)"
           P11_LOCAL_API_URL="$API_URL" \
           P11_LOCAL_ANON_KEY="$ANON_KEY" \
           P11_LOCAL_DB_URL="$DB_URL" \
           CX01_RESULT_PATH="p11-ap04d-diagnostics/cx01-results.json" \
           CX02_PDF_PATH="p11-ap04d-diagnostics/cx02-signed-lease.pdf" \
           CX03_RESULT_PATH="p11-ap04d-diagnostics/cx03-results.json" \
-          node supabase/tests/cx03-contract-change-history.e2e.mjs
+          node supabase/tests/fr2-local-ci-runner.mjs CX03
+      - name: Isolate synthetic club functions before CX-04
+        shell: bash
+        run: |
+          set -euo pipefail
+          psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 <<'SQL'
+          DO $$ DECLARE changed integer; BEGIN
+            UPDATE public.vereinsfunktion SET aktiv=false WHERE schluessel IN ('cx01_vorstand_1','cx01_vorstand_2') AND aktiv;
+            GET DIAGNOSTICS changed = ROW_COUNT;
+            IF changed <> 2 THEN RAISE EXCEPTION 'Unexpected synthetic function inventory'; END IF;
+          END $$;
+          SQL
       - name: CX-04 – Membership application and board decision E2E
         shell: bash
         run: |
           set -euo pipefail
-          eval "$(supabase status -o env)"
+          eval "$(npx --yes supabase@2.121.0 status -o env)"
           P11_LOCAL_API_URL="$API_URL" \
           P11_LOCAL_ANON_KEY="$ANON_KEY" \
           P11_LOCAL_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" \
           P11_LOCAL_DB_URL="$DB_URL" \
           CX04_PDF_PATH="p11-ap04d-diagnostics/cx04-signed-membership-application.pdf" \
           CX04_RESULT_PATH="p11-ap04d-diagnostics/cx04-results.json" \
-          node supabase/tests/cx04-membership-application-board.e2e.mjs
+          node supabase/tests/fr2-local-ci-runner.mjs CX04
           pdfinfo p11-ap04d-diagnostics/cx04-signed-membership-application.pdf | tee p11-ap04d-diagnostics/cx04-pdfinfo.txt
           pdftotext -layout p11-ap04d-diagnostics/cx04-signed-membership-application.pdf p11-ap04d-diagnostics/cx04-signed-membership-application.txt
       - name: CX-05 – Historical contract registration E2E
         shell: bash
         run: |
           set -euo pipefail
-          eval "$(supabase status -o env)"
+          eval "$(npx --yes supabase@2.121.0 status -o env)"
           P11_LOCAL_API_URL="$API_URL" \
           P11_LOCAL_ANON_KEY="$ANON_KEY" \
           P11_LOCAL_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" \
           P11_LOCAL_DB_URL="$DB_URL" \
           CX05_RESULT_PATH="p11-ap04d-diagnostics/cx05-results.json" \
-          node supabase/tests/cx05-historical-contract.e2e.mjs
+          node supabase/tests/fr2-local-ci-runner.mjs CX05
+      - name: Isolate synthetic club functions before CX-06
+        shell: bash
+        run: |
+          set -euo pipefail
+          psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 <<'SQL'
+          DO $$ DECLARE changed integer; BEGIN
+            UPDATE public.vereinsfunktion SET aktiv=false WHERE schluessel IN ('cx04_vorstand_1','cx04_vorstand_2','cx04_entscheidung') AND aktiv;
+            GET DIAGNOSTICS changed = ROW_COUNT;
+            IF changed <> 3 THEN RAISE EXCEPTION 'Unexpected synthetic function inventory'; END IF;
+          END $$;
+          SQL
       - name: CX-06 – Maintenance contract document workflow E2E
         shell: bash
         run: |
           set -euo pipefail
-          eval "$(supabase status -o env)"
+          eval "$(npx --yes supabase@2.121.0 status -o env)"
           P11_LOCAL_API_URL="$API_URL" \
           P11_LOCAL_ANON_KEY="$ANON_KEY" \
           P11_LOCAL_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" \
@@ -174,7 +190,7 @@ jobs:
           P11_LOCAL_DB_URL="$DB_URL" \
           CX06_PDF_PATH="p11-ap04d-diagnostics/cx06-signed-maintenance-contract.pdf" \
           CX06_RESULT_PATH="p11-ap04d-diagnostics/cx06-results.json" \
-          node supabase/tests/cx06-maintenance-contract.e2e.mjs
+          node supabase/tests/fr2-local-ci-runner.mjs CX06
           pdfinfo p11-ap04d-diagnostics/cx06-signed-maintenance-contract.pdf | tee p11-ap04d-diagnostics/cx06-pdfinfo.txt
           pdftotext -layout p11-ap04d-diagnostics/cx06-signed-maintenance-contract.pdf p11-ap04d-diagnostics/cx06-signed-maintenance-contract.txt
           ! grep -Fq '{{' p11-ap04d-diagnostics/cx06-signed-maintenance-contract.txt
@@ -190,8 +206,8 @@ jobs:
           mkdir -p p11-ap04d-diagnostics
           docker ps -a --no-trunc > p11-ap04d-diagnostics/docker-ps.txt
           docker stats --no-stream > p11-ap04d-diagnostics/docker-stats.txt || true
-          docker inspect $(docker ps -aq) --format '{{.Name}} exit={{.State.ExitCode}} oom={{.State.OOMKilled}} error={{.State.Error}}' > p11-ap04d-diagnostics/docker-state.txt || true
-          docker logs supabase_db_03_Arbeitsstand > p11-ap04d-diagnostics/postgres.log 2>&1 || true
+          docker inspect $(docker ps -aq) --format '{{.Name}} exit={{.State.ExitCode}} oom={{.State.OOMKilled}}' > p11-ap04d-diagnostics/docker-state.txt || true
+          # Raw PostgreSQL logs may include authentication data; do not publish them.
       - name: Publish AP-04.4 diagnostics
         if: always()
         uses: actions/upload-artifact@v4
@@ -202,7 +218,7 @@ jobs:
           retention-days: 7
       - name: Stop local Supabase stack
         if: always()
-        run: supabase stop --no-backup
+        run: npx --yes supabase@2.121.0 stop --no-backup
 
   dotnet-and-maui:
     runs-on: windows-latest

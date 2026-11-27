@@ -7,6 +7,27 @@ DECLARE
   v_primary integer;
   v_secondary integer;
 BEGIN
+  -- A fresh local database has no association master data before seed.sql.
+  -- Non-empty databases still run every inventory and naming guard below.
+  IF NOT EXISTS (SELECT 1 FROM public.vereinsfunktion) THEN
+    IF (EXISTS (SELECT 1 FROM auth.users) OR
+      EXISTS (SELECT 1 FROM public.app_user) OR
+      EXISTS (SELECT 1 FROM public.mitglied) OR
+      EXISTS (SELECT 1 FROM public.parzelle) OR
+      EXISTS (SELECT 1 FROM public.pachtverhaeltnis) OR
+      EXISTS (SELECT 1 FROM public.dokument) OR
+      EXISTS (SELECT 1 FROM public.kommunikationsvorgang) OR
+      EXISTS (SELECT 1 FROM public.zaehler) OR
+      EXISTS (SELECT 1 FROM public.arbeitsstunde) OR
+      EXISTS (SELECT 1 FROM public.wartungsvertraege) OR
+      EXISTS (SELECT 1 FROM public.vereinsfunktion_besetzung) OR
+      EXISTS (SELECT 1 FROM public.vereinsfunktion_verwendung) OR
+      EXISTS (SELECT 1 FROM public.vereinsfunktion_vertretung)) THEN
+      RAISE EXCEPTION 'Vereinsfunktionen fehlen bei vorhandenem Bestand' USING ERRCODE='55000';
+    END IF;
+    RETURN;
+  END IF;
+
   SELECT count(*) INTO v_primary
   FROM public.vereinsfunktion
   WHERE schluessel IN ('vorsitz_1', 'vorstandsvorsitzender');
@@ -65,6 +86,25 @@ END;
 
 DO $post$
 BEGIN
+  IF NOT EXISTS (SELECT 1 FROM public.vereinsfunktion) THEN
+    IF (EXISTS (SELECT 1 FROM auth.users) OR
+      EXISTS (SELECT 1 FROM public.app_user) OR
+      EXISTS (SELECT 1 FROM public.mitglied) OR
+      EXISTS (SELECT 1 FROM public.parzelle) OR
+      EXISTS (SELECT 1 FROM public.pachtverhaeltnis) OR
+      EXISTS (SELECT 1 FROM public.dokument) OR
+      EXISTS (SELECT 1 FROM public.kommunikationsvorgang) OR
+      EXISTS (SELECT 1 FROM public.zaehler) OR
+      EXISTS (SELECT 1 FROM public.arbeitsstunde) OR
+      EXISTS (SELECT 1 FROM public.wartungsvertraege) OR
+      EXISTS (SELECT 1 FROM public.vereinsfunktion_besetzung) OR
+      EXISTS (SELECT 1 FROM public.vereinsfunktion_verwendung) OR
+      EXISTS (SELECT 1 FROM public.vereinsfunktion_vertretung)) THEN
+      RAISE EXCEPTION 'Vereinsfunktionen fehlen bei vorhandenem Bestand' USING ERRCODE='55000';
+    END IF;
+    RETURN;
+  END IF;
+
   IF (SELECT count(*) FROM public.vereinsfunktion
       WHERE schluessel IN ('vorsitz_1','vorstandsvorsitzender') AND bezeichnung='1. Vorsitzender') <> 1
   OR (SELECT count(*) FROM public.vereinsfunktion

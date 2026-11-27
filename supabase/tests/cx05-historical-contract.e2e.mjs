@@ -1,3 +1,27 @@
+// Local synthetic CI only. No external API or database targets.
+{ const fr2Db=new URL(globalThis.process.env.P11_LOCAL_DB_URL);
+  if(fr2Db.protocol!=="postgresql:"||fr2Db.hostname!=="127.0.0.1"||fr2Db.pathname!=="/postgres"||fr2Db.search||fr2Db.hash)throw Error("NONLOCAL_DB");
+  if(globalThis.process.platform==="win32"&&!/^supabase_db_kgvfr2ci[a-f0-9]{12}$/.test(globalThis.process.env.FR2_LOCAL_DB_CONTAINER??""))throw Error("LOCAL_CONTAINER_REQUIRED");
+  const api=new URL(globalThis.process.env.P11_LOCAL_API_URL);
+  if(api.protocol!=="http:"||api.hostname!=="127.0.0.1"||api.username||api.password||api.pathname!=="/"||api.search||api.hash)throw Error("NONLOCAL_API");
+  const fr2Fetch=globalThis.fetch; globalThis.fetch=(url,options={})=>{if(new URL(url).origin!==api.origin)throw Error("NONLOCAL_HTTP_TARGET");return fr2Fetch(url,{...options,redirect:"error"});};
+}
+async function fr2VerifyActors(users){
+  const expected={"manager":{"allowed":["historische_vertraege.erfassen"],"denied":[]},"outsider":{"allowed":[],"denied":[]},"revoked":{"allowed":[],"denied":["historische_vertraege.erfassen"]},"a":{"allowed":[],"denied":[]},"b":{"allowed":[],"denied":[]},"foreign":{"allowed":[],"denied":[]}};
+  if(Object.keys(users).sort().join(',')!==Object.keys(expected).sort().join(','))throw Error('FR2_ACTOR_SET_MISMATCH');
+  for(const [label,user] of Object.entries(users)){
+    const rpc=async(name)=>{
+      const response=await fetch(process.env.P11_LOCAL_API_URL+'/rest/v1/rpc/'+name,{method:'POST',headers:{apikey:process.env.P11_LOCAL_ANON_KEY,Authorization:'Bearer '+user.token,'Content-Type':'application/json'},body:'{}'});
+      if(response.status!==200)throw Error('FR2_ACTOR_RIGHTS_HTTP_FAILED');
+      return response.json();
+    };
+    if(await rpc('fr212_actor_session_valid')!==true)throw Error('FR2_ACTOR_SESSION_INVALID');
+    const rights=await rpc('ap02_preview_effective_rights');
+    if(!Array.isArray(rights)||rights.length!==55||JSON.stringify(rights.filter(r=>r.erlaubt).map(r=>r.code).sort())!==JSON.stringify(expected[label].allowed))throw Error('FR2_ACTOR_RIGHTS_MISMATCH');
+    if(expected[label].denied.some(code=>!rights.some(r=>r.code===code&&r.individuell_entzogen===true&&r.erlaubt===false)))throw Error('FR2_ACTOR_DENY_MISMATCH');
+  }
+  console.log('KGV_FR2_ACTOR_RIGHTS_PASS '+Object.keys(expected).length);
+}
 // CX-05 real local E2E: local Auth/JWT and PostgREST/RPC against a freshly
 // rebuilt Supabase stack. Document rows are explicit local-only metadata
 // fixtures; this test performs and claims no Google Drive upload.
@@ -23,7 +47,7 @@ function need(name){const value=process.env[name];if(!value)throw new Error(`${n
 async function check(name,kind,fn){try{await fn();results.push({name,kind,status:"passed"});console.log(`ok - ${name}`);}catch(error){results.push({name,kind,status:"failed",message:error.message});console.error(`not ok - ${name}: ${error.message}`);throw error;}}
 async function http(path,{method="GET",token,key=anon,body,headers={}}={}){const response=await fetch(`${api}${path}`,{method,headers:{apikey:key,...(token?{Authorization:`Bearer ${token}`}:{}) ,...(body===undefined?{}:{"Content-Type":"application/json"}),...headers},body:body===undefined?undefined:JSON.stringify(body)});const type=response.headers.get("content-type")??"";const data=type.includes("json")?await response.json():await response.text();return{response,data};}
 async function rpc(name,token,body,key=anon){return http(`/rest/v1/rpc/${name}`,{method:"POST",token,key,body});}
-function psql(args,input){const command=process.platform==="win32"?"docker":"psql";const commandArgs=process.platform==="win32"?["exec","-i","supabase_db_03_Arbeitsstand","psql","-U","postgres","-d","postgres","-X",...args]:[db,"-X",...args];const run=spawnSync(command,commandArgs,{encoding:"utf8",input});if(run.status!==0)throw new Error(`psql failed:\n${run.stdout}\n${run.stderr}`);return run.stdout;}
+function psql(args,input){const command=process.platform==="win32"?"docker":"psql";const commandArgs=process.platform==="win32"?["exec","-i",process.env.FR2_LOCAL_DB_CONTAINER,"psql","-U","postgres","-d","postgres","-X",...args]:[db,"-X",...args];const run=spawnSync(command,commandArgs,{encoding:"utf8",input});if(run.status!==0)throw new Error(`psql failed:\n${run.stdout}\n${run.stderr}`);return run.stdout;}
 function sql(text){return psql(["-q","-t","-A","-v","ON_ERROR_STOP=1","-P","tuples_only=on"],text).trim();}
 async function signup(label){const email=`cx05.${label}@example.test`;const response=await http("/auth/v1/signup",{method:"POST",body:{email,password}});assert.equal(response.response.status,200,`${label}: ${JSON.stringify(response.data)}`);return{id:response.data.user.id,token:response.data.access_token,email};}
 async function fixture(users){const args=["-q","-t","-A","-v","ON_ERROR_STOP=1"];for(const [key,value] of Object.entries(users))args.push("-v",`${key}_user_id=${value.id}`);const output=psql(args,await readFile(fixtureFile,"utf8"));const line=output.split(/\r?\n/).findLast(x=>x.trim().startsWith("{"));if(!line)throw new Error(`fixture returned no JSON: ${output}`);return JSON.parse(line);}
@@ -40,7 +64,7 @@ try{
  const users={};
  await check("six real local Auth sessions are issued","positive",async()=>{for(const name of ["manager","outsider","revoked","a","b","foreign"])users[name]=await signup(name);assert.equal(new Set(Object.values(users).map(x=>x.id)).size,6);});
  let ids;
- await check("synthetic members, parcels, leases and timeline fixtures are isolated","positive",async()=>{ids=await fixture(users);assert.notEqual(ids.a,ids.b);assert.equal(count("select count(*) from public.parzelle where \"Anlage\"='CX-05 lokal'"),7);});
+ await check("synthetic members, parcels, leases and timeline fixtures are isolated","positive",async()=>{ids=await fixture(users); await fr2VerifyActors(users);assert.notEqual(ids.a,ids.b);assert.equal(count("select count(*) from public.parzelle where \"Anlage\"='CX-05 lokal'"),7);});
  const admissionBefore=count("select count(*) from public.mitgliedsaufnahme_vorstandsbearbeitung");
  const membersBefore=count("select count(*) from public.mitglied");
 
@@ -77,4 +101,4 @@ try{
  assert.equal(count("select count(*) from public.mitgliedsaufnahme_vorstandsbearbeitung"),admissionBefore);
  report={complete:true,positive_passed:results.filter(x=>x.kind==="positive"&&x.status==="passed").length,negative_passed:results.filter(x=>x.kind==="negative"&&x.status==="passed").length,cases:results,historical_numbers:numbers,operation_ids:operationIds,ma_pv_document_id:Number(first.document.id),pv_document_id:Number(follow.document.id),multi_parcel_versions:2,external_storage:false,local_only_document_metadata:true,separate_ma_and_pv_originals:"open_product_decision"};
 }catch(error){report={complete:false,error:error.message,cases:results};process.exitCode=1;}
-finally{await mkdir(dirname(outputJson),{recursive:true});await writeFile(outputJson,JSON.stringify(report,null,2));console.log(JSON.stringify(report,null,2));}
+finally{await mkdir(dirname(outputJson),{recursive:true});await writeFile(outputJson,JSON.stringify(report, (key, value) => ["error", "message"].includes(key) ? undefined : value, 2));console.log(JSON.stringify(report, (key, value) => ["error", "message"].includes(key) ? undefined : value, 2));}

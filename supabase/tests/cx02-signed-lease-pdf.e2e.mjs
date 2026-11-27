@@ -1,3 +1,11 @@
+// Local synthetic CI only. No external API or database targets.
+{ const fr2Db=new URL(globalThis.process.env.P11_LOCAL_DB_URL);
+  if(fr2Db.protocol!=="postgresql:"||fr2Db.hostname!=="127.0.0.1"||fr2Db.pathname!=="/postgres"||fr2Db.search||fr2Db.hash)throw Error("NONLOCAL_DB");
+  if(globalThis.process.platform==="win32"&&!/^supabase_db_kgvfr2ci[a-f0-9]{12}$/.test(globalThis.process.env.FR2_LOCAL_DB_CONTAINER??""))throw Error("LOCAL_CONTAINER_REQUIRED");
+  const api=new URL(globalThis.process.env.P11_LOCAL_API_URL);
+  if(api.protocol!=="http:"||api.hostname!=="127.0.0.1"||api.username||api.password||api.pathname!=="/"||api.search||api.hash)throw Error("NONLOCAL_API");
+  const fr2Fetch=globalThis.fetch; globalThis.fetch=(url,options={})=>{if(new URL(url).origin!==api.origin)throw Error("NONLOCAL_HTTP_TARGET");return fr2Fetch(url,{...options,redirect:"error"});};
+}
 // CX-02 real local E2E: published v9 artifacts from private Storage, the
 // productive renderer core, persisted PNG signatures, and a signed PDF.
 import assert from "node:assert/strict";
@@ -90,7 +98,7 @@ delete from storage.objects
 commit;`;
   const command = process.platform === "win32" ? "docker" : "psql";
   const args = process.platform === "win32"
-    ? ["exec", "-i", "supabase_db_03_Arbeitsstand", "psql", "-U", "postgres", "-d", "postgres", "-X", "-v", "ON_ERROR_STOP=1"]
+    ? ["exec", "-i", process.env.FR2_LOCAL_DB_CONTAINER, "psql", "-U", "postgres", "-d", "postgres", "-X", "-v", "ON_ERROR_STOP=1"]
     : [dbUrl, "-X", "-v", "ON_ERROR_STOP=1"];
   const result = spawnSync(command, args, { encoding: "utf8", input: sql });
   if (result.status !== 0) throw new Error(`local replay placeholder cleanup failed: ${result.stdout}\n${result.stderr}`);
@@ -320,6 +328,6 @@ try {
 } finally {
   if (resultPath && finalReport) {
     await mkdir(dirname(resultPath), { recursive: true });
-    await writeFile(resultPath, `${JSON.stringify(finalReport, null, 2)}\n`, "utf8");
+    await writeFile(resultPath, `${JSON.stringify(finalReport, (key, value) => ["error", "message"].includes(key) ? undefined : value, 2)}\n`, "utf8");
   }
 }

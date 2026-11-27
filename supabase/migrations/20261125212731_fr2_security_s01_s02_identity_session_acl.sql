@@ -16,6 +16,7 @@ DECLARE
 BEGIN
   v_sig := 'public.can_access_mitgliedsaufnahme_vorstand_document(uuid,bigint)'::regprocedure;
   v_def := pg_get_functiondef(v_sig);
+  v_def := replace(v_def, E'\r\n', E'\n');
   IF md5(v_def) <> 'f8eb796ce2dff96930d911ffdb2a21da' THEN
     RAISE EXCEPTION 'S01: unexpected function definition; review migration baseline';
   END IF;
@@ -33,6 +34,7 @@ BEGIN
 
   v_sig := 'public.ist_wartungsvertrag_entscheidung_berechtigt(uuid,date)'::regprocedure;
   v_def := pg_get_functiondef(v_sig);
+  v_def := replace(v_def, E'\r\n', E'\n');
   IF md5(v_def) <> '782e7c4459030ea2e9ff72274b994ece' THEN
     RAISE EXCEPTION 'S02: unexpected function definition; review migration baseline';
   END IF;

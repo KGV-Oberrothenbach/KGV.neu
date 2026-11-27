@@ -6,7 +6,7 @@ DECLARE
   s record;
 BEGIN
   WITH funcs AS (
-  SELECT p.oid,p.proname,md5(pg_get_functiondef(p.oid)) AS fp,
+  SELECT p.oid,p.proname,md5(replace(pg_get_functiondef(p.oid), E'\r\n', E'\n')) AS fp,
     has_function_privilege('anon',p.oid,'execute') AS anon,
     has_function_privilege('authenticated',p.oid,'execute') AS authenticated,
     has_function_privilege('service_role',p.oid,'execute') AS service_role
@@ -15,15 +15,18 @@ BEGIN
 ), targets AS (
   SELECT count(*) AS n,md5(string_agg(fp,E'\n' ORDER BY proname)) AS digest,string_agg(anon::int::text,'' ORDER BY proname) AS anon,string_agg(authenticated::int::text,'' ORDER BY proname) AS authenticated,string_agg(service_role::int::text,'' ORDER BY proname) AS service_role FROM funcs
 ), bindings AS (
-  SELECT count(*) AS n,md5(string_agg(f.proname||'|'||n.nspname||'.'||c.relname||'|'||t.tgname||'|'||t.tgtype::text||'|'||t.tgenabled::text||'|'||t.tgdeferrable::text||'|'||t.tginitdeferred::text||'|'||t.tgattr::text||'|'||encode(t.tgargs,'hex')||'|'||coalesce(t.tgqual::text,''),E'\n' ORDER BY f.proname,t.tgname)) AS digest FROM funcs f JOIN pg_trigger t ON t.tgfoid=f.oid JOIN pg_class c ON c.oid=t.tgrelid JOIN pg_namespace n ON n.oid=c.relnamespace
+  SELECT count(*) AS n,md5(string_agg(f.proname||'|'||n.nspname||'.'||c.relname||'|'||t.tgname||'|'||t.tgenabled::text||'|'||t.tgdeferrable::text||'|'||t.tginitdeferred::text||'|'||encode(t.tgargs,'hex')||'|'||replace(pg_get_triggerdef(t.oid,true), E'\r\n', E'\n'),E'\n' ORDER BY f.proname,t.tgname)) AS digest FROM funcs f JOIN pg_trigger t ON t.tgfoid=f.oid JOIN pg_class c ON c.oid=t.tgrelid JOIN pg_namespace n ON n.oid=c.relnamespace
 )
   SELECT targets.*,bindings.n AS binding_count,bindings.digest AS binding_digest INTO s FROM targets CROSS JOIN bindings;
-  IF s.n<>28 OR s.digest IS DISTINCT FROM '71f939404493b8501ab1cfb3f813a68b'
-    OR s.binding_count<>26 OR s.binding_digest IS DISTINCT FROM 'beb65ea2b421d6cd705d88f7ae6edd36'
+  -- The first source digest is deployed; the second is the exact fresh-replay
+  -- repository set. Trigger bindings use semantic definitions, not pg_node_tree OIDs.
+  IF s.n<>28 OR s.digest <> ALL(ARRAY['71f939404493b8501ab1cfb3f813a68b','9ab427664903b8672255fb9729237d3e'])
+    OR s.binding_count<>26 OR s.binding_digest IS DISTINCT FROM '1dc8d6bb91461031f6b36967b21d1ad7'
     OR s.anon IS DISTINCT FROM '0111111111111100111110011011'
     OR s.authenticated IS DISTINCT FROM '1111111111111111111111111111'
     OR s.service_role IS DISTINCT FROM '1111111111111111111111111111' THEN
-    RAISE EXCEPTION 'Unexpected trigger/resolver baseline';
+    RAISE EXCEPTION 'Unexpected trigger/resolver baseline: n=%, digest=%, bindings=%, binding_digest=%, anon=%, authenticated=%, service_role=%',
+      s.n, s.digest, s.binding_count, s.binding_digest, s.anon, s.authenticated, s.service_role;
   END IF;
   FOREACH f IN ARRAY ARRAY[
     'public.create_wartungsvertrag_dokument_workflow()'::regprocedure,

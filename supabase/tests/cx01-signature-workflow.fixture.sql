@@ -22,18 +22,31 @@ insert into public.mitglied(name, vorname, aktiv, aufnahme_status, auth_user_id)
 values ('CX01 Außenstehend', 'Olivia', true, 'aufgenommen', :'outsider_user_id')
 returning id as outsider_member_id \gset
 
-insert into public.app_user(user_id, mitglied_id, role, permission_grants, permission_revocations)
-values
-  (:'manager_user_id', :manager_member_id, 'admin', 524288, 0),
-  (:'tenant_user_id', :tenant_member_id, 'user', 0, 0),
-  (:'board1_user_id', :board1_member_id, 'user', 0, 0),
-  (:'board2_user_id', :board2_member_id, 'user', 0, 0),
-  (:'outsider_user_id', :outsider_member_id, 'user', 0, 0)
-on conflict (user_id) do update
-set mitglied_id = excluded.mitglied_id,
-    role = excluded.role,
-    permission_grants = excluded.permission_grants,
-    permission_revocations = excluded.permission_revocations;
+-- FR2: only synthetic identities created in this fixture; no administrative role.
+create temporary table fr2_fixture_actor(label text primary key,uid uuid not null unique,mid bigint not null,grants text[] not null,denials text[] not null) on commit drop;
+insert into fr2_fixture_actor values
+('manager', :'manager_user_id'::uuid, :manager_member_id, ARRAY['pachtvertrag.verwalten','vertrag.vorbereiten','mitglied.lesen','parzelle.lesen','parzelle.bearbeiten','vorgang.bearbeiten']::text[], ARRAY[]::text[]),
+('tenant', :'tenant_user_id'::uuid, :tenant_member_id, ARRAY[]::text[], ARRAY[]::text[]),
+('board1', :'board1_user_id'::uuid, :board1_member_id, ARRAY[]::text[], ARRAY[]::text[]),
+('board2', :'board2_user_id'::uuid, :board2_member_id, ARRAY[]::text[], ARRAY[]::text[]),
+('outsider', :'outsider_user_id'::uuid, :outsider_member_id, ARRAY[]::text[], ARRAY[]::text[]);
+do $fr2$ begin
+ if exists(select 1 from fr2_fixture_actor x where not exists(select 1 from public.app_user a join public.mitglied m on m.id=a.mitglied_id and m.auth_user_id=a.user_id where a.user_id=x.uid and a.mitglied_id=x.mid and not a.is_protected)) then raise exception 'FR2_FIXTURE_LINK_INVALID'; end if;
+ if exists(select 1 from fr2_fixture_actor x where not exists(select 1 from auth.sessions s where s.user_id=x.uid and (s.not_after is null or s.not_after>now()))) then raise exception 'FR2_FIXTURE_SESSION_MISSING'; end if;
+ if exists(select 1 from fr2_fixture_actor x join public.app_user_zusatzrolle z on z.user_id=x.uid) then raise exception 'FR2_FIXTURE_UNEXPECTED_ADDITIONAL_ROLE'; end if;
+end $fr2$;
+insert into public.app_user_hauptrolle(user_id,hauptrolle_code) select uid,'mitglied' from fr2_fixture_actor on conflict(user_id) do update set hauptrolle_code=excluded.hauptrolle_code;
+insert into public.app_user_fachrecht_override(user_id,fachrecht_code,entscheidung,grund)
+ select uid,r,'grant','FR2 synthetic CX01 fixture' from fr2_fixture_actor cross join lateral unnest(grants) r;
+do $fr2$ begin
+ if exists(select 1 from fr2_fixture_actor x cross join lateral unnest(x.grants) r where not exists(select 1 from public.ap02_calculate_user_rights(x.uid) p where p.code=r and p.erlaubt)) then raise exception 'FR2_FIXTURE_GRANT_NOT_EFFECTIVE'; end if;
+end $fr2$;
+insert into public.app_user_fachrecht_override(user_id,fachrecht_code,entscheidung,grund)
+ select uid,r,'deny','FR2 synthetic CX01 denial' from fr2_fixture_actor cross join lateral unnest(denials) r where true
+ on conflict(user_id,fachrecht_code) do update set entscheidung=excluded.entscheidung,grund=excluded.grund;
+do $fr2$ begin
+ if exists(select 1 from fr2_fixture_actor x cross join lateral public.ap02_calculate_user_rights(x.uid) p where p.erlaubt is distinct from (p.code=any(x.grants) and not p.code=any(x.denials))) then raise exception 'FR2_FIXTURE_RIGHT_SET_MISMATCH'; end if;
+end $fr2$;
 
 set local session_replication_role = replica;
 insert into public.parzelle(garten_nr, "Anlage", flaeche_qm, hat_strom, hat_wasser)

@@ -1,3 +1,11 @@
+// Local synthetic CI only. No external API or database targets.
+{ const fr2Db=new URL(globalThis.process.env.P11_LOCAL_DB_URL);
+  if(fr2Db.protocol!=="postgresql:"||fr2Db.hostname!=="127.0.0.1"||fr2Db.pathname!=="/postgres"||fr2Db.search||fr2Db.hash)throw Error("NONLOCAL_DB");
+  if(globalThis.process.platform==="win32"&&!/^supabase_db_kgvfr2ci[a-f0-9]{12}$/.test(globalThis.process.env.FR2_LOCAL_DB_CONTAINER??""))throw Error("LOCAL_CONTAINER_REQUIRED");
+  const api=new URL(globalThis.process.env.P11_LOCAL_API_URL);
+  if(api.protocol!=="http:"||api.hostname!=="127.0.0.1"||api.username||api.password||api.pathname!=="/"||api.search||api.hash)throw Error("NONLOCAL_API");
+  const fr2Fetch=globalThis.fetch; globalThis.fetch=(url,options={})=>{if(new URL(url).origin!==api.origin)throw Error("NONLOCAL_HTTP_TARGET");return fr2Fetch(url,{...options,redirect:"error"});};
+}
 // CX-03 local database E2E. CX-01 supplies real users/signatures and CX-02
 // supplies the rendered PDF. Only final-document metadata is a local fixture;
 // no Google Drive upload is claimed or simulated.
@@ -24,7 +32,7 @@ function required(name) {
 
 function psql(sql, tuplesOnly = false) {
   const args = process.platform === "win32"
-    ? ["exec", "-i", "supabase_db_03_Arbeitsstand", "psql", "-U", "postgres", "-d", "postgres", "-X", "-v", "ON_ERROR_STOP=1"]
+    ? ["exec", "-i", process.env.FR2_LOCAL_DB_CONTAINER, "psql", "-U", "postgres", "-d", "postgres", "-X", "-v", "ON_ERROR_STOP=1"]
     : [dbUrl, "-X", "-v", "ON_ERROR_STOP=1"];
   if (tuplesOnly) args.push("-q", "-t", "-A");
   const result = spawnSync(process.platform === "win32" ? "docker" : "psql", args, { input: sql, encoding: "utf8" });
@@ -63,6 +71,7 @@ const parcelId = Number(cx01.parcel_id);
 
 let token;
 let managerId;
+let fr2SessionId;
 let ids;
 let report;
 try {
@@ -71,6 +80,8 @@ try {
     assert.equal(login.response.status, 200, JSON.stringify(login.data));
     token = login.data.access_token;
     managerId = login.data.user.id;
+    fr2SessionId=JSON.parse(Buffer.from(token.split('.')[1],'base64url').toString('utf8')).session_id;
+    assert.match(fr2SessionId,/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i);
   });
 
   await check("CX-02 PDF is represented only by a local provenance fixture", "positive", async () => {
@@ -106,7 +117,7 @@ try {
       begin
         select pachtvertragsfassung_id into v_version from public.register_pachtvertrags_neufassung(
           ${ids.lease_id},${ids.predecessor_id},${ids.document_id},current_date,current_date,'${managerId}'::uuid);
-        perform set_config('request.jwt.claim.sub','${managerId}',true);
+        perform set_config('request.jwt.claim.sub','${managerId}',true); perform set_config('request.jwt.claims',jsonb_build_object('sub','${managerId}','role','service_role','session_id','${fr2SessionId}')::text,true);
         begin
           perform public.wende_signierte_parzellen_vertragsaenderung_an(${ids.change_id});
           raise exception 'premature application unexpectedly succeeded';
@@ -173,7 +184,7 @@ try {
     psql(`
       begin;
       set local role authenticated;
-      select set_config('request.jwt.claim.sub','${managerId}',true);
+      select set_config('request.jwt.claim.sub','${managerId}',true); select set_config('request.jwt.claim.role','authenticated',true); select set_config('request.jwt.claims',jsonb_build_object('sub','${managerId}','role','authenticated','session_id','${fr2SessionId}')::text,true);
       select set_config('kgv.pacht_aenderung_freigabe','${ids.change_id}',true);
       do $test$ begin
         begin update public.parzelle set flaeche_qm=999 where id=${parcelId};
@@ -202,13 +213,15 @@ try {
   });
 
   await check("ended lease and revoked effective permission prevent application", "negative", async () => {
-    psql(`begin; update public.pachtverhaeltnis set beendet_am=current_date where id=${ids.lease_id}; set local role authenticated; select set_config('request.jwt.claim.sub','${managerId}',true); do $test$ begin begin perform public.wende_signierte_parzellen_vertragsaenderung_an(${ids.change_id}); raise exception 'ended lease applied'; exception when sqlstate '23514' then null; end; end $test$; rollback;`);
-    psql(`update public.app_user set permission_revocations=permission_revocations|524288 where user_id='${managerId}'::uuid;`);
+    psql(`begin; update public.pachtverhaeltnis set beendet_am=current_date where id=${ids.lease_id}; set local role authenticated; select set_config('request.jwt.claim.sub','${managerId}',true); select set_config('request.jwt.claim.role','authenticated',true); select set_config('request.jwt.claims',jsonb_build_object('sub','${managerId}','role','authenticated','session_id','${fr2SessionId}')::text,true); do $test$ begin begin perform public.wende_signierte_parzellen_vertragsaenderung_an(${ids.change_id}); raise exception 'ended lease applied'; exception when sqlstate '23514' then null; end; end $test$; rollback;`);
+    psql(`update public.app_user_fachrecht_override set entscheidung='deny' where user_id='${managerId}'::uuid and fachrecht_code='pachtvertrag.verwalten' and entscheidung='grant';`);
     try {
+      const permission=await http("/rest/v1/rpc/ap02_has_effective_right",{method:"POST",token,body:{p_fachrecht:"pachtvertrag.verwalten"}}); assert.equal(permission.response.status,200); assert.equal(permission.data,false);
       const denied = await http("/rest/v1/rpc/wende_signierte_parzellen_vertragsaenderung_an", { method: "POST", token, body: { p_pacht_vertragsaenderung_id: ids.change_id } });
       assert.equal(denied.response.status, 403, JSON.stringify(denied.data));
     } finally {
-      psql(`update public.app_user set permission_revocations=permission_revocations & (~524288::bigint) where user_id='${managerId}'::uuid;`);
+      psql(`update public.app_user_fachrecht_override set entscheidung='grant' where user_id='${managerId}'::uuid and fachrecht_code='pachtvertrag.verwalten' and entscheidung='deny';`);
+      const permission=await http("/rest/v1/rpc/ap02_has_effective_right",{method:"POST",token,body:{p_fachrecht:"pachtvertrag.verwalten"}}); assert.equal(permission.response.status,200); assert.equal(permission.data,true);
     }
   });
 
@@ -268,6 +281,6 @@ try {
 } finally {
   if (resultPath) {
     await mkdir(dirname(resultPath), { recursive: true });
-    await writeFile(resultPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
+    await writeFile(resultPath, `${JSON.stringify(report, (key, value) => ["error", "message"].includes(key) ? undefined : value, 2)}\n`, "utf8");
   }
 }

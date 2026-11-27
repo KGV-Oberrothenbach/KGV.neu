@@ -1,3 +1,27 @@
+// Local synthetic CI only. No external API or database targets.
+{ const fr2Db=new URL(globalThis.process.env.P11_LOCAL_DB_URL);
+  if(fr2Db.protocol!=="postgresql:"||fr2Db.hostname!=="127.0.0.1"||fr2Db.pathname!=="/postgres"||fr2Db.search||fr2Db.hash)throw Error("NONLOCAL_DB");
+  if(globalThis.process.platform==="win32"&&!/^supabase_db_kgvfr2ci[a-f0-9]{12}$/.test(globalThis.process.env.FR2_LOCAL_DB_CONTAINER??""))throw Error("LOCAL_CONTAINER_REQUIRED");
+  const api=new URL(globalThis.process.env.P11_LOCAL_API_URL);
+  if(api.protocol!=="http:"||api.hostname!=="127.0.0.1"||api.username||api.password||api.pathname!=="/"||api.search||api.hash)throw Error("NONLOCAL_API");
+  const fr2Fetch=globalThis.fetch; globalThis.fetch=(url,options={})=>{if(new URL(url).origin!==api.origin)throw Error("NONLOCAL_HTTP_TARGET");return fr2Fetch(url,{...options,redirect:"error"});};
+}
+async function fr2VerifyActors(users){
+  const expected={"manager":{"allowed":["mitglied.lesen","pachtvertrag.verwalten","parzelle.bearbeiten","parzelle.lesen","vertrag.vorbereiten","vorgang.bearbeiten"],"denied":[]},"tenant":{"allowed":[],"denied":[]},"board1":{"allowed":[],"denied":[]},"board2":{"allowed":[],"denied":[]},"outsider":{"allowed":[],"denied":[]}};
+  if(Object.keys(users).sort().join(',')!==Object.keys(expected).sort().join(','))throw Error('FR2_ACTOR_SET_MISMATCH');
+  for(const [label,user] of Object.entries(users)){
+    const rpc=async(name)=>{
+      const response=await fetch(process.env.P11_LOCAL_API_URL+'/rest/v1/rpc/'+name,{method:'POST',headers:{apikey:process.env.P11_LOCAL_ANON_KEY,Authorization:'Bearer '+user.token,'Content-Type':'application/json'},body:'{}'});
+      if(response.status!==200)throw Error('FR2_ACTOR_RIGHTS_HTTP_FAILED');
+      return response.json();
+    };
+    if(await rpc('fr212_actor_session_valid')!==true)throw Error('FR2_ACTOR_SESSION_INVALID');
+    const rights=await rpc('ap02_preview_effective_rights');
+    if(!Array.isArray(rights)||rights.length!==55||JSON.stringify(rights.filter(r=>r.erlaubt).map(r=>r.code).sort())!==JSON.stringify(expected[label].allowed))throw Error('FR2_ACTOR_RIGHTS_MISMATCH');
+    if(expected[label].denied.some(code=>!rights.some(r=>r.code===code&&r.individuell_entzogen===true&&r.erlaubt===false)))throw Error('FR2_ACTOR_DENY_MISMATCH');
+  }
+  console.log('KGV_FR2_ACTOR_RIGHTS_PASS '+Object.keys(expected).length);
+}
 // CX-01 real local E2E: GoTrue sessions, PostgREST RPCs, Edge Function upload,
 // private Storage download, and immutable signature persistence.
 import assert from "node:assert/strict";
@@ -71,7 +95,7 @@ async function signup(label) {
 function psql(args, input) {
   const command = process.platform === "win32" ? "docker" : "psql";
   const commandArgs = process.platform === "win32"
-    ? ["exec", "-i", "supabase_db_03_Arbeitsstand", "psql", "-U", "postgres", "-d", "postgres", "-X", ...args]
+    ? ["exec", "-i", process.env.FR2_LOCAL_DB_CONTAINER, "psql", "-U", "postgres", "-d", "postgres", "-X", ...args]
     : [dbUrl, "-X", ...args];
   const result = spawnSync(command, commandArgs, { encoding: "utf8", input });
   if (result.status !== 0) throw new Error(`psql failed:\n${result.stdout}\n${result.stderr}`);
@@ -201,7 +225,7 @@ try {
 
   let fixture;
   await checked("isolated lease, members, functions, and assignments are created", "positive", async () => {
-    fixture = await createFixture(users);
+    fixture = await createFixture(users); await fr2VerifyActors(users);
     assert.notEqual(fixture.board1_member_id, fixture.board2_member_id);
   });
 
@@ -306,12 +330,14 @@ try {
     assert.equal(result.response.status, 403);
   });
   await checked("individual permission revocation removes administrative upload authority", "negative", async () => {
-    dbExec(`update public.app_user set permission_revocations=524288 where user_id='${users.manager.id}'::uuid`);
+    dbExec(`update public.app_user_fachrecht_override set entscheidung='deny' where user_id='${users.manager.id}'::uuid and fachrecht_code='vertrag.vorbereiten' and entscheidung='grant'`);
     try {
+      const permission=await rpc("ap02_has_effective_right",users.manager.token,{p_fachrecht:"vertrag.vorbereiten"}); assert.equal(permission.response.status,200); assert.equal(permission.data,false);
       const result = await upload(users.manager.token, processId, revision, "lease.member", tenantPng);
       assert.equal(result.response.status, 403);
     } finally {
-      dbExec(`update public.app_user set permission_revocations=0 where user_id='${users.manager.id}'::uuid`);
+      dbExec(`update public.app_user_fachrecht_override set entscheidung='grant' where user_id='${users.manager.id}'::uuid and fachrecht_code='vertrag.vorbereiten' and entscheidung='deny'`);
+      const permission=await rpc("ap02_has_effective_right",users.manager.token,{p_fachrecht:"vertrag.vorbereiten"}); assert.equal(permission.response.status,200); assert.equal(permission.data,true);
     }
   });
 
@@ -468,6 +494,6 @@ try {
 } finally {
   if (resultPath && finalReport) {
     await mkdir(dirname(resultPath), { recursive: true });
-    await writeFile(resultPath, `${JSON.stringify(finalReport, null, 2)}\n`, "utf8");
+    await writeFile(resultPath, `${JSON.stringify(finalReport, (key, value) => ["error", "message"].includes(key) ? undefined : value, 2)}\n`, "utf8");
   }
 }

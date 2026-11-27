@@ -1,3 +1,27 @@
+// Local synthetic CI only. No external API or database targets.
+{ const fr2Db=new URL(globalThis.process.env.P11_LOCAL_DB_URL);
+  if(fr2Db.protocol!=="postgresql:"||fr2Db.hostname!=="127.0.0.1"||fr2Db.pathname!=="/postgres"||fr2Db.search||fr2Db.hash)throw Error("NONLOCAL_DB");
+  if(globalThis.process.platform==="win32"&&!/^supabase_db_kgvfr2ci[a-f0-9]{12}$/.test(globalThis.process.env.FR2_LOCAL_DB_CONTAINER??""))throw Error("LOCAL_CONTAINER_REQUIRED");
+  const api=new URL(globalThis.process.env.P11_LOCAL_API_URL);
+  if(api.protocol!=="http:"||api.hostname!=="127.0.0.1"||api.username||api.password||api.pathname!=="/"||api.search||api.hash)throw Error("NONLOCAL_API");
+  const fr2Fetch=globalThis.fetch; globalThis.fetch=(url,options={})=>{if(new URL(url).origin!==api.origin)throw Error("NONLOCAL_HTTP_TARGET");return fr2Fetch(url,{...options,redirect:"error"});};
+}
+async function fr2VerifyActors(users){
+  const expected={"manager":{"allowed":["mitglied.anlegen","mitglied.lesen","mitgliedschaft.verwalten","vertrag.vorbereiten","vorgang.bearbeiten","vorstandsvorgang.bearbeiten"],"denied":[]},"board1":{"allowed":[],"denied":[]},"board2":{"allowed":[],"denied":[]},"decider":{"allowed":["mitgliedschaft.entscheiden"],"denied":[]},"outsider":{"allowed":[],"denied":[]},"a":{"allowed":[],"denied":[]},"b":{"allowed":[],"denied":[]},"c":{"allowed":[],"denied":[]},"d":{"allowed":[],"denied":[]},"e":{"allowed":[],"denied":[]},"rep":{"allowed":[],"denied":[]},"neg":{"allowed":[],"denied":[]},"secondary":{"allowed":[],"denied":[]}};
+  if(Object.keys(users).sort().join(',')!==Object.keys(expected).sort().join(','))throw Error('FR2_ACTOR_SET_MISMATCH');
+  for(const [label,user] of Object.entries(users)){
+    const rpc=async(name)=>{
+      const response=await fetch(process.env.P11_LOCAL_API_URL+'/rest/v1/rpc/'+name,{method:'POST',headers:{apikey:process.env.P11_LOCAL_ANON_KEY,Authorization:'Bearer '+user.token,'Content-Type':'application/json'},body:'{}'});
+      if(response.status!==200)throw Error('FR2_ACTOR_RIGHTS_HTTP_FAILED');
+      return response.json();
+    };
+    if(await rpc('fr212_actor_session_valid')!==true)throw Error('FR2_ACTOR_SESSION_INVALID');
+    const rights=await rpc('ap02_preview_effective_rights');
+    if(!Array.isArray(rights)||rights.length!==55||JSON.stringify(rights.filter(r=>r.erlaubt).map(r=>r.code).sort())!==JSON.stringify(expected[label].allowed))throw Error('FR2_ACTOR_RIGHTS_MISMATCH');
+    if(expected[label].denied.some(code=>!rights.some(r=>r.code===code&&r.individuell_entzogen===true&&r.erlaubt===false)))throw Error('FR2_ACTOR_DENY_MISMATCH');
+  }
+  console.log('KGV_FR2_ACTOR_RIGHTS_PASS '+Object.keys(expected).length);
+}
 // CX-04 real local E2E: Auth/JWT, PostgREST, Edge signature upload, private
 // Storage, membership v5 PDF rendering and the real board admission RPCs.
 import assert from "node:assert/strict";
@@ -37,7 +61,7 @@ async function rpc(name, token, body) { return http(`/rest/v1/rpc/${name}`, { me
 function one(x) { return Array.isArray(x) ? x[0] : x; }
 function psql(args, input) {
   const command=process.platform==="win32"?"docker":"psql";
-  const commandArgs=process.platform==="win32"?["exec","-i","supabase_db_03_Arbeitsstand","psql","-U","postgres","-d","postgres","-X",...args]:[db,"-X",...args];
+  const commandArgs=process.platform==="win32"?["exec","-i",process.env.FR2_LOCAL_DB_CONTAINER,"psql","-U","postgres","-d","postgres","-X",...args]:[db,"-X",...args];
   const r=spawnSync(command,commandArgs,{encoding:"utf8",input}); if(r.status!==0) throw new Error(`psql failed:\n${r.stdout}\n${r.stderr}`); return r.stdout;
 }
 function sql(text, tuples=false) { return psql(["-q","-t","-A","-v","ON_ERROR_STOP=1",...(tuples?["-P","tuples_only=on"]:[])], text).trim(); }
@@ -91,7 +115,7 @@ try {
   const users={};
   await check("thirteen real local Auth sessions are issued","positive",async()=>{for(const n of ["manager","board1","board2","decider","outsider","a","b","c","d","e","neg","rep","secondary"])users[n]=await signup(n);assert.equal(new Set(Object.values(users).map(x=>x.id)).size,13);});
   let ids;
-  await check("synthetic members, representative, secondary member and function assignments are isolated","positive",async()=>{ids=await fixture(users);assert.notEqual(ids.board1,ids.board2);assert.notEqual(ids.rep,ids.secondary);});
+  await check("synthetic members, representative, secondary member and function assignments are isolated","positive",async()=>{ids=await fixture(users); await fr2VerifyActors(users);assert.notEqual(ids.board1,ids.board2);assert.notEqual(ids.rep,ids.secondary);});
   const ctx={users,ids}; const processes={}; const numbers=[];
   await check("five prepared applications are created through the Web/PostgREST write contract","positive",async()=>{
     processes.a=await createProcess(users.manager,ids.a);
@@ -156,4 +180,4 @@ try {
   await check("Web and MAUI invocation contracts still reference the guarded board RPCs","positive",async()=>{const web=await readFile(resolve("KGV.Web/repositories/communication/membership-board-review-repository.ts"),"utf8");const maui=await readFile(resolve("KGV.Infrastructure/Services/SupabaseService.cs"),"utf8");for(const source of [web,maui]){assert.match(source,/stimme_mitgliedsaufnahme_ab/);assert.match(source,/entscheide_mitgliedsaufnahme/);}const functions=sql("select count(*) from pg_proc where proname in ('stimme_mitgliedsaufnahme_ab','entscheide_mitgliedsaufnahme','ensure_aufnahmebestaetigung_dokumentvorgang')");assert.equal(Number(functions),3);});
   report={complete:true,positive_passed:results.filter(x=>x.kind==="positive"&&x.status==="passed").length,negative_passed:results.filter(x=>x.kind==="negative"&&x.status==="passed").length,cases:results,application_numbers:numbers,process_ids:Object.fromEntries(Object.entries(processes).map(([k,v])=>[k,v.id])),pdf_path:outputPdf,signature_uploads:uploads.length,local_only_final_metadata:true,external_dispatch:false};
 } catch(e) { report={complete:false,error:e.message,cases:results}; process.exitCode=1; }
-finally { await mkdir(dirname(outputJson),{recursive:true});await writeFile(outputJson,JSON.stringify(report,null,2));console.log(JSON.stringify(report,null,2)); }
+finally { await mkdir(dirname(outputJson),{recursive:true});await writeFile(outputJson,JSON.stringify(report, (key, value) => ["error", "message"].includes(key) ? undefined : value, 2));console.log(JSON.stringify(report, (key, value) => ["error", "message"].includes(key) ? undefined : value, 2)); }

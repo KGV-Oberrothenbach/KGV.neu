@@ -63,15 +63,31 @@ BEGIN
                      WHERE h.code=q.neue_hauptrolle AND h.aktiv)
  ) THEN RAISE EXCEPTION 'Hauptrolle im neuen Katalog fehlt'
     USING ERRCODE='55000'; END IF;
- IF (SELECT count(*) FROM public.vereinsfunktion
-     WHERE aktiv AND bezeichnung='1. Vorsitzender'
-       AND schluessel IN ('vorsitz_1','vorstandsvorsitzender'))<>1
- OR (SELECT count(*) FROM public.vereinsfunktion
-     WHERE aktiv AND bezeichnung='2. Vorsitzender'
-       AND schluessel IN ('vorsitz_2','vertreter'))<>1
- OR (SELECT count(*) FROM public.vereinsfunktion
-     WHERE aktiv AND schluessel='bauausschuss' AND erlaubt_mehrfachbesetzung)<>1
- THEN RAISE EXCEPTION 'Vereinsfunktionen F0/F1 fehlen oder weichen ab'
+ IF NOT EXISTS (SELECT 1 FROM public.vereinsfunktion) AND (EXISTS (SELECT 1 FROM auth.users) OR
+      EXISTS (SELECT 1 FROM public.app_user) OR
+      EXISTS (SELECT 1 FROM public.mitglied) OR
+      EXISTS (SELECT 1 FROM public.parzelle) OR
+      EXISTS (SELECT 1 FROM public.pachtverhaeltnis) OR
+      EXISTS (SELECT 1 FROM public.dokument) OR
+      EXISTS (SELECT 1 FROM public.kommunikationsvorgang) OR
+      EXISTS (SELECT 1 FROM public.zaehler) OR
+      EXISTS (SELECT 1 FROM public.arbeitsstunde) OR
+      EXISTS (SELECT 1 FROM public.wartungsvertraege) OR
+      EXISTS (SELECT 1 FROM public.vereinsfunktion_besetzung) OR
+      EXISTS (SELECT 1 FROM public.vereinsfunktion_verwendung) OR
+      EXISTS (SELECT 1 FROM public.vereinsfunktion_vertretung)) THEN
+   RAISE EXCEPTION 'Vereinsfunktionen fehlen bei vorhandenem Bestand' USING ERRCODE='55000';
+ END IF;
+ IF EXISTS (SELECT 1 FROM public.vereinsfunktion) AND (
+   (SELECT count(*) FROM public.vereinsfunktion
+      WHERE aktiv AND bezeichnung='1. Vorsitzender'
+        AND schluessel IN ('vorsitz_1','vorstandsvorsitzender'))<>1
+   OR (SELECT count(*) FROM public.vereinsfunktion
+      WHERE aktiv AND bezeichnung='2. Vorsitzender'
+        AND schluessel IN ('vorsitz_2','vertreter'))<>1
+   OR (SELECT count(*) FROM public.vereinsfunktion
+      WHERE aktiv AND schluessel='bauausschuss' AND erlaubt_mehrfachbesetzung)<>1
+ ) THEN RAISE EXCEPTION 'Vereinsfunktionen F0/F1 fehlen oder weichen ab'
     USING ERRCODE='55000'; END IF;
 END
 $guards$;

@@ -7,13 +7,16 @@ DECLARE
   anchor constant text := $anchor$  if p_entity_type in ('arbeitseinsatz', 'arbeitseinsatz_anmeldung') then$anchor$;
 BEGIN
   SELECT pg_get_functiondef(f) INTO def;
-  IF md5(def) IS DISTINCT FROM '20b1b1f9d532e3ae205c648a31bfabc1'
+  def := replace(def,E'\r\n',E'\n');
+  IF md5(def) <> ALL(ARRAY['20b1b1f9d532e3ae205c648a31bfabc1','33527d999427b460846ce101327227b6'])
     OR has_function_privilege('anon',f,'execute')
     OR has_function_privilege('authenticated',f,'execute')
     OR NOT has_function_privilege('service_role',f,'execute') THEN
-    RAISE EXCEPTION 'Unexpected lock core baseline';
+    RAISE EXCEPTION 'Unexpected lock core baseline: hash=%, anon=%, authenticated=%, service_role=%',
+      md5(def), has_function_privilege('anon',f,'execute'),
+      has_function_privilege('authenticated',f,'execute'),
+      has_function_privilege('service_role',f,'execute');
   END IF;
-  def := replace(def,E'\r\n',E'\n');
   IF (length(def)-length(replace(def,anchor,'')))/length(anchor)<>1 THEN
     RAISE EXCEPTION 'Lock core anchor mismatch';
   END IF;
@@ -56,10 +59,10 @@ BEGIN
 
 $guard$||anchor);
   IF md5(patched) IS DISTINCT FROM 'a8dcf00755a2e01257c883379a5a222b' THEN
-    RAISE EXCEPTION 'Unexpected lock core patch fingerprint';
+    RAISE EXCEPTION 'Unexpected lock core patch fingerprint: %', md5(patched);
   END IF;
   EXECUTE patched;
-  IF md5(pg_get_functiondef(f)) IS DISTINCT FROM 'a8dcf00755a2e01257c883379a5a222b'
+  IF md5(replace(pg_get_functiondef(f),E'\r\n',E'\n')) IS DISTINCT FROM 'a8dcf00755a2e01257c883379a5a222b'
     OR has_function_privilege('anon',f,'execute')
     OR has_function_privilege('authenticated',f,'execute')
     OR NOT has_function_privilege('service_role',f,'execute') THEN

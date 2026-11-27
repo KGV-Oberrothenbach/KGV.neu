@@ -12,6 +12,7 @@ BEGIN
   if to_regclass$b$,'98e2ad14450757f87c412ac10a8dd2ae','de997cbbd5b46eed7b08f6a5ee431417')
   ) v(f,anchor,replacement,expected_before,expected_after) LOOP
     SELECT pg_get_functiondef(f) INTO def;
+    def:=replace(def,E'\r\n',E'\n');
     IF md5(def) IS DISTINCT FROM expected_before OR has_function_privilege('anon',f,'execute') OR NOT has_function_privilege('authenticated',f,'execute') OR NOT has_function_privilege('service_role',f,'execute') THEN
       RAISE EXCEPTION 'Unexpected contact RPC baseline: %',f;
     END IF;
@@ -19,7 +20,7 @@ BEGIN
     patched:=replace(def,anchor,replacement);
     IF md5(patched) IS DISTINCT FROM expected_after THEN RAISE EXCEPTION 'Patch fingerprint mismatch: %',f; END IF;
     EXECUTE patched;
-    IF md5(pg_get_functiondef(f)) IS DISTINCT FROM expected_after OR has_function_privilege('anon',f,'execute') OR NOT has_function_privilege('authenticated',f,'execute') OR NOT has_function_privilege('service_role',f,'execute') THEN
+    IF md5(replace(pg_get_functiondef(f),E'\r\n',E'\n')) IS DISTINCT FROM expected_after OR has_function_privilege('anon',f,'execute') OR NOT has_function_privilege('authenticated',f,'execute') OR NOT has_function_privilege('service_role',f,'execute') THEN
       RAISE EXCEPTION 'Unexpected contact RPC postcondition: %',f;
     END IF;
   END LOOP;

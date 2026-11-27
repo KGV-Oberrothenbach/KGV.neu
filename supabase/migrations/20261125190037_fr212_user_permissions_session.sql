@@ -1,5 +1,5 @@
 -- FR2-12: users, permissions, session security.
--- Tested combined V6/V7 body: MD5 5f1a7098ba58da6398a1c0c5796cf44e.
+-- Tested combined V6/V7 body: MD5 021fba7dd90f14711294755f20066bee.
 -- A single DO statement makes the complete change atomic.
 DO $fr212_apply$
 DECLARE candidate text := $fr212_candidate$-- FR2-12 SQL-Entwurf (NOCH KEINE MIGRATION): nicht remote anwenden.
@@ -39,6 +39,7 @@ DECLARE v_definition text;
 BEGIN
  SELECT pg_get_functiondef('public.begin_auth_user_deletion(uuid,bigint,uuid)'::regprocedure)
  INTO v_definition;
+ v_definition := replace(v_definition, chr(13) || chr(10), chr(10));
  IF (SELECT (length(v_definition)-length(replace(v_definition,
        'public.ap02_can_manage_rights() IS NOT TRUE','')))
        / length('public.ap02_can_manage_rights() IS NOT TRUE')) <> 1 THEN
@@ -78,6 +79,7 @@ DO $restore$
 DECLARE v_definition text; v_anchor text := '  RETURN true;';
 BEGIN
  SELECT pg_get_functiondef('public.restore_auth_user_deletion(uuid,uuid)'::regprocedure) INTO v_definition;
+ v_definition := replace(v_definition, chr(13) || chr(10), chr(10));
  IF (length(v_definition)-length(replace(v_definition,v_anchor,'')))/length(v_anchor) <> 1 THEN
    RAISE EXCEPTION 'FR212: Restore-Anker fehlt' USING ERRCODE='55000';
  END IF;
@@ -159,6 +161,7 @@ BEGIN
       v_signature:='public.ap02_list_user_access()'::regprocedure;
    ELSE v_signature:='public.ap02_admin_preview_user_rights(uuid)'::regprocedure; END IF;
    SELECT pg_get_functiondef(v_signature) INTO v_definition;
+   v_definition := replace(v_definition, chr(13) || chr(10), chr(10));
    IF v_definition IS NULL OR
       (length(v_definition)-length(replace(v_definition,'IF NOT public.ap02_can_manage_rights() THEN','')))
          / length('IF NOT public.ap02_can_manage_rights() THEN') <> 1 THEN
@@ -232,6 +235,7 @@ DO $auth_context$
 DECLARE d text; a text := '  WHERE u.user_id = p_user_id';
 BEGIN
  SELECT pg_get_functiondef('public.ap02_calculate_user_rights(uuid)'::regprocedure) INTO d;
+ d := replace(d, chr(13) || chr(10), chr(10));
  IF (length(d)-length(replace(d,a,'')))/length(a)<>1 THEN
    RAISE EXCEPTION 'FR212: Kontextanker fehlt' USING ERRCODE='55000'; END IF;
  d:=replace(d,a,$guard$  WHERE u.user_id = p_user_id
@@ -245,6 +249,7 @@ DO $lookup$
 DECLARE d text; a text := 'public.ap02_can_manage_rights() is not true';
 BEGIN
  SELECT pg_get_functiondef('public.find_auth_user_id_by_email(text)'::regprocedure) INTO d;
+ d := replace(d, chr(13) || chr(10), chr(10));
  IF (length(d)-length(replace(d,a,'')))/length(a)<>1 THEN
    RAISE EXCEPTION 'FR212: Auth-Lookup-Anker fehlt' USING ERRCODE='55000'; END IF;
  d:=replace(d,a,'public.ap02_has_effective_right(''benutzer.verwalten'') is not true');
@@ -262,6 +267,7 @@ BEGIN
    AND fachrecht_code IN ('benutzer.lesen','benutzer.verwalten','berechtigungen.lesen','berechtigungen.verwalten','vereinsdaten.alle_lesen')) THEN
    RAISE EXCEPTION 'FR212: vorhandene System-Gewährung zuerst klären' USING ERRCODE='55000'; END IF;
  SELECT pg_get_functiondef('public.ap02_set_permission_override(uuid,text,text,text)'::regprocedure) INTO d;
+ d := replace(d, chr(13) || chr(10), chr(10));
  IF (length(d)-length(replace(d,a,'')))/length(a)<>1 OR (length(d)-length(replace(d,b,'')))/length(b)<>1 THEN
    RAISE EXCEPTION 'FR212: Systemrechte-Anker fehlt' USING ERRCODE='55000'; END IF;
  d:=replace(d,a,'p_fachrecht IN (''benutzer.lesen'',''benutzer.verwalten'',''berechtigungen.lesen'',''berechtigungen.verwalten'',''vereinsdaten.alle_lesen'')');
@@ -315,16 +321,19 @@ DO $actor_guards$
 DECLARE d text; a text;
 BEGIN
  SELECT pg_get_functiondef('public.current_app_user_context()'::regprocedure) INTO d;
+ d := replace(d, chr(13) || chr(10), chr(10));
  a:=' WHERE au.user_id=auth.uid();';
  IF (length(d)-length(replace(d,a,'')))/length(a)<>1 THEN
    RAISE EXCEPTION 'FR212 V7 current context anchor mismatch' USING ERRCODE='55000'; END IF;
  EXECUTE replace(d,a,' WHERE au.user_id=auth.uid() AND public.fr212_actor_session_valid();');
  SELECT pg_get_functiondef('public.ap02_can_read_mitglied(bigint)'::regprocedure) INTO d;
+ d := replace(d, chr(13) || chr(10), chr(10));
  a:='  WHERE a.user_id = auth.uid()';
  IF (length(d)-length(replace(d,a,'')))/length(a)<>1 THEN
    RAISE EXCEPTION 'FR212 V7 member read anchor mismatch' USING ERRCODE='55000'; END IF;
  EXECUTE replace(d,a,a||' AND public.fr212_actor_session_valid()');
  SELECT pg_get_functiondef('public.speichere_prepared_contract_signatur(bigint,integer,text,bigint,text,bigint,bigint,bigint,text,text,timestamptz)'::regprocedure) INTO d;
+ d := replace(d, chr(13) || chr(10), chr(10));
  a:='if auth.uid() is null then raise exception ''Anmeldung erforderlich.'' using errcode=''42501''; end if;';
  IF (length(d)-length(replace(d,a,'')))/length(a)<>1 THEN
    RAISE EXCEPTION 'FR212 V7 signature anchor mismatch' USING ERRCODE='55000'; END IF;
@@ -337,8 +346,9 @@ ALTER POLICY app_user_select_by_effective_roles ON public.app_user
 $fr212_candidate$;
 BEGIN
  candidate:=replace(candidate,chr(13)||chr(10),chr(10));
- IF md5(candidate)<>'5f1a7098ba58da6398a1c0c5796cf44e' THEN
-   RAISE EXCEPTION 'FR212 candidate hash mismatch' USING ERRCODE='55000';
+ IF md5(candidate)<>'021fba7dd90f14711294755f20066bee' THEN
+   RAISE EXCEPTION 'FR212 candidate hash mismatch: %, length %', md5(candidate), length(candidate)
+     USING ERRCODE='55000';
  END IF;
  PERFORM set_config('lock_timeout','5s',true);
  EXECUTE candidate;

@@ -14,13 +14,19 @@ BEGIN
     ('public.register_historischen_pachtvertrag(bigint,text,date,boolean,bigint[],jsonb,bigint,date,bigint[],jsonb,jsonb)'::regprocedure,'684b91864f6c63993c744f6ec2126c15','c6f5cab5e89d82b713fc5d99dadc9274')
   ) AS v(f,before_hash,after_hash) LOOP
     SELECT pg_get_functiondef(f) INTO def;
-    IF md5(def) IS DISTINCT FROM expected_before
+    def:=replace(def,E'\r\n',E'\n');
+    IF md5(def) <> ALL(ARRAY[expected_before, CASE
+         WHEN f='public.mark_meter_defective(bigint)'::regprocedure THEN 'f182264670ed8d0a1bae6904c684ae88'
+         ELSE '68be3395c139de1b6fd4b8d8d152f914' END])
        OR has_function_privilege('anon',f,'execute')
        OR NOT has_function_privilege('authenticated',f,'execute')
        OR NOT has_function_privilege('service_role',f,'execute') THEN
-      RAISE EXCEPTION 'Unexpected authorization precheck baseline: %',f;
+      RAISE EXCEPTION 'Unexpected authorization precheck baseline: %, hash=%, anon=%, authenticated=%, service_role=%',
+        f, md5(def), has_function_privilege('anon',f,'execute'),
+        has_function_privilege('authenticated',f,'execute'),
+        has_function_privilege('service_role',f,'execute');
     END IF;
-    patched:=replace(def,E'\r\n',E'\n');
+    patched:=def;
     IF f='public.mark_meter_defective(bigint)'::regprocedure THEN
       anchor:=$a$  select z.* into v_zaehler from public.zaehler z where z.id=p_zaehler_id;
   if not found then raise exception 'Zähler % wurde nicht gefunden.',p_zaehler_id; end if;$a$;
@@ -60,10 +66,10 @@ $a$;
     END IF;
     patched:=replace(patched,anchor,replacement);
     IF md5(patched) IS DISTINCT FROM expected_after THEN
-      RAISE EXCEPTION 'Unexpected patch fingerprint: %',f;
+      RAISE EXCEPTION 'Unexpected patch fingerprint: %, hash=%',f,md5(patched);
     END IF;
     EXECUTE patched;
-    IF md5(pg_get_functiondef(f)) IS DISTINCT FROM expected_after
+    IF md5(replace(pg_get_functiondef(f),E'\r\n',E'\n')) IS DISTINCT FROM expected_after
        OR has_function_privilege('anon',f,'execute')
        OR NOT has_function_privilege('authenticated',f,'execute')
        OR NOT has_function_privilege('service_role',f,'execute') THEN

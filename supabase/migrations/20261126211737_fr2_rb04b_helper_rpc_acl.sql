@@ -6,7 +6,7 @@ DECLARE
   n integer;
   digest text;
 BEGIN
-  SELECT count(*),md5(string_agg(md5(pg_get_functiondef(p.oid)),E'\n' ORDER BY p.proname)) INTO n,digest
+  SELECT count(*),md5(string_agg(md5(replace(pg_get_functiondef(p.oid), E'\r\n', E'\n')),E'\n' ORDER BY p.proname)) INTO n,digest
   FROM pg_proc p JOIN pg_namespace ns ON ns.oid=p.pronamespace
   WHERE ns.nspname='public' AND p.proname IN ('can_access_live_internal_data','current_user_has_active_lease_for_parcel','is_admin','is_admin_or_vorstand','is_productive_admin_or_vorstand','vertragsversand_mailtext_snapshot');
   IF n<>6 OR digest IS DISTINCT FROM 'a8c914dbc3636a986f3b2bc279f47b50' THEN
