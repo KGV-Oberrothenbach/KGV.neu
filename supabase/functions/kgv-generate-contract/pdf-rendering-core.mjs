@@ -217,7 +217,8 @@ function isMaintenanceV2(specs) {
     && names.has("wartungsvertrag_titel")
     && names.has("arbeitsstundenwirkung")
     && names.has("unterschrift_mitglied")
-    && names.has("unterschrift_vorstand_2");
+    && names.has("unterschrift_vorstand_2")
+    && specs.some((field) => field.name === "arbeitsstundenwirkung" && field.page === 1 && field.rect.y === 615);
 }
 
 function prepareMaintenanceV2Template(pdf, specs, values, font, pdfLib) {
@@ -314,6 +315,7 @@ export async function drawPdfTemplate(pdfLib, templateBytes, specs, values, sign
       page.drawText(value, { x: x + 1.8, y: pdfY + h - size, size, font, color: rgb(0, 0, 0) });
     }
   }
-  drawSecondPrivatePartyLabels(pdf, secondPrivatePartyRole, font, pdfLib);
+  // v10 contains dedicated, role-aware caption fields. Legacy overlay would corrupt them.
+  if (!specs.some((field) => field.name === "zweite_partei_rolle")) drawSecondPrivatePartyLabels(pdf, secondPrivatePartyRole, font, pdfLib);
   return await pdf.save();
 }

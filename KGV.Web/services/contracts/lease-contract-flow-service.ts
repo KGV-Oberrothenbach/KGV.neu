@@ -10,6 +10,6 @@ export function buildLeaseContractPersistentSlots({ isMinor, includeSecondaryMem
   return slots;
 }
 
-export const leaseContractPositionLabel = (position: PreparedContractSignature) => position.signatur_schluessel === "lease.member" ? "Pächter/in 1" : position.signatur_schluessel === "lease.second_party" ? "Pächter/in 2" : position.signatur_schluessel === "vorstand_1" ? "Vereinsunterzeichner 1" : position.signatur_schluessel === "vorstand_2" ? "Vereinsunterzeichner 2" : position.signatur_schluessel;
+export const leaseContractPositionLabel = (position: PreparedContractSignature) => position.signatur_schluessel === "lease.member" ? "Pächter/in 1" : position.signatur_schluessel === "lease.second_party" ? (position.unterzeichner_typ === "gesetzlicher_vertreter" ? "Gesetzliche Vertretung" : "Pächter/in 2") : position.signatur_schluessel === "vorstand_1" ? "Vereinsunterzeichner 1" : position.signatur_schluessel === "vorstand_2" ? "Vereinsunterzeichner 2" : position.signatur_schluessel;
 export const preparedLeaseSignatureProgress = (positions: PreparedContractSignature[]) => { const required = positions.filter(position => position.pflicht); const signed = required.filter(position => position.status === "unterschrieben").length; return { required: required.length, signed, complete: required.length > 0 && signed === required.length }; };
 export const nextOpenLeaseSignature = (positions: PreparedContractSignature[]) => positions.find(position => position.status !== "unterschrieben") ?? null;

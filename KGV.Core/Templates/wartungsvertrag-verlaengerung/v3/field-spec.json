@@ -1,0 +1,131 @@
+{
+  "schema_version": "kgv-pdf-field-spec/v1",
+  "coordinate_system": "top-left-points",
+  "settings": {
+    "coordinateOrigin": "topLeft"
+  },
+  "field_spec_version": "wartungsvertrag-verlaengerung-field-spec/v3",
+  "fields": [
+    {
+      "name": "vertragsnummer",
+      "page": 1,
+      "type": "text",
+      "rect": {
+        "x": 182,
+        "y": 146,
+        "w": 371,
+        "h": 15
+      }
+    },
+    {
+      "name": "mitglied_name",
+      "page": 1,
+      "type": "text",
+      "rect": {
+        "x": 202,
+        "y": 320,
+        "w": 351,
+        "h": 15
+      }
+    },
+    {
+      "name": "mitgliedsnummer",
+      "page": 1,
+      "type": "text",
+      "rect": {
+        "x": 202,
+        "y": 343,
+        "w": 351,
+        "h": 15
+      }
+    },
+    {
+      "name": "parzelle_nummer",
+      "page": 1,
+      "type": "text",
+      "rect": {
+        "x": 202,
+        "y": 366,
+        "w": 351,
+        "h": 15
+      }
+    },
+    {
+      "name": "wartungsvertrag_titel",
+      "page": 1,
+      "type": "text",
+      "rect": {
+        "x": 202,
+        "y": 389,
+        "w": 351,
+        "h": 15
+      }
+    },
+    {
+      "name": "saisonjahr",
+      "page": 1,
+      "type": "text",
+      "rect": {
+        "x": 202,
+        "y": 412,
+        "w": 351,
+        "h": 15
+      }
+    },
+    {
+      "name": "wartungsvertrag_beschreibung",
+      "page": 1,
+      "type": "multiline",
+      "rect": {
+        "x": 49,
+        "y": 496,
+        "w": 497,
+        "h": 95
+      }
+    },
+    {
+      "name": "arbeitsstundenwirkung",
+      "page": 1,
+      "type": "text",
+      "rect": {
+        "x": 202,
+        "y": 608,
+        "w": 351,
+        "h": 15
+      }
+    },
+    {
+      "name": "wartungsvertrag_bemerkung",
+      "page": 1,
+      "type": "text",
+      "rect": {
+        "x": 202,
+        "y": 631,
+        "w": 351,
+        "h": 15
+      }
+    },
+    {
+      "name": "verlaengerungsentscheidung_datum",
+      "page": 1,
+      "type": "text",
+      "rect": {
+        "x": 213,
+        "y": 692,
+        "w": 340,
+        "h": 15
+      }
+    },
+    {
+      "name": "verlaengerungsmitteilung_erstellt_am",
+      "page": 1,
+      "type": "text",
+      "rect": {
+        "x": 213,
+        "y": 715,
+        "w": 340,
+        "h": 15
+      }
+    }
+  ]
+}

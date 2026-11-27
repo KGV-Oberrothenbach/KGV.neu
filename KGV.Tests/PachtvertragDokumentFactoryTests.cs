@@ -27,6 +27,22 @@ public sealed class PachtvertragDokumentFactoryTests
     }
 
     [Fact]
+    public void Guardian_is_not_a_cotenant_and_does_not_require_membership_number()
+    {
+        var data = PachtvertragTemplateFactory.BuildData(new PachtvertragTemplateContext
+        {
+            Paechter1 = new MitgliedRecord { Id = 17, Mitgliedsnummer = 1081, Vorname = "Max", Name = "Muster" },
+            Paechter2 = new MitgliedRecord { Id = 18, Vorname = "Eva", Name = "Muster" },
+            ZweiteParteiIstGesetzlicherVertreter = true,
+            ParzelleNummer = "42", ParzelleFlaecheQm = 300m,
+            Pachtbeginn = new DateTime(2026, 4, 1), PachtProQm = .25m
+        });
+        Assert.Equal("Gesetzliche/r Vertreter/in", data.ZweiteParteiBezeichnung);
+        Assert.Equal(string.Empty, data.Paechter2Mitgliedsnummer);
+        Assert.Equal("Eva Muster", data.Paechter2Vollname);
+    }
+
+    [Fact]
     public void Template_data_rejects_a_contract_party_without_a_membership_number()
     {
         var context = new PachtvertragTemplateContext
@@ -42,8 +58,10 @@ public sealed class PachtvertragDokumentFactoryTests
         Assert.Contains("Mitgliedsnummer", error.Message);
     }
 
-    [Fact]
-    public async Task CreateUploadRequest_AssignsPachtvertragToParzelle()
+    [Theory]
+    [InlineData("v9")]
+    [InlineData("v10")]
+    public async Task CreateUploadRequest_AssignsPachtvertragToParzelle(string version)
     {
         var request = await PachtvertragDokumentFactory.CreateUploadRequestAsync(
             hauptmitglied: new MitgliedRecord
@@ -81,7 +99,7 @@ public sealed class PachtvertragDokumentFactoryTests
                 Bic = "MUSTDEFFXXX"
             },
             status: FormularDokumentStatus.Signiert,
-            templateProvider: new CanonicalPdfTemplateProvider());
+            templateProvider: new CanonicalPdfTemplateProvider(version));
 
         Assert.Equal(42, request.ParzelleId);
         Assert.Null(request.MitgliedId);

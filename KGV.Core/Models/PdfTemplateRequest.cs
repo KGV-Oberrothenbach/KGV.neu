@@ -6,4 +6,11 @@ namespace KGV.Core.Models;
 public sealed record PdfTemplateRequest(
     string TemplateKey,
     string ExpectedFieldSpecVersion,
-    string ExpectedRendererVersion);
+    string ExpectedRendererVersion)
+{
+    public IReadOnlyList<string> AdditionalFieldSpecVersions { get; init; } = Array.Empty<string>();
+
+    public bool SupportsFieldSpecVersion(string version) =>
+        string.Equals(ExpectedFieldSpecVersion, version, StringComparison.Ordinal) ||
+        AdditionalFieldSpecVersions.Contains(version, StringComparer.Ordinal);
+}

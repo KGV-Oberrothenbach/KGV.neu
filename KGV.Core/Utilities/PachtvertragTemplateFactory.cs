@@ -47,7 +47,7 @@ public static class PachtvertragTemplateFactory
             Paechter2Name = paechter2 == null ? string.Empty : Clean(paechter2.Name),
             Paechter2Vorname = paechter2 == null ? string.Empty : Clean(paechter2.Vorname),
             Paechter2Geburtsdatum = paechter2 == null ? string.Empty : FormatNullableDate(paechter2.Geburtsdatum),
-            Paechter2Mitgliedsnummer = paechter2 == null ? string.Empty : FormatMitgliedsnummer(paechter2),
+            Paechter2Mitgliedsnummer = paechter2 == null || context.ZweiteParteiIstGesetzlicherVertreter ? string.Empty : FormatMitgliedsnummer(paechter2),
             Paechter2Vollname = paechter2 == null ? string.Empty : BuildFullName(paechter2),
             Paechter2Anschrift = paechter2 == null ? string.Empty : BuildAddress(paechter2),
             Paechter2Kontakt = paechter2 == null ? string.Empty : BuildContact(paechter2),

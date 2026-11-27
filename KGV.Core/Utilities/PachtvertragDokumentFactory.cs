@@ -36,6 +36,45 @@ namespace KGV.Core.Utilities
             new PdfFormFieldSpec("unterschrift_vorstand_2", PdfFormFieldKind.SignaturePlaceholder, 3, 357, 760, 113, 28)
         };
 
+        private static readonly IReadOnlyList<PdfFormFieldSpec> FieldSpecsV10 = new[]
+        {
+            new PdfFormFieldSpec("vertragsnummer", PdfFormFieldKind.Text, 1, 395, 145, 165, 15),
+            new PdfFormFieldSpec("verein_name", PdfFormFieldKind.Text, 1, 210, 215, 205, 10),
+            new PdfFormFieldSpec("vereinsregister", PdfFormFieldKind.Text, 1, 505, 215, 58, 10),
+            new PdfFormFieldSpec("paechter_name", PdfFormFieldKind.Text, 1, 215, 245, 185, 10),
+            new PdfFormFieldSpec("mitgliedsnummer", PdfFormFieldKind.Text, 1, 481, 245, 82, 10),
+            new PdfFormFieldSpec("paechter_geburtsdatum", PdfFormFieldKind.Text, 1, 175, 275, 130, 10),
+            new PdfFormFieldSpec("paechter_anschrift", PdfFormFieldKind.MultilineText, 1, 390, 263, 173, 22),
+            new PdfFormFieldSpec("zweite_partei_name", PdfFormFieldKind.Text, 1, 215, 322, 185, 10),
+            new PdfFormFieldSpec("zweite_partei_mitgliedsnummer", PdfFormFieldKind.Text, 1, 481, 322, 82, 10),
+            new PdfFormFieldSpec("zweite_partei_geburtsdatum", PdfFormFieldKind.Text, 1, 175, 352, 130, 10),
+            new PdfFormFieldSpec("zweite_partei_anschrift", PdfFormFieldKind.MultilineText, 1, 390, 340, 173, 22),
+            new PdfFormFieldSpec("altvertrag_hinweis", PdfFormFieldKind.MultilineText, 1, 40, 409, 515, 35),
+            new PdfFormFieldSpec("lage_anlage", PdfFormFieldKind.Text, 1, 139, 489.5, 105, 10),
+            new PdfFormFieldSpec("parzelle_nr", PdfFormFieldKind.Text, 1, 326, 489.5, 62, 10),
+            new PdfFormFieldSpec("lage_beschreibung", PdfFormFieldKind.Text, 1, 439.5, 489.5, 107.5, 10),
+            new PdfFormFieldSpec("flaeche_qm", PdfFormFieldKind.Text, 1, 93.5, 518.5, 45, 10),
+            new PdfFormFieldSpec("flaechenbasis_nachweis", PdfFormFieldKind.Text, 1, 374.5, 518.5, 175, 10),
+            new PdfFormFieldSpec("vertragsbeginn", PdfFormFieldKind.Text, 1, 193, 544, 85, 10),
+            new PdfFormFieldSpec("uebergabe_datum", PdfFormFieldKind.Text, 1, 357.2, 544, 85, 10),
+            new PdfFormFieldSpec("pacht_pro_qm_zahl", PdfFormFieldKind.Text, 1, 92, 648, 45, 10),
+            new PdfFormFieldSpec("flaeche_qm_wiederholung", PdfFormFieldKind.Text, 1, 335, 648, 47, 10),
+            new PdfFormFieldSpec("pachtzins_jahr_zahl", PdfFormFieldKind.Text, 1, 465, 648, 48, 10),
+            new PdfFormFieldSpec("faelligkeit", PdfFormFieldKind.Text, 1, 105, 674, 84, 10),
+            new PdfFormFieldSpec("vereinsangaben_fusszeile", PdfFormFieldKind.MultilineText, 1, 40, 790, 260, 36),
+            new PdfFormFieldSpec("vorstand_fusszeile", PdfFormFieldKind.MultilineText, 1, 365, 790, 188, 36),
+            new PdfFormFieldSpec("weitere_vereinbarungen", PdfFormFieldKind.MultilineText, 3, 42, 537, 510, 42),
+            new PdfFormFieldSpec("ort_datum", PdfFormFieldKind.Text, 3, 110, 607, 276, 10),
+            new PdfFormFieldSpec("unterschrift_paechter_1", PdfFormFieldKind.SignaturePlaceholder, 3, 110, 630, 129, 29),
+            new PdfFormFieldSpec("unterschrift_paechter_2", PdfFormFieldKind.SignaturePlaceholder, 3, 357, 630, 113, 29),
+            new PdfFormFieldSpec("vereinsunterzeichner_1", PdfFormFieldKind.MultilineText, 3, 153, 712, 131, 30),
+            new PdfFormFieldSpec("unterschrift_vorstand_1", PdfFormFieldKind.SignaturePlaceholder, 3, 357, 713, 113, 29),
+            new PdfFormFieldSpec("vereinsunterzeichner_2", PdfFormFieldKind.MultilineText, 3, 153, 755, 131, 30),
+            new PdfFormFieldSpec("unterschrift_vorstand_2", PdfFormFieldKind.SignaturePlaceholder, 3, 357, 756, 113, 29),
+            new PdfFormFieldSpec("zweite_partei_rolle", PdfFormFieldKind.Text, 1, 80, 322, 95, 13),
+            new PdfFormFieldSpec("zweite_partei_signatur_rolle", PdfFormFieldKind.Text, 3, 284, 650, 72, 12)
+        };
+
         public static async Task<DokumentUploadRequest> CreateUploadRequestAsync(
             MitgliedRecord hauptmitglied,
             MitgliedRecord? nebenmitglied,
@@ -59,7 +98,7 @@ namespace KGV.Core.Utilities
             PdfTemplateAsset template;
             try
             {
-                template = await templateProvider.GetActiveAsync(new PdfTemplateRequest(documentType, fieldSpecVersion, rendererVersion), cancellationToken);
+                template = await templateProvider.GetActiveAsync(new PdfTemplateRequest(documentType, fieldSpecVersion, rendererVersion) { AdditionalFieldSpecVersions = new[] { "pachtvertrag-field-spec/v10" } }, cancellationToken);
             }
             catch (Exception ex)
             {
@@ -207,7 +246,22 @@ namespace KGV.Core.Utilities
             if (pdfBytes == null || pdfBytes.Length == 0)
                 throw new InvalidOperationException("Die Pachtvertrag-PDF-Vorlage ist leer oder konnte nicht geladen werden.");
 
-            return PdfTemplateRenderer.Render(pdfBytes, loadedFields, BuildFieldMap(data), PdfTemplateRenderProfiles.Pachtvertrag);
+            var values = BuildFieldMap(data);
+            if (loadedFields.Any(field => field.Name == "zweite_partei_rolle"))
+            {
+                var role = string.IsNullOrEmpty(data.Paechter2Vollname) ? string.Empty :
+                    data.ZweiteParteiBezeichnung == "Gesetzliche/r Vertreter/in" ? "Gesetzl. Vertretung" : "Mitpächter/in 2";
+                values["zweite_partei_rolle"] = role.Length == 0 ? "Keine zweite Partei" : role;
+                values["zweite_partei_signatur_rolle"] = role;
+                values["paechter_anschrift"] = data.Paechter1Anschrift.Replace(", ", "\n");
+                values["zweite_partei_anschrift"] = data.Paechter2Anschrift.Replace(", ", "\n");
+                values["flaeche_qm_wiederholung"] = data.ParzelleFlaecheQmWiederholung;
+                values["pacht_pro_qm_zahl"] = data.PachtProQm.Replace(" €/m²", string.Empty);
+                values["pachtzins_jahr_zahl"] = data.Jahrespacht.Replace(" €", string.Empty);
+                values["lage_beschreibung"] = string.Empty;
+                values["flaechenbasis_nachweis"] = string.Empty;
+            }
+            return PdfTemplateRenderer.Render(pdfBytes, loadedFields, values, loadedFields.Any(field => field.Name == "zweite_partei_rolle") ? PdfTemplateRenderProfiles.PachtvertragV10 : PdfTemplateRenderProfiles.Pachtvertrag);
         }
 
         private static Dictionary<string, string> BuildFieldMap(PachtvertragTemplateData data)
@@ -268,7 +322,13 @@ namespace KGV.Core.Utilities
             if (template.PdfBytes == null || template.PdfBytes.Length == 0)
                 throw new InvalidOperationException("Die zentrale Pachtvertrag-Vorlage ist leer.");
 
-            var expected = FieldSpecs.OrderBy(x => x.Name, StringComparer.Ordinal).ToArray();
+            var fieldSpecs = template.FieldSpecVersion switch
+            {
+                "pachtvertrag-field-spec/v9" => FieldSpecs,
+                "pachtvertrag-field-spec/v10" => FieldSpecsV10,
+                _ => throw new InvalidOperationException("Nicht unterstützte Pachtvertrag-Feldspezifikation.")
+            };
+            var expected = fieldSpecs.OrderBy(x => x.Name, StringComparer.Ordinal).ToArray();
             var actual = template.Fields.Select(ToInternalField).OrderBy(x => x.Name, StringComparer.Ordinal).ToArray();
             if (expected.Length != actual.Length || expected.Where((field, index) =>
                     !string.Equals(field.Name, actual[index].Name, StringComparison.Ordinal)
@@ -276,7 +336,7 @@ namespace KGV.Core.Utilities
                     || field.Page != actual[index].Page
                     || field.X != actual[index].X || field.Y != actual[index].Y
                     || field.Width != actual[index].Width || field.Height != actual[index].Height).Any())
-                throw new InvalidOperationException("Die zentrale Pachtvertrag-Feldspezifikation entspricht nicht der unterstützten v8-Geometrie.");
+                throw new InvalidOperationException("Die zentrale Pachtvertrag-Feldspezifikation entspricht nicht der unterstützten versionsgebundenen Geometrie.");
         }
 
         private enum PdfFormFieldKind

@@ -45,7 +45,7 @@ public sealed class SupabasePdfTemplateProvider : IPdfTemplateProvider
         if (record == null) throw Fail("catalog-load", templateKey, "Keine aktive veröffentlichte Version ist hinterlegt.");
         _logger?.LogDebug("PDF template active catalog resolved. templateKey={TemplateKey} version={Version}", record.TemplateKey, record.Version);
         ValidateVersionedPaths(record, templateKey);
-        if (!string.Equals(record.FieldSpecVersion, request.ExpectedFieldSpecVersion, StringComparison.Ordinal) || !string.Equals(record.RendererVersion, request.ExpectedRendererVersion, StringComparison.Ordinal))
+        if (!request.SupportsFieldSpecVersion(record.FieldSpecVersion) || !string.Equals(record.RendererVersion, request.ExpectedRendererVersion, StringComparison.Ordinal))
             throw Fail("compatibility-check", templateKey, $"Die Vorlage '{templateKey}/{record.Version}' ist nicht mit der erwarteten Feldspec- oder Renderer-Version kompatibel.");
         if (!string.Equals(record.ContentType, "application/pdf", StringComparison.OrdinalIgnoreCase)) throw Fail("compatibility-check", templateKey, "Die veröffentlichte Vorlagendatei ist keine PDF.");
 

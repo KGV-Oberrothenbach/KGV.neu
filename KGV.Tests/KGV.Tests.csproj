@@ -27,6 +27,8 @@
     <None Include="..\KGV.Core\Templates\mitgliedsantrag\v5\field-spec.json" Link="Templates\mitgliedsantrag\v5\field-spec.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\KGV.Core\Templates\pachtvertrag\v9\template.pdf" Link="Templates\pachtvertrag\v9\template.pdf" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\KGV.Core\Templates\pachtvertrag\v9\field-spec.json" Link="Templates\pachtvertrag\v9\field-spec.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\KGV.Core\Templates\pachtvertrag\v10\template.pdf" Link="Templates\pachtvertrag\v10\template.pdf" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\KGV.Core\Templates\pachtvertrag\v10\field-spec.json" Link="Templates\pachtvertrag\v10\field-spec.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

@@ -1,0 +1,186 @@
+{
+  "schema_version": "kgv-pdf-field-spec/v1",
+  "coordinate_system": "top-left-points",
+  "settings": {
+    "coordinateOrigin": "topLeft"
+  },
+  "field_spec_version": "wartungsvertrag-field-spec/v3",
+  "fields": [
+    {
+      "name": "vertragsnummer",
+      "page": 1,
+      "type": "text",
+      "rect": {
+        "x": 182,
+        "y": 146,
+        "w": 371,
+        "h": 15
+      }
+    },
+    {
+      "name": "mitglied_name",
+      "page": 1,
+      "type": "text",
+      "rect": {
+        "x": 202,
+        "y": 253,
+        "w": 351,
+        "h": 15
+      }
+    },
+    {
+      "name": "mitgliedsnummer",
+      "page": 1,
+      "type": "text",
+      "rect": {
+        "x": 202,
+        "y": 276,
+        "w": 351,
+        "h": 15
+      }
+    },
+    {
+      "name": "parzelle_nummer",
+      "page": 1,
+      "type": "text",
+      "rect": {
+        "x": 202,
+        "y": 299,
+        "w": 351,
+        "h": 15
+      }
+    },
+    {
+      "name": "wartungsvertrag_titel",
+      "page": 1,
+      "type": "text",
+      "rect": {
+        "x": 202,
+        "y": 360,
+        "w": 351,
+        "h": 15
+      }
+    },
+    {
+      "name": "wartungsvertrag_bereich",
+      "page": 1,
+      "type": "text",
+      "rect": {
+        "x": 202,
+        "y": 383,
+        "w": 351,
+        "h": 15
+      }
+    },
+    {
+      "name": "saisonjahr",
+      "page": 1,
+      "type": "text",
+      "rect": {
+        "x": 202,
+        "y": 406,
+        "w": 351,
+        "h": 15
+      }
+    },
+    {
+      "name": "wartungsvertrag_beschreibung",
+      "page": 1,
+      "type": "multiline",
+      "rect": {
+        "x": 49,
+        "y": 516,
+        "w": 497,
+        "h": 120
+      }
+    },
+    {
+      "name": "arbeitsstundenwirkung",
+      "page": 1,
+      "type": "text",
+      "rect": {
+        "x": 202,
+        "y": 688,
+        "w": 351,
+        "h": 15
+      }
+    },
+    {
+      "name": "wartungsvertrag_bemerkung",
+      "page": 1,
+      "type": "text",
+      "rect": {
+        "x": 202,
+        "y": 713,
+        "w": 351,
+        "h": 15
+      }
+    },
+    {
+      "name": "ort_datum",
+      "page": 2,
+      "type": "text",
+      "rect": {
+        "x": 142,
+        "y": 373,
+        "w": 411,
+        "h": 15
+      }
+    },
+    {
+      "name": "unterschrift_mitglied",
+      "page": 2,
+      "type": "signature",
+      "rect": {
+        "x": 45,
+        "y": 438,
+        "w": 240,
+        "h": 48
+      }
+    },
+    {
+      "name": "vereinsunterzeichner_1",
+      "page": 2,
+      "type": "multiline",
+      "rect": {
+        "x": 42,
+        "y": 578,
+        "w": 245,
+        "h": 48
+      }
+    },
+    {
+      "name": "unterschrift_vorstand_1",
+      "page": 2,
+      "type": "signature",
+      "rect": {
+        "x": 333,
+        "y": 573,
+        "w": 219,
+        "h": 54
+      }
+    },
+    {
+      "name": "vereinsunterzeichner_2",
+      "page": 2,
+      "type": "multiline",
+      "rect": {
+        "x": 42,
+        "y": 667,
+        "w": 245,
+        "h": 48
+      }
+    },
+    {
+      "name": "unterschrift_vorstand_2",
+      "page": 2,
+      "type": "signature",
+      "rect": {
+        "x": 333,
+        "y": 662,
+        "w": 219,
+        "h": 54
+      }
+    }
+  ]
+}
