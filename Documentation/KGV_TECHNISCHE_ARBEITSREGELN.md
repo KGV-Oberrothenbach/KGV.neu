@@ -1,6 +1,6 @@
 # KGV Software – Verbindliche technische Arbeitsregeln
 
-**Stand:** 22.11.2026
+**Stand:** 27.11.2026
 **Geltung:** Alle neuen Chats, Startprompts, Reparaturblöcke, Fachrechte-Arbeitspakete, Prüfungen und Weiterentwicklungen der KGV-Software.
 
 > **Verbindliche Startregel:** Vor Beginn jeder neuen Arbeit diese Datei auf `main` lesen und als technische Arbeitsgrundlage berücksichtigen. Jeder Startprompt muss auf diese Datei verweisen. Bei erkennbarem Änderungs- oder Ergänzungsbedarf den Nutzer ausdrücklich fragen, ob diese Datei erweitert oder angepasst werden soll. Regeländerungen erst nach Zustimmung durchführen.
@@ -15,6 +15,16 @@ Diese Datei beschreibt die **Arbeitsweise**, nicht den fachlichen Inhalt einzeln
 - Vor Datenbankarbeiten Zielumgebung und Migrationsstand kontrollieren. **Keine produktiven Datenbankänderungen ohne ausdrückliche Freigabe.**
 - Bestehende Benutzeränderungen, lokale Dateien und Git-Stände schützen. Kein ungefragtes `git reset`, `clean`, Überschreiben oder Löschen.
 - WPF ist aus den laufenden Modernisierungsarbeiten ausgeschlossen, sofern nicht ausdrücklich anders beauftragt.
+
+### Verbindliche Datenbankumgebung
+
+- **Die DemoDB ist die verbindliche Entwicklungs-, Reparatur-, Test- und Abnahmeumgebung für sämtliche fachlichen Datenbankarbeiten.**
+- Keine Verwendung einer lokalen SupabaseDB als fachliche Referenz oder als Ersatz für die DemoDB.
+- Lokale Supabase-Stacks ausschließlich für ausdrücklich beauftragte, isolierte CI- und Migrations-Replay-Prüfungen verwenden.
+- Auf dem PC ausgeführte HTTP-E2E-Testskripte müssen für die fachliche Abnahme die tatsächlich bereitgestellte Demo-Umgebung ansprechen.
+- Schemaabweichungen eines lokalen CI-Frischaufbaus sind kein eigenständiger Auftrag zur Änderung der DemoDB. Korrekturen nur bei nachgewiesenem fachlichem oder sicherheitstechnischem Bedarf.
+- Keine Wiederholung bereits abgeschlossener Reparaturblöcke ohne konkrete Regression oder fehlenden Prüfnachweis.
+- Die ProduktivDB bleibt ohne ausdrückliche Freigabe unverändert.
 
 ## 2. Supabase zwingend über NPX
 
@@ -52,6 +62,15 @@ npx --yes supabase@2.121.0 <befehl>
 - Wiederholte Ausführung darf keine unkontrollierten Duplikate, Überschreibungen oder Löschungen verursachen.
 - Maschinenlesbare Ergebnisse (vorzugsweise JSON) mit überprüfbaren Zuständen, Ergebnissen, Fehlern und offenen Punkten erzeugen; keine Geheimnisse protokollieren.
 
+### Automatische Ergebnisübergabe und Abschlussbenachrichtigung
+
+- **Dateien direkt in die Zwischenablage:** Wenn Dateien im Chat benötigt werden, muss der äußere PowerShell-Startblock die tatsächlichen, auf Geheimnisse geprüften Ergebnisdateien des aktuellen Laufs dauerhaft als Windows-Dateiliste in die Zwischenablage kopieren. Der Nutzer soll ausschließlich Strg+V im Chat drücken müssen.
+- Hierzu einen STA-Prozess mit System.Windows.Forms.DataObject.SetFileDropList und Clipboard.SetDataObject(data, true, 10, 200) verwenden. Nach Prozessende in einem separaten STA-Prozess mit Clipboard.GetFileDropList() kontrollieren, dass die erwarteten Dateien weiterhin vollständig vorhanden sind.
+- Kein Explorer-Fenster, kein Dateipfad als Text und keine veralteten Ergebnisdateien als Ersatz verwenden.
+- **Textprotokolle automatisch kopieren:** Wenn ein Textprotokoll benötigt wird, das aktuelle, auf Geheimnisse geprüfte Ergebnis- und Fehlerprotokoll im finally des äußeren Startblocks mit Set-Clipboard kopieren. Dies gilt auch bei Fehlern. Erfolgreich kopierte Dateien niemals anschließend mit Text überschreiben.
+- **Akustische Abschlussbenachrichtigung:** Jeder äußere PowerShell-Startblock muss im finally genau einmal die WAV-Datei C:\Users\Andreas\Music\phantom_oper_benachrichtigung.wav mittels System.Media.SoundPlayer.PlaySync() synchron abspielen und den Player anschließend freigeben. Falls das fehlschlägt, ersatzweise [Console]::Beep(1000, 500) versuchen.
+- Fehler der Zwischenablage oder Benachrichtigung dürfen den ursprünglichen Ausführungsstatus nicht verdecken.
+
 ## 4. Lokale Testkonten und Geheimnisse
 
 Die zwei Demo-Testpasswörter liegen lokal mit Windows-DPAPI verschlüsselt vor. Standardpfade:
@@ -61,7 +80,7 @@ Die zwei Demo-Testpasswörter liegen lokal mit Windows-DPAPI verschlüsselt vor.
 %LOCALAPPDATA%\KGV\TestSecrets\mitglied.secret
 ```
 
-- Für lokale HTTP-E2E-Tests diese Dateien beim Ausführen der PowerShell-Skripte unter **demselben Windows-Benutzerkonto auf demselben PC** einlesen und mittels `ConvertTo-SecureString` entschlüsseln. **Nicht erneut im Chat nach den Testpasswörtern fragen.**
+- Für auf dem PC ausgeführte HTTP-E2E-Tests gegen die Demo-Umgebung diese Dateien beim Ausführen der PowerShell-Skripte unter **demselben Windows-Benutzerkonto auf demselben PC** einlesen und mittels `ConvertTo-SecureString` entschlüsseln. **Nicht erneut im Chat nach den Testpasswörtern fragen.**
 - Für den HTTP-Login benötigter Klartext nur kurzzeitig im lokalen Arbeitsspeicher; erhaltene JWTs ebenfalls kurzlebig behandeln.
 - ChatGPT selbst kann die lokalen verschlüsselten Dateien nicht direkt auslesen. Entschlüsselung erfolgt beim lokalen Skriptlauf.
 - Passwörter, JWTs, Service-Role-Keys, Access-Tokens und vollständige Auth-Antworten niemals im Chat, Git, Testbericht, Debug-Log oder Commit ausgeben.
@@ -103,7 +122,7 @@ Die zwei Demo-Testpasswörter liegen lokal mit Windows-DPAPI verschlüsselt vor.
 
 ## 7. Arbeitsabschluss, Git und Deployment
 
-- Zusammenhängende Änderungen zunächst lokal/auf Demo prüfen und anschließend als nachvollziehbares Paket committen und pushen.
+- Zusammenhängende Änderungen zunächst durch Quellcode- und CI-Prüfungen sowie fachliche Prüfungen auf der DemoDB absichern und anschließend als nachvollziehbares Paket committen und pushen.
 - Build-, Test- und CI-Ergebnisse dem **tatsächlich geprüften Commit** zuordnen.
 - Nach Architekturwechseln Tests an den neuen Sollzustand anpassen, nicht die Anwendung an veraltete Testannahmen.
 - Abhängig vom Umfang Web, MAUI, Core, Infrastructure, Supabase und gemeinsame Dienste prüfen.
