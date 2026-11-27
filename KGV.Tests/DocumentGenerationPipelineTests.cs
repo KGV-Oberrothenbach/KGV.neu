@@ -95,7 +95,15 @@ public sealed class DocumentGenerationPipelineTests
         var leaseProvider = new FailingTemplateProvider(new InvalidOperationException());
         await Assert.ThrowsAsync<DocumentPipelineException>(() => PachtvertragDokumentFactory.CreateUploadRequestAsync(
             new MitgliedRecord(), null, new ParzelleRecord(), new SaisonRecord(), DateTime.Today, null, null, null, null, leaseProvider));
-        Assert.Equal(new PdfTemplateRequest("pachtvertrag", "pachtvertrag-field-spec/v9", "top-left/v1"), leaseProvider.LastRequest);
+        var leaseRequest = Assert.IsType<PdfTemplateRequest>(leaseProvider.LastRequest);
+        Assert.Equal("pachtvertrag", leaseRequest.TemplateKey);
+        Assert.Equal("pachtvertrag-field-spec/v9", leaseRequest.ExpectedFieldSpecVersion);
+        Assert.Equal("top-left/v1", leaseRequest.ExpectedRendererVersion);
+        Assert.Equal("pachtvertrag-field-spec/v10", Assert.Single(leaseRequest.AdditionalFieldSpecVersions));
+        Assert.True(leaseRequest.SupportsFieldSpecVersion("pachtvertrag-field-spec/v9"));
+        Assert.True(leaseRequest.SupportsFieldSpecVersion("pachtvertrag-field-spec/v10"));
+        Assert.False(leaseRequest.SupportsFieldSpecVersion("pachtvertrag-field-spec/v11"));
+        Assert.False(leaseRequest.SupportsFieldSpecVersion("mitgliedsantrag-field-spec/v6"));
     }
 
     private static DokumentUploadRequest Request(byte[] content) => new()
