@@ -807,9 +807,25 @@ Deno.serve(async (req) => {
         if (!await verifyArchivePassword(password))
           return errorResponse(403, "FORBIDDEN", "Das Archivpasswort ist nicht korrekt.", requestId);
 
+        // getUser(jwt) has verified this exact Bearer token; only now read its session claim.
+        // The service RPC checks the session/actor binding and live rights again atomically.
+        let sessionId: string;
+        try {
+          const jwtParts = authHeader.replace(/^Bearer\s+/i, "").trim().split(".");
+          if (jwtParts.length !== 3 || !/^[A-Za-z0-9_-]+$/.test(jwtParts[1])) throw new Error("invalid token");
+          const base64 = jwtParts[1].replace(/-/g, "+").replace(/_/g, "/");
+          const claims = JSON.parse(atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, "=")));
+          if (claims.sub !== auth.userId || typeof claims.session_id !== "string"
+              || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(claims.session_id))
+            throw new Error("invalid session");
+          sessionId = claims.session_id;
+        } catch {
+          return errorResponse(403, "FORBIDDEN", "Archivierung benötigt eine gültige Sitzung.", requestId);
+        }
+
         const { data: archivedId, error: archiveError } = await auth.supabaseAdmin
           .rpc("fr208_archive_dokument_service", {
-            p_dokument_id: documentId, p_actor: auth.userId, p_reason: reason,
+            p_dokument_id: documentId, p_actor: auth.userId, p_reason: reason, p_session_id: sessionId,
           });
         if (archiveError) {
           if (archiveError.code === "42501")
